@@ -4,9 +4,8 @@ import type { CardType, DeckFormat, Domain } from "./types/enums.js";
 import { WellKnown } from "./well-known.js";
 
 /**
- * The per-card fields a deck summary reads. Deliberately structural: the API
- * passes DB rows and the web app passes builder cards, and neither should have
- * to reshape a deck just to count it.
+ * Deliberately structural: the API passes DB rows, the web app passes
+ * builder cards.
  */
 export interface DeckCardSummaryInput {
   cardId: string;
@@ -16,7 +15,6 @@ export interface DeckCardSummaryInput {
   domains: readonly string[];
 }
 
-/** Enum display order, which the counts are emitted in. */
 export interface DeckSummaryOrders {
   cardTypes: readonly string[];
   domains: readonly string[];
@@ -30,9 +28,7 @@ export interface DeckCardStats {
   domainDistribution: { domain: Domain; count: number }[];
 }
 
-// Type and domain stats describe the playable body of the deck, so they come
-// from the main and champion zones only, and the three singleton types are left
-// out of the unit/spell/gear breakdown.
+// Counts main + champion zones only; the three singleton types are excluded.
 const EXCLUDED_TYPES = new Set<string>([
   WellKnown.cardType.LEGEND,
   WellKnown.cardType.RUNE,
@@ -40,13 +36,6 @@ const EXCLUDED_TYPES = new Set<string>([
 ]);
 const COUNTED_ZONES = new Set<string>([WellKnown.deckZone.MAIN, WellKnown.deckZone.CHAMPION]);
 
-/**
- * The derived numbers a deck list tile shows. Server decks and browser-local
- * decks (ADR-035) flow through the same tile, so both derive them here rather
- * than each mirroring the other.
- *
- * @returns The deck's legend, champion, card total and type/domain breakdowns.
- */
 export function summarizeDeckCards(
   cards: readonly DeckCardSummaryInput[],
   orders: DeckSummaryOrders,
@@ -64,15 +53,14 @@ export function summarizeDeckCards(
     if (championCardId === null && card.zone === WellKnown.deckZone.CHAMPION) {
       championCardId = card.cardId;
     }
-    // Overflow is a parking zone, so its copies are not part of the deck.
+    // Overflow copies are not part of the deck.
     if (card.zone !== WellKnown.deckZone.OVERFLOW) {
       totalCards += card.quantity;
     }
     if (!COUNTED_ZONES.has(card.zone)) {
       continue;
     }
-    // Fan out over the full type set (ADR-037): a multi-type card counts under
-    // each of its non-excluded types.
+    // A multi-type card counts under each of its non-excluded types.
     for (const cardType of card.cardTypes) {
       if (!EXCLUDED_TYPES.has(cardType)) {
         typeCountMap.set(cardType, (typeCountMap.get(cardType) ?? 0) + card.quantity);
@@ -97,12 +85,8 @@ export function summarizeDeckCards(
 }
 
 /**
- * The pass/fail a deck list tile reports. Only Constructed is judged: the list
- * query does not load per-card custom tag assignments, and the tag-membership
- * rule would mis-report without them. Other formats therefore read as valid in
- * the list and surface their real violations on the deck page.
- *
- * @returns Whether the deck should show as valid in a list.
+ * Only Constructed is judged: the list query does not load per-card custom
+ * tag assignments, and the tag-membership rule would mis-report without them.
  */
 export function isValidInDeckList(format: string, cards: readonly DeckCard[]): boolean {
   if (format !== WellKnown.deckFormat.CONSTRUCTED) {

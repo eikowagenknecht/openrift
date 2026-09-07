@@ -11,12 +11,7 @@ import { authedRoute } from "./_base.js";
 
 extendZodWithOpenApi(z);
 
-/**
- * Metadata fields settable on a copy (ADR-038), shared between `add` items
- * (so CSV import persists condition at insert time) and the `update` patch.
- * Field pairing mirrors the `copies` check constraints so violations fail at
- * the contract instead of as a database error.
- */
+// Field pairing mirrors the `copies` table check constraints.
 const copyMetadataInputShape = {
   condition: z.string().max(50).nullish(),
   grader: z.string().max(50).nullish(),
@@ -53,11 +48,7 @@ export const addCopiesSchema = z.object({
     .max(500),
 });
 
-/**
- * Partial metadata patch. Absent keys stay untouched; explicit nulls clear.
- * The service normalizes cross-field state (setting a condition clears
- * grading and vice versa), so a patch only has to be internally consistent.
- */
+// Absent keys stay untouched; explicit nulls clear.
 export const copyMetadataPatchSchema = z
   .object(copyMetadataInputShape)
   .refine(metadataConsistent, METADATA_CONSISTENCY_MESSAGE);
@@ -78,29 +69,13 @@ export const disposeCopiesSchema = z.object({
 
 export const copyListMembershipsSchema = z.object({
   copyIds: z.array(z.uuid()).min(1).max(500),
-  // When set, that list is excluded from the result. Used by the "Sold" action
-  // on a list page: the copy is necessarily on the current list, so the
-  // cross-list warning should only name the *other* lists it also sits on.
   excludeListId: z.uuid().optional(),
 });
 
-/**
- * Response body for `POST /copies`: the copies just created, each carrying the
- * full {@link copyResponseSchema} shape including `groupId` (derived from the
- * owning collection). Additive — older clients read a subset and ignore the
- * extra fields.
- */
 export const copyAddResponseSchema = z
   .object({ items: z.array(copyResponseSchema) })
   .openapi("CopyAddResponse");
 
-/**
- * Response body for `POST /copies/list-memberships`: which of the viewer's own
- * lists reference the queried copies, with a per-list copy count, plus the
- * distinct number of queried copies that are on at least one list. Lets the
- * dispose confirmation warn that removing copies also strips them from these
- * lists (copies are hard-deleted and `list_entries` cascade away).
- */
 export const copyListMembershipsResponseSchema = z
   .object({
     lists: z.array(
@@ -114,15 +89,6 @@ export const copyListMembershipsResponseSchema = z
   })
   .openapi("CopyListMembershipsResponse");
 
-/**
- * oRPC contract for the authenticated copies endpoints. All require a session
- * (the mount applies `requireAuth`), so they share the `authedRoute` base
- * (UNAUTHORIZED + FORBIDDEN). `add` returns 201; `move`, `update` and `dispose`
- * return 204 with no body. Domain codes per route: `add` → BAD_REQUEST (a copy
- * references a non-existent printing); `move` → NOT_FOUND (target collection or
- * copies missing); `update` → NOT_FOUND + BAD_REQUEST (unknown condition or
- * grader slug); `dispose` → NOT_FOUND + CONFLICT.
- */
 export const copiesContract = {
   list: authedRoute
     .route({ method: "GET", path: "/api/v1/copies", tags: ["Copies"] })

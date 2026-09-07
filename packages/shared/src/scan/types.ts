@@ -46,19 +46,14 @@ export type Matrix3 = readonly [
   number,
 ];
 
-/** Physical card proportions: 63mm x 88mm stock, the same for every Riftbound card. */
+/** 63mm x 88mm */
 export const CARD_ASPECT = 63 / 88;
 
 /** A card-shaped quadrilateral proposed by one of the detectors. */
 export interface CardCandidate {
-  /** Corners in the coordinate space of the frame that was passed in. */
   quad: Quad;
-  /** Long side over short side; a flat-on card reads about 1.397. */
   aspect: number;
-  /** Quad area as a fraction of the whole frame. */
   areaFraction: number;
-  /** Quad area over hull area; near 1 when the outline really is a quadrilateral. */
   rectangularity: number;
-  /** Combined shape and aim prior, higher is better. */
   score: number;
 }

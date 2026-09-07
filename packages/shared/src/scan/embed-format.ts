@@ -1,42 +1,18 @@
 /**
  * Binary container for the embedding bank, so the catalogue's vectors can be
- * shipped to a browser as one cacheable blob.
- *
- * Vectors are stored as fp16, which halves the payload; they decode back to
- * Float32Array so ranking code is unaffected. Unit-vector components sit well
- * inside fp16's range, and the round-trip moves cosines by less than 1e-3,
- * far below any decision threshold in the pipeline. Each entry also carries
- * its artwork key, because the accept layer aggregates by artwork and the
- * browser should not need a second download to know the grouping.
+ * shipped to a browser as one cacheable blob. Vectors are stored as fp16,
+ * halving the payload; they decode back to Float32Array.
  */
 import type { EmbedBank } from "./embed";
 
 const MAGIC = 0x52_46_45_42; // "RFEB"
-/**
- * Serialization version, also recorded next to server-built banks so an
- * engine-version bump is detectable without decoding the file.
- *
- * Version 2 adds a flags word after the header; version 1 banks (no flags,
- * native orientation) still decode.
- */
 export const EMBED_BANK_VERSION = 2;
 const VERSION = EMBED_BANK_VERSION;
-/**
- * Flags bit 0: the bank's landscape references were rotated 90 degrees left
- * into the rectifier's portrait frame at build time (and the encoder was
- * trained on that frame). Guide-mode sessions may then restrict the rotation
- * search to the 180-degree pair; against a native bank they must not.
- */
 const FLAG_CANONICAL = 1;
 
 const F32_SCRATCH = new Float32Array(1);
 const U32_SCRATCH = new Uint32Array(F32_SCRATCH.buffer);
 
-/**
- * Convert one float to fp16 bits, round to nearest.
- *
- * @returns The 16-bit pattern; denormals flush to signed zero.
- */
 function toHalf(value: number): number {
   F32_SCRATCH[0] = value;
   const bits = U32_SCRATCH[0];
@@ -60,11 +36,6 @@ function toHalf(value: number): number {
   return sign | (exponent << 10) | (mantissa >> 13);
 }
 
-/**
- * Convert fp16 bits back to a float.
- *
- * @returns The value; flushed denormals come back as zero.
- */
 function fromHalf(half: number): number {
   const sign = (half & 0x80_00) << 16;
   const exponent = (half >>> 10) & 0x1f;
@@ -78,14 +49,6 @@ function fromHalf(half: number): number {
   return F32_SCRATCH[0];
 }
 
-/**
- * Serialise a bank with its artwork grouping.
- *
- * @param canonical The bank was built in the canonical frame (landscape
- *   references rotated 90 degrees left); recorded in the container so the
- *   client knows whether the pair-only rotation search is sound.
- * @returns A self-contained buffer that {@link decodeEmbedBank} can restore.
- */
 export function encodeEmbedBank(
   bank: EmbedBank,
   artKeyOf: (key: string) => string,
@@ -145,12 +108,6 @@ export function encodeEmbedBank(
   return buffer;
 }
 
-/**
- * Restore a serialised bank.
- *
- * @returns The bank with Float32 vectors, each key's artwork key, and whether
- *   the bank was built in the canonical frame (version 1 banks are native).
- */
 export function decodeEmbedBank(buffer: ArrayBuffer): {
   bank: EmbedBank;
   artKeys: Map<string, string>;

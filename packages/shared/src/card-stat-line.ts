@@ -13,12 +13,7 @@ export interface CardStatLabels {
   readonly domains: Record<string, string>;
 }
 
-/**
- * The compact stat line under a card name: super types + types, domains, and
- * whichever of energy/might/power the card has. Labels are looked up
- * defensively (`.filter(Boolean)`) since this also renders in contexts (chat
- * bots) that can't guarantee every slug already has a label row.
- */
+/** Labels are looked up defensively since this also renders in contexts (chat bots) that can't guarantee every slug has a label row. */
 export function describeCardStats(card: CardStatFields, labels: CardStatLabels): string {
   const typeLine = [
     ...card.superTypes.map((slug) => labels.superTypes[slug]),

@@ -61,24 +61,17 @@ test.describe("profile shell", () => {
       const { name, email } = TEST_USERS.regular;
 
       // CardTitle/CardDescription render as <div>s with data-slot attributes,
-      // not as headings — asserting by slot keeps the test stable without
-      // adding a testid. The profile page has multiple Cards; the header is
-      // the first one in document order.
+      // not headings; the header card is first in document order.
       await expect(page.locator('[data-slot="card-title"]').first()).toHaveText(name, {
         timeout: 15_000,
       });
       await expect(page.locator('[data-slot="card-description"]').first()).toHaveText(email);
 
-      // "Joined <ISO day>" — every date in the app goes through formatDay now,
-      // so there is no locale variant to allow for.
+      // Every date goes through formatDay, so there's no locale variant to allow for.
       await expect(page.getByText(/^Joined \d{4}-\d{2}-\d{2}$/u)).toBeVisible();
 
-      // Avatar: the Gravatar URL uses `d=404` so arbitrary test emails will
-      // miss and BaseUI shows the initials fallback. If the image happens to
-      // resolve, the fallback stays in the DOM but is hidden — assert on its
-      // text regardless. The global header also renders an avatar-fallback in
-      // the user menu (it comes first in DOM), so target the card's fallback
-      // via .last().
+      // Gravatar's `d=404` makes test emails miss and show the initials
+      // fallback; the header's own comes first in DOM, so target via .last().
       const initials = name
         .split(/[\s@]/u)
         .slice(0, 2)
@@ -93,8 +86,8 @@ test.describe("profile shell", () => {
       const password = "ProfileTestPassword1!";
       try {
         await createVerifiedUser(request, sql, email, password, "Placeholder Name");
-        // better-auth requires a non-empty name at sign-up, so null it out
-        // after the fact to exercise the `user.name || user.email` fallback.
+        // better-auth requires a non-empty name at sign-up; clear it after to
+        // exercise the user.name || user.email fallback.
         await sql`UPDATE users SET name = '' WHERE email = ${email}`;
       } finally {
         await sql.end();
@@ -160,9 +153,7 @@ test.describe("profile shell", () => {
       const nav = page.getByRole("navigation").filter({ hasText: "Preferences" });
       await expect(nav).toBeVisible({ timeout: 15_000 });
 
-      // The active TOC link is styled via class tokens (text-foreground +
-      // font-medium); inactive links are muted. No aria-current yet.
-      // The TOC starts on its first section, which is "Public sharing".
+      // The active TOC link carries font-medium; there's no aria-current yet.
       const sharingLink = nav.getByRole("link", { name: "Public sharing", exact: true });
       await expect(sharingLink).toHaveClass(/font-medium/u);
 
@@ -198,8 +189,7 @@ test.describe("profile shell", () => {
       const page = authenticatedPage;
       await page.goto("/profile");
 
-      // SettingsGroups render as <section id="..."> scroll anchors (the old
-      // data-section attribute is gone).
+      // SettingsGroups render as <section id="..."> scroll anchors.
       for (const id of [
         "preferences",
         "sharing",

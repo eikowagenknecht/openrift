@@ -24,13 +24,8 @@ const hexColorSchema = z
   .nullable();
 
 /**
- * oRPC contract for the admin domain taxonomy CRUD (mounted at
- * `/api/admin/v1/domains`, admin-gated by the mount). All procedures share the
- * `authedRoute` base (UNAUTHORIZED + FORBIDDEN). Each row carries an optional
- * hex `color`. Domain codes per route: `reorder` → BAD_REQUEST (invalid slugs);
- * `create` → CONFLICT (slug taken); `update` → NOT_FOUND; `remove` → NOT_FOUND
- * + CONFLICT (well-known or in use). The static `reorder` path precedes
- * `{slug}`.
+ * Admin domain taxonomy CRUD, mounted at `/api/admin/v1/domains`. The static
+ * `reorder` path must precede `{slug}`.
  */
 export const adminDomainsContract = {
   list: authedRoute

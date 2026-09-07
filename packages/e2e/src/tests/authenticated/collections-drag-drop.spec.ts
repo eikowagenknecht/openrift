@@ -85,12 +85,8 @@ interface SeedResult {
   printingId: string;
 }
 
-/**
- * Seeds `count` copies of a single predictable printing into a collection.
- * Picks the first card whose name is plain ASCII letters so the name works
- * as a stable Playwright locator (img[alt=...], text=...).
- * @returns Card name + printing id of the seeded card.
- */
+// Picks the first card whose name is plain ASCII letters so the name works
+// as a stable Playwright locator (img[alt=...], text=...).
 async function seedSameCardCopies(
   email: string,
   collectionId: string,
@@ -212,7 +208,6 @@ test.describe("collections drag-drop", () => {
       const inboxId = await getInboxId(email);
       const { cardName } = await seedSameCardCopies(email, inboxId, 3);
 
-      // Default view is "cards" — all 3 copies render as a single stacked tile.
       await page.goto(`/collections/${inboxId}`);
       await expect(page.getByRole("link", { name: "Target" })).toBeVisible({ timeout: 15_000 });
 
@@ -309,11 +304,9 @@ test.describe("collections drag-drop", () => {
       await page.mouse.move(startX + 20, startY, { steps: 5 });
       // Move further into empty grid space so the overlay is clear of the tile.
       await page.mouse.move(startX + 200, startY + 50, { steps: 10 });
-      // Hold Shift so the stack drag shows the "N copies" label + count badge;
-      // without Shift the default drag represents only 1 copy.
+      // Without Shift the default drag represents only 1 copy.
       await page.keyboard.down("Shift");
 
-      // DragPreview renders the "N copies" label + a "N" count badge for N > 1.
       await expect(page.getByText("2 copies").first()).toBeVisible();
 
       // Source tile picks up inline opacity: 0.4 via DraggableCard's isDragging

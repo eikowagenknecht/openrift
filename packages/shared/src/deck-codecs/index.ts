@@ -1,13 +1,9 @@
 /**
  * Deck interchange codecs. Each format's encoder and decoder live in one
- * module so their vocabularies (zone headers, positional layout) cannot drift,
- * and so a round-trip test can run one straight into the other.
- *
- * Piltover *decoding* is the one exception: `parsePiltoverDeckCode` lives in
- * `../deck-code.ts` and is exported from the package root, because it predates
- * this directory and is imported widely enough (web, Discord bot) that moving
- * it would be churn. `parseDeckImportData` dispatches to it, and
- * `roundtrip.test.ts` covers it against this directory's encoder.
+ * module so their vocabularies cannot drift and round-trip tests can chain them.
+ * Piltover decoding is the exception: `parsePiltoverDeckCode` lives in
+ * `../deck-code.ts`, exported from the package root, since it's imported
+ * widely outside this directory (web, Discord bot).
  */
 export type { DeckCodec, DeckCodecCard, DeckCodeFormat, EncodeResult } from "./types.js";
 

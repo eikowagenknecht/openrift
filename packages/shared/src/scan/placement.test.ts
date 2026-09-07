@@ -6,12 +6,6 @@ import type { GrayImage, Quad } from "./types";
 const WIDTH = 64;
 const HEIGHT = 96;
 
-/**
- * A frame whose guide region carries a simple stripe pattern, seeded so two
- * different `seed` values look like two different cards.
- *
- * @returns The grayscale frame.
- */
 function frame(seed: number, brightness = 0): GrayImage {
   const data = new Uint8Array(WIDTH * HEIGHT);
   for (let y = 0; y < HEIGHT; y++) {
@@ -23,11 +17,6 @@ function frame(seed: number, brightness = 0): GrayImage {
   return { data, width: WIDTH, height: HEIGHT };
 }
 
-/**
- * An empty frame, one flat grey.
- *
- * @returns The blank grayscale frame.
- */
 function blank(level = 128): GrayImage {
   return { data: new Uint8Array(WIDTH * HEIGHT).fill(level), width: WIDTH, height: HEIGHT };
 }
@@ -39,11 +28,6 @@ const GUIDE: Quad = [
   { x: 8, y: 88 },
 ];
 
-/**
- * Feed the same frame in `count` times.
- *
- * @returns The last signal.
- */
 function hold(
   detector: ReturnType<typeof createPlacementDetector>,
   image: GrayImage,
@@ -72,7 +56,6 @@ describe("placementSignature", () => {
 
   it("reads only the guide region", () => {
     const withOutside = frame(1);
-    // Paint everything outside the guide black; the signature must not care.
     for (let y = 0; y < HEIGHT; y++) {
       for (let x = 0; x < WIDTH; x++) {
         if (x < 8 || x >= 56 || y < 8 || y >= 88) {
@@ -112,11 +95,9 @@ describe("createPlacementDetector", () => {
   it("reports a placement when a new card settles in the guide", () => {
     const detector = createPlacementDetector();
     hold(detector, blank(), 5);
-    // Four frames of movement, each showing something different.
     for (const seed of [2, 9, 4, 11]) {
       expect(detector.observe(frame(seed), GUIDE).disturbed).toBe(true);
     }
-    // One frame to end the disturbance, then two quiet ones to settle it.
     detector.observe(frame(1), GUIDE);
     detector.observe(frame(1), GUIDE);
     const settled = detector.observe(frame(1), GUIDE);
@@ -142,7 +123,6 @@ describe("createPlacementDetector", () => {
     for (const seed of [6, 12, 3, 7]) {
       detector.observe(frame(seed), GUIDE);
     }
-    // The card was nudged and released: the guide ends up where it started.
     detector.observe(frame(1), GUIDE);
     detector.observe(frame(1), GUIDE);
     const settled = detector.observe(frame(1), GUIDE);
@@ -174,8 +154,6 @@ describe("createPlacementDetector", () => {
     const detector = createPlacementDetector();
     hold(detector, frame(1), 5);
     detector.reset();
-    // The first frame after a reset establishes the reference, so a different
-    // card arriving right after it cannot report a settle from stale history.
     expect(detector.observe(frame(9), GUIDE).disturbed).toBe(false);
   });
 });

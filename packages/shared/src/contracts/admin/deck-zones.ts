@@ -16,13 +16,7 @@ const deckZoneSchema = z.object({
 
 const slugParamSchema = z.object({ slug: z.string().min(1) });
 
-/**
- * oRPC contract for the admin deck-zones taxonomy (mounted at
- * `/api/admin/v1/deck-zones`, admin-gated by the mount). Deck zones are a fixed
- * set — only list / reorder / relabel are exposed (no create or delete). Domain
- * codes per route: `reorder` → BAD_REQUEST (invalid slug list); `update` →
- * NOT_FOUND (unknown slug). The static `reorder` path precedes `{slug}`.
- */
+/** The literal `reorder` path must precede `{slug}` in route registration order. */
 export const adminDeckZonesContract = {
   list: authedRoute
     .route({ method: "GET", path: DZ, tags: [TAG] })

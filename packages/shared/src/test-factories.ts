@@ -1,19 +1,6 @@
 /**
- * Fixture builders for the catalogue types every package's tests work with.
- *
- * They live here rather than in one app's test folder because `Card` and
- * `Printing` are shared types: a field added to either used to mean editing
- * every test file that spelled the literal out by hand. A test overrides only
- * what it asserts on and inherits the rest.
- *
- * Two levels, matching the two shapes the catalogue actually has: the wire
- * printing (`makeCatalogPrinting`, what `/catalog` sends) and the joined one
- * (`makePrinting`, which adds the set columns and the card). The joined
- * builder is the wire one plus exactly those three fields, so a new wire field
- * reaches both from one place.
- *
- * Test-only, but a plain module: importing vitest here would drag it into app
- * bundles.
+ * Plain module, no vitest import: importing vitest here would drag it into
+ * app bundles.
  */
 
 import type {
@@ -29,13 +16,8 @@ export type CatalogCardFixture = CatalogResponseCardValue & { id: string };
 /** The wire printing as `/catalog` sends it, carrying its own id. */
 export type CatalogPrintingFixture = CatalogResponsePrintingValue & { id: string };
 
-/**
- * Drops keys whose value is `undefined`, so a caller forwarding its own
- * optional override (`{ type, keywords }` where either may be absent) gets the
- * default rather than an undefined field the type says cannot be undefined.
- *
- * @returns The overrides with every explicitly-undefined key removed.
- */
+// Drops undefined-valued keys, so a caller forwarding its own optional
+// override doesn't clobber the default with an explicit undefined.
 function defined<T extends object>(overrides: T): T {
   return Object.fromEntries(
     Object.entries(overrides).filter(([, value]) => value !== undefined),
@@ -45,7 +27,7 @@ function defined<T extends object>(overrides: T): T {
 /** A card with neutral defaults. Override only the fields under test. */
 export function makeCard(partial: Partial<Card> = {}): Card {
   const overrides = defined(partial);
-  // `type` and `types` must agree (ADR-037), so overriding either fixes both.
+  // `type` and `types` must agree, so overriding either fixes both.
   const type = overrides.type ?? overrides.types?.[0] ?? "unit";
   return {
     slug: "test-card",

@@ -4,10 +4,8 @@ test.describe("landing page", () => {
   test("renders the homepage with title and navigation", async ({ page }) => {
     await page.goto("/");
 
-    // Main heading is visible
     await expect(page.getByRole("heading", { name: "OpenRift", level: 1 })).toBeVisible();
 
-    // "Browse cards" link/button is visible
     await expect(page.getByRole("link", { name: /browse cards/iu })).toBeVisible();
   });
 
@@ -27,21 +25,15 @@ test.describe("landing page", () => {
     await expect(page).toHaveURL(/\/signup/u);
   });
 
-  // There is no "navigate to login" test: the landing page renders no header,
-  // and its two CTAs are "Browse cards" and "Sign up free". Reaching /login is
-  // covered by tests/auth/login.spec.ts.
+  // Reaching /login is covered by tests/auth/login.spec.ts; the landing page
+  // has no login CTA.
 
   test("redirects authenticated users to /cards", async ({ authenticatedPage: page }) => {
-    // Pre-flight: confirm the session cookie is active for this context by
-    // hitting a route that only loads for authenticated users. If this step
-    // redirects to /login the storage state is stale and the real test below
-    // could never pass either.
+    // Confirm the session cookie is active first: if this redirects to /login,
+    // the storage state is stale and the real assertion below can't pass either.
     await page.goto("/collections");
     await expect(page).toHaveURL("/collections");
 
-    // Now the real assertion: going to / with an active session redirects to
-    // /cards. Allow extra time in case the redirect is client-side after
-    // hydration rather than at SSR.
     await page.goto("/");
     await expect(page).toHaveURL(/\/cards/u, { timeout: 15_000 });
   });
@@ -53,10 +45,8 @@ test.describe("landing page", () => {
 
   test("shows the stats line with live card counts", async ({ page }) => {
     await page.goto("/");
-    // Numbers animate from 0 up to the real values via useCountUp, so require
-    // a non-zero leading digit — otherwise the assertion would pass on the
-    // initial "0 cards · 0 printings" frame before data loads. The counts go
-    // through toLocaleString, so allow thousands separators.
+    // Numbers animate from 0 via useCountUp; require a non-zero leading digit
+    // so this doesn't pass on the initial "0 cards" frame.
     await expect(
       page.getByText(/[1-9][\d,.]* cards · [1-9][\d,.]* printings · [\d,.]+ copies tracked/u),
     ).toBeVisible();
@@ -66,11 +56,8 @@ test.describe("landing page", () => {
     await page.goto("/");
     await expect(page.locator('[data-fan-index="0"]')).toBeVisible();
 
-    // Tapping the logo sets `hinting`, which swaps every fan card's border to
-    // border-primary/50 for 400ms. Start waiting before the click: waitFor
-    // reacts to DOM mutations, while an assertion polled on a fixed schedule
-    // could sample either side of that window. The class carries a "/", which
-    // a CSS class selector would need escaped — match the attribute instead.
+    // waitFor must be armed before the click, or the mutation can be missed to a poll race.
+    // The class contains "/", so match via attribute selector, not a CSS class selector.
     const hinted = page
       .locator('[data-fan-index="0"] [class*="border-primary/50"]')
       .waitFor({ state: "attached", timeout: 10_000 });
@@ -94,9 +81,7 @@ test.describe("landing page", () => {
   });
 
   test("feature rows navigate to their targets", async ({ page }) => {
-    // Unauthenticated: collections/decks/groups redirect to
-    // /login?redirect=%2Fcollections... so the target shows up URL-encoded in
-    // the query string. Decode the URL before matching.
+    // Unauthenticated redirects put the target URL-encoded in the query string.
     const rows: { name: RegExp; url: RegExp }[] = [
       { name: /every card, every printing/iu, url: /\/cards/u },
       { name: /collections, wishlists, tradelists/iu, url: /\/collections/u },
@@ -144,8 +129,7 @@ test.describe("landing page", () => {
     await expect(discord).toHaveAttribute("rel", "noreferrer");
     await expect(discord).toHaveAttribute("href", /discord\.gg/u);
 
-    // GitHub link's accessible name is the commit hash, which is dynamic —
-    // match by href instead.
+    // Accessible name is the commit hash, which is dynamic; match by href.
     const github = page.locator('footer a[href*="github.com"]');
     await expect(github).toHaveAttribute("target", "_blank");
     await expect(github).toHaveAttribute("rel", "noreferrer");
@@ -159,8 +143,7 @@ test.describe("landing page", () => {
     const description = page.locator('meta[name="description"]');
     await expect(description).toHaveAttribute("content", /Riftbound/iu);
 
-    // Playwright's text matchers (hasText, toHaveText) treat <script> as
-    // non-visible and return empty text, so read textContent directly.
+    // Playwright treats <script> as non-visible text, so read textContent directly.
     const jsonLdScripts = page.locator('script[type="application/ld+json"]');
     await expect(jsonLdScripts).toHaveCount(2);
     const jsonLdContents = await jsonLdScripts.allTextContents();
@@ -177,14 +160,12 @@ test.describe("landing page", () => {
     const dealt = await cards.count();
     expect(dealt).toBeGreaterThan(1);
 
-    // Click from inside the browser rather than with the mouse: the cards
-    // overlap by design (each leans over its left neighbor), so a real click
-    // at a card's center can land on the sibling stacked above it.
+    // Click via evaluate: the fan cards overlap, so a real mouse click at the
+    // center can land on the sibling stacked above it.
     await page.locator('[data-fan-index="0"] button').evaluate((button: HTMLElement) => {
       button.click();
     });
 
-    // The collected card stays mounted for its 800ms fly-away, then unmounts.
     await expect(cards).toHaveCount(dealt - 1);
     await expect(page.locator('[data-fan-index="0"]')).toHaveCount(0);
   });
@@ -197,15 +178,12 @@ test.describe("landing page", () => {
     await expect(cards.first()).toBeVisible();
     const dealt = await cards.count();
 
-    // The spin lasts 1000ms, starting 1300ms after the last collect (fly-away
-    // plus the all-collected delay). Arm the wait before collecting so the
-    // mutation is observed rather than polled for, which could miss it.
+    // Arm the wait before collecting so the mutation isn't missed to a poll race.
     const spun = page
       .locator('img[src*="logo-color.svg"].animate-logo-spin')
       .waitFor({ state: "attached", timeout: 15_000 });
 
-    // Collect the whole hand inside the browser, a frame apart so React
-    // commits each collect before the next click arrives.
+    // A frame apart so React commits each collect before the next click.
     await page.evaluate(async () => {
       async function nextFrame() {
         await new Promise<void>((resolve) => {
@@ -220,7 +198,6 @@ test.describe("landing page", () => {
 
     await spun;
 
-    // After the spin the fan is re-keyed, so the full hand deals back in.
     await expect(cards).toHaveCount(dealt, { timeout: 15_000 });
   });
 });

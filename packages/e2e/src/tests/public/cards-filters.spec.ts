@@ -4,29 +4,18 @@ import { expect, test } from "@playwright/test";
 import { cardImage, waitForCatalogLoaded } from "../../helpers/catalog.js";
 import { scrollUntilVisible } from "../../helpers/virtualized.js";
 
-// Seed data (apps/api/src/test/fixtures/seed.sql): a single set "Proving
-// Grounds" (slug OGS), Unit/Spell/Legend types, and domains Fury/Order/Body/
-// Mind/Calm/Chaos. Annie, Fiery is a Fury Unit; Firestorm is a Fury Spell;
-// Lux, Illuminated is a Mind Unit. These drive the narrowing assertions.
-//
-// The filter UI is exercised through the mobile "Options" drawer. On desktop
-// the filters live in a container-query left pane (only shown at ≥1720px
-// container width) or a collapsible "Show filters" toggle; neither is reliably
-// drivable in the dev-server harness (the collapsible toggle's click never
-// commits, and the wide left pane never satisfies its container query here).
-// The drawer renders the exact same FilterPanelContent, so it covers the real
-// filter logic. Card tiles are image-only (name in the art image's alt) and the
-// grid is window-virtualized, so cards are located by image role and scrolled
-// into view. Domain/type slugs are lowercase in the URL ("fury", "spell") even
-// though the badges display capitalized labels.
+// Seed data: set OGS "Proving Grounds"; Annie, Fiery is a Fury Unit, Firestorm
+// a Fury Spell, Lux, Illuminated a Mind Unit.
+// Filters are exercised through the mobile "Options" drawer: the desktop
+// container-query pane and collapsible toggle aren't reliably drivable in the
+// dev-server harness, but the drawer renders the same FilterPanelContent.
 
 const CARDS_URL = "/cards";
 const FOOTER_BUTTON = /^(?:Done|Show \d+ (?:cards?|printings?))$/u;
 
 /**
- * Open the mobile filter drawer. The toolbar handlers wire up a beat after the
- * grid hydrates, so retry the trigger until the drawer actually appears.
- * @returns The drawer content locator.
+ * Opens the mobile filter drawer, retrying the trigger until it appears (the
+ * toolbar handlers wire up a beat after the grid hydrates).
  */
 async function openFilterDrawer(page: Page): Promise<Locator> {
   const drawer = page.locator('[data-slot="drawer-content"]');
@@ -39,21 +28,16 @@ async function openFilterDrawer(page: Page): Promise<Locator> {
 }
 
 /**
- * Locate a filter badge inside the drawer by its leading label text. Badges
- * render the label followed by a faceted count (e.g. "Fury6"), so match on a
- * `^Label` prefix rather than an exact string.
- * @returns The first matching badge locator.
+ * Locates a filter badge by its leading label; badges render the label
+ * followed by a faceted count (e.g. "Fury6"), so match a `^Label` prefix.
  */
 function drawerBadge(drawer: Locator, labelPrefix: RegExp): Locator {
   return drawer.locator('[data-slot="badge"]', { hasText: labelPrefix }).first();
 }
 
 /**
- * Locate one chip in the active-filter strip. A card tile carries domain
- * badges with the same labels, so once a matching card has been scrolled into
- * view the label alone is ambiguous; the remove button, which only an
- * active-filter chip has, is what tells them apart.
- * @returns The chip locator.
+ * Locates one chip in the active-filter strip. A scrolled-in card tile can
+ * carry a domain badge with the same label, so require the remove button too.
  */
 function activeFilterChip(page: Page, label: RegExp): Locator {
   return page
@@ -62,14 +46,9 @@ function activeFilterChip(page: Page, label: RegExp): Locator {
 }
 
 /**
- * Click a filter badge and wait for its effect to land on the URL. Under load
- * the drawer re-renders continuously (hydration, owned-count bridge), detaching
- * an animated badge mid-click. Retry with a freshly-resolved locator, but only
- * click while the target URL state is not yet reached — the badges cycle
- * (include → exclude → off), so a blind repeat click would over-cycle. A normal
- * click auto-scrolls the badge into the scrollable drawer; a failed attempt is
- * swallowed so the retry loop continues to the assertion.
- * @returns Nothing.
+ * Clicks a filter badge and waits for its effect to land on the URL. Only
+ * clicks while the target URL state isn't reached yet — badges cycle
+ * include → exclude → off, so a blind repeat click would over-cycle.
  */
 async function toggleDrawerFilter(
   page: Page,
@@ -79,10 +58,8 @@ async function toggleDrawerFilter(
 ) {
   await expect(async () => {
     if (!urlSignal.test(page.url())) {
-      // dispatchEvent fires the badge's React onClick synchronously without a
-      // visibility / scroll / stability wait — the only reliable way to hit a
-      // badge in a drawer that re-renders continuously under parallel load. A
-      // stale node throws and the fresh locator retries.
+      // dispatchEvent fires onClick synchronously without a visibility/stability
+      // wait; a stale node throws and the fresh locator retries.
       await drawerBadge(drawer, labelPrefix)
         .dispatchEvent("click")
         .catch(() => {});
@@ -92,12 +69,8 @@ async function toggleDrawerFilter(
 }
 
 /**
- * Expand the drawer's "More filters" fold, which holds the secondary filters
- * (the flag badges among them) and starts collapsed. Dispatch rather than
- * click: the trigger sits below the drawer's fold line and the panel
- * re-renders while counts settle, so a real click waits on a stability it
- * never reaches. No-op when the fold is already open.
- * @returns Nothing.
+ * Expands the drawer's "More filters" fold.
+ * The panel re-renders while counts settle; a real click never stabilizes.
  */
 async function openMoreFilters(drawer: Locator) {
   const trigger = drawer.getByRole("button", { name: "More filters" });
@@ -107,15 +80,8 @@ async function openMoreFilters(drawer: Locator) {
   await trigger.dispatchEvent("click").catch(() => {});
 }
 
-/**
- * Close the drawer via its footer apply button, returning to the grid.
- * @returns Nothing.
- */
 async function closeFilterDrawer(page: Page) {
-  // The footer button carries the live result count, so it re-renders (and
-  // detaches) while the counts settle — a plain click can spend its whole
-  // timeout waiting for a stable node. Dispatch instead, and retry until the
-  // drawer is actually gone.
+  // The footer button re-renders as the live result count settles; a real click never stabilizes.
   const drawer = page.locator('[data-slot="drawer-content"]');
   await expect(async () => {
     await page
@@ -142,14 +108,12 @@ test.describe("card filters (mobile drawer)", () => {
       await expect(drawer.locator("p", { hasText: new RegExp(`^${label}$`, "u") })).toBeVisible();
     }
 
-    // Known badge contents inside the drawer.
     await expect(drawerBadge(drawer, /^Proving Grounds/u)).toBeVisible();
     await expect(drawerBadge(drawer, /^Fury/u)).toBeVisible();
     await expect(drawerBadge(drawer, /^Unit/u)).toBeVisible();
     await expect(drawerBadge(drawer, /^Epic/u)).toBeVisible();
 
-    // The footer apply button carries the live result count, so its label only
-    // settles once the counts do.
+    // Label only settles once the live result count does.
     await expect(page.getByRole("button", { name: FOOTER_BUTTON })).toBeVisible({
       timeout: 15_000,
     });
@@ -163,18 +127,13 @@ test.describe("card filters (mobile drawer)", () => {
 
     const drawer = await openFilterDrawer(page);
     await toggleDrawerFilter(page, drawer, /^Fury/u, /domains=[^&]*fury/u);
-    // Footer count updates to the narrowed result set. Which noun it counts
-    // follows the grid's view mode, so accept the same shapes as everywhere
-    // else in this file.
     await expect(page.getByRole("button", { name: FOOTER_BUTTON })).toBeVisible();
 
     await closeFilterDrawer(page);
 
-    // Mind-only Lux is filtered out; Fury Annie stays.
     await expect(cardImage(page, "Lux, Illuminated")).toHaveCount(0);
     await scrollUntilVisible(page, cardImage(page, "Annie, Fiery"));
 
-    // The active-filter strip shows a Fury chip (exact label, no count).
     await expect(activeFilterChip(page, /^Fury$/u)).toBeVisible();
   });
 
@@ -188,7 +147,6 @@ test.describe("card filters (mobile drawer)", () => {
 
     await closeFilterDrawer(page);
 
-    // Fury AND Spell: Firestorm (Fury Spell) stays; Annie (Fury Unit) drops out.
     await expect(cardImage(page, "Annie, Fiery")).toHaveCount(0);
     await scrollUntilVisible(page, cardImage(page, "Firestorm"));
   });
@@ -202,7 +160,6 @@ test.describe("card filters (mobile drawer)", () => {
     await closeFilterDrawer(page);
     await expect(cardImage(page, "Lux, Illuminated")).toHaveCount(0);
 
-    // Each include chip carries an X button that removes just that value.
     await activeFilterChip(page, /^Fury$/u)
       .getByRole("button")
       .click();
@@ -226,7 +183,6 @@ test.describe("card filters (mobile drawer)", () => {
     await expect(page).not.toHaveURL(/[?&]domains=/u);
     await expect(page).not.toHaveURL(/[?&]types=/u);
 
-    // Full grid is back: both a Fury card and a Mind card are reachable again.
     await scrollUntilVisible(page, cardImage(page, "Annie, Fiery"));
     await scrollUntilVisible(page, cardImage(page, "Lux, Illuminated"));
   });
@@ -264,10 +220,8 @@ test.describe("card filters (mobile drawer)", () => {
     const drawer = await openFilterDrawer(page);
     await openMoreFilters(drawer);
 
-    // Tri-state cycle: null → true → false → null (ADR-034). Each click waits
-    // for its URL signal so a detached-mid-click retry never double-toggles.
-    // Every filter change re-renders the drawer, which collapses the fold
-    // again, so re-open it before each step.
+    // Tri-state cycle: null → true → false → null. Each filter change
+    // re-renders and collapses the fold, so re-open it before each step.
     await toggleDrawerFilter(page, drawer, /^Errata/u, /[?&]errata=true/u);
     await openMoreFilters(drawer);
     await toggleDrawerFilter(page, drawer, /^Errata/u, /[?&]errata=false/u);

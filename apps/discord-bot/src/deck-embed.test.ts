@@ -17,7 +17,6 @@ import {
   makePrinting,
 } from "./test/factories.js";
 
-/** @returns A snapshot with a legend, a champion unit, a unit, a rune, and a battlefield. */
 function makeDeckSnapshot() {
   const cards = [
     makeCard({
@@ -53,7 +52,6 @@ function makeDeckSnapshot() {
   );
 }
 
-/** @returns A deck-code entry with sensible defaults for resolution tests. */
 function makeEntry(overrides: Partial<DeckImportEntry> = {}): DeckImportEntry {
   return {
     shortCode: "OGN-100",
@@ -212,7 +210,6 @@ describe("buildDeckEmbed", () => {
   it("caps the description at Discord's limit", () => {
     const snapshot = makeDeckSnapshot();
     const deck = resolveDeckEntries(snapshot, [makeEntry()]);
-    // Blow past 4096 with a wall of unknown codes.
     deck.unknownCodes.push(...Array.from({ length: 600 }, (_, i) => `XXX-${String(i)}`));
 
     const embed = buildDeckEmbed({

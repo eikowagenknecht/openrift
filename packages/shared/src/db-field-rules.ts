@@ -1,21 +1,14 @@
 /**
- * Field-level Zod rules that mirror the database CHECK / FK constraints. Single
- * source of truth — anything that builds a Zod object schema for cards,
- * printings or sets (admin endpoints, candidate ingest, contribute form)
- * reuses these.
- *
- * Lives in `@openrift/shared` so both `apps/api` and `apps/web` can import.
+ * Field-level Zod rules that mirror the database CHECK / FK constraints.
+ * Single source of truth: anything that builds a Zod object schema for
+ * cards, printings or sets reuses these.
  */
 import { z } from "zod";
 
 import { WellKnown } from "./well-known.js";
 
-/**
- * Printing `language` codes: 2-letter uppercase, matching the codes Riot prints
- * on the cards rather than ISO 639-1. The two mostly agree, but not always —
- * Simplified Chinese is `SC` here and `zh` in ISO. This only constrains the
- * shape; the `languages` table is the source of truth for which codes exist.
- */
+// 2-letter uppercase codes as Riot prints them, not ISO 639-1
+// (e.g. Simplified Chinese is `SC` here, `zh` in ISO).
 const LANGUAGE_CODE_PATTERN = /^[A-Z]{2}$/u;
 
 /** DB rejects '{}' and 'null'::jsonb but allows SQL NULL. */
@@ -30,12 +23,11 @@ const noEmptyJsonb = z
     "Must be null or a non-empty object",
   );
 
-/** Mirrors DB constraints on the `cards` table. */
 export const cardFieldRules = {
   slug: z.string().min(1),
   name: z.string().min(1),
   type: z.string().min(1),
-  /** Ordered card types (ADR-037); at least one, first entry mirrors `cards.type`. */
+  /** At least one; first entry mirrors `cards.type`. */
   types: z.array(z.string().min(1)).min(1),
   superTypes: z.array(z.string().min(1)),
   domains: z.array(z.string().min(1)).min(1),
@@ -48,7 +40,6 @@ export const cardFieldRules = {
   comment: z.string().min(1).nullable(),
 } satisfies Record<string, z.ZodType>;
 
-/** Mirrors DB constraints on the `printings` table. */
 export const printingFieldRules = {
   slug: z.string().min(1),
   shortCode: z.string().min(1),
@@ -64,18 +55,11 @@ export const printingFieldRules = {
   flavorText: z.string().min(1).nullable(),
   comment: z.string().min(1).nullable(),
   printedYear: z.number().int().min(1900).max(2999).nullable(),
-  /**
-   * FK → `languages.code`. The regex already pins the length, so callers add
-   * only `.nullable()` / `.optional()`. An un-normalized code (`"en"`) would
-   * otherwise pass a bare length check and fail later as an opaque FK violation
-   * at insert.
-   */
   language: z.string().regex(LANGUAGE_CODE_PATTERN, {
     message: "Language must be a 2-letter uppercase code (e.g. EN, SC).",
   }),
 } satisfies Record<string, z.ZodType>;
 
-/** Mirrors DB constraints on the `card_errata` table. */
 export const cardErrataFieldRules = {
   correctedRulesText: z.string().min(1).nullable(),
   correctedEffectText: z.string().min(1).nullable(),
@@ -84,11 +68,10 @@ export const cardErrataFieldRules = {
   effectiveDate: z.string().nullable(),
 } satisfies Record<string, z.ZodType>;
 
-/** Mirrors DB CHECK constraints on the `candidate_cards` table. */
 export const candidateCardFieldRules = {
   provider: z.string().min(1),
   name: z.string().min(1),
-  /** Ordered card types (ADR-037); empty when the source didn't provide one. */
+  /** Empty when the source didn't provide one. */
   types: z.array(z.string().min(1)),
   might: z.number().int().min(0).nullable(),
   energy: z.number().int().min(0).nullable(),
@@ -99,11 +82,9 @@ export const candidateCardFieldRules = {
   shortCode: z.string().min(1).nullable(),
   externalId: z.string().min(1),
   extraData: noEmptyJsonb,
-  // ADR-036: contributor's free-text note on an in-app submission (DB CHECK <> '').
   submissionNote: z.string().min(1).nullable(),
 } satisfies Record<string, z.ZodType>;
 
-/** Mirrors DB CHECK constraints on the `candidate_printings` table. */
 export const candidatePrintingFieldRules = {
   shortCode: z.string().min(1),
   setId: z.string().min(1).nullable(),
@@ -122,7 +103,6 @@ export const candidatePrintingFieldRules = {
   extraData: noEmptyJsonb,
 } satisfies Record<string, z.ZodType>;
 
-/** Mirrors DB constraints on the `sets` table. */
 export const setFieldRules = {
   slug: z.string().min(1),
   name: z.string().min(1),

@@ -117,10 +117,8 @@ async function createCollectionViaApi(request: APIRequestContext, name: string):
 }
 
 async function enterSelectMode(page: Page) {
-  // The desktop "Manage …" top-bar button has a visible text label; its mobile
-  // icon-only twin has no accessible name, so role+name picks it unambiguously.
-  // The toolbar is useHydrated-gated, so an early click is dropped — retry until
-  // the per-card "Select card" checkboxes (role=checkbox) actually appear.
+  // The toolbar is useHydrated-gated, so an early click is dropped; retry
+  // until the per-card "Select card" checkboxes actually appear.
   const manageButton = page.getByRole("button", { name: /^Manage\b/u });
   const checkbox = page.getByRole("checkbox", { name: "Select card", exact: true }).first();
   await expect(async () => {
@@ -132,11 +130,8 @@ async function enterSelectMode(page: Page) {
 }
 
 async function waitForCollectionReady(page: Page) {
-  // The "Manage cards/printings/copies" button renders as soon as the top-bar
-  // hydrates on a collection page — a reliable readiness signal that doesn't
-  // depend on any specific card being seeded. The first /collections/$id visit
-  // in a worker pays a large dev-server on-demand compile (the route is
-  // auth-gated so global-setup can't pre-warm it), so allow generous headroom.
+  // The first /collections/$id visit in a worker pays a large dev-server
+  // on-demand compile (auth-gated, so global-setup can't pre-warm it).
   await expect(page.getByRole("button", { name: /^Manage\b/u })).toBeVisible({ timeout: 45_000 });
 }
 
@@ -181,8 +176,6 @@ test.describe("collection actions", () => {
       await page.goto(`/collections/${inboxId}`);
       await waitForCollectionReady(page);
 
-      // We seeded one copy each of two distinct cards, so each gets its own
-      // tile in any view mode (cards, printings, or copies).
       await expect(page.getByText(ANNIE_FIERY).first()).toBeVisible({ timeout: 10_000 });
 
       await enterSelectMode(page);
@@ -190,19 +183,15 @@ test.describe("collection actions", () => {
       const checkboxes = page.getByRole("checkbox", { name: "Select card", exact: true });
       await expect(checkboxes).toHaveCount(2);
 
-      // Select first → floating bar shows 1 selected.
       await checkboxes.nth(0).click();
       await expect(page.getByText("1 selected")).toBeVisible();
 
-      // Second tile → 2 selected.
       await checkboxes.nth(1).click();
       await expect(page.getByText("2 selected")).toBeVisible();
 
-      // Clicking the same tile again deselects → 1 selected.
       await checkboxes.nth(1).click();
       await expect(page.getByText("1 selected")).toBeVisible();
 
-      // Clear button (aria-label "Clear selection") hides the bar.
       await page.getByRole("button", { name: /clear selection/iu }).click();
       await expect(page.getByText(/\d+ selected/u)).toBeHidden();
     });
@@ -218,13 +207,8 @@ test.describe("collection actions", () => {
       }
     });
 
-    // FIXME: with this setup — 2 copies of one printing in the Inbox while a
-    // sibling collection ("Target") also exists — the collection page renders
-    // the sidebar but never mounts the grid toolbar (no "Manage" button appears,
-    // even warm at 45s), so select-mode is unreachable. Passes for one copy
-    // (:255) and for two distinct cards (selection test), so it looks specific
-    // to duplicate copies of a single printing. Needs a product-side look — the
-    // grid may crash/stall on that shape. Unskip once the page renders.
+    // FIXME: with 2 copies of one printing in the Inbox, the grid toolbar
+    // never mounts (no "Manage" button). Unskip once the page renders that shape.
     test.fixme("moves selected copies into another collection", async ({ page }) => {
       userEmail = await createAndLogin(page);
       const inboxId = await findInboxId(userEmail);
@@ -263,7 +247,6 @@ test.describe("collection actions", () => {
       await expect(dialog).toBeHidden();
       await expect(page.getByText(/Moved 2 cards?/u)).toBeVisible({ timeout: 10_000 });
 
-      // Source grid no longer shows the card; Target grid does.
       await page.goto(`/collections/${inboxId}`);
       await waitForCollectionReady(page);
       await expect(page.getByText(ANNIE_FIERY)).toHaveCount(0);
@@ -278,7 +261,6 @@ test.describe("collection actions", () => {
     }) => {
       userEmail = await createAndLogin(page);
       const inboxId = await findInboxId(userEmail);
-      // Strip the default Binder so the Inbox is the user's only collection.
       await deleteNonInboxCollections(userEmail);
       const annie = await findPrintingIdForCard(ANNIE_FIERY);
       await seedCopies(page.request, annie, inboxId, 1);
@@ -328,7 +310,6 @@ test.describe("collection actions", () => {
       await dialog.getByRole("button", { name: /^Cancel$/u }).click();
       await expect(dialog).toBeHidden();
 
-      // Still 3 selected, still visible.
       await expect(page.getByText("3 selected")).toBeVisible();
       await expect(page.getByText(ANNIE_FIERY).first()).toBeVisible();
     });
@@ -368,7 +349,6 @@ test.describe("collection actions", () => {
       await expect(page.getByText(/Removed 3 cards?/u)).toBeVisible({ timeout: 10_000 });
       await expect(page.getByText(ANNIE_FIERY)).toHaveCount(0);
 
-      // DB: copies are hard-deleted and a "removed" collection event is logged.
       const sql = loadDb();
       try {
         const copyRows = (await sql`

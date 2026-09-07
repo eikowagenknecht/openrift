@@ -4,11 +4,6 @@ import type { EmbedBank } from "./embed";
 import { EMBED_DIM } from "./embed";
 import { decodeEmbedBank, encodeEmbedBank } from "./embed-format";
 
-/**
- * Build a deterministic pseudo-random unit vector.
- *
- * @returns The normalized vector.
- */
 function unitVector(seed: number): Float32Array {
   const vector = new Float32Array(EMBED_DIM);
   let value = seed;

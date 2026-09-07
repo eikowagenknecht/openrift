@@ -1,18 +1,10 @@
-/**
- * Zod schema for a card contribution. Snake-case keys mirror the shape the
- * `/contribute` form builds; the web app validates against this before handing
- * the payload to the in-app submission endpoint (ADR-036).
- *
- * The card/printing rules here are deliberately the same ones the catalog
- * enforces, sourced from `db-field-rules.js` so the two can't drift.
- */
+// Snake-case keys mirror the shape the /contribute form builds. Card/printing
+// rules are sourced from db-field-rules.js so the two can't drift.
 import { z } from "zod";
 
 import { cardFieldRules, printingFieldRules } from "./db-field-rules.js";
 
-/** Pattern for `external_id` on community contributions. */
 export const COMMUNITY_ID_PATTERN = /^community:[A-Za-z0-9][A-Za-z0-9:_-]*$/u;
-/** Pattern for printing `image_url` (allow https only). */
 export const HTTPS_URL_PATTERN = /^https:\/\//u;
 
 const communityId = z.string().regex(COMMUNITY_ID_PATTERN, {
@@ -26,17 +18,13 @@ const imageUrl = z
 
 const languageCode = printingFieldRules.language.nullable();
 
-// ---------------------------------------------------------------------------
-// Card
-// ---------------------------------------------------------------------------
-
 export const contributionCardSchema = z
   .object({
     name: cardFieldRules.name,
     external_id: communityId,
     // Legacy single-type field; kept so existing contribution files stay valid.
     type: cardFieldRules.type.nullable().optional(),
-    // Ordered card types (ADR-037); wins over `type` when both are present.
+    // Ordered card types; wins over `type` when both are present.
     types: cardFieldRules.types.optional(),
     super_types: cardFieldRules.superTypes.optional(),
     // Looser than DB: an empty domains array is accepted (the maintainer
@@ -49,10 +37,6 @@ export const contributionCardSchema = z
     tags: cardFieldRules.tags.optional(),
   })
   .strict();
-
-// ---------------------------------------------------------------------------
-// Printing
-// ---------------------------------------------------------------------------
 
 export const contributionPrintingSchema = z
   .object({
@@ -78,10 +62,6 @@ export const contributionPrintingSchema = z
     printed_year: printingFieldRules.printedYear.optional(),
   })
   .strict();
-
-// ---------------------------------------------------------------------------
-// File
-// ---------------------------------------------------------------------------
 
 export const contributionFileSchema = z
   .object({

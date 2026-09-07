@@ -1,15 +1,6 @@
 import type { Page } from "@playwright/test";
 import { test as base } from "@playwright/test";
 
-/**
- * Extended Playwright test fixture with pre-authenticated browser contexts.
- *
- * Usage:
- *   import { test, expect } from '../fixtures/test.js';
- *   test('my test', async ({ authenticatedPage }) => { ... });
- *
- * @returns The extended test and expect objects.
- */
 export const test = base.extend<{
   authenticatedPage: Page;
   adminPage: Page;

@@ -18,10 +18,6 @@ function card(overrides: Partial<DeckCodecCard>): DeckCodecCard {
   };
 }
 
-/**
- * A token stream of `count` distinct short codes, the shape encodeTTS emits.
- * @returns The space-separated stream.
- */
 function tokens(count: number): string {
   return Array.from(
     { length: count },
@@ -110,7 +106,6 @@ describe("parseTTSFormat", () => {
   });
 
   it("does not treat 55 tokens as Custom-Region plus a sideboard card", () => {
-    // Custom-Region has no sideboard, so 54 is an exact-length layout only.
     const { entries, warnings } = parseTTSFormat(tokens(55));
 
     expect(entries.every((entry) => entry.sourceSlot === "mainDeck")).toBe(true);
@@ -133,7 +128,6 @@ describe("parseTTSFormat", () => {
   });
 
   it("groups repeats within a slot but keeps the same code in two slots apart", () => {
-    // 56 main-section tokens where the last one repeats a sideboard code.
     const main = Array.from({ length: 56 }, (_, index) =>
       index === 55 ? "OGN-900-1" : `OGN-${String(index + 1).padStart(3, "0")}-1`,
     );

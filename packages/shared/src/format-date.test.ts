@@ -39,8 +39,6 @@ describe("formatDay", () => {
   });
 
   it("does not shift the day for an instant late in the UTC evening", () => {
-    // The trap this rule exists for: a viewer east of UTC is already on the
-    // 16th, but the stored day is the 15th and every reader must see the same.
     expect(formatDay("2026-08-15T23:59:59.999Z")).toBe("2026-08-15");
   });
 
@@ -109,8 +107,6 @@ describe("formatTimeLocal", () => {
 
 describe("formatDayTimeLocal", () => {
   it("renders an instant in the running timezone", () => {
-    // Built with the local-time constructor so the expectation holds in any
-    // timezone the suite runs under.
     expect(formatDayTimeLocal(new Date(2026, 7, 15, 14, 30))).toBe("2026-08-15 14:30");
   });
 
@@ -133,7 +129,6 @@ describe("formatCompactUtcStamp", () => {
   });
 
   it("takes the UTC calendar day even when it differs from the local one", () => {
-    // 23:30 UTC is already tomorrow for a reader east of UTC.
     expect(formatCompactUtcStamp(new Date("2026-08-15T23:30:00.000Z"))).toBe("20260815-2330");
   });
 
@@ -257,8 +252,6 @@ describe("formatRelativeDay", () => {
   });
 
   it("uses UTC on both sides so the bucket never shifts with the reader", () => {
-    // 23:00 UTC is already "tomorrow" for a reader east of UTC, but the day
-    // being labelled is still today's.
     const lateInTheDay = new Date("2026-06-08T23:00:00.000Z");
     expect(formatRelativeDay("2026-06-08", lateInTheDay)).toBe("Today");
   });

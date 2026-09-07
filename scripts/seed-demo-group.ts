@@ -1,16 +1,10 @@
 /**
  * Seeds a demo friend group with synthetic members, collections, shared lists,
- * trades and a mid-event tournament. Built for screenshots (README, docs) so the
- * group overview and trades pages look populated without exposing real user data.
+ * trades and a mid-event tournament, for screenshots without real user data.
  *
  * Usage: bun --env-file=.env scripts/seed-demo-group.ts <viewer-email>
  *
- * The viewer is an existing real account (whoever you are logged in as while
- * screenshotting) and becomes the group owner. Every other member is synthetic.
- * Re-running drops and rebuilds the group and its synthetic members, so the
- * script is idempotent.
- *
- * @returns Nothing; exits non-zero when the viewer account or a card is missing.
+ * The viewer becomes the group owner; re-running drops and rebuilds the rest.
  */
 import { createDb } from "../apps/api/src/db/connect.js";
 import { requireEnv } from "./env.js";
@@ -51,7 +45,6 @@ const MEMBERS = [
 type MemberKey = (typeof MEMBERS)[number]["key"];
 type PersonKey = MemberKey | "viewer";
 
-/** Contact methods, revealed to the group so the member chips render. */
 const CONTACTS = [
   { key: "mira", type: "discord", value: "mira_tannis" },
   { key: "mira", type: "signal", value: "@mira.42" },
@@ -61,10 +54,7 @@ const CONTACTS = [
   { key: "sam", type: "discord", value: "sam.okoye" },
 ] as const;
 
-/**
- * Cards used across the seed, keyed by a short handle. public_code alone is not
- * unique (the same code exists per finish), so each entry pins the finish too.
- */
+/** public_code alone is not unique (the same code exists per finish); each entry pins the finish. */
 const CARDS = {
   ahriEpic: { code: "OGN-119/298", finish: "foil" },
   ahriShowcase: { code: "SFD-227/221", finish: "foil" },
@@ -84,7 +74,6 @@ const CARDS = {
 
 type CardKey = keyof typeof CARDS;
 
-/** Cards each person physically owns; these become copies in their collection. */
 const OWNED: Record<PersonKey, CardKey[]> = {
   viewer: ["ahriEpic", "bladeDancer", "blindMonk", "azir", "battleMistress"],
   mira: ["apheliosShowcase", "baronShowcase", "ripper", "bard", "ambessa"],
@@ -104,7 +93,6 @@ const TRADING: Record<PersonKey, CardKey[]> = {
   sam: ["azir", "ripper"],
 };
 
-/** Cards each person wants. Overlaps with others' TRADING drive the matcher. */
 const WANTED: Record<PersonKey, CardKey[]> = {
   viewer: ["apheliosShowcase", "baronShowcase", "bardShowcase"],
   mira: ["bladeDancer", "azir"],
@@ -114,16 +102,7 @@ const WANTED: Record<PersonKey, CardKey[]> = {
   sam: ["ahriEpic", "baronEpic"],
 };
 
-/**
- * The group's loaner deck: a real, playable Azir list (Emperor of the Sands),
- * so the collection reads as an actual deck someone could borrow rather than a
- * handful of unrelated cards.
- *
- * Spelled out as card names + quantities rather than pointing at a deck id: a
- * personal deck's uuid only exists in one dev database and would not survive a
- * restore, whereas names resolve against the catalog anywhere. Names must match
- * `cards.name` exactly, typographic apostrophes included.
- */
+/** Names must match `cards.name` exactly, typographic apostrophes included. */
 const LOANER_DECK = {
   name: "Loaner deck: Azir",
   description: "The group's spare Azir deck. Ask an admin and it's yours for the night.",
@@ -153,21 +132,13 @@ const LOANER_DECK = {
   ],
 };
 
-/**
- * The group's shared bulk box: the one collection that should look like a real
- * pile rather than a handful of hand-picked cards. Drawn from the live catalog
- * (not the CARDS pool) so it spans many printings, and shared publicly the way
- * a real group's bulk box is.
- */
 const BULK_COLLECTION = {
   name: "Bulk box",
   description: "Everything the group throws in the box. Take what you need, leave what you don't.",
   shareToken: "RiftRunBulk1",
-  /** Distinct printings to draw from; each gets 1-3 copies. */
   printingCount: 220,
 };
 
-/** Slugs from the conditions table; cycled so copies are not all Near Mint. */
 const CONDITIONS = ["near-mint", "excellent", "light-played"];
 
 const { db } = createDb(requireEnv("DATABASE_URL"));
@@ -175,12 +146,10 @@ const { db } = createDb(requireEnv("DATABASE_URL"));
 const NOW = Date.now();
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** @returns A Date N days before the seed run (fractions allowed). */
 function daysAgo(n: number): Date {
   return new Date(NOW - n * DAY_MS);
 }
 
-/** @returns A Date N days after the seed run. */
 function daysAhead(n: number): Date {
   return new Date(NOW + n * DAY_MS);
 }
@@ -198,10 +167,8 @@ if (!viewer) {
 }
 const viewerUser = viewer;
 
-// Resolve every card handle to its printing up front so a typo fails loudly
-// before anything is written. Columns are camelCase throughout this script: the
-// db layer applies Kysely's CamelCasePlugin, so it maps them to the snake_case
-// database columns on the way out and camelizes result keys on the way back.
+// Columns are camelCase throughout this script: the db layer applies Kysely's
+// CamelCasePlugin to map them to and from the snake_case database columns.
 const printings = new Map<CardKey, { id: string; cardId: string; name: string }>();
 for (const [key, { code, finish }] of Object.entries(CARDS) as [
   CardKey,
@@ -226,11 +193,7 @@ for (const [key, { code, finish }] of Object.entries(CARDS) as [
 console.log(`Viewer: ${viewer.name ?? viewer.email} (${viewer.id})`);
 console.log(`Resolved ${printings.size} printings.`);
 
-// --- Reset -----------------------------------------------------------------
-// Deleting the group cascades members, shares, trades and group collections.
-// Deleting the synthetic users cascades their collections, copies and lists.
-// The viewer's own lists/collections are named-scoped, so remove them by name.
-// Tournaments are only SET NULL'd by the group delete, so drop them first or
+// Tournaments are only SET NULL'd by the group delete; drop them first or
 // re-runs leave orphans behind.
 await db
   .deleteFrom("tournaments")
@@ -275,7 +238,6 @@ await db
 
 console.log("Cleared any previous demo data.");
 
-// --- Users -----------------------------------------------------------------
 const userIds = new Map<PersonKey, string>([["viewer", viewer.id]]);
 for (const m of MEMBERS) {
   const id = `demo_${m.key}_${GROUP_SLUG}`.slice(0, 64);
@@ -293,7 +255,6 @@ for (const m of MEMBERS) {
 }
 console.log(`Created ${MEMBERS.length} synthetic members.`);
 
-/** @returns The user id for a person key. */
 function uid(key: PersonKey): string {
   const id = userIds.get(key);
   if (!id) {
@@ -302,7 +263,6 @@ function uid(key: PersonKey): string {
   return id;
 }
 
-/** @returns The resolved printing for a card handle. */
 function printing(card: CardKey): { id: string; cardId: string; name: string } {
   const row = printings.get(card);
   if (!row) {
@@ -311,7 +271,6 @@ function printing(card: CardKey): { id: string; cardId: string; name: string } {
   return row;
 }
 
-// --- Contact methods -------------------------------------------------------
 const contactIds: { key: MemberKey; id: string }[] = [];
 for (const [i, c] of CONTACTS.entries()) {
   const row = await db
@@ -322,7 +281,6 @@ for (const [i, c] of CONTACTS.entries()) {
   contactIds.push({ key: c.key, id: row.id });
 }
 
-// --- Group -----------------------------------------------------------------
 const group = await db
   .insertInto("friendGroups")
   .values({
@@ -348,7 +306,6 @@ await db
   ])
   .execute();
 
-// Reveal every synthetic contact method to the group.
 await db
   .insertInto("friendGroupMemberContacts")
   .values(contactIds.map((c) => ({ groupId: group.id, userId: uid(c.key), contactMethodId: c.id })))
@@ -358,9 +315,8 @@ console.log(
   `Created group "${GROUP_NAME}" (/groups/${GROUP_SLUG}) with ${MEMBERS.length + 1} members.`,
 );
 
-// --- Collections and copies ------------------------------------------------
 const people: PersonKey[] = ["viewer", ...MEMBERS.map((m) => m.key)];
-/** copyIds[person][card] -> copy id, used to wire tradelists and reserved trades. */
+/** Keyed by `${person}:${card}`, wired into tradelists and reserved trades. */
 const copyIds = new Map<string, string>();
 
 for (const person of people) {
@@ -393,7 +349,6 @@ for (const person of people) {
     copyIds.set(`${person}:${card}`, copy.id);
   }
 
-  // Share each member's binder into the group (staggered, so the feed spreads).
   await db
     .insertInto("friendGroupCollectionShares")
     .values({
@@ -405,7 +360,6 @@ for (const person of people) {
     .execute();
 }
 
-/** @returns The display name for a person key. */
 function personName(key: PersonKey): string {
   if (key === "viewer") {
     return viewerUser.name ?? "You";
@@ -417,11 +371,8 @@ function personName(key: PersonKey): string {
   return member.name;
 }
 
-// Group-owned collections (user_id null, group_id set).
-//
-// The loaner deck: one collection holding a real decklist. Each card name is
-// resolved to a single printing (EN, with an image, lowest public code) and
-// stocked at the deck's quantity, so the collection is the physical deck.
+// Each card name resolves to a single printing (EN, with an image, lowest id)
+// and is stocked at the deck's quantity.
 const loanerCollection = await db
   .insertInto("collections")
   .values({
@@ -468,9 +419,7 @@ for (const [i, entry] of LOANER_DECK.cards.entries()) {
   loanerCopies += entry.quantity;
 }
 
-// The bulk box, drawn straight from the catalog. Ordered by public code (not
-// random()) so a re-run seeds the same pile, and restricted to printings that
-// actually have an image so the collection's cover/fan tiles render.
+// Ordered by public code (not random()) so a re-run seeds the same pile.
 const bulkPrintings = await db
   .selectFrom("printings as p")
   .innerJoin("printingImages as pi", "pi.printingId", "p.id")
@@ -497,7 +446,6 @@ const bulkCollection = await db
   .returning("id")
   .executeTakeFirstOrThrow();
 
-// 1-3 copies each, so the box has natural duplicates rather than a flat playset.
 const bulkCopies = bulkPrintings.flatMap((row, i) =>
   Array.from({ length: (i % 3) + 1 }, () => ({
     collectionId: bulkCollection.id,
@@ -514,7 +462,6 @@ console.log(
     `${bulkCopies.length} copies).`,
 );
 
-// --- Lists (tradelists + wishlists), shared into the group -----------------
 for (const [i, person] of people.entries()) {
   const tradelist = await db
     .insertInto("lists")
@@ -590,10 +537,8 @@ for (const [i, person] of people.entries()) {
 }
 console.log(`Shared ${people.length * 2} lists into the group.`);
 
-// --- Trades ----------------------------------------------------------------
-// Completed trades feed the hero card fan, the activity feed and the traded
-// count. Consecutive same-giver/receiver rows collapse into one batch row, so
-// the Mira -> viewer pair below deliberately spans two cards.
+// Consecutive same-giver/receiver rows collapse into one batch row, so the
+// Mira -> viewer pair below deliberately spans two cards.
 interface TradeSpec {
   giver: PersonKey;
   receiver: PersonKey;
@@ -604,7 +549,6 @@ interface TradeSpec {
 }
 
 const TRADES: TradeSpec[] = [
-  // Completed, spread over the last two months.
   {
     giver: "mira",
     receiver: "viewer",
@@ -661,7 +605,6 @@ const TRADES: TradeSpec[] = [
     status: "completed",
     daysAgo: 5,
   },
-  // Live: pending on the viewer (action needed) and one reserved outgoing.
   {
     giver: "mira",
     receiver: "viewer",
@@ -719,7 +662,6 @@ for (const t of TRADES) {
     .returning("id")
     .executeTakeFirstOrThrow();
 
-  // A reserved trade holds the giver's physical copy.
   if (t.status === "reserved") {
     const copyId = copyIds.get(`${t.giver}:${t.card}`);
     if (copyId) {
@@ -731,8 +673,6 @@ console.log(
   `Created ${TRADES.length} trades (${TRADES.filter((t) => t.status === "completed").length} completed).`,
 );
 
-// --- Pending join request --------------------------------------------------
-// Gives the members page its "requests" band and bumps the members stat tile.
 const applicantId = "demo_applicant_rift-runners";
 await db.deleteFrom("users").where("id", "=", applicantId).execute();
 await db
@@ -755,15 +695,8 @@ await db
   })
   .execute();
 
-// --- Tournament ------------------------------------------------------------
-// A finished pod event: three finalized rounds of 14 players, shaped after a
-// real multiplayer night. Standings read only finalized rounds, so every round
-// carries placements; an unfinalized round contributes nothing to the ranking.
-//
-// endsAt matters: completion is date-derived, not read off `status`. With
-// endsAt null a tournament auto-completes 24h after startsAt anyway
-// (effectiveTournamentState in packages/shared/src/tournament-lifecycle.ts), so
-// set it explicitly rather than leaning on that grace window.
+// Completion is date-derived, not read off `status`, so endsAt is set here
+// explicitly; left null it would auto-complete 24h after startsAt anyway.
 const tournament = await db
   .insertInto("tournaments")
   .values({
@@ -775,8 +708,6 @@ const tournament = await db
     pairingStyle: "pod",
     currentRound: 3,
     matchFormat: "bo1",
-    // Real events get one when the host opens follow-along; without it the
-    // report/follow-along link has nothing to point at.
     reportToken: "RiftRunDemo1",
     startsAt: daysAgo(3),
     endsAt: daysAgo(3 - 7 / 24),
@@ -793,8 +724,6 @@ await db
   ])
   .execute();
 
-// Six group members plus eight walk-ins for a 14-player field, which also
-// exercises unclaimed entrants (userId null) alongside claimed ones.
 const WALK_INS = ["Priya", "Lars", "Dilan", "Noor", "Ivo", "Marta", "Kwame", "Elif"];
 const participantIds: string[] = [];
 
@@ -828,15 +757,8 @@ for (const name of WALK_INS) {
 }
 
 /**
- * A zero-penalty breakdown for a hand-seeded pairing.
- *
- * The keys must match what `loadRounds` reads out of `pods.penalty_breakdown`
- * (apps/api/src/repositories/pod-tournaments.ts), because the run-state
- * response is schema-validated on the way out. Only `sameRegion` is defaulted
- * there (`?? 0`) for rows predating the region feature; every other key,
- * `spread` included, is passed straight through. Miss one and it serialises as
- * undefined, the whole runState payload fails validation, and the overview
- * silently drops every round/standings module rather than erroring visibly.
+ * Keys must match what `loadRounds` reads from `pods.penalty_breakdown`; a
+ * missing key fails run-state schema validation and drops standings silently.
  */
 const NO_PENALTY = JSON.stringify({
   total: 0,
@@ -849,10 +771,8 @@ const NO_PENALTY = JSON.stringify({
   sameRegion: 0,
 });
 
-/** Points awarded by finishing position within a pod. */
 const GAME_POINTS = [3, 2, 1, 0];
 
-/** @returns The participant id at an index, guarding the fixed seating tables. */
 function seatPlayerId(index: number): string {
   const id = participantIds[index];
   if (!id) {
@@ -861,12 +781,7 @@ function seatPlayerId(index: number): string {
   return id;
 }
 
-/**
- * Three finalized rounds over 14 players. Seating is a fixed permutation per
- * round so pods are not straight repeats, and pod sizes mix 4s and 3s the way
- * an odd field forces. Rounds 1-2 seat all 14; round 3 seats 11 and byes the
- * rest, which exercises pod_byes (a bye still counts as a round played).
- */
+/** Round 3 seats 11 of 14 and byes the rest, exercising pod_byes. */
 const ROUNDS = [
   { number: 1, seating: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13], podSizes: [4, 4, 3, 3] },
   { number: 2, seating: [0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 3, 7, 11], podSizes: [4, 4, 3, 3] },
@@ -907,8 +822,7 @@ for (const round of ROUNDS) {
       .executeTakeFirstOrThrow();
 
     for (const [seat, participantIndex] of seats.entries()) {
-      // Rotate the winner by pod and round so the ranking is not just seat
-      // order, and placements stay distinct within each pod.
+      // Must vary by pod and round: placements need to stay distinct within each pod.
       const placement = ((seat + podNumber + round.number) % size) + 1;
       await db
         .insertInto("podMembers")
@@ -922,7 +836,6 @@ for (const round of ROUNDS) {
     }
   }
 
-  // Anyone left unseated this round takes a bye.
   for (const participantIndex of round.seating.slice(seatCursor)) {
     await db
       .insertInto("podByes")

@@ -1,14 +1,8 @@
 /**
- * ORB feature verification, the pipeline's precision stage.
- *
- * The embedding ranks the whole catalogue by appearance, but a card it has
- * never seen can still score respectably. Feature matching answers a stricter
- * question: do specific corners and blobs of ink appear in both images, in a
- * geometrically consistent arrangement? A wrong card produces scattered
- * matches that no single homography explains.
- *
- * OpenCV is injected structurally, like the contour detector, so this package
- * never depends on the 10 MB WASM build.
+ * ORB feature verification: the pipeline's precision stage, confirming a
+ * geometrically consistent match beyond the embedding's appearance ranking.
+ * OpenCV is injected structurally so this package doesn't depend on the
+ * 10 MB WASM build.
  */
 import { artWindowRect } from "./art-window";
 import type { RgbaImage } from "./types";
@@ -81,11 +75,8 @@ export interface OrbCvLike {
 }
 
 export interface OrbVerdict {
-  /** Feature correspondences that survived the ratio test. */
   matched: number;
-  /** Of those, how many agree on one homography. */
   inliers: number;
-  /** Inliers over matches; low means the correspondences were noise. */
   ratio: number;
 }
 
@@ -95,15 +86,9 @@ export interface OrbFeatures {
 }
 
 /**
- * Detect and describe ORB features for an image.
- *
- * With `artOnly`, features are only detected inside the art window for the
- * image's own orientation. Card frames are pixel-identical across the whole
- * catalogue, so frame keypoints can support a geometrically consistent
- * homography against the wrong card; masking a reference removes their
- * partners entirely.
- *
- * @returns Keypoints and descriptors; release with {@link releaseOrb}.
+ * With `artOnly`, features are only detected inside the art window: card
+ * frames are pixel-identical across the catalogue, so unmasked frame
+ * keypoints can support a homography against the wrong card.
  */
 export function describeOrb(
   cv: OrbCvLike,
@@ -138,21 +123,11 @@ export function describeOrb(
   return { keypoints, descriptors };
 }
 
-/**
- * Release a cached ORB result.
- *
- * @returns Nothing.
- */
 export function releaseOrb(features: OrbFeatures): void {
   features.keypoints.delete();
   features.descriptors.delete();
 }
 
-/**
- * Check whether two feature sets describe the same card.
- *
- * @returns Match and inlier counts; zero when either side has too few features.
- */
 export function verifyOrb(cv: OrbCvLike, query: OrbFeatures, reference: OrbFeatures): OrbVerdict {
   if (query.descriptors.rows < 8 || reference.descriptors.rows < 8) {
     return { matched: 0, inliers: 0, ratio: 0 };
@@ -172,9 +147,8 @@ export function verifyOrb(cv: OrbCvLike, query: OrbFeatures, reference: OrbFeatu
     }
     const a = pair.get(0);
     const b = pair.get(1);
-    // Lowe's ratio test: keep only correspondences that are clearly better than
-    // the next best, which discards the repetitive frame elements every card
-    // shares.
+    // Lowe's ratio test: keep only correspondences clearly better than the
+    // next-best match, discarding repetitive frame elements every card shares.
     if (a.distance < 0.75 * b.distance) {
       const qp = query.keypoints.get(a.queryIdx).pt;
       const rp = reference.keypoints.get(a.trainIdx).pt;

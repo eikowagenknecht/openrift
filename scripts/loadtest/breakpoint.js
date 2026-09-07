@@ -1,14 +1,6 @@
-// Breakpoint test (anonymous): linear ramp from 0 to a high VU count,
-// aborting the moment error rate or p95 latency crosses the SLO. The VU
-// count at abort is the app's anonymous-traffic ceiling.
-//
-// Against a Cloudflare-fronted host this mostly measures edge capacity —
-// use breakpoint-authed.js to find the origin SSR ceiling.
-//
-// Usage: BASE_URL=https://preview.openrift.app k6 run scripts/loadtest/breakpoint.js
-//
-// Override the ramp with env vars if the defaults are too timid/aggressive:
-//   MAX_VUS=2000 RAMP_DURATION=40m k6 run scripts/loadtest/breakpoint.js
+// Ramps VUs, aborting once the SLO is breached. Against a Cloudflare-fronted
+// host this mostly measures edge capacity; use breakpoint-authed.js for the
+// origin SSR ceiling.
 
 import { check, sleep } from "k6";
 import http from "k6/http";

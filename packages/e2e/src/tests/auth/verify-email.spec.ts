@@ -33,9 +33,8 @@ test.describe("verify email page", () => {
     test("renders all expected elements when ?email= is present", async ({ page }) => {
       await page.goto("/verify-email?email=foo@test.com");
 
-      // The auth form card renders the OpenRift logo twice — a mobile version
-      // (md:hidden) and a desktop version (hidden md:block). Only one is
-      // visible per viewport, but both exist in the DOM.
+      // The auth form card renders the OpenRift logo twice (mobile + desktop
+      // variants); only one is visible per viewport, but both exist in the DOM.
       await expect(page.getByRole("img", { name: "OpenRift" }).first()).toBeVisible();
       await expect(page.getByRole("heading", { name: "Verify your email" })).toBeVisible();
       await expect(page.getByText(/foo@test\.com/u)).toBeVisible();
@@ -117,12 +116,8 @@ test.describe("verify email page", () => {
       await page.goto(`/verify-email?email=${encodeURIComponent(email)}`);
       await page.locator(OTP_INPUT).fill(otp);
 
-      // Either OTP error is a pass. better-auth deletes every expired
-      // verification row on any verification read (findVerificationValue in
-      // its internal adapter), so whether the row still exists when the code
-      // is submitted decides which error comes back: OTP_EXPIRED if it does,
-      // INVALID_OTP if the sweep got there first. What the page must do in
-      // both cases is refuse the code and say so.
+      // better-auth deletes expired verification rows on any read, so which
+      // error comes back depends on whether the sweep beat this request.
       await expect(
         page.getByText(
           /Code expired\. Please request a new one\.|Incorrect code\. Please try again\./u,
@@ -266,9 +261,8 @@ test.describe("verify email page", () => {
       await signUp(request, email, "VerifyTestPassword1!");
 
       await page.goto(`/verify-email?email=${encodeURIComponent(email)}`);
-      // Wait for React to hydrate before clicking — the Resend button's
-      // onClick isn't attached until then, and the first click otherwise
-      // fires into the void.
+      // The Resend button's onClick isn't attached until hydration, so
+      // clicking before then fires into the void.
       await expect(page.getByRole("button", { name: /^resend code$/iu })).toBeVisible();
       await page.waitForFunction(
         () => {

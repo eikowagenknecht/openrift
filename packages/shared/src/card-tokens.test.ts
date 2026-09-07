@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { findTokenReferences } from "./card-tokens.js";
 
-/** The live token set, so the short ambiguous names are covered by default. */
 const TOKENS = [
   { cardId: "baron-pit", name: "Baron Pit" },
   { cardId: "bird", name: "Bird" },
@@ -21,7 +20,6 @@ const TOKENS = [
 
 const CARD_TYPES = ["legend", "unit", "rune", "spell", "gear", "battlefield", "other"];
 
-/** The card the text belongs to, an ordinary one unless a test says otherwise. */
 const OWNER = "some-card";
 
 function find(...texts: (string | null | undefined)[]): string[] {

@@ -1,7 +1,4 @@
-// Reverse proxy for `bun run start` so /api/* reaches the API server and
-// /media/* streams from disk. Mirrors nginx's role in prod (see nginx/web.conf).
-// Not used by `bun dev` — that uses Vite's server.proxy and a dev-only
-// /media middleware (see apps/web/vite.config.ts).
+// Used by `bun run start` only; `bun dev` proxies via Vite (see apps/web/vite.config.ts).
 
 // oxlint-disable-next-line import/no-nodejs-modules -- script runs in Bun
 import { readFile } from "node:fs/promises";

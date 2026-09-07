@@ -3,8 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { isDeckCode, parsePiltoverDeckCode } from "./deck-code.js";
 
-// Mock the Piltover library — we control what getDeckFromCode returns so we can
-// test our deduplication logic without depending on real binary deck codes.
 // vi.mock is hoisted above the imports by vitest.
 vi.mock("@piltoverarchive/riftbound-deck-codes", () => ({
   getDeckFromCode: vi.fn(),
@@ -12,10 +10,8 @@ vi.mock("@piltoverarchive/riftbound-deck-codes", () => ({
 
 const mockGetDeckFromCode = vi.mocked(getDeckFromCode);
 
-/** A base32-shaped string the mocked decoder accepts (14 chars, A–Z only). */
 const VALID_CODE = "CEBAGAYDAMBQGE";
 
-/** Makes the mocked decoder accept exactly one code and reject everything else. */
 function mockValidCode(validCode: string): void {
   mockGetDeckFromCode.mockImplementation((code: string) => {
     if (code === validCode) {
@@ -38,7 +34,6 @@ describe("parsePiltoverDeckCode", () => {
 
     const { entries } = parsePiltoverDeckCode("FAKECODE");
 
-    // Champion card: 2 in mainDeck + 1 in chosenChampion = 3 total (not 4)
     const championMain = entries.find(
       (entry) => entry.shortCode === "OGN-007" && entry.sourceSlot === "mainDeck",
     );
@@ -50,7 +45,6 @@ describe("parsePiltoverDeckCode", () => {
     expect(championEntry?.quantity).toBe(1);
     expect(championEntry?.explicitZone).toBe("champion");
 
-    // Non-champion card is unaffected
     const normalCard = entries.find(
       (entry) => entry.shortCode === "OGN-001" && entry.sourceSlot === "mainDeck",
     );
@@ -69,7 +63,6 @@ describe("parsePiltoverDeckCode", () => {
 
     const { entries } = parsePiltoverDeckCode("FAKECODE");
 
-    // Only the chosenChampion entry should exist — no mainDeck entry with 0 copies
     const championMain = entries.find(
       (entry) => entry.shortCode === "OGN-007" && entry.sourceSlot === "mainDeck",
     );
@@ -82,7 +75,6 @@ describe("parsePiltoverDeckCode", () => {
   });
 
   it("consolidates duplicate mainDeck entries and subtracts 1 for champion", () => {
-    // The library can return the same card at different count levels
     mockGetDeckFromCode.mockReturnValue({
       mainDeck: [
         { cardCode: "OGN-007", count: 2 },
@@ -94,7 +86,6 @@ describe("parsePiltoverDeckCode", () => {
 
     const { entries } = parsePiltoverDeckCode("FAKECODE");
 
-    // Consolidated total is 3, minus 1 for champion = 2 in a single main entry
     const mainEntries = entries.filter(
       (entry) => entry.shortCode === "OGN-007" && entry.sourceSlot === "mainDeck",
     );
@@ -155,7 +146,6 @@ describe("isDeckCode", () => {
 
   it("rejects a base32-shaped token the decoder refuses", () => {
     mockValidCode(VALID_CODE);
-    // 13 letters, passes the charset pre-filter, but the decoder rejects it
     expect(isDeckCode("Battlecruiser")).toBe(false);
   });
 

@@ -18,13 +18,12 @@ import type { z } from "zod";
 
 export type ListIntent = z.infer<typeof listIntentResponseSchema>;
 
-/** Granularity the list tracks. Each list contains uniformly one kind. */
 export type ListKind = z.infer<typeof listKindResponseSchema>;
 
 /**
- * Where an expanded entry came from (ADR-034). `manual` = a real `list_entries`
- * row; `rule` = produced by the list's dynamic rule; `both` = a manual entry the
- * rule also produced (the manual row wins for id/overrides).
+ * `manual` = a real `list_entries` row; `rule` = produced by the list's
+ * dynamic rule; `both` = a manual entry the rule also produced, and the
+ * manual row wins for id/overrides.
  */
 export type EntrySource = z.infer<typeof listEntryDetailResponseSchema>["source"];
 
@@ -35,17 +34,13 @@ export type ListListResponse = z.infer<typeof listListResponseSchema>;
 export type ListEntryResponse = z.infer<typeof listEntryResponseSchema>;
 
 /**
- * Enriched entry row. Joined with card/printing/copy details on the server.
- * `printing` and `copy` variants both carry a non-null `printingId` (for copy
- * it's the printing under the physical copy) so the client can look up a
- * thumbnail directly. `card` variant has no printing — the client picks a
- * representative from the catalog.
+ * `printing` and `copy` variants both carry a non-null `printingId` (for
+ * copy, the printing under the physical copy); `card` has no printing.
  */
 export type ListEntryDetailResponse = z.infer<typeof listEntryDetailResponseSchema>;
 
 export type ListDetailResponse = z.infer<typeof listDetailResponseSchema>;
 
-/** The list object on a detail response also carries the dynamic rules (ADR-034). */
 export type ListDetailListResponse = ListDetailResponse["list"];
 
 export type PublicListResponse = z.infer<typeof publicListResponseSchema>;

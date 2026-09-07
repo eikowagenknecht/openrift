@@ -10,7 +10,6 @@ import { makeCatalogCard, makeCatalogPrinting } from "@openrift/shared/test-fact
 import type { CatalogCard, CatalogPrinting } from "../catalog-cache.js";
 import type { RulesSnapshot } from "../rules-cache.js";
 
-/** @returns A catalog card with sensible defaults, overridable per test. */
 export function makeCard(overrides: Partial<CatalogCard> = {}): CatalogCard {
   return makeCatalogCard({
     slug: "jinx-rebel",
@@ -23,7 +22,6 @@ export function makeCard(overrides: Partial<CatalogCard> = {}): CatalogCard {
   });
 }
 
-/** @returns A catalog printing with sensible defaults, overridable per test. */
 export function makePrinting(overrides: Partial<CatalogPrinting> = {}): CatalogPrinting {
   return makeCatalogPrinting({
     shortCode: "OGN-202",
@@ -37,7 +35,6 @@ export function makePrinting(overrides: Partial<CatalogPrinting> = {}): CatalogP
   });
 }
 
-/** @returns A catalog set with sensible defaults, overridable per test. */
 export function makeSet(overrides: Partial<CatalogSetResponse> = {}): CatalogSetResponse {
   return {
     id: "set-1",
@@ -49,7 +46,6 @@ export function makeSet(overrides: Partial<CatalogSetResponse> = {}): CatalogSet
   };
 }
 
-/** @returns A CatalogResponse wire payload assembled from full card/printing objects. */
 export function makeCatalogResponse(
   cards: CatalogCard[],
   printings: CatalogPrinting[],
@@ -64,7 +60,6 @@ export function makeCatalogResponse(
   };
 }
 
-/** @returns An InitResponse whose enum rows cover the slugs the card factory uses. */
 export function makeInitResponse(): InitResponse {
   return {
     enums: {
@@ -118,10 +113,6 @@ export function makeInitResponse(): InitResponse {
   };
 }
 
-/**
- * @returns A PricesResponse with the given per-printing cents maps, and no
- *          price marked stale. Pass `stale` when a test needs an aged price.
- */
 export function makePricesResponse(
   prices: PricesResponse["prices"] = {},
   stale: PricesResponse["stale"] = {},
@@ -133,7 +124,6 @@ export function makePricesResponse(
   };
 }
 
-/** @returns A rule row with sensible defaults, overridable per test. */
 export function makeRule(overrides: Partial<RuleResponse> & { ruleNumber: string }): RuleResponse {
   return {
     id: overrides.ruleNumber,
@@ -148,12 +138,6 @@ export function makeRule(overrides: Partial<RuleResponse> & { ruleNumber: string
   };
 }
 
-/**
- * Assembles a rules snapshot from plain rule rows; the tournament rows get
- * their kind stamped so tests only vary the fields they care about.
- *
- * @returns A rules snapshot with the given core and tournament rules.
- */
 export function makeRulesSnapshot(
   core: RuleResponse[],
   tournament: RuleResponse[] = [],

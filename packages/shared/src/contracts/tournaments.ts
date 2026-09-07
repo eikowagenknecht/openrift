@@ -22,12 +22,8 @@ import { authedRoute } from "./_base.js";
 
 extendZodWithOpenApi(z);
 
-// ─── Enums ─────────────────────────────────────────────────────────────────
-
 export const tournamentStatusSchema = z.enum(TOURNAMENT_STATUSES);
-// The pod engine reads the same columns, so these vocabularies live once in
-// response-schemas.ts (the `pod*` schemas) and are re-exported under their
-// tournaments-contract name here rather than re-declared.
+// Re-exported from response-schemas.ts: the pod engine reads the same columns.
 export const tournamentPairingStyleSchema = podPairingStyleSchema;
 export const tournamentPlayModeSchema = podPlayModeSchema;
 export const tournamentMatchFormatSchema = podMatchFormatSchema;
@@ -44,8 +40,6 @@ export const tournamentParticipantStatusSchema = z.enum([
 ]);
 const tournamentViewerRoleSchema = z.enum(["host", "organizer", "judge", "participant"]);
 export const scoringSchemeSchema = podScoringSchemeSchema;
-
-// ─── Response schemas ──────────────────────────────────────────────────────
 
 export const tournamentHostInfoSchema = z.object({
   type: z.enum(["user", "organization"]),
@@ -65,22 +59,18 @@ export const tournamentStaffMemberResponseSchema = z
     userId: z.string(),
     name: z.string().nullable(),
     role: tournamentStaffRoleSchema,
-    // "grant" is an explicit tournament_staff row (removable here); "organization"
-    // is an implicit staff member of the host org (owner/manager as organizer, or
-    // judge as judge).
+    // "grant" is an explicit tournament_staff row; "organization" is an
+    // implicit staff member of the host org.
     source: z.enum(["grant", "organization"]),
     orgRole: organizationRoleSchema.nullable(),
     addedAt: z.string(),
   })
   .openapi("TournamentStaffMemberResponse");
 
-/** How many participants a summary previews for the facepile. */
 export const TOURNAMENT_PARTICIPANT_PREVIEW_COUNT = 5;
 
-/** How many distinct legend arts a summary carries for the hero card fan. */
 export const TOURNAMENT_COVER_LEGEND_COUNT = 3;
 
-/** One participant in the summary facepile preview. */
 export const tournamentParticipantPreviewSchema = z
   .object({
     name: z.string(),
@@ -89,11 +79,7 @@ export const tournamentParticipantPreviewSchema = z
   })
   .openapi("TournamentParticipantPreview");
 
-/**
- * The standings leader of a completed tournament. The legend art comes from
- * their deck-check entry and is only present when they consented to deck
- * publishing.
- */
+/** The legend art is only present when the winner consented to deck publishing. */
 export const tournamentWinnerSchema = z
   .object({
     name: z.string(),
@@ -101,7 +87,6 @@ export const tournamentWinnerSchema = z
   })
   .openapi("TournamentWinner");
 
-/** One legend art for the hero card fan (from publishing-consented decks). */
 export const tournamentCoverLegendSchema = z
   .object({
     printingId: z.string(),
@@ -119,7 +104,6 @@ export const tournamentSummaryResponseSchema = z
     groupSlug: z.string().nullable(),
     groupName: z.string().nullable(),
     pairingStyle: tournamentPairingStyleSchema,
-    /** 1v1 or 2v2 team play, orthogonal to the pairing style. */
     playMode: tournamentPlayModeSchema,
     deckSubmission: tournamentDeckSubmissionSchema,
     deckFormat: z.string().nullable(),
@@ -141,12 +125,7 @@ export const tournamentListResponseSchema = z
   .object({ items: z.array(tournamentSummaryResponseSchema) })
   .openapi("TournamentListResponse");
 
-/**
- * The viewer's own deck entry, as much of it as the tournament dashboard needs
- * (ADR-033): enough to render the My deck tile and to gate the deck route,
- * without the list itself. Null when the viewer holds no entry — either they
- * are not a participant, or the tournament takes no decks.
- */
+/** Null when the viewer holds no entry: not a participant, or no decks taken. */
 export const tournamentMyDeckEntrySchema = z.object({
   id: z.string(),
   state: deckCheckEntryStateSchema,
@@ -161,11 +140,9 @@ export const tournamentDetailResponseSchema = tournamentSummaryResponseSchema
     currentRound: z.number().int().nonnegative(),
     scoringScheme: scoringSchemeSchema,
     byePoints: z.number().int().nonnegative(),
-    /** Swiss result entry: best of 1 or best of 3. Ignored by the pod engine. */
     matchFormat: tournamentMatchFormatSchema,
     winPoints: z.number().int().nonnegative(),
     drawPoints: z.number().int().nonnegative(),
-    /** Region layer: per-participant regions, region-aware pairing, region standings. */
     regionsEnabled: z.boolean(),
     deckPhase: tournamentDeckPhaseSchema,
     submissionsCloseAt: z.string().nullable(),
@@ -178,7 +155,6 @@ export const tournamentDetailResponseSchema = tournamentSummaryResponseSchema
     organizerInviteToken: z.string().nullable(),
     judgeInviteToken: z.string().nullable(),
     staff: z.array(tournamentStaffMemberResponseSchema),
-    /** True once any round exists; the pairing engine can no longer be changed. */
     hasRounds: z.boolean(),
   })
   .openapi("TournamentDetailResponse");
@@ -204,23 +180,15 @@ export const tournamentParticipantResponseSchema = z
     riotId: z.string().nullable(),
     status: tournamentParticipantStatusSchema,
     seed: z.number().int().nullable(),
-    /**
-     * The participant's fixed 2v2 team, or null when unteamed (always null in
-     * 1v1 play). Teams have no stored name: the pair of member display names
-     * IS the team identity, so the roster payload already carries everything
-     * needed to render teams.
-     */
+    // Teams have no stored name; the pair of member display names is the
+    // team identity.
     teamId: z.string().nullable(),
-    /** Region tag slug (custom-tag category `region`); null when unassigned. */
     region: z.string().nullable(),
-    /**
-     * Fixed (physical) table number, or null. Soft: steers which table the
-     * player's pod lands on, never who they are paired with.
-     */
+    // Soft: steers which table the player's pod lands on, never who they
+    // are paired with.
     fixedTable: z.number().int().nullable(),
     droppedAfterRound: z.number().int().nullable(),
     claimToken: z.string().nullable(),
-    /** A judge unlinked a wrong account; the spot is blocked until a re-issue. */
     claimBlocked: z.boolean(),
     createdAt: z.string(),
     updatedAt: z.string(),
@@ -235,8 +203,6 @@ const tournamentStaffListResponseSchema = z
   .object({ items: z.array(tournamentStaffMemberResponseSchema) })
   .openapi("TournamentStaffListResponse");
 
-// ─── Input schemas ─────────────────────────────────────────────────────────
-
 const hostInputSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("user") }),
   z.object({ type: z.literal("organization"), orgId: z.uuid() }),
@@ -246,8 +212,7 @@ export const createTournamentSchema = z.object({
   name: z.string().min(1).max(120),
   host: hostInputSchema,
   pairingStyle: tournamentPairingStyleSchema,
-  // 2v2 team play. Composes with 'swiss' or 'none'; rejected with 'pod' and
-  // with regionsEnabled (422, mirroring the DB CHECKs).
+  // Composes with 'swiss' or 'none'; rejected with 'pod' or regionsEnabled.
   playMode: tournamentPlayModeSchema.optional(),
   scoringScheme: scoringSchemeSchema.optional(),
   byePoints: z.number().int().min(0).max(99).optional(),
@@ -269,25 +234,20 @@ export const createTournamentSchema = z.object({
 export const updateTournamentSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   status: tournamentStatusSchema.optional(),
-  // Reassign the host (personal ↔ organization). Host-only; the target org
-  // requires the caller to be one of its members (owner/manager).
+  // Host-only; reassigning to an org requires the caller be one of its
+  // owner/manager members.
   host: hostInputSchema.optional(),
-  // The pairing engine. Only honored while the tournament has no rounds yet (the
-  // handler 409s otherwise, since rounds/pods depend on it).
+  // Only honored while the tournament has no rounds yet (409 otherwise).
   pairingStyle: tournamentPairingStyleSchema.optional(),
-  // Like pairingStyle: only honored while the tournament has no rounds yet.
-  // Switching to 2v2 also requires no teams-incompatible settings (pod
-  // pairing, regions); leaving 2v2 requires no teams to exist.
+  // Only honored while the tournament has no rounds yet. Switching to 2v2
+  // also requires no pod pairing or regions; leaving 2v2 requires no teams.
   playMode: tournamentPlayModeSchema.optional(),
   startsAt: isoDateTime.optional(),
   endsAt: isoDateTime.nullable().optional(),
   scoringScheme: scoringSchemeSchema.optional(),
   byePoints: z.number().int().min(0).max(99).optional(),
-  // Swiss result entry (Bo1/Bo3). Like pairingStyle, only honored while the
-  // tournament has no rounds yet (the handler 409s otherwise).
+  // Only honored while the tournament has no rounds yet (409 otherwise).
   matchFormat: tournamentMatchFormatSchema.optional(),
-  // Win/draw points and the region layer recompute on read, so they stay
-  // editable at any time.
   winPoints: z.number().int().min(0).max(99).optional(),
   drawPoints: z.number().int().min(0).max(99).optional(),
   regionsEnabled: z.boolean().optional(),
@@ -312,27 +272,16 @@ const staffParamSchema = z.object({
   role: tournamentStaffRoleSchema,
 });
 
-// ─── Pod-engine running input (pod_rounds format) ──────────────────────────
-
 const roundNumberParamSchema = z.object({
   id: z.uuid(),
   roundNumber: z.coerce.number().int().positive(),
 });
 const podParamSchema = z.object({ id: z.uuid(), podId: z.uuid() });
 
-/**
- * Pair the next round. `byes` lists active players the organizer is sitting out
- * this round (manual byes); the rest are paired. Resolves an otherwise
- * unrepresentable count (1, 2, or 5 active players) or sits a leaver out.
- */
+/** `byes` lists active players the organizer is manually sitting out this round. */
 const generateRoundSchema = z.object({ byes: z.array(z.uuid()).default([]) });
 
-/**
- * A manual whole-round pairing edit: the new pods plus the players sitting out.
- * The server validates pod sizes per pairing style (3/4 for pods, 2 for Swiss
- * matches), full coverage of the round's players, and that byes are active,
- * then recomputes the penalty.
- */
+/** Server validates pod sizes per pairing style, full round coverage, and active byes. */
 const replacePairingSchema = z.object({
   pods: z
     .array(
@@ -347,13 +296,8 @@ const replacePairingSchema = z.object({
 
 const validationError = { VALIDATION_ERROR: { status: 422 as const, message: "Invalid settings" } };
 
-/**
- * Authenticated oRPC contract for the unified tournaments umbrella (ADR-033),
- * mounted at `/api/v1/tournaments`. Authorization composes host authority (the
- * hosting user, or an organization owner/manager) with `tournament_staff`
- * grants; the route handlers enforce it. `VALIDATION_ERROR` (422) carries the
- * cross-field CHECK-invariant rejections on create/update.
- */
+// Authorization composes host authority with tournament_staff grants,
+// enforced by the route handlers.
 export const tournamentsContract = {
   list: authedRoute
     .route({ method: "GET", path: BASE, tags: [TAG] })
@@ -405,14 +349,13 @@ export const tournamentsContract = {
     .input(idParamSchema)
     .output(tournamentDetailResponseSchema),
 
-  // ── Staff ──────────────────────────────────────────────────────────────────
   listStaff: authedRoute
     .route({ method: "GET", path: `${BASE}/{id}/staff`, tags: [TAG] })
     .errors({ NOT_FOUND: { message: "Tournament not found" } })
     .input(idParamSchema)
     .output(tournamentStaffListResponseSchema),
-  // People the host can grant staff to without an email: linked group members
-  // and account-linked participants. Powers the add-staff picker.
+  // Linked group members and account-linked participants: staff grantable
+  // without an email.
   listStaffCandidates: authedRoute
     .route({ method: "GET", path: `${BASE}/{id}/staff/candidates`, tags: [TAG] })
     .errors({ NOT_FOUND: { message: "Tournament not found" } })
@@ -423,8 +366,8 @@ export const tournamentsContract = {
     .errors({ NOT_FOUND: { message: "Tournament not found" } })
     .input(
       withParams(idParamSchema, {
-        // Added by account id from the candidate picker — no email, no user
-        // search; the handler re-checks eligibility so a forged id is rejected.
+        // Added by account id; the handler re-checks eligibility so a
+        // forged id is rejected.
         userId: z.string().min(1),
         role: tournamentStaffRoleSchema,
       }),
@@ -446,7 +389,6 @@ export const tournamentsContract = {
     .input(z.object({ id: z.uuid(), role: tournamentStaffRoleSchema }))
     .output(tournamentDetailResponseSchema),
 
-  // ── Participants ─────────────────────────────────────────────────────────
   listParticipants: authedRoute
     .route({ method: "GET", path: `${BASE}/{id}/participants`, tags: [TAG] })
     .errors({ NOT_FOUND: { message: "Tournament not found" } })
@@ -470,10 +412,8 @@ export const tournamentsContract = {
       withParams(participantParamSchema, {
         displayName: z.string().min(1).max(120).optional(),
         seed: z.number().int().nullable().optional(),
-        // A region tag slug, or null to clear. Judges may patch region alone;
-        // the other fields stay organizer/host-only.
+        // Judges may patch region alone; other fields stay organizer/host-only.
         region: z.string().min(1).max(50).nullable().optional(),
-        // A physical table number, or null to clear (soft fixed seat).
         fixedTable: z.number().int().min(1).max(999).nullable().optional(),
       }),
     )
@@ -529,10 +469,8 @@ export const tournamentsContract = {
     .errors({ NOT_FOUND: { message: "Tournament or participant not found" } })
     .input(participantParamSchema)
     .output(tournamentParticipantListResponseSchema),
-  // Clears the claim block an unlink leaves behind and rotates the claim token,
-  // so the correct player can claim the spot through a fresh link (ADR-033). The
-  // only recovery path once a wrong account was unlinked, now that staff cannot
-  // link accounts directly.
+  // Clears the claim block an unlink leaves and rotates the claim token so
+  // the correct player can claim the spot through a fresh link.
   reissueClaim: authedRoute
     .route({
       method: "POST",
@@ -543,11 +481,8 @@ export const tournamentsContract = {
     .input(participantParamSchema)
     .output(tournamentParticipantListResponseSchema),
 
-  // ── Teams (2v2 play mode) ──────────────────────────────────────────────────
-  // Teams are fixed pairs, built by the organizer from the individual roster.
   // Membership rides on the participant rows (`teamId`), so both mutations
-  // answer with the participant list. New teams stay creatable between rounds
-  // (late arrivals); dissolving is blocked once the team has played a round.
+  // answer with the participant list.
   createTeam: authedRoute
     .route({ method: "POST", path: `${BASE}/{id}/teams`, tags: [TAG], successStatus: 201 })
     .errors({
@@ -566,11 +501,8 @@ export const tournamentsContract = {
     .input(teamParamSchema)
     .output(tournamentParticipantListResponseSchema),
 
-  // ── Running (pod_rounds format) ────────────────────────────────────────────
-  // The pod engine's pairings + standings, keyed by the same tournament id.
-  // `runState` is readable by anyone with a relationship to the tournament (the
-  // 404 mirrors the detail gate); the round-running mutations require manage
-  // authority (host or organizer).
+  // `runState` is readable by anyone with a relationship to the tournament;
+  // round-running mutations require host or organizer authority.
   runState: authedRoute
     .route({ method: "GET", path: `${BASE}/{id}/run`, tags: [TAG] })
     .errors({ NOT_FOUND: { message: "Tournament not found" } })

@@ -1,24 +1,7 @@
-// Breakpoint test (authed): linear ramp from 0 to a high VU count with
-// every request carrying a better-auth session cookie, so Cloudflare
-// bypasses its edge cache and every page hits origin SSR. Aborts the
-// moment error rate or p95 latency crosses the SLO — the VU count at
-// abort is the origin's authed-traffic ceiling.
-//
-// Authentication model: same as journey-authed.js — sign in once in a
-// real browser, copy the session cookie, pass it via env. All VUs share
-// the cookie; same-user traffic is a fine proxy for the SSR ceiling.
-//
-// Usage:
-//   # 1. Sign in on https://preview.openrift.app in a browser
-//   # 2. Copy the value of __Secure-better-auth.session_token
-//   # 3. Run:
-//   COOKIE_NAME=__Secure-better-auth.session_token \
-//   LOADTEST_SESSION_COOKIE=<paste> \
-//   BASE_URL=https://preview.openrift.app \
-//     k6 run scripts/loadtest/breakpoint-authed.js
-//
-// Override the ramp with env vars if the defaults are too timid/aggressive:
-//   MAX_VUS=800 RAMP_DURATION=30m k6 run scripts/loadtest/breakpoint-authed.js
+// Ramps VUs with a real session cookie so Cloudflare bypasses its edge
+// cache and every request hits origin SSR. Aborts once the SLO is breached.
+// Get LOADTEST_SESSION_COOKIE by signing in on the target host and copying
+// __Secure-better-auth.session_token; pass it (and BASE_URL) via env.
 
 import { check, sleep } from "k6";
 import http from "k6/http";

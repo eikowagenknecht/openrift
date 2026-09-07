@@ -1,20 +1,11 @@
 /**
- * The subset of a list entry (ADR-034) needed to merge copy-kind entries into
- * one per printing. Mirrors the discriminant of both `ListEntryRow` (api) and
- * `ListEntryDetailResponse` (web): a card-kind entry carries `cardId` and no
- * `printingId`, the printing and copy kinds the reverse.
+ * Mirrors the discriminant of `ListEntryRow` (api) and
+ * `ListEntryDetailResponse` (web); keep the three in sync.
  */
 export type MergeableListEntry =
   | { kind: "card"; cardId: string; quantity: number }
   | { kind: "printing" | "copy"; printingId: string; quantity: number };
 
-/**
- * Collapses copy-kind entries (one per physical copy) into one entry per
- * printing, summing quantities — a trade binder shows one tile "3× Cleave",
- * not three.
- *
- * @returns One entry per distinct target, first-seen fields kept aside from `quantity`.
- */
 export function mergeListEntriesByTarget<T extends MergeableListEntry>(entries: readonly T[]): T[] {
   const byTarget = new Map<string, T>();
   for (const entry of entries) {

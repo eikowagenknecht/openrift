@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { piltoverCodec } from "./piltover.js";
 import type { DeckCodecCard } from "./types.js";
 
-// Mock the Piltover library so we can control encoding without real binary codes.
 vi.mock("@piltoverarchive/riftbound-deck-codes", () => ({
   getCodeFromDeck: vi.fn(() => "MOCK_CODE"),
 }));
@@ -57,7 +56,6 @@ describe("piltoverCodec.encode", () => {
 
     expect(encodedChampion()).toBe("OGN-007");
 
-    // Should be a single consolidated entry with count 3 (2 main + 1 champion)
     expect(encodedMainDeck()).toEqual([{ cardCode: "OGN-007", count: 3 }]);
   });
 

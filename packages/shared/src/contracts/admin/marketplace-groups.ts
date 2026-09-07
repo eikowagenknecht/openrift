@@ -20,14 +20,7 @@ export const marketplaceGroupSchema = z.object({
   assignedCount: z.number(),
 });
 
-/**
- * oRPC contract for the admin marketplace-groups (mounted under
- * `/api/admin/v1/marketplace-groups`, admin-gated by the mount). All
- * procedures share the `authedRoute` base (UNAUTHORIZED + FORBIDDEN). Groups
- * are keyed by the `{marketplace}/{id}` pair (`id` is the numeric upstream
- * group id). `update` is a partial patch (at least one field). Domain codes
- * per route: `update` → NOT_FOUND.
- */
+/** Admin-gated by the mount, not enforced here. */
 export const adminMarketplaceGroupsContract = {
   list: authedRoute
     .route({ method: "GET", path: MG, tags: [TAG] })

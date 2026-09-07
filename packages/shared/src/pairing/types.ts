@@ -1,89 +1,47 @@
 import type { Random } from "../pack-opener/rng.js";
 
 /**
- * A flat, database-free snapshot of one player going into a pairing. The
- * aggregates (`score`, `pods3`, `pods4`, `byes`, `opponents`) are derived by the
- * repo from the finalized rounds and handed to the engine; the engine never
- * touches a database.
+ * A flat, database-free snapshot of one player going into a pairing; the
+ * engine itself never touches a database.
  */
 export interface PairingPlayer {
   id: string;
   score: number;
-  /** Times this player has already been in a 3-player pod. */
   pods3: number;
-  /** Times this player has already been in a 4-player pod. */
   pods4: number;
-  /** Times this player has already taken a bye (sat out a round for win-equivalent points). */
   byes: number;
-  /** opponentId -> number of prior pods shared with that opponent. */
   opponents: Map<string, number>;
-  /** Region tag slug for region-aware events; null/absent when regions are off. */
   region?: string | null;
-  /**
-   * Opponent region slug -> times this player has faced that region across the
-   * finalized rounds. Derived by the repo from the opponents' current regions
-   * (so a region edit recounts on read); absent when regions are off.
-   */
   regionHistory?: ReadonlyMap<string, number>;
-  /**
-   * The physical table this player is normally seated at, or null/absent when
-   * unset. Soft: never consulted by the pairing itself, only by the table
-   * assignment after pods are formed (see `assignTableNumbers`).
-   */
   fixedTable?: number | null;
 }
 
-/** One game group within a round. Size 2 is a Swiss 1v1 match. */
 export interface Pod {
   size: 2 | 3 | 4;
   playerIds: string[];
 }
 
-/** The number of 4-, 3-, and 2-player pods a round decomposes into. */
 export interface PodSizes {
   fours: number;
   threes: number;
-  /** 2-player pods (Swiss matches); absent means none. */
   twos?: number;
 }
 
-/** Which decomposition a pairing uses: FFA pods of 3/4 or Swiss 1v1 matches. */
 export type PairingMode = "pod" | "swiss";
 
-/**
- * Per-pod penalty terms plus the two display-only figures (`rematchPairs`,
- * `spread`). The named penalty terms sum to `total` under the default config
- * (the optional pairwise term is off by default).
- */
 export interface PodPenaltyBreakdown {
   rematch: number;
   scoreSpread: number;
-  /** The >=6 / >=9 spread surcharges. */
   imbalance: number;
   float: number;
   threePodRepeat: number;
-  /**
-   * Penalty for in-pod pairs sharing a region. Breakdowns stored before the
-   * region feature lack this key; readers must coalesce it to 0.
-   */
   sameRegion: number;
-  /**
-   * Penalty for in-pod pairs who have already faced each other's region in
-   * earlier rounds. Breakdowns stored before this feature lack the key;
-   * readers must coalesce it to 0.
-   */
   repeatedRegion: number;
   total: number;
-  /** Count of in-pod pairs that have met before, for the organizer display. */
   rematchPairs: number;
-  /** Raw highest-minus-lowest score in the pod, for the organizer display. */
   spread: number;
 }
 
-/**
- * Which engine produced a pairing. Round 1 is `random`; round 2+ is
- * `local-search`; `manual` marks a pairing the organizer edited by hand.
- */
 export type PairingStrategyName = "local-search" | "random" | "manual";
 
 export interface PairingResult {
@@ -94,40 +52,14 @@ export interface PairingResult {
 }
 
 export interface PairingConfig {
-  /** Penalty by number of prior meetings: [0, 1, 2, 3+]. */
   rematchPenalties: [number, number, number, number];
-  /** Multiplier on the raw score spread (max - min). */
   scoreSpreadWeight: number;
-  /** Flat surcharge added once when the spread is >= 6. */
   spreadSurcharge6: number;
-  /** Further flat surcharge added once when the spread is >= 9 (stacks with the >=6 one). */
   spreadSurcharge9: number;
-  /** Multiplier on each player's |score - podAverage|. */
   floatWeight: number;
-  /**
-   * Penalty per player in a 3-pod by their prior 3-pod count: [0, 1, 2, 3+].
-   * A repeat must cost more than the spread/float noise of relocating 3-pod
-   * duty to another score band (and slightly more than a first rematch), or
-   * the engine parks the same bottom-band players in the 3-pod every round.
-   */
   threePodRepeatPenalties: [number, number, number, number];
-  /**
-   * Penalty per in-pod pair that shares a region. Must lose to any rematch
-   * (first rematch is 100) so avoiding a repeat opponent always beats avoiding
-   * a region mirror, but beat moderate score spread (10 per point) so the
-   * engine reaches across score bands before pairing two same-region players.
-   */
   sameRegionWeight: number;
-  /**
-   * Penalty per prior meeting with the other player's region, per in-pod pair
-   * (both directions summed). Gives players region variety across rounds. Must
-   * lose to `sameRegionWeight` (70) so avoiding a live region mirror always
-   * beats avoiding a repeat, and to the first rematch (100), but beat small
-   * score-spread noise (10 per point) so the engine reaches across a band
-   * before serving the same region again.
-   */
   repeatedRegionWeight: number;
-  /** Optional finer pairwise score term; default 0 (off). Reserved for a future weight. */
   pairwiseScoreWeight: number;
 }
 
@@ -143,10 +75,6 @@ export const DEFAULT_PAIRING_CONFIG: PairingConfig = {
   pairwiseScoreWeight: 0,
 };
 
-/**
- * A pairing engine. The seam stays thin (no budget here) so an exact small-field
- * solver can be added later as a sibling without touching callers.
- */
 export interface PairingStrategy {
   pair: (
     players: PairingPlayer[],
@@ -157,9 +85,7 @@ export interface PairingStrategy {
 }
 
 export interface LocalSearchBudget {
-  /** Randomized starting orders. */
   restarts: number;
-  /** Local-improvement steps before stopping a restart. */
   maxSwapsPerRestart: number;
 }
 
@@ -168,9 +94,7 @@ export const DEFAULT_LOCAL_SEARCH_BUDGET: LocalSearchBudget = {
   maxSwapsPerRestart: 2000,
 };
 
-/** Optional knobs for `generatePairing`; everything defaults sensibly. */
 export interface GeneratePairingOptions {
-  /** Decomposition mode; defaults to `pod` (FFA pods of 3/4). */
   mode?: PairingMode;
   config?: PairingConfig;
   rng?: Random;

@@ -34,18 +34,9 @@ const cardCopyParamSchema = z.object({
 const TAG = "Deck Check";
 const BASE = "/api/v1/tournaments/{tournamentId}/deck-check";
 
-/**
- * Tournament-scoped judge-facing deck-check contract (ADR-033), mounted under
- * `/api/v1/tournaments/{tournamentId}/deck-check`. It mirrors the entry/card
- * endpoints of the group-scoped surface but keys off the tournament id (the
- * deck-check "event" is the tournament) so any host can judge — not just a
- * group. Authorization is the tournament host or a `tournament_staff`
- * organizer/judge; the base carries UNAUTHORIZED + FORBIDDEN, and each route
- * adds NOT_FOUND (missing tournament, entry, or card) plus CONFLICT /
- * VALIDATION_ERROR where the corresponding group route declares them.
- * Event-collection CRUD, the submission token, and key minting live on the
- * tournaments / host-scoped contracts and are intentionally not duplicated here.
- */
+// Mirrors the group-scoped deck-check surface but keys off the tournament id
+// so any host can judge, not just a group. Event-collection CRUD, the
+// submission token, and key minting stay on the tournaments contract.
 export const tournamentDeckCheckContract = {
   listEntries: authedRoute
     .route({ method: "GET", path: `${BASE}/entries`, tags: [TAG] })

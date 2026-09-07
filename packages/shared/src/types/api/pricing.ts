@@ -11,49 +11,30 @@ import type { z } from "zod";
 
 import type { Marketplace } from "../pricing.js";
 
-/**
- * Latest headline price per printing per marketplace, in integer **cents**.
- * The currency of each marketplace's cents is carried explicitly in the
- * `currencies` map on {@link PricesResponse} (SCH-2: cents + explicit currency).
- * Consumers convert to major units at the display boundary (`priceLookupFromMap`).
- */
+/** Integer cents. The currency of each marketplace is in the `currencies` map on {@link PricesResponse}. */
 export type PriceMap = Record<string, Partial<Record<Marketplace, number>>>;
 
 export type PricesResponse = z.infer<typeof pricesResponseSchema>;
 
 /**
- * Lookup interface for resolving the latest price of a printing on a given marketplace.
- * Backed by either a {@link PriceMap} (e.g. SSR detail responses) or a react-query
- * store (the client-side `usePrices()` hook).
+ * Backed by either a {@link PriceMap} (e.g. SSR detail responses) or a
+ * react-query store (the client-side `usePrices()` hook).
  */
 export interface PriceLookup {
   get: (printingId: string, marketplace: Marketplace) => number | undefined;
   has: (printingId: string) => boolean;
 }
 
-// All snapshot price fields below are integer cents; the web converts
-// to major units at the usePriceHistory boundary.
 export type TcgplayerSnapshot = z.infer<typeof tcgplayerSnapshotSchema>;
 
 export type CardmarketSnapshot = z.infer<typeof cardmarketSnapshotSchema>;
 
 /**
- * CardTrader has no "market" price like TCG/CM, but since migration 099 each
- * snapshot carries two asking-price figures:
- *  - `zeroLow`: cheapest among CardTrader Zero (hub-eligible) sellers — the
- *    headline price shown in the UI.
- *  - `low`: cheapest across all sellers (including non-Zero) — a secondary
- *    figure plotted alongside `zeroLow` on the history chart.
- * Either field may be null (older snapshots predate the Zero column, or no
- * Zero sellers exist for the variant). The API only emits a snapshot when at
- * least one is non-null.
+ * `zeroLow` (cheapest CardTrader Zero seller, the headline price) and `low`
+ * (cheapest across all sellers) may each be null, but never both.
  */
 export type CardtraderSnapshot = z.infer<typeof cardtraderSnapshotSchema>;
 
-/**
- * Metadata describing how a marketplace maps to a printing: whether a mapping
- * exists and its external product ID (for deep-link URLs).
- */
 export type MarketplaceInfo = z.infer<typeof marketplaceInfoSchema>;
 
 export type PriceHistoryResponse = z.infer<typeof priceHistoryResponseSchema>;
@@ -62,13 +43,6 @@ export type MarketplaceInfoResponse = z.infer<typeof marketplaceInfoResponseSche
 
 export type AnySnapshot = TcgplayerSnapshot | CardmarketSnapshot | CardtraderSnapshot;
 
-/**
- * Headline price for a snapshot — `market` for TCGplayer/Cardmarket, or the
- * Zero-eligible low (falling back to the overall low) for CardTrader. The API
- * guarantees that at least one of `zeroLow`/`low` is non-null on every CT
- * snapshot, so the combined value is always a number.
- * @returns The number that should be plotted as the main price line/area.
- */
 export function snapshotHeadline(snap: AnySnapshot): number {
   if ("market" in snap) {
     return snap.market;

@@ -84,7 +84,6 @@ describe("scaleFromQuery", () => {
     expect(scaleFromQuery("-2", undefined)).toBe(1);
     expect(scaleFromQuery("1.5", undefined)).toBe(1);
     expect(scaleFromQuery("huge", undefined)).toBe(1);
-    // An empty string coerces to 0, not NaN — the range check is what catches it.
     expect(scaleFromQuery("", "hq")).toBe(2);
   });
 });

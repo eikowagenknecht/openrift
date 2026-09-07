@@ -1,11 +1,5 @@
 import { z } from "zod";
 
-// Shapes the API writes into `job_runs.result` (typed `z.any()` on the wire,
-// since that column is polymorphic per job kind — see contracts/admin/job-runs).
-// These schemas are the single source for both the shared response types and the
-// web's read-side guards (`schema.safeParse(run.result)`), so the type and the
-// runtime check can no longer drift.
-
 export const regenerateImagesCheckpointSchema = z.object({
   snapshot: z.array(z.object({ imageId: z.string(), rehostedUrl: z.string() })),
   totalFiles: z.number(),
@@ -22,13 +16,6 @@ export const regenerateImagesCheckpointSchema = z.object({
   skipExisting: z.boolean(),
 });
 
-/**
- * Reads `job_runs.result` (typed `unknown`) as a regenerate checkpoint. Both the
- * API's resume path and the admin page's progress panel go through this, so a
- * field added above tightens the check on both sides at once.
- * @param value The raw `job_runs.result` payload.
- * @returns True when the value matches the checkpoint schema.
- */
 export function isRegenerateImagesCheckpoint(
   value: unknown,
 ): value is z.infer<typeof regenerateImagesCheckpointSchema> {

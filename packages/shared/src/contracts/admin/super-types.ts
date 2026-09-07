@@ -17,14 +17,6 @@ const entitySchema = z.object({
 
 const slugParamSchema = z.object({ slug: z.string().min(1) });
 
-/**
- * oRPC contract for the admin super type taxonomy CRUD (mounted at
- * `/api/admin/v1/super-types`, admin-gated by the mount). All procedures are
- * session-gated (UNAUTHORIZED + FORBIDDEN from `authedRoute`). Domain codes per
- * route: `reorder` → BAD_REQUEST (invalid reorder request); `create` → CONFLICT
- * (slug already in use); `update` → NOT_FOUND; `remove` → NOT_FOUND + CONFLICT
- * (well-known or in use).
- */
 export const adminSuperTypesContract = {
   list: authedRoute
     .route({ method: "GET", path: BASE, tags: [TAG] })

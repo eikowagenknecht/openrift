@@ -1,12 +1,6 @@
-// Cache-miss storm: every request carries a unique query string and
-// Cache-Control: no-cache, so both the Cloudflare edge and any downstream
-// cache miss, forcing the origin to do full DB work every time. This is the
-// scenario that reveals the real origin + Postgres ceiling.
-//
-// For a pure origin measurement, point BASE_URL at the API origin directly
-// (bypassing Cloudflare). Otherwise you are also measuring the CF path.
-//
-// Usage: BASE_URL=https://staging.openrift.example k6 run scripts/loadtest/cache-miss.js
+// Every request carries a unique query string and Cache-Control: no-cache,
+// forcing a cache miss at every layer so the origin does full DB work each
+// time. Point BASE_URL at the API origin directly for a pure measurement.
 
 import { check, sleep } from "k6";
 import http from "k6/http";

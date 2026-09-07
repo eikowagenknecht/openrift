@@ -40,11 +40,9 @@ const unignorePrintingInput = z.object({
 });
 
 /**
- * oRPC contract for the admin ignored-candidates controls (mounted under
- * `/api/admin/v1/ignored-candidates`, admin-gated by the mount). All
- * procedures share the `authedRoute` base (UNAUTHORIZED + FORBIDDEN). Cards
- * and printings each have an ignore (POST) and unignore (DELETE); the DELETEs
- * carry a body (compact mode reads it).
+ * Admin ignored-candidates controls, mounted under
+ * `/api/admin/v1/ignored-candidates`. The unignore DELETEs carry a body
+ * (compact mode reads it; only query params are dropped).
  */
 export const adminIgnoredCandidatesContract = {
   list: authedRoute.route({ method: "GET", path: IC, tags: [TAG] }).output(

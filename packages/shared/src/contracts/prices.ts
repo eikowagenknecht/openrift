@@ -7,9 +7,7 @@ import type { TimeRange } from "../index.js";
 
 extendZodWithOpenApi(z);
 
-// Latest market price per marketplace, as integer cents in that marketplace's
-// own currency (tcgplayer=USD, cardmarket=EUR, cardtrader=EUR — see
-// MARKETPLACE_CURRENCY). SCH-2: money on the wire is integer cents.
+// Integer cents in each marketplace's own currency (tcgplayer=USD, cardmarket/cardtrader=EUR, see MARKETPLACE_CURRENCY).
 const marketplacePriceMapSchema = z.object({
   tcgplayer: z
     .number()
@@ -36,10 +34,6 @@ const marketplaceCurrenciesSchema = z
   })
   .openapi({ example: { tcgplayer: "USD", cardmarket: "EUR", cardtrader: "EUR" } });
 
-// Days since a stale price was last observed, per marketplace. Only printings
-// with at least one stale marketplace appear, which keeps this a rounding
-// error on the wire: the price map itself carries every printing (~270 KB),
-// while barely 4% of products go unseen for a week.
 const staleAgeMapSchema = z.object({
   tcgplayer: z.number().int().optional().openapi({ example: 29, description: "Days since seen" }),
   cardmarket: z.number().int().optional().openapi({ example: 29, description: "Days since seen" }),
@@ -57,22 +51,13 @@ export const pricesResponseSchema = z
         },
       },
     }),
-    // SCH-2: the cents amounts above are explicit about their currency here.
     currencies: marketplaceCurrenciesSchema,
-    /**
-     * Prices last observed more than `PRICE_STALE_AFTER_DAYS` ago, with their
-     * age in days. The pipeline stops writing snapshots when a card's last
-     * listing goes, so the price in `prices` stays put and looks current.
-     * Absent from this map means the price is fresh.
-     */
     stale: z.record(z.string(), staleAgeMapSchema).openapi({
       example: { "019cfc3b-03d3-7dac-86c9-27900cd43727": { cardtrader: 29 } },
     }),
   })
   .openapi("PricesResponse");
 
-// Snapshot money fields are integer cents (SCH-2). `date` is a date-only string
-// (YYYY-MM-DD), not an ISO datetime.
 export const tcgplayerSnapshotSchema = z.object({
   date: z.string().openapi({ example: "2026-04-01", description: "Date-only (YYYY-MM-DD), USD" }),
   market: z.number().int().openapi({ example: 452, description: "Integer cents (USD)" }),
@@ -150,9 +135,7 @@ const rangeQuerySchema = z.object({
   range: z.enum(Object.keys(TIME_RANGE_DAYS) as [TimeRange, ...TimeRange[]]).default("30d"),
 });
 
-// Mirrors the API-side `marketplaceInfoQuerySchema`: a comma-separated list of
-// printing UUIDs, trimmed + deduped, bounded to a max batch size. Kept in the
-// contract so the wire shape is shared by both ends.
+// Mirrors the API-side `marketplaceInfoQuerySchema`; keep the two in sync.
 const marketplaceInfoQuerySchema = z.object({
   printings: z.string().transform((value, ctx) => {
     const ids = value
@@ -182,13 +165,7 @@ const marketplaceInfoQuerySchema = z.object({
   }),
 });
 
-/**
- * oRPC contract for the public price reads. All three are public GETs with the
- * long-lived catalog cache + conditional GETs (`cache: "long", etag: true`,
- * applied centrally from this meta). The history endpoint reports an unknown
- * printing as `available: false` (200), not a 404, so the frontend renders an
- * empty state without error handling.
- */
+/** `history` reports an unknown printing as `available: false` (200), not a 404. */
 export const pricesContract = {
   prices: oc
     .route({ method: "GET", path: "/api/v1/prices", tags: [TAG] })

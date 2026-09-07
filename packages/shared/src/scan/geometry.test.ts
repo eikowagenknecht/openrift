@@ -75,8 +75,6 @@ describe("computeHomography", () => {
 
 describe("refineQuad", () => {
   it("pushes corners out to where the straight sides meet", () => {
-    // Points along the four sides of a 100x140 rectangle, with the corner
-    // regions missing the way a rounded card's outline is.
     const contour: Point[] = [];
     for (let t = 15; t <= 85; t += 2) {
       contour.push({ x: t, y: 0 }, { x: t, y: 140 });
@@ -84,10 +82,6 @@ describe("refineQuad", () => {
     for (let t = 20; t <= 120; t += 2) {
       contour.push({ x: 0, y: t }, { x: 100, y: t });
     }
-    // A quad whose corners sit slightly inside the true ones, as a hull over a
-    // rounded outline gives. Corrections beyond a few percent of the diagonal
-    // are deliberately rejected, so the starting error has to be a realistic
-    // one.
     const rough: Quad = [
       { x: 3, y: 3 },
       { x: 97, y: 3 },

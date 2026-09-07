@@ -1,7 +1,5 @@
-// Everything the `types` barrel exposes (enums, catalog/search/list-rule/
-// pricing types, API response types, and their runtime helpers) surfaces at
-// the package root. Wildcard on purpose: a name added to `./types` becomes
-// importable from `@openrift/shared` without a second manual entry here.
+// Wildcard on purpose: a name added to `./types` becomes importable here
+// without a second manual entry.
 export * from "./types/index.js";
 
 export type { RelativeTimeOptions } from "./format-date.js";

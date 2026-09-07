@@ -1,16 +1,8 @@
 /* oxlint-disable import/no-nodejs-modules -- standalone CLI tooling, never bundled */
 /**
- * Bun-side adapter for the shared embedding module.
- *
- * The ranking math, preprocessing and rotation handling live in
- * `packages/shared/src/scan/embed.ts`; this file only opens the ONNX encoder
+ * Bun-side adapter for the shared embedding module (packages/shared/src/scan):
+ * opens the ONNX vision encoder from https://huggingface.co/Xenova/mobileclip_s0
  * under onnxruntime-node and caches the reference bank on disk.
- *
- * The encoder is the ONNX vision tower from https://huggingface.co/Xenova/mobileclip_s0,
- * fetched into `data/image-recognition-test/models/mobileclip-s0/` (gitignored):
- *
- *   curl -sSLO https://huggingface.co/Xenova/mobileclip_s0/resolve/main/onnx/vision_model.onnx
- *   curl -sSLO https://huggingface.co/Xenova/mobileclip_s0/resolve/main/preprocessor_config.json
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -28,22 +20,11 @@ import {
 import { CACHE_DIR, DATA_DIR, listReferenceImages, loadImage, mapConcurrent } from "./lib";
 
 const MODEL_DIR = path.join(DATA_DIR, "models/mobileclip-s0");
-/** Overridable via SCAN_ENCODER so quantized encoder candidates can run the
- * same bench; an override gets its own bank cache (bank and encoder must
- * always match). */
 export const MODEL_FILE = process.env.SCAN_ENCODER ?? path.join(MODEL_DIR, "vision_model.onnx");
 const MODEL_TAG = process.env.SCAN_ENCODER ? `-${path.basename(MODEL_FILE, ".onnx")}` : "";
-/** Encoder input side; SCAN_EMBED_SIZE overrides for non-MobileCLIP encoders. */
 export const EMBED_SIZE = Number(process.env.SCAN_EMBED_SIZE ?? EMBED_IMAGE_SIZE);
-/**
- * SCAN_CANONICAL_BANK=1 embeds landscape renders rotated 90 degrees left (the
- * way players place battlefields), so bank and rectified query share one
- * portrait frame and a match differs by at most 180 degrees. Must pair with an
- * encoder trained --canonical; benched via --pair-only.
- */
 export const CANONICAL_BANK = process.env.SCAN_CANONICAL_BANK === "1";
 
-/** References embedded per `session.run`. Above this the gain flattens and the staging tensor gets large. */
 const BUILD_BATCH = 8;
 
 function cacheFile(kind: EmbedKind, extension: string): string {
@@ -57,11 +38,6 @@ function cacheFile(kind: EmbedKind, extension: string): string {
 
 let sessionPromise: Promise<ort.InferenceSession> | null = null;
 
-/**
- * Open the vision encoder, once per process.
- *
- * @returns The shared inference session.
- */
 function encoder(): Promise<ort.InferenceSession> {
   if (!sessionPromise) {
     if (!fs.existsSync(MODEL_FILE)) {
@@ -74,11 +50,6 @@ function encoder(): Promise<ort.InferenceSession> {
   return sessionPromise;
 }
 
-/**
- * The injected encoder for Bun: one onnxruntime-node call per filled batch.
- *
- * @returns Raw, unnormalized `count * EMBED_DIM` output floats.
- */
 export const nodeEmbedder: CardEmbedder = async (pixels, count) => {
   const session = await encoder();
   // The staging tensor is sized for a full batch; a short final chunk must be
@@ -90,14 +61,6 @@ export const nodeEmbedder: CardEmbedder = async (pixels, count) => {
   return output.image_embeds.data as Float32Array;
 };
 
-/**
- * Load the reference embedding bank, building and caching it on first use.
- *
- * The vectors go to a raw binary sidecar rather than JSON, which keeps the
- * fp32 bank at its natural size instead of tripling it as text.
- *
- * @returns One embedding per local reference render, in its native orientation.
- */
 export async function loadEmbedBank(kind: EmbedKind, force = false): Promise<EmbedBank> {
   const meta = cacheFile(kind, "json");
   const binary = cacheFile(kind, "bin");

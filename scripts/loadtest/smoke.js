@@ -1,6 +1,3 @@
-// Smoke: 1 VU for 1 minute hitting every public route, confirms the script
-// works and endpoints respond before running the heavier scenarios.
-//
 // Usage: BASE_URL=https://staging.openrift.example k6 run scripts/loadtest/smoke.js
 
 import { check, sleep } from "k6";

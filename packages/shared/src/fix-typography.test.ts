@@ -11,8 +11,6 @@ describe("fixTypography", () => {
     expect(fixTypography("Deal 3 to all enemy units.")).toBe("Deal 3 to all enemy units.");
   });
 
-  // ── Apostrophes ──────────────────────────────────────────────────────────
-
   it("replaces straight apostrophes with curly", () => {
     expect(fixTypography("can't")).toBe("can\u2019t");
   });
@@ -20,8 +18,6 @@ describe("fixTypography", () => {
   it("replaces multiple apostrophes", () => {
     expect(fixTypography("it's a player's turn")).toBe("it\u2019s a player\u2019s turn");
   });
-
-  // ── Ellipsis ─────────────────────────────────────────────────────────────
 
   it("replaces triple dots with ellipsis", () => {
     expect(fixTypography("wait...")).toBe("wait\u2026");
@@ -31,8 +27,6 @@ describe("fixTypography", () => {
     expect(fixTypography("wait..")).toBe("wait..");
   });
 
-  // ── Double quotes ────────────────────────────────────────────────────────
-
   it("replaces paired straight double quotes with curly", () => {
     expect(fixTypography('"hello"')).toBe("\u201Chello\u201D");
   });
@@ -40,8 +34,6 @@ describe("fixTypography", () => {
   it("replaces multiple quote pairs", () => {
     expect(fixTypography('"one" and "two"')).toBe("\u201Cone\u201D and \u201Ctwo\u201D");
   });
-
-  // ── Minus sign ───────────────────────────────────────────────────────────
 
   it("replaces hyphen before digit with minus sign", () => {
     expect(fixTypography("-1")).toBe("\u22121");
@@ -55,8 +47,6 @@ describe("fixTypography", () => {
     expect(fixTypography("well-known")).toBe("well-known");
   });
 
-  // ── Leading whitespace ────────────────────────────────────────────────────
-
   it("strips a single leading space after a line break", () => {
     expect(fixTypography("line one\n line two")).toBe("line one\nline two");
   });
@@ -64,8 +54,6 @@ describe("fixTypography", () => {
   it("does not strip multiple leading spaces", () => {
     expect(fixTypography("line one\n  line two")).toBe("line one\n  line two");
   });
-
-  // ── Italic parens ────────────────────────────────────────────────────────
 
   it("wraps parenthesized text with underscores", () => {
     expect(fixTypography("(reminder text)")).toBe("_(reminder text)_");
@@ -83,10 +71,6 @@ describe("fixTypography", () => {
     expect(fixTypography("no parens here")).toBe("no parens here");
   });
 
-  // ── Keyword glyphs ──────────────────────────────────────────────────────
-
-  // Cost keywords are data-driven: the caller passes the set (mirrors the
-  // keyword admin flag). No keyword names are baked into fixTypography.
   const COST = ["Equip", "Repeat"];
 
   it("moves trailing glyphs inside cost-keyword brackets", () => {
@@ -116,7 +100,6 @@ describe("fixTypography", () => {
   });
 
   it("keeps a flagged cost keyword's glyphs inside its bracket", () => {
-    // Regression: Empower is a cost keyword — its glyphs must NOT be split out.
     expect(
       fixTypography("[Empower :rb_energy_2: :rb_rune_fury:]", {
         costKeywords: ["Equip", "Repeat", "Empower"],
@@ -125,14 +108,12 @@ describe("fixTypography", () => {
   });
 
   it("splits glyphs out of a keyword that is not flagged as a cost keyword", () => {
-    // Empower absent from the cost list → treated as a wrongly-merged keyword.
     expect(fixTypography("[Empower :rb_energy_2: :rb_rune_fury:]", { costKeywords: COST })).toBe(
       "[Empower] :rb_energy_2: :rb_rune_fury:",
     );
   });
 
   it("does not merge any keyword when the cost list is empty", () => {
-    // Data-driven default: with no cost keywords, nothing merges into brackets.
     expect(fixTypography("[Equip] :rb_rune_mind:")).toBe("[Equip] :rb_rune_mind:");
   });
 
@@ -171,8 +152,6 @@ describe("fixTypography", () => {
       fixTypography("[Equip] :rb_rune_mind:", { keywordGlyphs: false, costKeywords: COST }),
     ).toBe("[Equip] :rb_rune_mind:");
   });
-
-  // ── Combined ─────────────────────────────────────────────────────────────
 
   it("applies all fixes together", () => {
     const input = `Deal -3 to target unit. (This includes the unit's allies...)

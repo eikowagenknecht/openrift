@@ -6,14 +6,7 @@ import { WellKnown } from "../well-known.js";
 import { sourceSlotForZone } from "../zone-inference.js";
 import type { DeckCodecCard, EncodeResult } from "./types.js";
 
-/**
- * The zone-header vocabulary of the text interchange format, owned in one
- * place so the writer and the reader cannot drift apart. `header` is what
- * `encodeText` writes; `aliases` are extra spellings the reader accepts from
- * other tools and from earlier versions of our own exporter.
- *
- * Header matching is case-insensitive, so aliases are listed lowercased.
- */
+/** `aliases` must be lowercase: lookups only lowercase the incoming header, not aliases. */
 const TEXT_ZONE_SECTIONS: readonly {
   zone: DeckZone;
   header: string;
@@ -32,39 +25,24 @@ const TEXT_ZONE_SECTIONS: readonly {
   { zone: WellKnown.deckZone.OVERFLOW, header: "Overflow", aliases: [] },
 ];
 
-/**
- * Zones written by `encodeText`, in output order. Overflow is a holding area
- * inside the builder, never part of an exported deck — the reader still
- * accepts its header so a hand-written list round-trips.
- */
+/** Overflow is excluded: it is never part of an exported deck, only accepted on read. */
 const ZONE_ORDER: readonly DeckZone[] = TEXT_ZONE_SECTIONS.filter(
   (section) => section.zone !== WellKnown.deckZone.OVERFLOW,
 ).map((section) => section.zone);
 
-/** Header written for each zone. */
 const ZONE_HEADERS: Record<string, string> = Object.fromEntries(
   TEXT_ZONE_SECTIONS.map((section) => [section.zone, section.header]),
 );
 
-/** Every accepted header spelling, lowercased, mapped back to its zone. */
 const HEADER_TO_ZONE: Record<string, DeckZone> = Object.fromEntries(
   TEXT_ZONE_SECTIONS.flatMap((section) =>
     [section.header.toLowerCase(), ...section.aliases].map((spelling) => [spelling, section.zone]),
   ),
 );
 
-/**
- * The subset of a deck card the text format actually writes. Callers that
- * only have names (e.g. the browser extension extracting a decklist from a
- * page) can encode without inventing the resolved-card fields.
- */
+/** Callers that only have names (e.g. an extension extracting a decklist) can encode without the resolved-card fields. */
 export type TextEncodableCard = Pick<DeckCodecCard, "cardName" | "quantity" | "zone">;
 
-/**
- * Encodes deck cards into a human-readable text format grouped by zone.
- *
- * @returns The encoded text and any warnings.
- */
 export function encodeText(cards: TextEncodableCard[]): EncodeResult {
   const warnings: string[] = [];
   const grouped = Map.groupBy(cards, (card) => card.zone);
@@ -90,11 +68,7 @@ export function encodeText(cards: TextEncodableCard[]): EncodeResult {
 
 /**
  * Zone headers come in two spellings: our own `Legend:` and the markdown
- * strikethrough `~~Legend~~` that topdeck.gg exports. Both are recognised
- * everywhere, so a list pasted from either tool reads the same.
- *
- * @returns The header text without its delimiters, or undefined when the line
- * is not a header at all.
+ * strikethrough `~~Legend~~` that topdeck.gg exports.
  */
 function headerTextOf(line: string): string | undefined {
   if (line.startsWith("~~") && line.endsWith("~~") && line.length > 4) {
@@ -107,15 +81,12 @@ function headerTextOf(line: string): string | undefined {
 }
 
 /**
- * Parses the text format back into import entries. Lines are `{quantity}
- * {card name}` under an optional zone header; a bare line with no leading
- * count is treated as quantity 1 so plain name lists paste in unchanged.
- * @returns Parsed entries and any warnings.
+ * Lines are `{quantity} {card name}` under an optional zone header; a bare
+ * line with no leading count is treated as quantity 1.
  */
 export function parseTextFormat(code: string): DeckCodeParseResult {
   const warnings: string[] = [];
   const entries: DeckImportEntry[] = [];
-  // undefined until the user provides an explicit zone header
   let currentZone: DeckZone | undefined;
 
   for (const rawLine of code.split("\n")) {
@@ -124,15 +95,13 @@ export function parseTextFormat(code: string): DeckCodeParseResult {
       continue;
     }
 
-    // Check for zone header (e.g. "MainDeck:", "Legend:" or "~~Mainboard~~")
     const headerText = headerTextOf(line);
     if (headerText !== undefined) {
       const zone = HEADER_TO_ZONE[headerText.toLowerCase()];
       if (zone) {
         currentZone = zone;
       } else {
-        // Unknown header — clear the current zone so subsequent cards fall back
-        // to type-based inference instead of silently inheriting the prior zone.
+        // Unknown header clears the current zone; it must not inherit the prior zone.
         currentZone = undefined;
         warnings.push(`Unknown zone header: ${line}`);
       }

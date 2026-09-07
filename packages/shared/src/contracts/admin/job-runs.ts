@@ -26,7 +26,7 @@ const jobRunViewSchema = z.object({
   durationMs: z.number().nullable(),
   errorMessage: z.string().nullable(),
   result: z.record(z.string(), z.any()).nullable(),
-  /** Activity: true = succeeded but no work done, false = did work, null = not
+  /** true = succeeded but no work done, false = did work, null = not
    *  classified (failures, jobs without a classifier, pre-migration rows). */
   noop: z.boolean().nullable(),
 });
@@ -44,18 +44,12 @@ const jobRunsQuerySchema = z.object({
   kindPrefix: z.string().optional(),
   trigger: triggerEnum.optional(),
   status: statusEnum.optional(),
-  /** "did-work" keeps only runs that did something, "noop" only the idle ones. */
   activity: activityEnum.optional(),
   page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
 });
 
-/**
- * oRPC contract for the admin job-runs table (mounted at
- * `/api/admin/v1/job-runs`, admin-gated by the mount). All procedures share
- * the `authedRoute` base (UNAUTHORIZED + FORBIDDEN). Read-only, paginated +
- * filterable.
- */
+/** Admin job-runs table, mounted at `/api/admin/v1/job-runs`. */
 export const adminJobRunsContract = {
   list: authedRoute
     .route({ method: "GET", path: "/api/admin/v1/job-runs", tags: [TAG] })

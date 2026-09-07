@@ -55,15 +55,6 @@ export const ruleVersionsListResponseSchema = z
   .object({ versions: z.array(ruleVersionResponseSchema) })
   .openapi("RuleVersionsListResponse");
 
-/**
- * oRPC contract for the public rules endpoints.
- *
- * `GET /api/v1/rules?kind&version` — rules for a kind, at a version (or latest).
- * `GET /api/v1/rules/versions?kind` — the list of available versions.
- *
- * The input fields map to query parameters (the paths carry no params); an
- * invalid `kind` is an oRPC-native 400.
- */
 export const rulesContract = {
   list: oc
     .route({ method: "GET", path: "/api/v1/rules", tags: ["Rules"] })

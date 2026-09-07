@@ -1,8 +1,7 @@
 import postgres from "postgres";
 
-// Re-implementation of the helpers from apps/api/src/test/integration-setup.ts
-// to avoid importing from the API package directly (different workspace, no build step).
-
+// Re-implements apps/api/src/test/integration-setup.ts to avoid importing
+// across workspaces (the API package has no build step).
 const noop = () => {};
 
 export function replaceDbName(url: string, dbName: string): string {

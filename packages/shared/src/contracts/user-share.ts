@@ -9,13 +9,6 @@ export const userShareStateResponseSchema = z
   .object({ shareToken: z.string().nullable(), isPublic: z.boolean() })
   .openapi("UserShareStateResponse");
 
-/**
- * oRPC contract for the signed-in user's bundle-share management (ADR-018).
- * `GET/POST/DELETE /api/v1/users/me/share` (+ `POST .../rotate`). Requires a
- * session; the base carries UNAUTHORIZED + FORBIDDEN. `disable` is 204; the
- * others return the share state. `enable`, `disable`, and `rotate` carry a
- * typed NOT_FOUND for a missing user row.
- */
 export const userShareContract = {
   get: authedRoute
     .route({ method: "GET", path: "/api/v1/users/me/share", tags: ["User Share"] })

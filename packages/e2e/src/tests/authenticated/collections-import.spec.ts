@@ -10,11 +10,10 @@ import { connectToDb } from "../../helpers/db.js";
 
 type Sql = ReturnType<typeof connectToDb>;
 
-// Seed printings (apps/api/src/test/fixtures/seed.sql).
-// Set prefix: OGS. All cards below have an English "normal" and "foil" printing unless noted.
-const ANNIE_FIERY_NORMAL = "019cfc3b-03d6-74cf-adec-1dce41f631eb"; // OGS-001 EN normal
-const ANNIE_STUBBORN_NORMAL = "019cfc3b-03d6-755e-8d42-32464c0bf236"; // OGS-010 EN normal
-const GAREN_RUGGED_NORMAL = "019cfc3b-03d6-752a-adc5-19033009d65d"; // OGS-007 EN normal
+// Seed printings (apps/api/src/test/fixtures/seed.sql), set prefix OGS.
+const ANNIE_FIERY_NORMAL = "019cfc3b-03d6-74cf-adec-1dce41f631eb";
+const ANNIE_STUBBORN_NORMAL = "019cfc3b-03d6-755e-8d42-32464c0bf236";
+const GAREN_RUGGED_NORMAL = "019cfc3b-03d6-752a-adc5-19033009d65d";
 
 interface CollectionSummary {
   id: string;
@@ -115,8 +114,7 @@ async function seedCopies(
 }
 
 async function fetchCopies(request: APIRequestContext, collectionId: string): Promise<CopyEntry[]> {
-  // GET /api/v1/copies returns all copies for the user (no server-side
-  // collection filter); filter client-side.
+  // GET /api/v1/copies has no server-side collection filter; filter client-side.
   const response = await request.get(`${API_BASE_URL}/api/v1/copies`);
   expect(response.ok()).toBeTruthy();
   const body = (await response.json()) as { items: CopyEntry[] };
@@ -140,21 +138,11 @@ function isServerFn(constName: string) {
   };
 }
 
-// ---------------------------------------------------------------------------
-// CSV helpers
-// ---------------------------------------------------------------------------
-
-// Mirrors generateExportCSV in apps/web/src/lib/csv-export.ts — the copy-level
-// metadata columns trail the card columns.
+// Mirrors generateExportCSV in apps/web/src/lib/csv-export.ts.
 const EXPORT_HEADER =
   "Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Promo,Language,Quantity," +
   "Condition,Grader,Grade,Altered,Public Notes,Private Notes,Links";
 
-/**
- * Split one CSV row into fields, honouring quoted fields (card names carry a
- * comma).
- * @returns The row's fields, unquoted.
- */
 function csvFields(line: string): string[] {
   const fields: string[] = [];
   let current = "";
@@ -187,8 +175,7 @@ function csvFields(line: string): string[] {
   return fields;
 }
 
-// Quantity is no longer the last column — the copy-metadata columns trail it —
-// so read it by its position in the header.
+// Quantity's column position depends on the header, not a fixed offset.
 function quantityOf(line: string): string {
   return csvFields(line)[EXPORT_HEADER.split(",").indexOf("Quantity")];
 }
@@ -241,10 +228,6 @@ async function readDownload(page: Page, trigger: () => Promise<void>) {
   const csv = await readFile(path, "utf-8");
   return { filename: download.suggestedFilename(), csv };
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 test.describe("collections import/export", () => {
   test.describe("top bar / shell", () => {
@@ -307,12 +290,10 @@ test.describe("collections import/export", () => {
       await seedCopies(page.request, GAREN_RUGGED_NORMAL, other.id, 3);
 
       await page.goto("/collections/import");
-      // Default: All Cards → 5 copies.
       await expect(page.getByRole("button", { name: /^Export 5 copies$/u })).toBeEnabled({
         timeout: 15_000,
       });
 
-      // Switch scope to Inbox.
       const scopeTrigger = page.locator("#export-collection");
       await scopeTrigger.click();
       await page.getByRole("option", { name: "Inbox" }).click();
@@ -325,7 +306,6 @@ test.describe("collections import/export", () => {
       expect(filename).toMatch(/^openrift-inbox-\d{4}-\d{2}-\d{2}\.csv$/u);
       const lines = csv.split("\n");
       expect(lines[0]).toBe(EXPORT_HEADER);
-      // Single printing with 2 copies → 1 data row.
       expect(lines).toHaveLength(2);
       expect(quantityOf(lines[1])).toBe("2");
 
@@ -351,7 +331,6 @@ test.describe("collections import/export", () => {
       expect(filename).toMatch(/^openrift-all-cards-\d{4}-\d{2}-\d{2}\.csv$/u);
       const lines = csv.split("\n");
       expect(lines[0]).toBe(EXPORT_HEADER);
-      // Two unique printings → 2 data rows, quantities 3 and 1.
       expect(lines).toHaveLength(3);
       const quantities = lines.slice(1).map((line) => quantityOf(line));
       expect(quantities.sort()).toEqual(["1", "3"]);
@@ -417,9 +396,6 @@ test.describe("collections import/export", () => {
         .fill("not a csv at all\njust text");
       await page.getByRole("button", { name: /^Parse$/u }).click();
 
-      // Neither a recognized CSV header nor a valid "<quantity> <name>" text line,
-      // so the plain-text parser reports a per-line "couldn't read" error and the
-      // flow stays on step 1 (no entries → no advance to preview).
       await expect(page.getByText(/Line 1: couldn.t read/u)).toBeVisible();
       await expect(page.getByRole("heading", { name: "Import Cards" })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Import Preview" })).toHaveCount(0);
@@ -428,9 +404,7 @@ test.describe("collections import/export", () => {
     test("external links open in new tabs with rel=noreferrer", async ({ page }) => {
       userEmail = await createAndLogin(page);
       await page.goto("/collections/import");
-      // /collections/import is auth-gated (not pre-warmed), so wait for the
-      // import section to render before checking links — the cold route compile
-      // can exceed the default assertion timeout under parallel load.
+      // Cold route compile under parallel load can exceed the default assertion timeout.
       await expect(page.getByRole("heading", { name: "Import Cards" })).toBeVisible({
         timeout: 15_000,
       });
@@ -451,10 +425,6 @@ test.describe("collections import/export", () => {
         await expect(link).toHaveAttribute("href", hrefPattern);
       }
     });
-
-    // (The step-1 fallback-language dropdown was removed; the matcher now
-    // resolves language-less entries with the user's preferred language
-    // automatically via matchEntries(entries, allPrintings, preferredLanguages[0]).)
   });
 
   test.describe("round-trip: export then re-import", () => {
@@ -474,7 +444,6 @@ test.describe("collections import/export", () => {
       await seedCopies(page.request, ANNIE_FIERY_NORMAL, inbox.id, 3);
       await seedCopies(page.request, ANNIE_STUBBORN_NORMAL, inbox.id, 2);
 
-      // Export via the Export button.
       await page.goto("/collections/import");
       const exportButton = page.getByRole("button", { name: /^Export 5 copies$/u });
       await expect(exportButton).toBeEnabled({ timeout: 15_000 });
@@ -483,7 +452,6 @@ test.describe("collections import/export", () => {
       });
       expect(csv.split("\n")[0]).toBe(EXPORT_HEADER);
 
-      // Paste the same CSV and parse.
       await page.getByPlaceholder("Paste CSV data or a plain text list here...").fill(csv);
       await page.getByRole("button", { name: /^Parse$/u }).click();
 
@@ -496,7 +464,6 @@ test.describe("collections import/export", () => {
       const importButton = page.getByRole("button", { name: /^Import 5 copies$/u });
       await expect(importButton).toBeVisible();
 
-      // Pick Round-trip as target and import.
       const targetTrigger = page.getByRole("combobox").last();
       await targetTrigger.click();
       await page.getByRole("option", { name: "Round-trip" }).click();
@@ -512,7 +479,6 @@ test.describe("collections import/export", () => {
       });
       await expect(page.getByText(/Imported 5 copies\./u)).toBeVisible();
 
-      // Inbox still has the original 5, Round-trip has 5 copies.
       const [inboxCopies, roundTripCopies] = await Promise.all([
         fetchCopies(page.request, inbox.id),
         fetchCopies(page.request, roundTrip.id),
@@ -539,9 +505,7 @@ test.describe("collections import/export", () => {
       const csv = buildOpenRiftCsv([
         // Exact: catalog has OGS-007 EN normal.
         { cardId: "OGS-007", cardName: "Garen, Rugged", rarity: "rare", quantity: 2 },
-        // Needs review: valid-format code that doesn't exist, but name fuzzy-matches.
-        // artVariant=altart has no match among Annie Fiery's EN printings, so the
-        // matcher returns needs-review with candidates.
+        // Needs review: code doesn't exist, name fuzzy-matches, no altart printing exists.
         {
           cardId: "XXX-001",
           cardName: "Annie, Fiery",
@@ -573,10 +537,9 @@ test.describe("collections import/export", () => {
       userEmail = await createAndLogin(page);
       await gotoPreview(page);
 
-      // 1 exact match is ready; needs-review+unresolved both count as "need attention".
+      // Needs-review and unresolved both count as "need attention".
       await expect(page.getByText("1 ready")).toBeVisible();
       await expect(page.getByText("2 need attention")).toBeVisible();
-      // No skipped badge yet.
       await expect(page.getByText(/^\d+ skipped$/u)).toHaveCount(0);
     });
 
@@ -584,10 +547,8 @@ test.describe("collections import/export", () => {
       userEmail = await createAndLogin(page);
       await gotoPreview(page);
 
-      // The preview lists the non-exact rows individually (unresolved first,
-      // then needs-review) and collapses exact matches into a "N matched exactly"
-      // summary with no Skip button — so there are 2 Skip buttons, and the
-      // unresolved "Totally Fake" row is the first of them.
+      // Exact matches collapse into a summary with no Skip button; only the
+      // unresolved and needs-review rows (unresolved first) get one.
       const skipButtons = page.getByRole("button", { name: /^Skip$/u });
       await expect(skipButtons).toHaveCount(2);
       await skipButtons.nth(0).click();
@@ -596,7 +557,6 @@ test.describe("collections import/export", () => {
       await expect(page.getByText("1 need attention")).toBeVisible();
       await expect(page.getByText("1 skipped")).toBeVisible();
 
-      // Unskip restores the previous state.
       await page.getByRole("button", { name: /^Unskip$/u }).click();
       await expect(page.getByText("2 need attention")).toBeVisible();
       await expect(page.getByText(/^\d+ skipped$/u)).toHaveCount(0);
@@ -608,8 +568,6 @@ test.describe("collections import/export", () => {
 
       await expect(page.getByRole("button", { name: /^Import 2 copies$/u })).toBeVisible();
 
-      // The needs-review row (Annie, Fiery with altart) exposes a VariantPicker
-      // combobox whose trigger shows "Pick printing..." as placeholder text.
       const variantTrigger = page
         .getByRole("combobox")
         .filter({ hasText: /Pick printing/u })
@@ -619,7 +577,6 @@ test.describe("collections import/export", () => {
 
       await expect(page.getByText("2 ready")).toBeVisible();
       await expect(page.getByText("1 need attention")).toBeVisible();
-      // Quantity of the Annie row was 1 → total copies becomes 3.
       await expect(page.getByRole("button", { name: /^Import 3 copies$/u })).toBeVisible();
     });
 
@@ -735,7 +692,6 @@ test.describe("collections import/export", () => {
       userEmail = await createAndLogin(page);
       const target = await createCollectionViaApi(page.request, "Target");
 
-      // Fail the POST /api/v1/copies call with a 500.
       await page.route("**/api/v1/copies", async (route) => {
         if (route.request().method() === "POST") {
           await route.fulfill({
@@ -770,25 +726,17 @@ test.describe("collections import/export", () => {
       await expect(page.getByText("Import failed. Some cards may have been added.")).toBeVisible({
         timeout: 15_000,
       });
-      // Stays on the import page; preview still visible.
       await expect(page).toHaveURL(/\/collections\/import$/u);
       await expect(page.getByRole("heading", { name: "Import Preview" })).toBeVisible();
 
-      // Target still empty.
       const targetCopies = await fetchCopies(page.request, target.id);
       expect(targetCopies).toHaveLength(0);
     });
   });
 
   test.describe("batching", () => {
-    // Skipped: constructing a >500-copy CSV and exercising the batching loop in
-    // useImportFlow.handleImport (apps/web/src/hooks/use-import-flow.ts, lines
-    // 178-184, where `batchSize = 500`) is expensive to run end-to-end and the
-    // batching logic is already covered by unit tests. Leaving a marker here so
-    // a future pass can plug this in if we decide the coverage is worth the
-    // runtime cost.
-    test.skip("submits copies in 500-count batches", async () => {
-      // Intentionally empty — see comment above.
-    });
+    // Skipped: a >500-copy CSV exercising the batching loop is expensive to
+    // run end-to-end; the batching logic is already covered by unit tests.
+    test.skip("submits copies in 500-count batches", async () => {});
   });
 });

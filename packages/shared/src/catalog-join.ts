@@ -3,16 +3,8 @@ import type { CatalogResponse } from "./types/api/catalog.js";
 import type { Card, Printing } from "./types/catalog.js";
 
 /**
- * Joins a {@link CatalogResponse} into the flat `Printing[]` that `filterCards`
- * evaluates against. Both the browser (the card browser's enriched catalog) and
- * the API (server-side list-rule expansion) run the same rules over the result,
- * so the join has to produce identical rows on both sides.
- *
- * A printing whose set or card is missing from the payload is dropped: the
- * language-split catalog variants ship printings without their core, and a row
- * with no card cannot be filtered on anyway.
- *
- * @returns The joined printings, in payload order.
+ * The browser and the API both run `filterCards` over this result, so it has
+ * to produce identical rows on both sides.
  */
 export function joinCatalogPrintings(catalog: CatalogResponse): Printing[] {
   const setsById = new Map(catalog.sets.map((set) => [set.id, set]));
@@ -30,8 +22,6 @@ export function joinCatalogPrintings(catalog: CatalogResponse): Printing[] {
         ...value,
         id,
         setSlug: set.slug,
-        // A set reaches each language on its own date, and a printing knows
-        // which language it is.
         setReleased: isReleasedIn(set.releases, value.language, today),
         card,
       });

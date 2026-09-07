@@ -3,11 +3,6 @@ import { expect, test } from "@playwright/test";
 
 import { API_BASE_URL, WEB_BASE_URL } from "../../helpers/constants.js";
 
-// /promos is now a per-language card-browser surface: the index route redirects
-// to /promos/$language (EN by default) and the page renders like /cards —
-// grouped channel sections, a grid/table view toggle, and a click-to-open
-// detail pane. There is no per-language <h2> and clicking a card opens the
-// selection pane rather than navigating to /cards/<slug>.
 const PROMOS_TITLE = "Promo Cards - OpenRift";
 const PROMOS_DESCRIPTION =
   "Browse all promotional card printings for the Riftbound trading card game, grouped by promo type.";
@@ -42,9 +37,8 @@ async function fetchPromoList(): Promise<PromoFixture> {
   return (await res.json()) as PromoFixture;
 }
 
-// TanStack Start encodes the server fn id as base64url-encoded JSON holding
-// the source file + export. Decoding lets us pick out the promo list call
-// without touching other server fns on the same route transition.
+// TanStack Start encodes the server fn id as base64url-encoded JSON containing
+// the source file + export.
 function isPromoListServerFn(url: string): boolean {
   const match = /\/_serverFn\/(?<encoded>[^/?#]+)/u.exec(url);
   const encoded = match?.groups?.encoded;
@@ -58,12 +52,9 @@ function isPromoListServerFn(url: string): boolean {
   }
 }
 
-// Client-side navigation to /promos so a `page.route` intercept on the promo
-// list server fn actually fires — the SSR path resolves the loader on the
-// server and bypasses the browser network layer. The desktop header "More"
-// dropdown is a hover-driven BaseUI NavigationMenu that Playwright can't open
-// reliably, so drive the click-based mobile drawer instead: it opens on a
-// plain click and always exposes a Promos link.
+// SSR resolves the loader server-side and bypasses page.route intercepts, so
+// this drives a client navigation via the mobile drawer (the desktop "More"
+// menu is a hover-driven BaseUI NavigationMenu Playwright can't open reliably).
 async function clientSideNavigateToPromos(page: Page) {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/cards");
@@ -71,10 +62,8 @@ async function clientSideNavigateToPromos(page: Page) {
   const menuButton = page.getByRole("button", { name: "Open menu" });
   await expect(menuButton).toBeVisible({ timeout: 15_000 });
 
-  // The drawer's open handler wires up after hydration; retry opening it until
-  // the dialog is actually rendered, guarding against a click that lands on the
-  // pre-hydration button. Only click when the dialog is closed so a late-firing
-  // click never toggles it shut.
+  // Retry opening it (guards a click landing on the pre-hydration button); only
+  // click while closed so a late-firing click never toggles it shut.
   const dialog = page.getByRole("dialog");
   await expect(async () => {
     if (!(await dialog.isVisible())) {
@@ -83,8 +72,7 @@ async function clientSideNavigateToPromos(page: Page) {
     await expect(dialog).toBeVisible({ timeout: 1500 });
   }).toPass({ timeout: 15_000 });
 
-  // The nav rows are SheetClose buttons (not links), so match by text and click
-  // to both close the drawer and client-navigate to /promos.
+  // Nav rows are SheetClose buttons, not links, so match by text.
   const promosItem = dialog.getByText("Promos", { exact: true });
   await expect(promosItem).toBeVisible();
   await promosItem.click();
@@ -97,7 +85,6 @@ test.describe("promos", () => {
     }) => {
       await page.goto("/promos");
 
-      // The index redirects to /promos/<language> (EN by default in the seed).
       await expect(page).toHaveURL(/\/promos\/EN$/u, { timeout: 15_000 });
       await expect(page.getByRole("heading", { level: 1, name: "Promos" })).toBeVisible();
       await expect(
@@ -113,7 +100,6 @@ test.describe("promos", () => {
         "content",
         PROMOS_DESCRIPTION,
       );
-      // Canonical points at the resolved per-language URL.
       await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
         "href",
         `${WEB_BASE_URL}/promos/EN`,
@@ -128,15 +114,13 @@ test.describe("promos", () => {
       await page.goto("/promos");
       await expect(page.getByRole("heading", { level: 1, name: "Promos" })).toBeVisible();
 
-      // Per-language aggregate sentence under the intro paragraph.
       await expect(
         page.getByText(
           /OpenRift currently has data on \d+ English promo printings? across \d+ cards?\./u,
         ),
       ).toBeVisible();
 
-      // Channels render as <section id="lang-EN-ch-..."> with a divider header
-      // carrying a "(N)" printing count — there are no per-channel headings.
+      // Channels render as <section id="lang-EN-ch-..."> with a "(N)" count in the divider.
       const firstSection = page.locator("section[id^='lang-EN-ch-']").first();
       await expect(firstSection).toBeVisible();
       await expect(firstSection).toContainText(/\(\d+\)/u);
@@ -147,10 +131,8 @@ test.describe("promos", () => {
     test("renders 'No promos yet.' when there are no printings", async ({ page }) => {
       await page.route("**/_serverFn/**", async (route) => {
         if (isPromoListServerFn(route.request().url())) {
-          // Plain JSON with no `x-tss-serialized` header — skips the seroval
-          // deserializer in serverFnFetcher.ts. The payload must still be
-          // wrapped in the `{result}` envelope that createServerFn's client
-          // middleware unwraps (see createServerFn.ts → `return result.result`).
+          // Plain JSON skips the seroval deserializer; still needs the `{result}`
+          // envelope createServerFn's client middleware unwraps.
           await route.fulfill({
             status: 200,
             contentType: "application/json",
@@ -170,8 +152,7 @@ test.describe("promos", () => {
 
       await clientSideNavigateToPromos(page);
 
-      // With no printings the loader can't pick a language, so the index route
-      // stays put and renders its empty state instead of redirecting.
+      // No printings means the loader can't pick a language, so the index stays put.
       await expect(page).toHaveURL(/\/promos$/u, { timeout: 15_000 });
       await expect(page.getByText("No promos yet.")).toBeVisible();
       await expect(page.locator(".aspect-card")).toHaveCount(0);
@@ -186,15 +167,12 @@ test.describe("promos", () => {
       const gridButton = page.getByRole("button", { name: "Grid view" });
       const tableButton = page.getByRole("button", { name: "Table view" });
 
-      // Grid view is the default: the toggle reflects it and the CardTable
-      // header (role="table") is absent while card thumbnails are shown.
       await expect(gridButton).toHaveAttribute("aria-pressed", "true");
       await expect(tableButton).toHaveAttribute("aria-pressed", "false");
       await expect(page.getByRole("table")).toHaveCount(0);
       await expect(page.locator(".aspect-card").first()).toBeVisible();
 
-      // The view toggle handler wires up after hydration, so retry the click
-      // until the pressed state flips.
+      // Retry the click until the pressed state flips (handler wires up after hydration).
       await expect(async () => {
         await tableButton.click();
         await expect(tableButton).toHaveAttribute("aria-pressed", "true", { timeout: 2000 });
@@ -214,18 +192,12 @@ test.describe("promos", () => {
       await page.goto("/promos");
       await expect(page.getByRole("heading", { level: 1, name: "Promos" })).toBeVisible();
 
-      // Anchor on a seeded card's art rather than "the first tile": the domain
-      // and rarity filter chips are buttons with <img> icons too, and a card
-      // still awaiting an image overlays its thumbnail with a "suggest image"
-      // link that navigates to /contribute instead of selecting the card.
-      // Master Yi is the first promo in the seed that has real art.
+      // Anchor on a seeded card's art, not "the first tile": filter chips are
+      // also <img>-bearing buttons, and imageless cards overlay a "suggest image" link.
       const firstCard = page.getByRole("img", { name: /Master Yi, Wuju Bladesman/u }).first();
       await expect(firstCard).toBeVisible();
 
-      // Clicking a card selects it and opens the card detail rather than
-      // navigating. Which surface that is depends on the docked-pane
-      // preference (modal by default), and all three name their close control
-      // "Close card details".
+      // Modal or docked pane depending on preference; both close controls share a name.
       await expect(async () => {
         await firstCard.click();
         await expect(page.getByRole("button", { name: /close card details/iu })).toBeVisible({
@@ -255,16 +227,8 @@ test.describe("promos", () => {
     });
   });
 
-  // Note: PromosPending (the loading skeleton) is the pendingComponent on the
-  // /promos/$language route, but it is unreachable from a client navigation in
-  // this harness. The /promos index loader awaits the promo fetch *before*
-  // throwing its redirect, so a slow fetch is consumed on the index route
-  // (which has no skeleton); by the time /promos/$language mounts the query is
-  // already cached and resolves instantly. The skeleton would only stream on a
-  // direct SSR load of /promos/$language, whose server-side fetch can't be
-  // intercepted with page.route. There is no client-side link straight to
-  // /promos/$language to force the loader to run in the browser, so this state
-  // has no reliable e2e trigger after the index-redirect redesign.
+  // PromosPending is unreachable here: the index loader awaits the promo fetch
+  // before redirecting, so the query is already cached when the target route mounts.
 
   test.describe("error", () => {
     test("renders the route error fallback when the promo list fetch 500s", async ({ page }) => {

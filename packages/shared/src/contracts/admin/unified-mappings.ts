@@ -15,18 +15,12 @@ import { groupKindEnum } from "./marketplace-groups.js";
 
 extendZodWithOpenApi(z);
 
-// One staged/assigned/unmatched marketplace product (a SKU + its latest prices
-// and group provenance). `groupKind` / `groupSetSlug` drive the suggester.
 export const stagedProductResponseSchema = z
   .object({
     externalId: z.number().openapi({ example: 748_215 }),
     productName: z.string().openapi({ example: "Jinx, Rebel (Foil)" }),
     finish: z.string().openapi({ example: "foil" }),
-    /**
-     * `null` when the marketplace doesn't expose language as a SKU dimension
-     * (Cardmarket's cross-language price guide, TCGPlayer's English-only
-     * catalog). A real language code otherwise (CardTrader).
-     */
+    /** `null` when the marketplace doesn't expose language as a SKU dimension (CM, TCG). */
     language: z.string().nullable().openapi({ example: "EN" }),
     marketCents: z.number().nullable().openapi({ example: 452 }),
     lowCents: z.number().nullable().openapi({ example: 325 }),
@@ -41,23 +35,13 @@ export const stagedProductResponseSchema = z
     isOverride: z.boolean().optional().openapi({ example: false }),
     groupId: z.number().optional().openapi({ example: 23_482 }),
     groupName: z.string().optional().openapi({ example: "Origins" }),
-    /**
-     * Admin-assigned tag for the marketplace group this product belongs to.
-     * Drives the suggestion scorer: `basic` penalises promo/special printings,
-     * `special` prefers them. Omitted for products whose group resolution
-     * wasn't needed (unassigned staging without a group).
-     */
+    /** Drives the suggestion scorer: `basic` penalises promo/special printings, `special` prefers them. */
     groupKind: groupKindEnum.optional().openapi({ example: "basic" }),
-    /**
-     * Slug of the OpenRift set this product's marketplace group is scoped to,
-     * if any. When non-null, the suggester only proposes printings whose
-     * `setId` (slug) matches. `null` means no scoping (default).
-     */
+    /** When set, the suggester only proposes printings whose `setId` (slug) matches. */
     groupSetSlug: z.string().nullable().optional().openapi({ example: null }),
   })
   .openapi("StagedProductResponse");
 
-// A single (product × printing) mapping row.
 const marketplaceAssignmentResponseSchema = z
   .object({
     externalId: z.number().openapi({ example: 748_215 }),
@@ -169,15 +153,7 @@ const saveMappingsResult = z.object({
   skipped: z.array(z.object({ externalId: z.number(), reason: z.string() })),
 });
 
-/**
- * oRPC contract for the admin unified marketplace-mappings (mounted under
- * `/api/admin/v1/marketplace-mappings`, admin-gated by the mount). Reuses the
- * shared response schemas. `save` carries a `marketplace` query alongside its
- * body, and `unmap` addresses the SKU via query params — both use detailed
- * input structure since oRPC compact mode does not read query params on these.
- * All procedures are session-gated (UNAUTHORIZED + FORBIDDEN from `authedRoute`);
- * no domain error codes are declared.
- */
+/** `save` and `unmap` use detailed input structure: oRPC compact mode does not read query params. */
 export const adminUnifiedMappingsContract = {
   list: authedRoute
     .route({ method: "GET", path: MM, tags: [TAG] })

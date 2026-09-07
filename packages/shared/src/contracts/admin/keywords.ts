@@ -38,13 +38,7 @@ const discoverResultSchema = z.object({
 const nameParamSchema = z.object({ name: z.string() });
 const translationParamSchema = z.object({ keywordName: z.string(), language: z.string() });
 
-/**
- * oRPC contract for the admin keyword tooling (mounted under `/api/admin/v1`,
- * admin-gated by the mount). All procedures share the `authedRoute` base
- * (UNAUTHORIZED + FORBIDDEN). Covers keyword usage stats, per-keyword display
- * styles, a recompute job, and keyword translations (auto-discovery + manual
- * upsert/delete, keyed by `{keywordName}/{language}`).
- */
+/** Admin-gated by the `/api/admin/v1` mount, not enforced here. */
 export const adminKeywordsContract = {
   stats: authedRoute
     .route({ method: "GET", path: `${BASE}/keyword-stats`, tags: [TAG] })

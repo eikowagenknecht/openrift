@@ -19,13 +19,8 @@ export const markerSchema = z.object({
 });
 
 /**
- * oRPC contract for the admin markers taxonomy CRUD (mounted at
- * `/api/admin/v1/markers`, admin-gated by the mount). All procedures share
- * the `authedRoute` base (UNAUTHORIZED + FORBIDDEN). Markers are keyed by
- * their UUID `id`. Domain codes per route: `reorder` → BAD_REQUEST (invalid
- * ids); `create` → CONFLICT (slug taken); `update` → NOT_FOUND + CONFLICT
- * (id not found, slug taken); `remove` → NOT_FOUND + CONFLICT (in use). The
- * static `reorder` path precedes `{id}`.
+ * Admin-gated by the mount, not enforced here. The static `reorder` path
+ * must precede `{id}` for routing to match it.
  */
 export const adminMarkersContract = {
   list: authedRoute

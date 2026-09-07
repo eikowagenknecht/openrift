@@ -11,10 +11,6 @@ export const publicTournamentLandingResponseSchema = z
     hostDisplayName: z.string(),
     selfRegistrationOpen: z.boolean(),
     deckExpected: z.boolean(),
-    // True when the signed-in viewer already holds a spot in this tournament.
-    // Drives the link's deck-submission gate when self-registration is closed:
-    // a claimed participant can still submit, a stranger must claim first.
-    // Always false for an anonymous viewer.
     viewerIsParticipant: z.boolean(),
   })
   .openapi("PublicTournamentLandingResponse");
@@ -46,14 +42,7 @@ export const tournamentStaffInviteClaimResponseSchema = z
 
 const TAG = "Tournaments";
 
-/**
- * Public, token-gated request-to-join surface for the unified tournaments
- * umbrella (ADR-033). `landing` is unauthenticated minimal info for the
- * submission link; `requestJoin` requires a session and, when self-registration
- * is open, creates a `requested` participant for the caller (the approval gate).
- * Respects the one-participant-per-account index — an existing participant is
- * returned instead of erroring.
- */
+/** Respects the one-participant-per-account index: an existing participant is returned, not an error. */
 export const publicTournamentsContract = {
   landing: oc
     .route({ method: "GET", path: "/api/v1/tournaments/submit/{token}", tags: [TAG] })
@@ -72,11 +61,7 @@ export const publicTournamentsContract = {
     .input(z.object({ token: z.string().min(1) }))
     .output(publicTournamentJoinResponseSchema),
 
-  // Staff-invite link. The landing is read-only and public, so a signed-out
-  // invitee reads which event and role the link is for before creating an
-  // account; nothing is granted by opening it. `claimStaffInvite` is the
-  // explicit confirm POST that grants the role, and that one needs a session,
-  // so a link scanner still gets no grant. Reusable until the host rotates it.
+  // The landing GET grants nothing; only the session-gated claimStaffInvite POST does.
   staffInviteLanding: oc
     .route({ method: "GET", path: "/api/v1/tournaments/staff-invite/{token}", tags: [TAG] })
     .meta({ auth: "public" })

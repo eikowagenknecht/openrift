@@ -2,10 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { adminAuditEventsQuerySchema } from "./audit-events.js";
 
-// Mirrors the copiesQuerySchema cursor regression tests in schemas.test.ts:
-// a syntactically invalid cursor used to pass this schema (bare non-empty
-// string), reach the repo's cursor parser, and produce an Invalid Date
-// that propagated into the Kysely query as a 500 instead of a 400.
 describe("adminAuditEventsQuerySchema", () => {
   it("rejects a garbage cursor", () => {
     expect(adminAuditEventsQuerySchema.safeParse({ cursor: "not-a-date" }).success).toBe(false);

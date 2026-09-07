@@ -1,46 +1,27 @@
 /* oxlint-disable import/no-nodejs-modules -- standalone script */
 /**
- * Fail when the web build emits an asset nginx cannot give a content type.
- *
- * `apps/web/.output/public` is copied verbatim into the proxy image and served
- * from /srv/static, so any extension missing from the image's mime.types goes
- * out as `application/octet-stream`. For bytes we fetch ourselves that is
- * harmless, but the browser refuses to evaluate a module script or stream a
- * wasm binary with the wrong type, and /assets/ sends `nosniff`, so there is
- * no sniffing to fall back on. That is how one `.mjs` asset took the card
- * scanner down: the refused module import surfaced three layers away as
- * "no available backend found. ERR: [wasm] ReferenceError: window".
- *
- * Adding an extension here is meant to be a deliberate step. Check what the
- * image sends for it first:
- *
- *   docker run --rm nginx:<tag> grep <ext> /etc/nginx/mime.types
- *
- * If that finds nothing, add a `types` entry to nginx/web.conf, then list the
- * extension below.
- *
- * Usage: bun scripts/check-asset-types.ts
+ * An extension missing from the deployed nginx's mime.types is served as
+ * application/octet-stream, which the browser refuses to run as a module or
+ * wasm. Before adding an extension, check
+ * `docker run --rm nginx:<tag> grep <ext> /etc/nginx/mime.types` and add a
+ * `types` entry to nginx/web.conf if it's missing.
  */
 
 import { readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-/** Extensions the deployed nginx serves with a type the browser accepts. */
 const TYPED_EXTENSIONS = new Set([
-  // Executed or compiled by the browser, so the type has to be right.
-  // `mjs` is not in nginx's mime.types and is mapped by nginx/web.conf.
+  // `mjs` is not in nginx's mime.types; it's mapped by nginx/web.conf.
   "js",
   "mjs",
   "css",
   "wasm",
-  // Fetched as bytes or text, where the type only has to not break caching.
   "bin",
   "json",
   "map",
   "md",
   "onnx",
   "txt",
-  // Images and fonts.
   "avif",
   "gif",
   "ico",

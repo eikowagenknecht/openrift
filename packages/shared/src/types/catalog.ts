@@ -16,11 +16,6 @@ export interface Marker {
   description: string | null;
 }
 
-/**
- * Admin-curated namespace for {@link CustomTag}s. Each tag belongs to exactly
- * one category, so the deck-builder UI can offer only the right vocabulary
- * (e.g. just "region" tags for region-locked freeform decks).
- */
 export interface CustomTagCategory {
   id: string;
   slug: string;
@@ -29,11 +24,6 @@ export interface CustomTagCategory {
   sortOrder: number;
 }
 
-/**
- * Admin-curated supplemental tag attachable to any card, used by custom
- * deck-builder formats. `category` is the category slug (kept on the tag for
- * convenience so consumers can group by it without a second lookup).
- */
 export interface CustomTag {
   id: string;
   slug: string;
@@ -68,7 +58,6 @@ export interface DistributionChannelWithCount extends DistributionChannel {
   printingCount: number;
 }
 
-/** A channel a printing was distributed through, plus optional per-printing note. */
 export interface PrintingDistributionChannel {
   channel: DistributionChannel;
   distributionNote: string | null;
@@ -76,11 +65,6 @@ export interface PrintingDistributionChannel {
   ancestorLabels: string[];
 }
 
-/**
- * Where a claim about a promo printing comes from: a video, a post, or a plain
- * label when nothing is linkable. Called a citation, not a source, because a
- * "printing source" already means a provider's candidate row in the admin.
- */
 export interface PrintingCitation {
   id: string;
   label: string;
@@ -106,17 +90,13 @@ export interface CardErrata {
 export interface Card {
   slug: string;
   name: string;
-  /** Always `types[0]`; kept for single-answer consumers (ADR-037). */
+  /** Always `types[0]`; kept for single-answer consumers. */
   type: CardType;
   /** Ordered card types; multi-type cards ("Unit Gear") have more than one. */
   types: CardType[];
   superTypes: SuperType[];
   domains: Domain[];
-  /**
-   * Token cards this card tells the player to create, ordered by token name.
-   * Derived from EN rules text but stored as card ids, so it reads the same in
-   * every language (migration 228).
-   */
+  /** Ordered by token name; stored as card ids so it reads the same in every language. */
   tokenCardIds: string[];
   might: number | null;
   energy: number | null;
@@ -124,11 +104,7 @@ export interface Card {
   keywords: string[];
   tags: string[];
   mightBonus: number | null;
-  /**
-   * Deck copy-limit override for cards whose rules text changes it ("Your
-   * deck can have any number of cards named ..."). `null` = normal rules,
-   * `0` = unlimited (see `UNLIMITED_COPIES`), positive = cap at that value.
-   */
+  /** `null` = normal rules, `0` = unlimited (see `UNLIMITED_COPIES`), positive = cap at that value. */
   maxCopiesOverride: number | null;
   errata: CardErrata | null;
   bans: CardBan[];
@@ -157,10 +133,7 @@ export interface Printing {
   finish: Finish;
   /** Physical card size. `standard` for the normal print, `oversized` for the larger variety. */
   size: CardSize;
-  /**
-   * True when an otherwise identical printing of this card exists in `foil`.
-   * Omitted rather than `false`, so read it as `=== true`.
-   */
+  /** Omitted, never `false`: read as `=== true`. */
   hasFoilTwin?: true;
   images: PrintingImage[];
   artist: string;
@@ -172,17 +145,10 @@ export interface Printing {
   /** Year stamped on the physical card (e.g. 2025). Differs from set release for reprints. */
   printedYear: number | null;
   language: string;
-  /** Editor note about this specific printing. Surfaced as a small icon + tooltip. */
   comment: string | null;
   /** See {@link CatalogPrintingResponse.canonicalRank}. */
   canonicalRank: number;
-  /**
-   * Admin override for the substitute artwork shown when this printing has no
-   * image of its own. Absent means `auto` — the derived standard-art fallback,
-   * which is the state of nearly every printing, so the field is omitted from
-   * the wire rather than spelled out ~7k times. `"pinned"` always arrives with
-   * {@link fallbackImageId}. See {@link findStandardArtFallback}.
-   */
+  /** Absent means `auto`. `"pinned"` always arrives with {@link fallbackImageId}. */
   fallbackArtMode?: "pinned" | "none";
   /** The pinned substitute's image id. Present exactly when the mode is `"pinned"`. */
   fallbackImageId?: string;

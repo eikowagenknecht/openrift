@@ -2,10 +2,10 @@ import type { effectiveTradePreferenceSchema } from "@openrift/shared/contracts/
 import type { tradePreferenceSchema } from "@openrift/shared/response-schemas";
 import type { z } from "zod";
 
-/** Price reference the user states. NULL means "no preference, hash out personally". */
+/** NULL means "no preference, hash out personally". */
 export type TradePricePref = "cm_lowest" | "tcg_lowest" | "ct_zero" | "absolute";
 
-/** What the user wants in return / will pay with. NULL means "no preference". */
+/** NULL means "no preference". */
 export type TradeType = "cards" | "money" | "both";
 
 export type Currency = "EUR" | "USD";
@@ -27,11 +27,6 @@ export type TradePreference = z.infer<typeof tradePreferenceSchema>;
 /** Effective preference at one side of a match. Includes the list's currency. */
 export type EffectiveTradePreference = z.infer<typeof effectiveTradePreferenceSchema>;
 
-/**
- * Resolves an entry's effective preference: entry override beats list default,
- * coalesced field-by-field.
- * @returns The effective preference, with `currency` always taken from the list.
- */
 export function resolveEffectiveTradePreference(
   entry: TradePreference,
   listDefault: TradePreference,
@@ -44,10 +39,6 @@ export function resolveEffectiveTradePreference(
   return { pricePref, priceAbsoluteCents, tradeType, currency };
 }
 
-/**
- * Returns true when the preference carries no signal at all.
- * @returns Whether the preference is empty.
- */
 export function isEmptyTradePreference(pref: TradePreference): boolean {
   return pref.pricePref === null && pref.tradeType === null;
 }

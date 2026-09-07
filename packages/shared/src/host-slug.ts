@@ -1,11 +1,4 @@
-/**
- * Derive a short slug from an image URL's hostname for display purposes.
- *
- * Takes the second-to-last hostname label (the registrable name without the
- * TLD) so `i.imgur.com` → `imgur`, `images.tcgplayer.com` → `tcgplayer`.
- *
- * @returns A short slug like `"imgur"`, or `null` if the URL can't be parsed.
- */
+/** The second-to-last hostname label, e.g. `i.imgur.com` → `imgur`. */
 export function hostSlugFromUrl(url: string): string | null {
   let hostname: string;
   try {

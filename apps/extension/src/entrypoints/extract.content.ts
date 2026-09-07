@@ -4,10 +4,8 @@ import type { PageExtract } from "../lib/deck-extract";
 import { extractDeckFromPage } from "../lib/deck-extract";
 import { deckSourceLink } from "../lib/source-link";
 
-// Injected on demand by the background script when the user clicks the
-// toolbar icon (registration: "runtime" keeps it out of the manifest). The
-// return value of main() travels back to the background script as the
-// executeScript result.
+// registration: "runtime" keeps this out of the manifest; the background
+// script injects it on click and reads main()'s return as the result.
 export default defineContentScript({
   registration: "runtime",
   main(): PageExtract {

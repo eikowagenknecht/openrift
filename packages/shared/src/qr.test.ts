@@ -5,10 +5,6 @@ import { QR_MARGIN, qrMatrix, qrPngDataUri } from "./qr.js";
 
 const SHARE_URL = "https://openrift.app/lists/share/AbCdEf123456";
 
-/**
- * The module pattern the encoder produces at `level`, as a flat row-major list.
- * @returns One boolean per module, `true` for dark.
- */
 function modulesAt(level: "L" | "M"): boolean[] {
   const { modules } = QRCode.create(SHARE_URL, { errorCorrectionLevel: level });
   return [...modules.data].map((bit) => bit === 1);
@@ -33,16 +29,12 @@ describe("qrMatrix", () => {
     const flattened = qrMatrix(SHARE_URL).flat();
 
     expect(flattened).toEqual(modulesAt("M"));
-    // Guards the assertion above: if the two levels ever produced the same
-    // pattern, matching level M would prove nothing.
     expect(modulesAt("M")).not.toEqual(modulesAt("L"));
   });
 
   it("leaves the quiet zone to the renderer", () => {
     expect(QR_MARGIN).toBe(2);
     const matrix = qrMatrix(SHARE_URL);
-    // A baked-in margin would show as blank rows at the edges; the finder
-    // pattern sits flush in the corner instead.
     expect(matrix[0]?.[0]).toBe(true);
   });
 

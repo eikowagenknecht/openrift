@@ -9,10 +9,6 @@ import { encodeText } from "./text.js";
 import { encodeTTS } from "./tts.js";
 import type { DeckCodecCard, DeckCodeFormat } from "./types.js";
 
-// This file deliberately uses the real @piltoverarchive/riftbound-deck-codes
-// library rather than a mock: the point is to run an encoder straight into its
-// decoder, which a mocked codec cannot demonstrate.
-
 let nextCardId = 0;
 
 function card(overrides: Partial<DeckCodecCard> & { shortCode: string }): DeckCodecCard {
@@ -30,21 +26,10 @@ function card(overrides: Partial<DeckCodecCard> & { shortCode: string }): DeckCo
   };
 }
 
-/**
- * Short codes are allocated from one pool so every card in a deck is distinct.
- * @returns The short code for this index.
- */
 function shortCode(index: number): string {
   return `OGN-${String(index).padStart(3, "0")}`;
 }
 
-/**
- * Builds a complete, legal deck: 1 legend, 1 champion, `mainCount` main-deck
- * cards, `battlefields` battlefields, 12 runes, and `sideboard` sideboard
- * cards. Every card is a distinct short code with quantity 1, so a
- * position-shifting decode shows up as a zone mismatch rather than a merge.
- * @returns The deck's codec cards.
- */
 function completeDeck(
   options: { mainCount?: number; battlefields?: number; sideboard?: number } = {},
 ): DeckCodecCard[] {
@@ -67,10 +52,8 @@ function completeDeck(
 }
 
 /**
- * Runs the entries a parser produced through the same zone resolution the
- * import page applies: an explicit zone wins, otherwise the card's type and
- * source slot decide.
- * @returns Zone and quantity keyed by short code (TTS/Piltover) or name (text).
+ * Runs entries through the same zone resolution the import page applies: an
+ * explicit zone wins, otherwise the card's type and source slot decide.
  */
 function resolveZones(
   cards: DeckCodecCard[],
@@ -100,10 +83,6 @@ function resolveZones(
   return resolved;
 }
 
-/**
- * The zone/quantity the deck went in with, for comparison against the decode.
- * @returns Zone and quantity keyed by short code.
- */
 function expectedZones(cards: DeckCodecCard[]): Map<string, { zone: DeckZone; quantity: number }> {
   return new Map(
     cards.map((entry) => [entry.shortCode, { zone: entry.zone, quantity: entry.quantity }]),
@@ -193,7 +172,6 @@ describe("TTS format round trip", () => {
     expect([...resolved.values()].some((entry) => entry.zone === WellKnown.deckZone.CHAMPION)).toBe(
       false,
     );
-    // Type inference still recovers legend, runes and battlefields.
     expect(resolved).toEqual(expectedZones(cards));
   });
 
@@ -204,15 +182,13 @@ describe("TTS format round trip", () => {
 
     expect(warnings).toHaveLength(1);
     const { entries } = parseDeckImportData(code, "tts");
-    // 55 tokens matches no complete layout, so every index after the gap is
-    // treated as unreliable instead of shifting the runes into the sideboard.
+    // 55 tokens matches no complete layout, so every index after the gap is unreliable.
     expect(entries.every((entry) => entry.sourceSlot === "mainDeck")).toBe(true);
   });
 
   it("still shifts by one when the dropped card sits in a deck that has a sideboard", () => {
-    // Documented limitation: length is the only signal, and 56 + sideboard - 1
-    // is still a legal length, so the boundary cannot detect the gap. The
-    // encoder's per-card warning is what surfaces it on that path.
+    // 56 + sideboard - 1 is still a legal length, so length alone can't
+    // detect the gap here; the encoder's per-card warning surfaces it instead.
     const cards = completeDeck({ sideboard: 4 });
     cards[10].shortCode = "";
     const { code, warnings } = encodeTTS(cards);

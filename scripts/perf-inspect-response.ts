@@ -1,4 +1,3 @@
-/* Inspect the unified mappings response to find heavy sections. */
 import { createDb } from "../apps/api/src/db/connect.js";
 import { createRepos } from "../apps/api/src/deps.js";
 import { createMarketplaceConfigs } from "../apps/api/src/routes/admin/marketplace-configs.js";
@@ -34,7 +33,6 @@ console.log(
   `  .allCards: ${(JSON.stringify(result.allCards).length / 1024).toFixed(0)}KB  (n=${result.allCards.length})`,
 );
 
-// Drill into a sample group
 if (result.groups.length > 0) {
   const g = result.groups[0];
   const gJson = JSON.stringify(g);
@@ -48,7 +46,6 @@ if (result.groups.length > 0) {
   console.log(`  cardtrader.assignedProducts: ${g.cardtrader.assignedProducts.length}`);
 }
 
-// Count how many groups have zero staged/assigned in each marketplace section
 let emptyCm = 0;
 let emptyCt = 0;
 let emptyTcg = 0;
@@ -68,7 +65,6 @@ console.log(`  tcgplayer empty: ${emptyTcg}/${result.groups.length}`);
 console.log(`  cardmarket empty: ${emptyCm}/${result.groups.length}`);
 console.log(`  cardtrader empty: ${emptyCt}/${result.groups.length}`);
 
-// Fields per printing
 if (result.groups.length > 0 && result.groups[0].printings.length > 0) {
   const p = result.groups[0].printings[0];
   console.log(`\nSample printing fields:`);

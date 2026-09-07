@@ -24,11 +24,8 @@ export const playerDeckCheckEntryParamSchema = z.object({
   entryId: z.uuid(),
 });
 
-/**
- * The player reads their deck by tournament, not by entry id (ADR-033): the
- * deck is a section of the tournament page, so the route param is the
- * tournament. Writes still address the entry itself.
- */
+// The player reads their deck by tournament, not by entry id: the deck is a
+// section of the tournament page. Writes still address the entry itself.
 export const playerDeckCheckTournamentParamSchema = z.object({
   tournamentId: z.uuid(),
 });
@@ -90,9 +87,7 @@ export const deckCheckSubmissionPageResponseSchema = z
 
 export const deckCheckSubmissionResultResponseSchema = z
   .object({
-    /** Null on a dry run, which resolves the list without writing an entry. */
     entryId: z.string().nullable(),
-    /** Always set: it is where the player's deck page lives once they land. */
     tournamentId: z.string(),
     cards: z.array(deckCheckEntryCardResponseSchema),
     violations: z.array(deckViolationSchema),
@@ -111,15 +106,6 @@ const TAG = "Deck Check";
 
 const ONE_SOURCE_MESSAGE = "Provide exactly one of deckId, deckCode, or cards";
 
-/**
- * oRPC contract for the player-facing deck-check surface (ADR-026/027),
- * mounted at `/api/v1/deck-check`. All require a session; the base carries
- * UNAUTHORIZED + FORBIDDEN. Domain codes per route: most carry NOT_FOUND
- * (missing entry, event, submission link, or account); mutation routes also
- * declare CONFLICT (locked or withdrawn state) and, where input is rejected,
- * VALIDATION_ERROR (422). The submission inputs merge the path token/entry id
- * with the submission body and re-apply the "exactly one deck source" rule.
- */
 export const deckCheckPlayerContract = {
   getMine: authedRoute
     .route({

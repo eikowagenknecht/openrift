@@ -12,21 +12,10 @@ const modeSchema = z.enum(["main", "additional"]);
 const rehostedUrlOutput = z.object({ rehostedUrl: z.string() });
 
 /**
- * oRPC contract for the admin card-image tooling (mounted under
- * `/api/admin/v1/cards`, admin-gated by the mount). Each verb carries its body
- * fields alongside its `{id}` / `{imageId}` / `{printingId}` path param (oRPC
- * compact input); `uploadImage` takes a `multipart/form-data` body with the
- * uploaded `File`. Domain codes per route: most image verbs → NOT_FOUND;
- * `setImage` / `unrehostImage` / `rehostImage` / `addImageUrl` → BAD_REQUEST;
- * `uploadImage` → PAYLOAD_TOO_LARGE (file over 50 MB).
- *
- * The three `fallbackArt` verbs manage the substitute artwork shown for a
- * printing that has no scan of its own (migration 257) — `setFallbackArt`
- * switches the mode and pins an image file the catalogue already holds, while
- * the `from-url` and `upload` pair ingest art from outside it and pin the
- * result. They never touch `printing_images`: a substitute is not a scan of the
- * printing showing it, and recording it as one would make the printing count as
- * photographed everywhere we track coverage.
+ * The `fallbackArt` verbs manage substitute artwork for a printing with no
+ * scan of its own. They never touch `printing_images`: recording a substitute
+ * there would make the printing count as photographed everywhere coverage is
+ * tracked.
  */
 export const adminCardImagesContract = {
   setImage: authedRoute
@@ -143,7 +132,6 @@ export const adminCardImagesContract = {
     .input(
       printingIdParam.extend({
         mode: z.enum(["auto", "pinned", "none"]),
-        /** Required for `pinned`, rejected otherwise. */
         imageFileId: z.uuid().optional(),
       }),
     ),

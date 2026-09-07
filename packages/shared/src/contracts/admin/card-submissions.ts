@@ -17,7 +17,6 @@ const adminSubmissionSchema = z.object({
   kind: cardSubmissionKindSchema,
   status: cardSubmissionStatusSchema,
   cardName: z.string(),
-  /** The contributor's own note, repeated here so the dialog needs one fetch. */
   note: z.string().nullable(),
   reason: cardSubmissionReasonSchema.nullable(),
   resolutionNote: z.string().nullable(),
@@ -26,18 +25,13 @@ const adminSubmissionSchema = z.object({
 
 const resolutionInput = z.object({
   candidateCardId: z.string().min(1),
-  /** Null clears the canned reason, leaving any free text in place. */
   reason: cardSubmissionReasonSchema.nullable(),
   note: z.string().trim().min(1).max(2000).nullable(),
 });
 
 /**
- * oRPC contract for the admin side of in-app card submissions (ADR-036, mounted
- * under `/api/admin/v1/card-submissions`, admin-gated by the mount).
- *
- * Only the contributor-visible message lives here. The outcome itself is never
- * set directly: it falls out of the check and ignore verbs the admin already
- * uses, so a status can't drift from what review actually did.
+ * The submission outcome is never set directly here: it falls out of the
+ * check and ignore verbs the admin already uses.
  */
 export const adminCardSubmissionsContract = {
   forCandidate: authedRoute

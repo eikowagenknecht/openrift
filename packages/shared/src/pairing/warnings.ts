@@ -1,83 +1,45 @@
 import type { PairingPlayer, Pod } from "./types.js";
 
-/**
- * One fairness concern the organizer should see on a proposed pairing. Warnings
- * are advisory: they never block a pairing, they only surface a problem the
- * penalty function already accounts for so a human can decide whether to live
- * with it (e.g. an unavoidable rematch in a tight field).
- */
+/** Warnings are advisory: they never block a pairing, only surface what the penalty function already accounts for. */
 export type PairingWarning =
   | {
       kind: "rematch";
-      /** Index into the round's pods array. */
       podIndex: number;
       playerIds: [string, string];
-      /** How many times this pair has met before (>= 1). */
       meetings: number;
     }
   | {
       kind: "largeSpread";
       podIndex: number;
-      /** Highest-minus-lowest score in the pod. */
       spread: number;
     }
   | {
       kind: "repeatedThreePod";
       podIndex: number;
       playerId: string;
-      /** How many 3-player pods this player has already been in (>= 1). */
       priorThreePods: number;
     }
   | {
       kind: "repeatBye";
       playerId: string;
-      /** How many byes this player has already taken (>= 1). */
       priorByes: number;
     }
   | {
       kind: "sameRegion";
       podIndex: number;
       playerIds: [string, string];
-      /** The region tag slug both players share. */
       region: string;
     }
   | {
       kind: "fixedSeatDisplaced";
       podIndex: number;
       playerId: string;
-      /** The table the player is normally seated at. */
       fixedTable: number;
-      /** The table their pod actually plays at this round. */
       assignedTable: number;
     };
 
-/**
- * The pod score spread (max - min) at which a `largeSpread` warning fires. Kept
- * in step with the penalty function's first imbalance surcharge tier in
- * `evaluate.ts` (`spread >= 6`).
- */
 export const SPREAD_WARNING_THRESHOLD = 6;
 
-/**
- * Derive the advisory warnings for a whole-round pairing. Pure; reads only the
- * snapshot, so the same helper runs server-side and live in the manual editor.
- *
- * - `rematch`: each in-pod pair that has met before, with the meeting count.
- * - `largeSpread`: a pod whose score spread reaches {@link SPREAD_WARNING_THRESHOLD}.
- * - `repeatedThreePod`: each player seated in a 3-pod who has already been in one.
- * - `repeatBye`: each byed player who has already taken a bye.
- * - `sameRegion`: each in-pod pair sharing a region (region-aware events only).
- * - `fixedSeatDisplaced`: each fixed-seat player whose pod plays at a different
- *   table this round (only when `tableNumbers` is provided), so the organizer
- *   can announce the move.
- *
- * @param pods The pods making up the round.
- * @param players The player snapshots referenced by the pods and byes.
- * @param byePlayerIds Players sitting this round out (taking a bye).
- * @param tableNumbers Table number per pod, parallel to `pods` (from
- *   `assignTableNumbers` or the stored pod numbers). Omit to skip seat checks.
- * @returns The flat list of warnings, empty when the pairing is clean.
- */
 export function computePairingWarnings(
   pods: Pod[],
   players: PairingPlayer[],

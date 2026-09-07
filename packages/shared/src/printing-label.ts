@@ -1,10 +1,6 @@
 import { WellKnown } from "./well-known.js";
 
-/**
- * The printing fields a variant label is derived from. Structural on purpose:
- * both the web's full `Printing` and the compact catalog wire shape the Discord
- * bot holds satisfy it, so every surface labels a printing the same way.
- */
+/** Structural on purpose: both the web `Printing` and the Discord bot's compact wire shape satisfy it. */
 export interface VariantLabelPrinting {
   language: string;
   artVariant: string;
@@ -15,34 +11,17 @@ export interface VariantLabelPrinting {
   markers: readonly { slug: string; label: string }[];
 }
 
-/** Slug → display label maps for the enum groups a variant label names. */
 export interface VariantLabelEnumLabels {
   artVariants: Record<string, string>;
   finishes: Record<string, string>;
   cardSizes: Record<string, string>;
 }
 
-/**
- * A printing's distinguishing attributes split so the language can render as a
- * chip instead of a `[XX]` tag. `language` is the code to show (or null when it
- * shouldn't be shown — English, or when all siblings share it); `rest` holds the
- * non-language attribute labels (art variant, overnumbered, finish, size,
- * signed, markers).
- */
 export interface PrintingVariantLabelParts {
   language: string | null;
   rest: string[];
 }
 
-/**
- * Splits a printing's distinguishing attributes into the language code and the
- * remaining attribute labels. The rules match
- * {@link formatPrintingVariantLabel}: a language is shown only when siblings
- * differ in language; a non-normal art variant, overnumbered and oversized are
- * always labeled; finish / signed / markers are omitted when shared by all
- * siblings.
- * @returns The language code (or null) and the ordered non-language labels.
- */
 export function formatPrintingVariantLabelParts(
   printing: VariantLabelPrinting,
   siblings: readonly VariantLabelPrinting[] | undefined,
@@ -62,8 +41,7 @@ export function formatPrintingVariantLabelParts(
   if (printing.finish !== WellKnown.finish.NORMAL && !allSame((c) => c.finish)) {
     rest.push(labels.finishes[printing.finish]);
   }
-  // Oversized is always labeled when present (like art variant and
-  // overnumbered): it carries meaning with no plain counterpart in the list.
+  // Oversized is always labeled, unlike finish/signed/markers: no allSame() check.
   if (printing.size !== WellKnown.cardSize.STANDARD) {
     rest.push(labels.cardSizes[printing.size]);
   }
@@ -76,19 +54,6 @@ export function formatPrintingVariantLabelParts(
   return { language, rest };
 }
 
-/**
- * Human-readable label for a printing's distinguishing attributes.
- * Omits "Normal" defaults. Most attributes are also omitted when shared by all
- * siblings, but a non-normal art variant and the overnumbered flag are always
- * labeled: that status carries meaning even without a plain counterpart in the
- * list. When language
- * varies among siblings, every row gets a `[XX]` tag (including English) so the
- * pairing reads symmetrically rather than leaving default rows blank.
- *
- * String form for value/search/aria uses; in the web app prefer the
- * `PrintingVariantLabel` component, which renders the language as a chip.
- * @returns A label like "[EN] · Alt Art", or "Standard" when no distinguishing attributes.
- */
 export function formatPrintingVariantLabel(
   printing: VariantLabelPrinting,
   siblings: readonly VariantLabelPrinting[] | undefined,

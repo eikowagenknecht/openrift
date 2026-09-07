@@ -1,33 +1,6 @@
-// Traffic-spike journey: a realistic mixed-population test for the moment a
-// public traffic spike hits the site. Models 95% anonymous traffic
-// (mostly absorbed by the Cloudflare edge) and 5% authenticated traffic
-// (always origin SSR — this is where the ceiling lives).
-//
-// Anon visitor: lands on /promos/EN (the public landing URL), browses
-// to /cards with a randomised filter so each VU exercises a different SSR
-// fan-out, often clicks into a single card. No in-page filter clicks
-// modelled — those resolve as TanStack Start _serverFn calls and exercise
-// the same handlers a fresh /cards SSR already does.
-//
-// Authed visitor: same opener, but every request carries a session cookie so
-// CF bypasses its edge cache and every page hits origin SSR. Adds a
-// /collections drill-down with a real collection id parsed from the API.
-//
-// Why no in-script signup: better-auth requires email-OTP verification, and
-// we don't want load-testing tied to an inbox or to mutate user data on
-// preview. We use one pre-created verified test account and share its
-// session cookie across the authed VUs — the per-request work (session
-// fetch, ownership checks, collection load) doesn't depend on which user it
-// is, so this is a fine proxy for the SSR ceiling.
-//
-// Usage:
-//   # 1. Sign in on https://preview.openrift.app in a browser as a test user
-//   # 2. Devtools → Application → Cookies → copy __Secure-better-auth.session_token
-//   # 3. Run:
-//   COOKIE_NAME=__Secure-better-auth.session_token \
-//   LOADTEST_SESSION_COOKIE=<paste> \
-//   BASE_URL=https://preview.openrift.app \
-//     k6 run scripts/loadtest/traffic-spike.js
+// Usage: sign in on the target host in a browser, copy the session cookie
+// value, then run with LOADTEST_SESSION_COOKIE=<value> COOKIE_NAME=<name>
+// BASE_URL=<host> k6 run scripts/loadtest/traffic-spike.js
 
 import { check, sleep } from "k6";
 import http from "k6/http";
@@ -43,9 +16,7 @@ if (!SESSION_COOKIE) {
 }
 const COOKIE_NAME = __ENV.COOKIE_NAME ?? "__Secure-better-auth.session_token";
 
-// Filter combinations a visitor might land on via a deep link or by
-// clicking a domain/set chip. The empty string means "no filter" —
-// the most common cold landing.
+// Repeated "" weights the common no-filter cold landing.
 const CARDS_FILTERS = [
   "",
   "",
@@ -68,11 +39,11 @@ function anonParams(name) {
 }
 
 function thinkShort() {
-  sleep(Math.random() * 3 + 2); // 2–5s
+  sleep(Math.random() * 3 + 2);
 }
 
 function thinkLong() {
-  sleep(Math.random() * 10 + 5); // 5–15s
+  sleep(Math.random() * 10 + 5);
 }
 
 export const options = {
@@ -131,9 +102,6 @@ export function setup() {
   // oxlint-disable-next-line no-console -- k6 setup log is useful
   console.log(`Authed as ${session.user.email}`);
 
-  // Pre-fetch the user's collection ids so authed VUs can drill into a real
-  // collection. Without a real id the /collections/{id} page returns 404 and
-  // we'd be load-testing the error path instead of the happy path.
   const collectionsRes = http.get(`${API_BASE}/collections`, {
     cookies: { [COOKIE_NAME]: SESSION_COOKIE },
   });
@@ -152,21 +120,15 @@ export function setup() {
 }
 
 export function anonJourney(data) {
-  // Step 1: land on /promos/EN (the public landing URL). SSR fans out to
-  // /api/v1/promos and /api/v1/init server-side; k6 only sees the HTML hit.
   const promos = http.get(`${BASE_URL}/promos/EN`, anonParams("promos_anon"));
   check(promos, { "promos ok": (response) => response.status === 200 });
   thinkLong();
 
-  // Step 2: browse /cards with a varied filter so each VU stresses a
-  // different SSR fan-out (fetchFirstRowCards, fetchCardFacets, fetchCardCounts,
-  // fetchCardFilterCounts).
   const filter = pick(CARDS_FILTERS);
   const cards = http.get(`${BASE_URL}/cards${filter}`, anonParams("cards_anon"));
   check(cards, { "cards ok": (response) => response.status === 200 });
   thinkLong();
 
-  // Step 3: 70% of visitors click a card detail.
   if (Math.random() < 0.7) {
     const slug = pick(data.cardSlugs);
     const detail = http.get(`${BASE_URL}/cards/${slug}`, anonParams("card_detail_anon"));
@@ -176,28 +138,21 @@ export function anonJourney(data) {
 }
 
 export function authedJourney(data) {
-  // Step 1: same /promos/EN landing, but with a session cookie. CF bypasses
-  // edge for any cookie'd request, so this hits origin SSR.
   const promos = http.get(`${BASE_URL}/promos/EN`, authedParams("promos_authed"));
   check(promos, { "promos ok": (response) => response.status === 200 });
-  // Hydration triggers a session refetch.
   http.get(`${BASE_URL}/api/auth/get-session`, authedParams("get_session"));
   thinkLong();
 
-  // Step 2: /cards, again origin-only.
   const filter = pick(CARDS_FILTERS);
   const cards = http.get(`${BASE_URL}/cards${filter}`, authedParams("cards_authed"));
   check(cards, { "cards ok": (response) => response.status === 200 });
   http.get(`${BASE_URL}/api/auth/get-session`, authedParams("get_session"));
   thinkLong();
 
-  // Step 3: visit /collections — auth-gated, SSR'd against the user's data.
   const collections = http.get(`${BASE_URL}/collections`, authedParams("collections_page"));
   check(collections, { "collections ok": (response) => response.status === 200 });
   thinkShort();
 
-  // Step 4: drill into a real collection. Hits the paginated copies endpoint
-  // which is the per-user query that actually scales with collection size.
   const collectionId = pick(data.collectionIds);
   const detail = http.get(
     `${API_BASE}/collections/${collectionId}/copies`,

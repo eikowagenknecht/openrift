@@ -54,9 +54,8 @@ async function deleteUser(email: string) {
   }
 }
 
-// TanStack Start encodes the server fn id as base64url(JSON) referencing the
-// source file + export name; matching on the decoded payload lets us target a
-// single server fn out of the bundle.
+// The server fn id is base64url(JSON) of the source file + export name;
+// decode it to target a single server fn out of the bundle.
 function isServerFn(url: string, fnName: string): boolean {
   const match = /\/_serverFn\/(?<encoded>[^/?#]+)/u.exec(url);
   const encoded = match?.groups?.encoded;
@@ -71,10 +70,8 @@ function isServerFn(url: string, fnName: string): boolean {
 }
 
 async function gotoProfile(page: Page) {
-  // `usePreferencesSync` performs an initial GET fetch that writes the server's
-  // theme back to the store on resolution. If that completes AFTER a user
-  // interaction, it clobbers the user's choice (e.g. Dark → null for a fresh
-  // user with no server prefs). Wait for that GET to land before interacting.
+  // usePreferencesSync writes the server's theme back to the store on GET
+  // resolution; if that lands after a user interaction it clobbers the choice.
   const prefsResponse = page.waitForResponse(
     (res) =>
       res.request().method() === "GET" && isServerFn(res.request().url(), "fetchPreferencesFn"),
@@ -113,7 +110,6 @@ test.describe("profile preferences", () => {
       await expect(lightButton).toBeVisible();
       await expect(darkButton).toBeVisible();
 
-      // Default is Auto — no reset button rendered.
       await expect(page.getByRole("button", { name: "Reset theme" })).toHaveCount(0);
 
       await darkButton.click();
@@ -130,9 +126,8 @@ test.describe("profile preferences", () => {
       userEmail = await createAndLogin(page);
       await gotoProfile(page);
 
-      // Target the visible `role="switch"` element. `getByLabel` would match the
-      // BaseUI hidden `<input aria-hidden="true">` which is 1px `position: fixed`
-      // and fails Playwright's "in viewport" actionability check.
+      // getByLabel would match BaseUI's hidden 1px position:fixed <input>,
+      // which fails Playwright's "in viewport" actionability check.
       const showImages = page.getByRole("switch", { name: "Show card images" });
       await expect(showImages).toBeChecked();
       await expect(page.getByRole("button", { name: "Reset show images" })).toHaveCount(0);
@@ -161,9 +156,8 @@ test.describe("profile preferences", () => {
       ];
 
       for (const { name, resetLabel, defaultChecked } of switches) {
-        // Use role=switch rather than getByLabel. The hidden <input> behind the
-        // BaseUI switch is 1px position:fixed and fails Playwright's viewport
-        // actionability check.
+        // getByLabel would match BaseUI's hidden 1px position:fixed <input>,
+        // which fails Playwright's viewport actionability check.
         const switchEl = page.getByRole("switch", { name });
         await (defaultChecked
           ? expect(switchEl).toBeChecked()
@@ -216,8 +210,7 @@ test.describe("profile preferences", () => {
       await page.getByRole("switch", { name: "Foil effect" }).click();
 
       const req = await patchRequest;
-      // TanStack Start 1.167+ encodes server-fn POST bodies via seroval's AST,
-      // so unwrap with the shared helper rather than reaching into `.data`.
+      // Server-fn POST bodies are seroval-encoded; unwrap with the shared helper.
       const payload = decodeServerFnData<{ prefs?: { foilEffect?: unknown } }>(req.postDataJSON());
       expect(payload.prefs?.foilEffect).toBe(true);
     });
@@ -239,7 +232,6 @@ test.describe("profile preferences", () => {
       const favoriteBadges = page.getByText("Favorite", { exact: true });
       await expect(favoriteBadges).toHaveCount(1);
 
-      // Up on the first row is disabled; down on the last enabled row is disabled.
       await expect(page.getByRole("button", { name: "Move CardTrader up" })).toBeDisabled();
       await expect(page.getByRole("button", { name: "Move Cardmarket down" })).toBeDisabled();
     });
@@ -248,11 +240,10 @@ test.describe("profile preferences", () => {
       userEmail = await createAndLogin(page);
       await gotoProfile(page);
 
-      // CardTrader is the default favorite. Disabling it should promote TCGplayer.
       await page.getByRole("switch", { name: "CardTrader" }).click();
       await expect(page.getByRole("switch", { name: "CardTrader" })).not.toBeChecked();
 
-      // Favorite badge should now sit on the TCGplayer row (innermost div wrapping the label).
+      // The Favorite badge lives on the innermost div wrapping the row's label.
       const tcgplayerInner = page
         .locator("div")
         .filter({ has: page.getByRole("switch", { name: "TCGplayer" }) })
@@ -268,17 +259,14 @@ test.describe("profile preferences", () => {
       userEmail = await createAndLogin(page);
       await gotoProfile(page);
 
-      // TCGplayer is second by default; moving it up makes it the new favorite.
       await page.getByRole("button", { name: "Move TCGplayer up" }).click();
 
-      // After the swap, TCGplayer should be first and carry the Favorite badge.
       const tcgplayerInner = page
         .locator("div")
         .filter({ has: page.getByRole("switch", { name: "TCGplayer" }) })
         .last();
       await expect(tcgplayerInner.getByText("Favorite", { exact: true })).toBeVisible();
 
-      // CardTrader no longer carries the badge.
       const cardtraderInner = page
         .locator("div")
         .filter({ has: page.getByRole("switch", { name: "CardTrader" }) })
@@ -309,11 +297,10 @@ test.describe("profile preferences", () => {
       userEmail = await createAndLogin(page);
       await gotoProfile(page);
 
-      // getByLabel matches the aria-label on the Move up/down buttons too, so
-      // scope to the switch role to hit the toggle only.
+      // getByLabel also matches the Move up/down buttons' aria-label; scope to
+      // the switch role to hit the toggle only.
       await expect(page.getByRole("switch", { name: "English" })).toBeChecked();
 
-      // At least one additional language is available in seed data.
       await expect(page.getByRole("switch", { name: "French" })).toBeVisible();
       await expect(page.getByRole("switch", { name: "French" })).not.toBeChecked();
 
@@ -330,22 +317,20 @@ test.describe("profile preferences", () => {
       userEmail = await createAndLogin(page);
       await gotoProfile(page);
 
-      // Target role=switch (not getByLabel). The hidden <input> behind the
-      // BaseUI switch fails Playwright's viewport actionability check.
+      // getByLabel would match BaseUI's hidden <input>, which fails
+      // Playwright's viewport actionability check.
       const frenchSwitch = page.getByRole("switch", { name: "French" });
       const englishSwitch = page.getByRole("switch", { name: "English" });
 
       await frenchSwitch.click();
       await expect(frenchSwitch).toBeChecked();
 
-      // Freshly-enabled language appears without the Preferred badge.
       const frenchInner = page.locator("div").filter({ has: frenchSwitch }).last();
       await expect(frenchInner.getByText("Preferred", { exact: true })).toHaveCount(0);
 
       await page.getByRole("button", { name: "Move French up" }).click();
       await expect(frenchInner.getByText("Preferred", { exact: true })).toBeVisible();
 
-      // Disable English — only French remains enabled and reset button is visible.
       await englishSwitch.click();
       await expect(englishSwitch).not.toBeChecked();
       await expect(page.getByRole("button", { name: "Reset languages" })).toBeVisible();

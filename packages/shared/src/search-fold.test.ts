@@ -4,7 +4,6 @@ import { foldCached, foldForSearch, squashCached, squashForSearch } from "./sear
 
 describe("foldForSearch", () => {
   it("collapses the apostrophe variants a user might type", () => {
-    // The catalogue stores U+2019; a keyboard produces U+0027; users also omit it.
     expect(foldForSearch("Doran’s Shield")).toBe("dorans shield");
     expect(foldForSearch("Doran's Shield")).toBe("dorans shield");
     expect(foldForSearch("Dorans Shield")).toBe("dorans shield");
@@ -18,8 +17,7 @@ describe("foldForSearch", () => {
   });
 
   it("normalizes every dash variant onto the ASCII hyphen and keeps it", () => {
-    // fixTypography rewrites "-1" to "−1" with U+2212 MINUS SIGN, and rules text
-    // also contains U+2011 NON-BREAKING HYPHEN.
+    // fixTypography rewrites "-1" to U+2212 MINUS SIGN; rules text also has U+2011 NON-BREAKING HYPHEN.
     expect(foldForSearch("Give a unit −1")).toBe("give a unit -1");
     expect(foldForSearch("Give a unit -1")).toBe("give a unit -1");
     expect(foldForSearch("rune_fury ‑ Deal 2")).toBe("rune_fury - deal 2");
@@ -33,8 +31,6 @@ describe("foldForSearch", () => {
   });
 
   it("keeps rules-text markup verbatim", () => {
-    // Folding these to spaces made `d:[equip]` match 63 cards instead of 14 and
-    // `d:−1 might` match 183 instead of 7. Precision here is the whole point.
     expect(foldForSearch("[Equip] :rb_might:")).toBe("[equip] :rb_might:");
     expect(foldForSearch("_(italic)_")).toBe("_(italic)_");
     expect(foldForSearch("Choose one —\n• Deal 4")).toBe("choose one - • deal 4");
@@ -42,8 +38,6 @@ describe("foldForSearch", () => {
   });
 
   it("keeps characters it does not recognize, so CJK stays searchable", () => {
-    // normalizeNameForIdentity deletes these outright, which is why it could not
-    // be reused here.
     expect(foldForSearch("莺之歌")).toBe("莺之歌");
     expect(foldForSearch("黯荧岛Dark Glow")).toBe("黯荧岛dark glow");
   });
@@ -85,7 +79,6 @@ describe("squashForSearch", () => {
   });
 
   it("keeps letters and numbers from any script", () => {
-    // The [^a-z0-9] form used by normalizeNameForIdentity emptied these.
     expect(squashForSearch("莺之歌")).toBe("莺之歌");
     expect(squashForSearch("張漁 ·ZHANG YU")).toBe("張漁zhangyu");
     expect(squashForSearch("unité")).toBe("unite");

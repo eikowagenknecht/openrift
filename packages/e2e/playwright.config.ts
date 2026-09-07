@@ -32,8 +32,6 @@ export default defineConfig({
     },
   ],
 
-  // Servers are started in global-setup.ts (not here) because we need the
-  // temp database URL, which is only available after global-setup creates it.
-  // Playwright evaluates webServer config before globalSetup runs, so env vars
-  // set in globalSetup would not be visible here.
+  // Servers start in global-setup.ts: webServer config evaluates before
+  // globalSetup, so the temp database URL it creates wouldn't be visible here.
 });

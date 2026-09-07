@@ -8,7 +8,6 @@ extendZodWithOpenApi(z);
 export const keywordEntrySchema = z.object({
   color: z.string().openapi({ example: "#24705f" }),
   darkText: z.boolean().openapi({ example: false }),
-  /** Keyword whose glyph cost renders inside its bracket, e.g. `[Equip :rb_energy_1:]`. */
   costKeyword: z.boolean().openapi({ example: false }),
   translations: z
     .record(z.string(), z.string())
@@ -61,22 +60,15 @@ export const initResponseSchema = z
     distributionChannels: z.array(distributionChannelSchema).openapi({ example: [] }),
     customTags: z.array(customTagSchema).openapi({ example: [] }),
     championIdentifierTags: z.array(z.string()).openapi({ example: ["Garen", "Karma", "Yasuo"] }),
-    /** Categories for the printed card tags, in display order. */
     tagCategories: z.array(enumRowSchema).openapi({
       example: [{ slug: "region", label: "Region", sortOrder: 0 }],
     }),
-    /** Printed tag → category slug. Tags without an entry are unclassified. */
     tagCategoryMap: z.record(z.string(), z.string()).openapi({
       example: { Ionia: "region", Poro: "species" },
     }),
   })
   .openapi("InitResponse");
 
-/**
- * oRPC contract for the public init (bootstrap) endpoint.
- * `GET /api/v1/init` — enums, keywords, distribution channels and custom tags
- * in one request. Edge-cached (ETag via the mount's `etag()`).
- */
 export const initContract = {
   get: oc
     .route({ method: "GET", path: "/api/v1/init", tags: ["Init"] })

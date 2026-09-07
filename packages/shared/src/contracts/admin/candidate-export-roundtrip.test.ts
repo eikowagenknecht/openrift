@@ -2,13 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { candidateExportDocumentSchema, uploadCandidatesSchema } from "./card-mutations.js";
 
-// The `exportCandidates` endpoint emits `candidateExportDocumentSchema` and it is
-// meant to be re-uploaded through `uploadCandidatesSchema`. The two are separate
-// schemas (strict emit vs lenient, value-validated input), so nothing at the type
-// level forces them to stay compatible — this test is the guard. If either schema
-// drifts so an export can no longer be re-imported, this fails.
-
-// A representative export document, matching the shape `buildExport` produces.
+// `candidateExportDocumentSchema` and `uploadCandidatesSchema` are separate
+// schemas with nothing at the type level forcing them to stay compatible.
 const sampleExport = [
   {
     card: {
@@ -46,18 +41,13 @@ const sampleExport = [
         flavor_text: null,
         external_id: "22222222-2222-4222-8222-222222222222",
         extra_data: { image_id: "33333333-3333-4333-8333-333333333333" },
-        // The fields a prior export silently dropped — they must round-trip.
         language: "SC",
         printed_name: "遗弃",
         printed_year: 2025,
-        // Exported since the private generators use this document as the
-        // canonical printing reference (finish/marker enrichment).
         marker_slugs: ["launch-exclusive"],
         size: "standard",
-        // Curator note: exported, but the upload side has no home for it.
         comment: "Checked against the printed sheet.",
-        // distribution_channel_slugs stays admin-curated and absent from the
-        // export (optional in the document schema).
+        // distribution_channel_slugs is admin-curated and deliberately absent from the export.
       },
     ],
   },
@@ -76,7 +66,7 @@ describe("candidate export ↔ upload round-trip", () => {
     expect(result.success).toBe(true);
   });
 
-  it("a legacy export with a scalar `type` still uploads, folded into `types` (ADR-037)", () => {
+  it("a legacy export with a scalar `type` still uploads, folded into `types`", () => {
     const legacy = structuredClone(sampleExport) as unknown as Record<string, unknown>[];
     const card = (legacy[0] as { card: Record<string, unknown> }).card;
     delete card.types;

@@ -2,7 +2,6 @@ import type { Domain } from "./types/enums.js";
 
 export const DOMAIN_COLOR_FALLBACK = "#737373";
 
-/** Fallback domain colors matching the initial database seed. */
 export const DEFAULT_DOMAIN_COLORS: Record<string, string> = {
   fury: "#CB212D",
   calm: "#16AA71",

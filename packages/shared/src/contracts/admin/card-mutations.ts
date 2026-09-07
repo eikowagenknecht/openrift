@@ -36,7 +36,6 @@ export const uploadErrataEntrySchema = z
     message: "At least one of correctedRulesText or correctedEffectText must be provided",
   });
 
-/** The typed errata-upload entry shape consumed by the API's import-errata service. */
 export type UploadErrataEntry = z.infer<typeof uploadErrataEntrySchema>;
 
 const entryRefSchema = z.object({ cardSlug: z.string(), cardName: z.string() });
@@ -64,7 +63,6 @@ export const uploadErrataResponseSchema = z.object({
 });
 export type UploadErrataResponse = z.infer<typeof uploadErrataResponseSchema>;
 
-// The differentiator fields admins can correct on a candidate printing.
 const patchCandidatePrintingFields = {
   artVariant: candidatePrintingFieldRules.artVariant.optional(),
   isSigned: z.boolean().optional(),
@@ -75,14 +73,10 @@ const patchCandidatePrintingFields = {
   rarity: candidatePrintingFieldRules.rarity.optional(),
 };
 
-/** The PATCH body (differentiator fields, no path param) — consumed by the web admin editor. */
 export type PatchCandidatePrintingBody = z.infer<z.ZodObject<typeof patchCandidatePrintingFields>>;
 
-// accept-field bodies. `value` stays `unknown` on the wire; the API validates
-// it per-field against {card,printing}FieldRules at runtime. These two arrays
-// ARE the allowlist of writable columns, so the web field editor derives its
-// own writable set from them rather than keeping a parallel list — see
-// `isAcceptCardField` / `isAcceptPrintingField` below.
+// `value` stays `unknown` on the wire; the API validates it per-field against
+// {card,printing}FieldRules at runtime.
 export const ACCEPT_CARD_FIELDS = [
   "name",
   "types",
@@ -131,29 +125,22 @@ const acceptPrintingFieldBodySchema = z.object({
   source: z.enum(["provider", "manual"]).default("manual"),
 });
 
-/** accept-field request bodies (no path param) — consumed by the web admin field editor. */
 export type AcceptCardFieldBody = z.infer<typeof acceptCardFieldBodySchema>;
 export type AcceptPrintingFieldBody = z.infer<typeof acceptPrintingFieldBodySchema>;
 
-/** A `cards` column the accept-field endpoint will write. */
 export type AcceptCardField = AcceptCardFieldBody["field"];
-/** A `printings` column the accept-printing-field endpoint will write. */
 export type AcceptPrintingField = AcceptPrintingFieldBody["field"];
 
 const acceptCardFieldSet: ReadonlySet<string> = new Set(ACCEPT_CARD_FIELDS);
 const acceptPrintingFieldSet: ReadonlySet<string> = new Set(ACCEPT_PRINTING_FIELDS);
 
-/** @returns Whether `key` names a card column the accept endpoint will write. */
 export function isAcceptCardField(key: string): key is AcceptCardField {
   return acceptCardFieldSet.has(key);
 }
 
-/** @returns Whether `key` names a printing column the accept endpoint will write. */
 export function isAcceptPrintingField(key: string): key is AcceptPrintingField {
   return acceptPrintingFieldSet.has(key);
 }
-
-// ── Create / accept composite schemas ────────────────────────────────────────
 
 export const cardFieldsSchema = z.object({
   id: cardFieldRules.slug,
@@ -168,7 +155,6 @@ export const cardFieldsSchema = z.object({
   tags: cardFieldRules.tags.optional(),
 });
 
-// Flat printing fields for `createPrinting` (setId required, no `id`).
 const createPrintingFieldsSchema = z.object({
   shortCode: printingFieldRules.shortCode,
   setId: setFieldRules.slug,
@@ -192,7 +178,6 @@ const createPrintingFieldsSchema = z.object({
   printedYear: printingFieldRules.printedYear.optional(),
 });
 
-// `acceptPrinting` adds an optional `id` and relaxes setId to optional.
 const acceptPrintingFieldsSchema = createPrintingFieldsSchema.extend({
   id: z.string().optional(),
   setId: setFieldRules.slug.optional(),
@@ -200,9 +185,8 @@ const acceptPrintingFieldsSchema = createPrintingFieldsSchema.extend({
 
 const skippedPrintingSchema = z.object({ shortCode: z.string(), reason: z.string() });
 
-// ── Candidate upload (ingest) schemas ────────────────────────────────────────
-// Coerce incoming JSON into typed shapes; value constraints are checked per-card
-// in the ingest service so individual bad cards skip gracefully.
+// Value constraints are checked per-card in the ingest service so individual
+// bad cards skip gracefully.
 const nullStr = z.string().nullable().optional().default(null);
 
 export const ingestPrintingSchema = z.object({
@@ -227,9 +211,8 @@ export const ingestPrintingSchema = z.object({
   extra_data: z.unknown().nullable().optional().default(null),
   language: nullStr,
   printed_name: nullStr,
-  // Numeric, so it can't use `nullStr`. Reuses the accept path's range rule
-  // rather than a bare `z.number()`: `printings.printed_year` is a smallint, and
-  // an out-of-range value would otherwise only surface as an opaque insert error.
+  // `printings.printed_year` is a smallint; an out-of-range value would
+  // otherwise only surface as an opaque insert error.
   printed_year: printingFieldRules.printedYear.optional().default(null),
 });
 
@@ -258,9 +241,8 @@ export const ingestCardFieldsSchema = ingestCardFieldsObject.transform(({ type, 
   types: rest.types.length > 0 ? rest.types : type === null ? [] : [type],
 }));
 
-/** A single ingested printing row (snake_case wire shape). */
+/** Snake_case wire shape. */
 export type IngestPrinting = z.infer<typeof ingestPrintingSchema>;
-/** A single ingested card with its printings — the shape the ingest service consumes. */
 export type IngestCard = z.infer<typeof ingestCardFieldsSchema> & {
   printings: IngestPrinting[];
 };
@@ -276,22 +258,10 @@ export const uploadCandidatesSchema = z.object({
     .min(1),
 });
 
-/** Pre-transform upload body (the raw `{ card, printings }[]` shape the web uploads). */
 export type UploadCandidatesBody = z.input<typeof uploadCandidatesSchema>;
 
-// ── Candidate export (round-trip) document ───────────────────────────────────
-// The `exportCandidates` endpoint emits this exact shape, and it is designed to
-// be re-uploaded through `uploadCandidatesSchema` above. The two are paired: a
-// single literal schema can't serve both (the upload side is lenient + value-
-// validated for untrusted input; this side is a strict emit of trusted DB rows),
-// so the guarantee that they line up is enforced by a round-trip integration
-// test rather than shared object identity. `distribution_channel_slugs` is
-// admin-curated and not exported (optional here); every other field
-// round-trips, including `marker_slugs` and `size` (the private candidate
-// generators read this export as the canonical printing reference).
-// `comment` is the one exported field that does NOT round-trip: it is a
-// curator note, so the upload side deliberately has no home for it and drops
-// it. It ships here so the export can serve as the full curated reference.
+// Kept in sync with `uploadCandidatesSchema` by a round-trip integration test.
+// `comment` is a curator note and deliberately does not round-trip.
 const candidateExportCardSchema = z.object({
   name: z.string(),
   types: z.array(z.string()),
@@ -366,10 +336,8 @@ export const uploadCandidatesResponseSchema = z.object({
   updatedPrintings: z.array(uploadDiffSchema),
 });
 
-/** Upload ingest summary. */
 export type UploadCandidatesResponse = z.infer<typeof uploadCandidatesResponseSchema>;
 
-/** Create / accept request bodies — consumed by the web admin card editor. */
 export type CreateCardBody = z.infer<typeof cardFieldsSchema>;
 export type CreatePrintingBody = z.infer<typeof createPrintingFieldsSchema>;
 export interface AcceptNewCardBody {
@@ -381,17 +349,9 @@ export interface AcceptPrintingBody {
 }
 
 /**
- * oRPC contract for the bespoke admin card mutations (mounted under
- * `/api/admin/v1/cards`, admin-gated by the mount). Migrated incrementally off
- * the chained `@hono/zod-openapi` `mutationsRoute`; this first slice covers the
- * candidate check/uncheck verbs and the candidate-printing operations. Body
- * fields ride alongside any `{...}` path param (oRPC compact input). Domain
- * codes per route: check/uncheck/delete verbs → NOT_FOUND; patch/copy/link/
- * rename/checkByProvider/deleteByProvider/deletePrinting verbs → BAD_REQUEST
- * (and NOT_FOUND for entity lookups); `acceptPrinting` / `createPrinting` →
- * BAD_REQUEST + NOT_FOUND + CONFLICT; `acceptPrintingField` → NOT_FOUND;
- * `acceptFavoritePrintings` → NOT_FOUND; `deleteCard` → NOT_FOUND + CONFLICT
- * (when user data or marketplace mappings still reference the card).
+ * oRPC contract for the admin card mutations (mounted under
+ * `/api/admin/v1/cards`, admin-gated by the mount). Body fields ride alongside
+ * any `{...}` path param (oRPC compact input).
  */
 export const adminCardMutationsContract = {
   checkCandidateCard: authedRoute

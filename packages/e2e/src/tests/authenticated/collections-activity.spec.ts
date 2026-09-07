@@ -110,7 +110,6 @@ async function apiAddCopies(
     data: { copies },
   });
   expect(response.ok()).toBeTruthy();
-  // POST /copies now returns the created rows under `items`, not a bare array.
   const body = (await response.json()) as { items: CopyEntry[] };
   return body.items;
 }
@@ -244,16 +243,14 @@ test.describe("collection activity", () => {
           page.getByText(/Activity is recorded when you add, move, or remove cards\./u),
         ).toBeVisible();
 
-        // The "Browse cards" CTA is a Button rendered as a Link; it may
-        // resolve to role="link" or role="button" depending on how BaseUI
-        // merges the render prop. Accept either.
+        // May resolve to role="link" or role="button" depending on how BaseUI
+        // merges the render prop; accept either.
         const browseLink = page
           .getByRole("link", { name: /Browse cards/iu })
           .or(page.getByRole("button", { name: /Browse cards/iu }));
         await expect(browseLink).toBeVisible();
         await expect(browseLink).toHaveAttribute("href", "/cards");
 
-        // Toolbar (filters) does not render in the empty state.
         await expect(page.getByRole("button", { name: "Added" })).toHaveCount(0);
         await expect(page.getByRole("button", { name: "Today" })).toHaveCount(0);
       });
@@ -326,12 +323,10 @@ test.describe("collection activity", () => {
         await expect(heading).toBeVisible({ timeout: 15_000 });
         await expect(heading).toHaveText(today);
 
-        // Each event card shows the card name and the short code.
         await expect(page.getByText("Annie, Fiery")).toBeVisible();
         await expect(page.getByText("Garen, Rugged")).toBeVisible();
         await expect(page.getByText("OGS-001")).toBeVisible();
 
-        // Day summary reports 3 adds.
         await expect(page.getByText(/3 added/u)).toBeVisible();
       });
     });
@@ -394,7 +389,7 @@ test.describe("collection activity", () => {
         const page = await context.newPage();
         await page.goto("/collections/activity");
 
-        // Day summary says 1 moved (and 1 added from the initial add).
+        // The day summary counts the earlier add too, so this reads 1 moved.
         await expect(page.getByText(/1 moved/u)).toBeVisible({ timeout: 15_000 });
 
         // Scope to the move event's Link so we don't accidentally match the
@@ -420,16 +415,13 @@ test.describe("collection activity", () => {
       state = await setupBlock(browser, "action");
       await withSignedInContext(state.user, browser, async (context) => {
         const secondary = await apiCreateCollection(context, "Shurima Box");
-        // 2 adds
         await apiAddCopies(context, ANNIE_FIERY_NORMAL, 1, state.inboxId);
         await apiAddCopies(context, GAREN_RUGGED_NORMAL, 1, state.inboxId);
-        // 1 remove
         const removable = await apiAddCopies(context, ANNIE_FIERY_NORMAL, 1, state.inboxId);
         await apiDisposeCopies(
           context,
           removable.map((c) => c.id),
         );
-        // 1 move
         const movable = await apiAddCopies(context, GAREN_RUGGED_NORMAL, 1, state.inboxId);
         await apiMoveCopies(
           context,
@@ -456,31 +448,23 @@ test.describe("collection activity", () => {
 
         await expect(allButton).toBeVisible({ timeout: 15_000 });
 
-        // All (default): DaySummary lists all three parts.
         await expect(page.getByText(/4 added/u)).toBeVisible();
         await expect(page.getByText(/1 removed/u)).toBeVisible();
         await expect(page.getByText(/1 moved/u)).toBeVisible();
 
-        // Event cards are <a href="/cards?printingId=…"> inside the content area.
         const eventCards = page.locator('a[href*="/cards?printingId="]');
 
-        // Added → 2 grouped cards (2 adds of Annie to Inbox + 2 adds of Garen
-        // to Inbox collapse by (action, printingId, collectionId)).
         await addedButton.click();
         await expect(eventCards).toHaveCount(2);
 
-        // Removed → just the single remove.
         await removedButton.click();
         await expect(eventCards).toHaveCount(1);
         await expect(page.getByText(/1 removed/u)).toBeVisible();
 
-        // Moved → just the single move.
         await movedButton.click();
         await expect(eventCards).toHaveCount(1);
         await expect(page.getByText(/1 moved/u)).toBeVisible();
 
-        // The action filter is a toggle group now, so selection shows up as
-        // pressed state rather than a variant class.
         await expect(movedButton).toHaveAttribute("aria-pressed", "true");
         await expect(addedButton).toHaveAttribute("aria-pressed", "false");
       });
@@ -496,8 +480,6 @@ test.describe("collection activity", () => {
       state = await setupBlock(browser, "colfilter");
       await withSignedInContext(state.user, browser, async (context) => {
         const secondary = await apiCreateCollection(context, "Ionia Box");
-        // Events scoped to non-overlapping collections so filtering is
-        // unambiguous: Annie only in Inbox, Garen only in Ionia Box.
         await apiAddCopies(context, ANNIE_FIERY_NORMAL, 1, state.inboxId);
         await apiAddCopies(context, GAREN_RUGGED_NORMAL, 1, secondary.id);
       });
@@ -515,16 +497,13 @@ test.describe("collection activity", () => {
         const eventCards = page.locator('a[href*="/cards?printingId="]');
         await expect(eventCards).toHaveCount(2, { timeout: 15_000 });
 
-        // Open the collection select and pick "Ionia Box".
         const trigger = page.getByLabel("Collection");
         await trigger.click();
         await page.getByRole("option", { name: "Ionia Box" }).click();
 
-        // Only the Ionia-scoped Garen event survives.
         await expect(eventCards).toHaveCount(1);
         await expect(eventCards.first()).toContainText("Garen, Rugged");
 
-        // Switch back to "All collections" and both cards render again.
         await trigger.click();
         await page.getByRole("option", { name: "All collections" }).click();
         await expect(eventCards).toHaveCount(2);
@@ -592,22 +571,17 @@ test.describe("collection activity", () => {
 
         await expect(allTime).toBeVisible({ timeout: 15_000 });
 
-        // All time (default) → 3 date headings.
         await expect(page.getByRole("heading", { level: 2 })).toHaveCount(3);
 
-        // Today → only today's heading remains.
         await todayBtn.click();
         await expect(page.getByRole("heading", { level: 2 })).toHaveCount(1);
 
-        // 7 days → today + 3 days ago (2 headings); 60-days-ago is gone.
         await sevenDays.click();
         await expect(page.getByRole("heading", { level: 2 })).toHaveCount(2);
 
-        // 30 days → same 2 headings; 60-days-ago still excluded.
         await thirtyDays.click();
         await expect(page.getByRole("heading", { level: 2 })).toHaveCount(2);
 
-        // All time → all 3 back.
         await allTime.click();
         await expect(page.getByRole("heading", { level: 2 })).toHaveCount(3);
       });
@@ -622,7 +596,6 @@ test.describe("collection activity", () => {
     test.beforeAll(async ({ browser }) => {
       state = await setupBlock(browser, "combo");
       await withSignedInContext(state.user, browser, async (context) => {
-        // Only adds into the Inbox — no removes touching Inbox exist.
         await apiAddCopies(context, ANNIE_FIERY_NORMAL, 1, state.inboxId);
       });
     });
@@ -646,7 +619,6 @@ test.describe("collection activity", () => {
         await expect(page.getByText("No matching activity")).toBeVisible();
         await expect(page.getByText("Annie, Fiery")).toBeHidden();
 
-        // Restore: switch back to All.
         await toolbar.getByRole("button", { name: "All", exact: true }).click();
         await expect(page.getByText("Annie, Fiery")).toBeVisible();
         await expect(page.getByText("No matching activity")).toBeHidden();
@@ -697,11 +669,8 @@ test.describe("collection activity", () => {
   test.describe("infinite scroll", () => {
     test.describe.configure({ mode: "serial" });
 
-    // The server defaults to limit=100 per page (see collection-events.ts).
-    // The seed fixture only has 73 printings, so to exceed PAGE_SIZE we seed
-    // two events per printing (an "added" + a "removed") against the Inbox.
-    // The frontend grouping key is (action, printingId, collectionId), so these
-    // render as distinct cards: 73 * 2 = 146 > PAGE_SIZE.
+    // The server defaults to limit=100/page; the 73-printing seed fixture
+    // needs 2 events each (added + removed) to exceed it: 73*2=146 > PAGE_SIZE.
     const PAGE_SIZE = 100;
     let seedCount = 0;
 
@@ -717,10 +686,8 @@ test.describe("collection activity", () => {
         const printingIds = rows.map((r) => r.id);
         expect(printingIds.length).toBeGreaterThan(PAGE_SIZE / 2);
 
-        // All events on "today", but staggered seconds apart so the cursor
-        // comparison has a stable ordering. Each printing produces one "added"
-        // and one "removed" event against the Inbox so the grouping key
-        // (action, printingId, collectionId) yields a distinct card per event.
+        // Staggered seconds apart so the cursor comparison has a stable
+        // ordering; added/removed pairs group into distinct cards.
         const now = Date.now();
         const events: DirectEventInput[] = printingIds.flatMap((printingId, idx) => [
           {
@@ -755,7 +722,6 @@ test.describe("collection activity", () => {
         const page = await context.newPage();
         await page.goto("/collections/activity");
 
-        // Wait for initial page to render.
         await expect(page.getByRole("heading", { level: 2 }).first()).toBeVisible({
           timeout: 15_000,
         });
@@ -763,14 +729,12 @@ test.describe("collection activity", () => {
         const eventCards = page.locator('a[href*="/cards?"]');
         await expect(eventCards).toHaveCount(PAGE_SIZE);
 
-        // Watch for the cursor-paginated follow-up fetch. The server fn is
-        // declared with method "GET" (see use-collection-events.ts).
+        // The cursor-paginated follow-up fetch is a GET server fn call.
         const secondPage = page.waitForRequest(
           (req) => req.method() === "GET" && isServerFn(req.url(), "fetchCollectionEventsFn"),
           { timeout: 15_000 },
         );
 
-        // Scroll the sentinel into view.
         await page.mouse.wheel(0, 10_000);
         await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
         await secondPage;

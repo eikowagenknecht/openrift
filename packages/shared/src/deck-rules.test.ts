@@ -112,8 +112,6 @@ function makeState(
   return { format, cards, formatConfig: formatConfig ?? null, championIdentifierTags };
 }
 
-// ── legendExactlyOne ────────────────────────────────────────────────────────
-
 describe("legendExactlyOne", () => {
   it("passes with exactly 1 Legend", () => {
     expect(legendExactlyOne(makeState([makeLegend()]))).toEqual([]);
@@ -137,8 +135,6 @@ describe("legendExactlyOne", () => {
     expect(violations[0].code).toBe("LEGEND_WRONG_TYPE");
   });
 });
-
-// ── championExactlyOne ──────────────────────────────────────────────────────
 
 describe("championExactlyOne", () => {
   it("passes with exactly 1 Champion", () => {
@@ -164,8 +160,6 @@ describe("championExactlyOne", () => {
   });
 });
 
-// ── championSharesTagWithLegend ─────────────────────────────────────────────
-
 describe("championSharesTagWithLegend", () => {
   it("passes when tags overlap", () => {
     const violations = championSharesTagWithLegend(makeState([makeLegend(), makeChampion()]));
@@ -185,8 +179,6 @@ describe("championSharesTagWithLegend", () => {
     expect(championSharesTagWithLegend(makeState([makeChampion()]))).toEqual([]);
   });
 });
-
-// ── runesExactlyTwelve ──────────────────────────────────────────────────────
 
 describe("runesExactlyTwelve", () => {
   it("passes with exactly 12 runes", () => {
@@ -223,8 +215,6 @@ describe("runesExactlyTwelve", () => {
   });
 });
 
-// ── runesAllTypeRune ────────────────────────────────────────────────────────
-
 describe("runesAllTypeRune", () => {
   it("passes when all runes are Rune type", () => {
     expect(runesAllTypeRune(makeState([makeRune("fury")]))).toEqual([]);
@@ -249,8 +239,6 @@ describe("runesAllTypeRune", () => {
     expect(runesAllTypeRune(makeState([card]))).toEqual([]);
   });
 });
-
-// ── runesMatchLegendDomains ─────────────────────────────────────────────────
 
 describe("runesMatchLegendDomains", () => {
   it("passes when all rune domains match legend", () => {
@@ -284,8 +272,6 @@ describe("runesMatchLegendDomains", () => {
   });
 });
 
-// ── mainDeckExactly ─────────────────────────────────────────────────────────
-
 describe("mainDeckExactly", () => {
   it("passes with exactly 39 cards in main", () => {
     expect(mainDeckExactly(makeState([makeCard({ quantity: 39 })]))).toEqual([]);
@@ -297,14 +283,10 @@ describe("mainDeckExactly", () => {
   });
 
   it("does not flag main when the deck is only missing its champion", () => {
-    // The regression: a full 39-card main with no champion used to show a red
-    // "39/40 — need 1 more" on a zone that was already complete. The missing
-    // champion is CHAMPION_REQUIRED's to report.
     expect(mainDeckExactly(makeState([makeCard({ quantity: 39 })]))).toEqual([]);
   });
 
   it("ignores champion-zone cards when counting", () => {
-    // 39 main + a champion is legal, so a champion must not push main over.
     const cards = [makeCard({ quantity: 39 }), makeChampion({ quantity: 1 })];
     expect(mainDeckExactly(makeState(cards))).toEqual([]);
   });
@@ -332,8 +314,6 @@ describe("mainDeckExactly", () => {
   });
 });
 
-// ── copyLimitFor ────────────────────────────────────────────────────────────
-
 describe("copyLimitFor", () => {
   it("defaults to 3 without an override", () => {
     expect(copyLimitFor(makeCard())).toBe(3);
@@ -349,8 +329,6 @@ describe("copyLimitFor", () => {
     expect(copyLimitFor(makeCard({ maxCopiesOverride: 7 }))).toBe(7);
   });
 });
-
-// ── mainDeckCopyLimit ───────────────────────────────────────────────────────
 
 describe("mainDeckCopyLimit", () => {
   it("passes with 3 copies", () => {
@@ -382,8 +360,6 @@ describe("mainDeckCopyLimit", () => {
     expect(violations[0].message).toContain("7-copy limit");
   });
 });
-
-// ── championCopyLimitAcrossZones ────────────────────────────────────────────
 
 describe("championCopyLimitAcrossZones", () => {
   it("passes with champion in champion zone and 2 in main", () => {
@@ -419,8 +395,6 @@ describe("championCopyLimitAcrossZones", () => {
   });
 });
 
-// ── battlefieldExactlyThree ──────────────────────────────────────────────────
-
 describe("battlefieldExactlyThree", () => {
   it("passes with exactly 3 battlefields", () => {
     const cards = [makeBattlefield("bf-1"), makeBattlefield("bf-2"), makeBattlefield("bf-3")];
@@ -452,8 +426,6 @@ describe("battlefieldExactlyThree", () => {
   });
 });
 
-// ── battlefieldAllTypeBattlefield ───────────────────────────────────────────
-
 describe("battlefieldAllTypeBattlefield", () => {
   it("passes when all are Battlefield type", () => {
     expect(battlefieldAllTypeBattlefield(makeState([makeBattlefield("bf-1")]))).toEqual([]);
@@ -467,8 +439,6 @@ describe("battlefieldAllTypeBattlefield", () => {
     expect(violations[0].code).toBe("BATTLEFIELD_WRONG_TYPE");
   });
 });
-
-// ── battlefieldNoDuplicates ─────────────────────────────────────────────────
 
 describe("battlefieldNoDuplicates", () => {
   it("passes with unique cards", () => {
@@ -487,8 +457,6 @@ describe("battlefieldNoDuplicates", () => {
   });
 });
 
-// ── sideboardMaximum ────────────────────────────────────────────────────────
-
 describe("sideboardMaximum", () => {
   it("passes with 10 or fewer", () => {
     expect(sideboardMaximum(makeState([makeCard({ zone: "sideboard", quantity: 10 })]))).toEqual(
@@ -502,8 +470,6 @@ describe("sideboardMaximum", () => {
     expect(violations[0].code).toBe("SIDEBOARD_TOO_MANY");
   });
 });
-
-// ── sideboardCopyLimit ──────────────────────────────────────────────────────
 
 describe("sideboardCopyLimit", () => {
   it("passes with 3 copies", () => {
@@ -529,8 +495,6 @@ describe("sideboardCopyLimit", () => {
   });
 });
 
-// ── sideboardNotAllowed ─────────────────────────────────────────────────────
-
 describe("sideboardNotAllowed", () => {
   it("passes with an empty sideboard", () => {
     expect(sideboardNotAllowed(makeState([makeCard({ zone: "main" })]))).toEqual([]);
@@ -550,8 +514,6 @@ describe("sideboardNotAllowed", () => {
   });
 });
 
-// ── formatHasSideboard ──────────────────────────────────────────────────────
-
 describe("formatHasSideboard", () => {
   it("is false only for custom-region", () => {
     expect(formatHasSideboard("custom-region")).toBe(false);
@@ -559,8 +521,6 @@ describe("formatHasSideboard", () => {
     expect(formatHasSideboard("freeform")).toBe(true);
   });
 });
-
-// ── uniqueCopyLimit ─────────────────────────────────────────────────────────
 
 describe("uniqueCopyLimit", () => {
   it("passes for non-Unique cards at 3 copies", () => {
@@ -619,8 +579,6 @@ describe("uniqueCopyLimit", () => {
     expect(violations).toHaveLength(2);
   });
 });
-
-// ── signatureTotalLimit ────────────────────────────────────────────────────
 
 describe("signatureTotalLimit (via validateDeck)", () => {
   const sigViolations = (cards: DeckCard[]) =>
@@ -686,8 +644,6 @@ describe("signatureTotalLimit (via validateDeck)", () => {
     expect(sigViolations(cards)).toEqual([]);
   });
 });
-
-// ── signatureMatchesLegendTag ──────────────────────────────────────────────
 
 describe("signatureMatchesLegendTag (via validateDeck)", () => {
   const tagViolations = (cards: DeckCard[]) =>
@@ -789,8 +745,6 @@ describe("signatureMatchesLegendTag (via validateDeck)", () => {
   });
 });
 
-// ── validateDeck ────────────────────────────────────────────────────────────
-
 describe("noBannedCards", () => {
   it("returns no violations when nothing is banned", () => {
     expect(noBannedCards(makeState([makeCard(), makeLegend()]))).toEqual([]);
@@ -826,8 +780,6 @@ describe("noBannedCards", () => {
   });
 
   it("ignores a banned card parked in overflow", () => {
-    // Overflow is a staging area outside the deck, so parking a banned card
-    // there must not make the deck illegal.
     expect(
       noBannedCards(makeState([makeCard({ cardId: "bad", zone: "overflow", banned: true })])),
     ).toEqual([]);
@@ -918,8 +870,6 @@ describe("tokens via validateDeck", () => {
   });
 
   it("does not enforce the token rule in freeform", () => {
-    // Freeform is the deliberate no-rules sandbox: validateDeck short-circuits
-    // before any rule runs, so tokens are allowed there like everything else.
     expect(validateDeck(makeState([makeCard({ superTypes: ["token"] })], "freeform"))).toEqual([]);
   });
 });
@@ -960,8 +910,6 @@ describe("banned cards via validateDeck", () => {
   });
 
   it("emits one violation when a banned card is split across printing rows", () => {
-    // Two rows for the same card in one zone collapse before rules run, so a
-    // split banned card must not produce duplicate (zone, code, cardId) keys.
     const violations = validateDeck(
       makeState([
         makeCard({ cardId: "bad", quantity: 1, banned: true }),
@@ -984,8 +932,6 @@ describe("validateDeck", () => {
   });
 
   it("blames only the champion zone when a full main deck has no champion", () => {
-    // A complete 39-card main plus a missing champion is one gap, not two: the
-    // main zone is finished, so only CHAMPION_REQUIRED should fire.
     const mainCards = Array.from({ length: 13 }, (_, index) =>
       makeCard({ cardId: `main-${index}`, quantity: 3 }),
     );
@@ -1014,9 +960,6 @@ describe("validateDeck", () => {
   });
 
   it("emits one DOMAIN_MISMATCH when an off-domain card is split across printing rows", () => {
-    // Two rows for the same card in the same zone (e.g. two pinned printings)
-    // must collapse into one violation, not one per row — duplicate
-    // (zone, code, cardId) violations produce duplicate React keys downstream.
     const offDomain = { cardId: "off-domain-1", cardName: "Chaos Trick", domains: ["chaos"] };
     const mainCards = [
       ...Array.from({ length: 12 }, (_, index) =>
@@ -1074,15 +1017,12 @@ describe("validateDeck", () => {
   });
 });
 
-// ── validateDeck — custom-region branch ────────────────────────────────────
-
 describe("validateDeck for custom-region", () => {
   function withTags(card: DeckCard, slugs: string[]): DeckCard {
     return { ...card, customTagSlugs: slugs };
   }
 
-  // Custom-region allows exactly 1 battlefield, so drop the constructed
-  // shell's second and third one.
+  // Custom-region allows exactly 1 battlefield; drops the shell's extra two.
   function fullyTaggedShell(slugs: string[]): DeckCard[] {
     return makeConstructedShell()
       .filter((card) => card.zone !== "battlefield" || card.cardId === "bf-1")
@@ -1142,8 +1082,6 @@ describe("validateDeck for custom-region", () => {
   });
 
   it("does not run the dropped domain rules", () => {
-    // Main-deck card with a domain outside the legend's domains would fail
-    // constructed (DOMAIN_MISMATCH) but pass region-locked.
     const tagSlugs = ["bandle-city"];
     const offColorCard = withTags(
       makeCard({
@@ -1168,8 +1106,6 @@ describe("validateDeck for custom-region", () => {
     expect(codes).toContain("RUNES_REQUIRED");
     expect(codes).toContain("MAIN_TOO_FEW");
   });
-
-  // ── battlefield exactly 1 (custom-region only) ──────────────────────────
 
   function shellWithBattlefields(slugs: string[], bfCount: number): DeckCard[] {
     const base = makeConstructedShell()
@@ -1209,15 +1145,12 @@ describe("validateDeck for custom-region", () => {
     const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
     const violation = violations.find((v) => v.code === "BATTLEFIELD_TOO_MANY");
     expect(violation).toBeDefined();
-    // The message must spell out the target in plain language, not a bare
-    // "2/1" fraction.
     expect(violation?.message).toBe(
       "This format plays exactly 1 Battlefield — remove 1 of the 2 in the deck",
     );
   });
 
   it("standard constructed still requires exactly 3 battlefields", () => {
-    // Constructed rules still use battlefieldExactlyThree — sanity check.
     const cards = [
       makeLegend(),
       makeChampion(),
@@ -1228,8 +1161,6 @@ describe("validateDeck for custom-region", () => {
     const violations = validateDeck(makeState(cards, "constructed"));
     expect(violations.some((v) => v.code === "BATTLEFIELD_TOO_FEW")).toBe(true);
   });
-
-  // ── no sideboard in custom-region ────────────────────────────────────────
 
   it("flags any sideboard card with SIDEBOARD_NOT_ALLOWED", () => {
     const tagSlugs = ["bandle-city"];
@@ -1244,8 +1175,6 @@ describe("validateDeck for custom-region", () => {
 
   it("does not run the sideboard cap rules — the zone is disallowed outright", () => {
     const tagSlugs = ["bandle-city"];
-    // 11 copies of one card would trip both SIDEBOARD_TOO_MANY and
-    // SIDEBOARD_COPY_LIMIT under constructed rules.
     const cards = [
       ...fullyTaggedShell(tagSlugs),
       ...fullyTaggedMain(tagSlugs),
@@ -1264,8 +1193,6 @@ describe("validateDeck for custom-region", () => {
     expect(violations.some((v) => v.code === "SIDEBOARD_NOT_ALLOWED")).toBe(false);
   });
 
-  // ── runes are exempt from the region-tag rule ────────────────────────────
-
   it("accepts untagged runes — runes carry no region tags", () => {
     const tagSlugs = ["bandle-city"];
     // fullyTaggedShell tags everything; strip the tags off the runes again.
@@ -1283,7 +1210,6 @@ describe("validateDeck for custom-region", () => {
     const tagSlugs = ["bandle-city"];
     const cards = [
       ...fullyTaggedShell(tagSlugs).filter((card) => card.zone !== "runes"),
-      // Only 11 runes, one of them not a rune card at all.
       ...Array.from({ length: 10 }, (_, index) => makeRune("fury", `rune-fury-${index}`)),
       makeCard({ cardId: "not-a-rune", zone: "runes", cardType: "unit", cardName: "Sneaky Unit" }),
       ...fullyTaggedMain(tagSlugs),
@@ -1293,8 +1219,6 @@ describe("validateDeck for custom-region", () => {
     expect(codes).toContain("RUNES_TOO_FEW");
     expect(codes).toContain("RUNE_WRONG_TYPE");
   });
-
-  // ── signatureChampionCopiesInDeck (custom-region only) ──────────────────
 
   const ALL_CHAMPION_IDS = new Set(["Karma", "Ivern", "Draven", "Garen", "Yasuo"]);
 
@@ -1366,8 +1290,6 @@ describe("validateDeck for custom-region", () => {
 
   it("exempts the Legend's own Signatures — no extra champion copies needed", () => {
     const tagSlugs = ["ionia"];
-    // Legend = Karma; 3 copies of Karma's Signature backed only by the single
-    // Chosen Champion. Exempt because the Signature belongs to the Legend.
     const cards: DeckCard[] = [
       ...customRegionShell("Karma", "Karma", "Ionia", tagSlugs),
       makeSignature("sig-1", "Karma Sig", ["Karma", "Ionia"], tagSlugs, 3),
@@ -1381,8 +1303,6 @@ describe("validateDeck for custom-region", () => {
 
   it("rejects a Signature whose champion is not in the deck — region overlap is ignored", () => {
     const tagSlugs = ["ionia"];
-    // Chosen Champion = Karma (Ionia). Signature = Daisy! (Ivern + Ionia).
-    // Naive tag overlap would pass on "Ionia"; the rule must reject this.
     const cards: DeckCard[] = [
       ...customRegionShell("Karma", "Karma", "Ionia", tagSlugs),
       makeSignature("sig-daisy", "Daisy!", ["Ivern", "Ionia"], tagSlugs),
@@ -1398,7 +1318,6 @@ describe("validateDeck for custom-region", () => {
 
   it("accepts a Signature when its champion is in the main deck (not Chosen)", () => {
     const tagSlugs = ["ionia"];
-    // Chosen = Karma; Ivern is added as a non-Chosen Champion in main.
     const cards: DeckCard[] = [
       ...customRegionShell("Karma", "Karma", "Ionia", tagSlugs),
       makeMainChampion("champion-ivern-main", "Ivern, Green Father", ["Ivern", "Ionia"], tagSlugs),
@@ -1413,7 +1332,6 @@ describe("validateDeck for custom-region", () => {
 
   it("requires one champion copy per Signature copy", () => {
     const tagSlugs = ["ionia"];
-    // 3× Daisy! but only 1 Ivern in main — needs 3.
     const cards: DeckCard[] = [
       ...customRegionShell("Karma", "Karma", "Ionia", tagSlugs),
       makeMainChampion("champion-ivern-main", "Ivern, Green Father", ["Ivern", "Ionia"], tagSlugs),
@@ -1431,8 +1349,6 @@ describe("validateDeck for custom-region", () => {
 
   it("counts champion copies across different cards of the same champion", () => {
     const tagSlugs = ["ionia"];
-    // 3× Daisy! backed by 2 copies of one Ivern card + 1 of another
-    // (different printings/variants of the champion all count).
     const cards: DeckCard[] = [
       ...customRegionShell("Karma", "Karma", "Ionia", tagSlugs),
       makeMainChampion("ivern-a", "Ivern, Green Father", ["Ivern", "Ionia"], tagSlugs, 2),
@@ -1471,7 +1387,6 @@ describe("validateDeck for custom-region", () => {
 
   it("sums demand per champion — two Signatures can't share the same copies", () => {
     const tagSlugs = ["ionia"];
-    // Two different Ivern Signatures (2 + 1 copies) vs only 2 Iverns.
     const cards: DeckCard[] = [
       ...customRegionShell("Karma", "Karma", "Ionia", tagSlugs),
       makeMainChampion("ivern-a", "Ivern, Green Father", ["Ivern", "Ionia"], tagSlugs, 2),
@@ -1488,8 +1403,6 @@ describe("validateDeck for custom-region", () => {
 
   it("ignores non-champion tags like Equipment on Signatures", () => {
     const tagSlugs = ["noxus"];
-    // Spinning Axe = {Draven, Equipment}. Draven is the Legend's champion,
-    // so the Signature is exempt; "Equipment" must not confuse the matching.
     const cards: DeckCard[] = [
       ...customRegionShell("Draven", "Draven", "Noxus", tagSlugs),
       makeSignature("sig-axe", "Spinning Axe", ["Draven", "Equipment"], tagSlugs),
@@ -1508,8 +1421,6 @@ describe("validateDeck for custom-region", () => {
       makeSignature("sig-daisy", "Daisy!", ["Ivern", "Ionia"], tagSlugs),
       ...makeFiller(13, tagSlugs),
     ];
-    // No champion-id set passed → rule must no-op (don't block valid decks
-    // just because plumbing isn't there yet).
     const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
     expect(violations.filter((v) => v.code === "SIGNATURE_CHAMPION_COPIES")).toEqual([]);
   });

@@ -5,10 +5,8 @@ import { WEB_BASE_URL } from "../../helpers/constants.js";
 const CARDS_DESCRIPTION =
   "Complete Riftbound TCG card database with marketplace price comparison. Filter by set, domain, rarity, cost, and keyword to browse every card and printing.";
 
-// In dev, TanStack Start encodes the server fn id as base64url-encoded JSON
-// containing the source file + export. Decoding lets us single out the
-// catalog fetch without affecting the session/theme/feature-flags server fns
-// that fire on the same route transition.
+// TanStack Start encodes the server fn id as base64url-encoded JSON containing
+// the source file + export.
 function isCatalogServerFn(url: string): boolean {
   const match = /\/_serverFn\/(?<encoded>[^/?#]+)/u.exec(url);
   const encoded = match?.groups?.encoded;
@@ -66,20 +64,13 @@ test.describe("/cards route essentials", () => {
     await expect(twitterImage).toHaveAttribute("content", `${WEB_BASE_URL}/og-image.png`);
   });
 
-  // The CardsPending skeleton (20 `.aspect-card` Skeletons) is a real
-  // pendingComponent, but it can't be observed in this harness. `/cards` links
-  // preload on intent (defaultPreload) and Playwright hovers before it clicks,
-  // so the navigation resolves as an already-in-flight preload: the router keeps
-  // the prior page mounted until the preload settles, then swaps straight to the
-  // loaded grid without ever mounting the pendingComponent. Delaying the catalog
-  // fetch only holds the previous page longer; it never surfaces the skeleton.
-  // (Same class of limitation as the promos pending state.)
+  // Playwright hovers before clicking, so `/cards` links preload on intent and
+  // the pendingComponent never mounts: unobservable in this harness.
   test.skip("renders the pending skeleton while the catalog query is in flight", () => {});
 
   test("renders the error fallback when the catalog fetch fails", async ({ page }) => {
-    // Client-side navigations fetch /api/v1/catalog directly (for edge
-    // caching); SSR/server-fn paths still hit _serverFn. Fail both so the
-    // test works regardless of which path the loader takes.
+    // Client navigations hit /api/v1/catalog directly; SSR hits _serverFn.
+    // Fail both so the test works regardless of which path the loader takes.
     await page.route("**/api/v1/catalog*", async (route) => {
       await route.fulfill({
         status: 500,
@@ -102,9 +93,7 @@ test.describe("/cards route essentials", () => {
     await page.goto("/");
     await page.getByRole("link", { name: /browse cards/iu }).click();
 
-    // RouteErrorFallback picks a heading/subtext/emoji at random from the
-    // arrays in error-message.tsx, so match against the union of all
-    // possible headings rather than a single string.
+    // RouteErrorFallback picks a heading at random from error-message.tsx.
     const errorHeadings = [
       "The Rift collapsed",
       "Critical misprint detected",
@@ -122,14 +111,11 @@ test.describe("/cards route essentials", () => {
         .join("|"),
       "u",
     );
-    // Scope by name so we don't race against the home page's <h1> during the
-    // client-side transition — otherwise strict mode sees two h1s briefly.
+    // Scope by name: strict mode briefly sees two h1s during the transition.
     await expect(page.getByRole("heading", { level: 1, name: headingPattern })).toBeVisible({
       timeout: 10_000,
     });
 
-    // The fallback always renders a "Reshuffle" reload button and a dev
-    // details toggle when an error message is attached.
     await expect(page.getByRole("button", { name: "Reshuffle" })).toBeVisible();
     await expect(page.getByRole("button", { name: /Show details/u })).toBeVisible();
   });

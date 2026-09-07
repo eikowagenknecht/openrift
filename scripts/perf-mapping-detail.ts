@@ -1,4 +1,3 @@
-/* Profile each step inside getMappingOverview for tcgplayer */
 import { createDb } from "../apps/api/src/db/connect.js";
 import { createRepos } from "../apps/api/src/deps.js";
 import { createMarketplaceConfigs } from "../apps/api/src/routes/admin/marketplace-configs.js";

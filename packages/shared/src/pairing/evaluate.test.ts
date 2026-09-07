@@ -21,7 +21,7 @@ describe("evaluatePod - rematch tiers", () => {
       [1, 100],
       [2, 500],
       [3, 2000],
-      [4, 2000], // 3+ saturates
+      [4, 2000],
     ] as const) {
       const players = mapOf([
         player("a", { opponents: new Map([["b", meetings]]) }),
@@ -80,7 +80,6 @@ describe("evaluatePod - score spread and surcharges", () => {
 describe("evaluatePod - float", () => {
   it("charges sum of |score - podAverage| * 5", () => {
     const players = mapOf([player("a", { score: 3 }), player("b"), player("c")]);
-    // average = 1; floats = |3-1| + |0-1| + |0-1| = 4; * 5 = 20
     const breakdown = evaluatePod(POD3, players, undefined);
     expect(breakdown.float).toBe(20);
   });
@@ -103,7 +102,7 @@ describe("evaluatePod - three-pod repeat", () => {
       [1, 120],
       [2, 600],
       [3, 2400],
-      [4, 2400], // 3+ saturates
+      [4, 2400],
     ] as const) {
       const players = mapOf([player("a", { pods3 }), player("b"), player("c")]);
       expect(evaluatePod(POD3, players, undefined).threePodRepeat).toBe(expected);
@@ -151,7 +150,6 @@ describe("evaluatePod - same region", () => {
       player("c", { region: "noxus" }),
       player("d", { region: "ionia" }),
     ]);
-    // Three same-region pairs among a/b/c.
     expect(evaluatePod(POD4, players, undefined).sameRegion).toBe(210);
   });
 
@@ -178,7 +176,6 @@ describe("evaluatePod - repeated region", () => {
       player("a", { region: "noxus", regionHistory: new Map([["demacia", 2]]) }),
       player("b", { region: "demacia", regionHistory: new Map([["noxus", 1]]) }),
     ]);
-    // a has faced Demacia twice, b has faced Noxus once: 3 repeats * 25.
     expect(evaluatePod(MATCH, players, undefined).repeatedRegion).toBe(75);
   });
 

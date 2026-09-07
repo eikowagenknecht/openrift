@@ -1,13 +1,7 @@
 import { WellKnown } from "../well-known.js";
 import type { PackPool, PackPrinting } from "./types.js";
 
-/**
- * Partition a flat list of booster-eligible printings into per-slot pools.
- * Callers should pre-filter out printings with any markers (promos, regional,
- * etc.) and pick a single language before calling this — this function does
- * not apply those filters.
- * @returns The printings grouped into slot-specific pools.
- */
+// Callers must pre-filter out printings with any markers (promos, regional, etc.) and pick a single language; this function doesn't.
 export function buildPool(printings: readonly PackPrinting[]): PackPool {
   const normalArt = WellKnown.artVariant.NORMAL;
   const altart = WellKnown.artVariant.ALTART;

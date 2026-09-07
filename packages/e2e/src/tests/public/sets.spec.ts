@@ -74,8 +74,6 @@ test.beforeAll(async () => {
   const mainSets = listResponse.sets.filter((entry) => entry.setType === "main");
   const supplementalSets = listResponse.sets.filter((entry) => entry.setType !== "main");
   hasSupplementalSets = supplementalSets.length > 0;
-  // Prefer the first main set; fall back to any supplemental set when the
-  // current seed has none so the spec still exercises HeroSetCard rendering.
   const picked = mainSets[0] ?? listResponse.sets[0];
   if (!picked) {
     throw new Error("No sets returned from /api/v1/sets — seed data appears empty");
@@ -206,9 +204,6 @@ test.describe("sets", () => {
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     });
 
-    // A missing set slug now renders the not-found fallback (RouteNotFoundFallback
-    // — a "Nothing here but dust"-style heading with a "Go home" link), keeping
-    // the URL. Mirrors card-detail.spec.ts's behaviour.
     test("an unknown slug renders the not-found fallback and keeps the URL", async ({ page }) => {
       await page.goto("/sets/does-not-exist-set", { waitUntil: "domcontentloaded" });
 

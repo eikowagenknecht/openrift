@@ -13,9 +13,6 @@ import {
 import type { ListRules } from "./list-rule";
 import { EMPTY_CARD_FILTERS } from "./search";
 
-// A trade rule whose persisted filter predates the `presence` / `keywords` /
-// `keywordsExclude` dimensions — the exact shape that 500'd the list detail
-// endpoint (ADR-034). It also carries the superseded `hasAnyMarker` key.
 function staleTradeRule() {
   const filter = { ...EMPTY_CARD_FILTERS, hasAnyMarker: null } as Record<string, unknown>;
   delete filter.presence;
@@ -32,10 +29,6 @@ function staleTradeRule() {
 
 describe("listRulesSchema output validation", () => {
   it("re-validates a persisted rule missing a newer dimension (no 500)", () => {
-    // Regression: `listDetailListResponseSchema` embeds `listRulesSchema`, so
-    // oRPC re-validates the persisted rule on the read path. Before the filter
-    // dimensions carried defaults, an older rule threw "Output validation
-    // failed" and the list detail endpoint returned 500.
     const result = listRulesSchema.safeParse([staleTradeRule()]);
     expect(result.success).toBe(true);
     if (result.success) {
@@ -80,8 +73,6 @@ describe("hydrateListRules", () => {
   });
 });
 
-// ADR-034 amendment 4: kind, not intent, decides a rule's shape and combine
-// modes — which is what lets organize lists carry rules at all.
 describe("ruleKindForListKind", () => {
   it("gives copy lists the supply shape and the rest the demand shape", () => {
     expect(ruleKindForListKind("copy")).toBe("trade");
@@ -90,8 +81,6 @@ describe("ruleKindForListKind", () => {
   });
 
   it("agrees with the intent it replaced for every pre-existing combo", () => {
-    // chk_lists_intent_kind pins wish to card/printing and trade to copy, so
-    // the kind-based rule is exactly the old intent-based one on old data.
     expect(ruleKindForListKind("card")).toBe("wish");
     expect(ruleKindForListKind("printing")).toBe("wish");
     expect(ruleKindForListKind("copy")).toBe("trade");

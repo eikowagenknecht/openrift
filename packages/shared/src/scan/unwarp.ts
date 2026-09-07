@@ -8,9 +8,6 @@ import type { Quad, RgbaImage } from "./types";
  * first edge is a short side and the result always comes out portrait. Whether
  * the card is actually the right way up, or is a landscape battlefield, is left
  * to the matcher, which tests all four rotations at negligible cost.
- *
- * @param padding Extra margin sampled around the quad, as a fraction of the output size.
- * @returns The rectified card, or null when the quad is degenerate.
  */
 export function unwarpCard(
   frame: RgbaImage,
@@ -19,9 +16,6 @@ export function unwarpCard(
   outHeight: number,
   padding = 0,
 ): RgbaImage | null {
-  // Sampling beyond the quad leaves room for the crop to be trimmed back onto
-  // the card's printed border afterwards, which is far more reliable than
-  // trusting the quad to be exact.
   const padX = outWidth * padding;
   const padY = outHeight * padding;
   const canonical: Quad = [

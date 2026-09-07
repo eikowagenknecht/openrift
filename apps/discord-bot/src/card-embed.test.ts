@@ -56,8 +56,6 @@ describe("fallbackArtDifferences", () => {
     );
   });
 
-  // Art pinned from outside the catalogue has no printing behind it, so there
-  // is no language to compare; the printing's own properties still list out.
   it("drops the language tag when the art has no printing behind it", () => {
     const printing = makePrinting({ images: [], language: "DE", isSigned: true });
     expect(fallbackArtDifferences(printing, null, LABELS)).toEqual(["Signed"]);
@@ -304,7 +302,7 @@ describe("buildCardEmbed", () => {
           {
             userName: "Mira",
             quantity: 2,
-            // Deliberately out of canonical order: the breakdown re-sorts.
+            // Deliberately out of canonical order.
             printings: [
               { printingId: "printing-2", quantity: 1, listNames: ["Trades"] },
               { printingId: "printing-1", quantity: 1, listNames: ["Binder"] },
@@ -492,8 +490,6 @@ describe("buildCardEmbed", () => {
     expect(embed.description).toBe("*Standard-printing artwork shown*");
   });
 
-  // A pin can be any art an admin chose, so the note must not claim it came
-  // from the standard printing.
   it("words the note generically for pinned substitute art", () => {
     const snapshot = buildSnapshot(
       makeCatalogResponse(

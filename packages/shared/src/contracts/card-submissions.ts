@@ -9,19 +9,10 @@ extendZodWithOpenApi(z);
 
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/u;
 
-/**
- * The candidate provider every in-app submission is ingested under (ADR-036).
- * Shared so the admin UI can tell a user-submission column from a scraped one
- * without restating the literal.
- */
+/** The candidate provider every in-app submission is ingested under. */
 export const USER_SUBMISSION_PROVIDER = "usersubmission";
 
-/**
- * A user submission carries the same card/printing fields as the contribution
- * schema, minus `external_id` — the server generates a per-submission
- * external_id (`<slug>--<dateStamp>--<userId>`, ADR-036) so it never trusts the
- * client for the natural key.
- */
+/** The server generates `external_id` (`<slug>--<dateStamp>--<userId>`); it never trusts the client for it. */
 export const cardSubmissionCardSchema = contributionCardSchema.omit({ external_id: true });
 export const cardSubmissionPrintingSchema = contributionPrintingSchema.omit({ external_id: true });
 
@@ -42,16 +33,9 @@ export const cardSubmissionResponseSchema = z
   .object({ ok: z.literal(true) })
   .openapi("CardSubmissionResponse");
 
-// ── Submission status (migration 234) ────────────────────────────────────────
-
 export const cardSubmissionKindSchema = z.enum(["new_card", "correction", "image"]);
 
-/**
- * `already_correct` (the catalog already matched everything proposed) is kept
- * apart from `not_applied` (an admin reviewed it and took nothing) and
- * `rejected` (an admin rejected it outright). The contributor sees similar
- * wording for the last two, but only `rejected` is a signal about the user.
- */
+/** `not_applied` and `rejected` read similarly to the contributor, but only `rejected` is a signal about the user. */
 export const cardSubmissionStatusSchema = z.enum([
   "pending",
   "accepted",
@@ -98,13 +82,7 @@ export const cardSubmissionListResponseSchema = z
   })
   .openapi("CardSubmissionListResponse");
 
-/**
- * oRPC contract for the in-app card-submission endpoints (ADR-036). Session-gated
- * (base carries UNAUTHORIZED). `TOO_MANY_REQUESTS` is the per-user daily cap;
- * `BAD_REQUEST` surfaces DB-constraint validation failures the client schema
- * didn't already catch. `list` is the contributor's own history, always scoped
- * to the session user, never to a user id from the client.
- */
+/** `list` is the contributor's own history, always scoped to the session user, never a user id from the client. */
 export const cardSubmissionsContract = {
   submit: authedRoute
     .route({ method: "POST", path: "/api/v1/card-submissions", tags: ["Card Submissions"] })

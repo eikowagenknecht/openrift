@@ -33,13 +33,6 @@ export const userContactMethodsResponseSchema = z
   })
   .openapi("UserContactMethodsResponse");
 
-/**
- * oRPC contract for the authenticated contact-methods CRUD. Every mutation
- * returns the full refreshed list. Requires a session; the base carries
- * UNAUTHORIZED + FORBIDDEN. For update/delete the `{id}` path segment is
- * merged into the input alongside the body fields; update/delete carry a typed
- * NOT_FOUND.
- */
 export const contactMethodsContract = {
   list: authedRoute
     .route({ method: "GET", path: "/api/v1/contact-methods", tags: ["Contact Methods"] })

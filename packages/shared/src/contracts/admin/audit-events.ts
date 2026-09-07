@@ -31,11 +31,8 @@ const auditActorSchema = z.object({
 });
 
 export const adminAuditEventsQuerySchema = z.object({
-  // Same keyset shape produced by query-helpers.ts's buildKeysetCursor
-  // (re-exported from collection-events.ts): an ISO 8601 timestamp,
-  // optionally suffixed with "_<id>". Rejecting malformed cursors here
-  // means a garbage `cursor` fails with a 400 instead of reaching the
-  // repo's `new Date(...)` and producing a 500.
+  // A malformed cursor must fail validation here, or it reaches `new Date(...)`
+  // downstream and produces a 500, not a 400.
   cursor: keysetCursorSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
   actorUserId: z.string().optional(),
@@ -43,10 +40,7 @@ export const adminAuditEventsQuerySchema = z.object({
   search: z.string().optional(),
 });
 
-/**
- * oRPC contract for the admin audit log (migration 201). Cursor-paginated,
- * newest first; `search` matches entity label/id/card slug.
- */
+/** Cursor-paginated, newest first; `search` matches entity label/id/card slug. */
 export const adminAuditEventsContract = {
   list: authedRoute
     .route({ method: "GET", path: BASE, tags: [TAG] })
@@ -68,10 +62,8 @@ export const adminAuditEventsContract = {
 export type AdminAuditEventsContract = typeof adminAuditEventsContract;
 
 /**
- * Concrete JSON type for audit payloads. The zod schema validates them as
- * `Record<string, unknown>`, but consumers (TanStack Start server functions)
- * need a provably-serializable type — audit payloads are plain JSON by
- * construction (they round-trip through a jsonb column).
+ * The zod schema validates payloads as `Record<string, unknown>`, but they
+ * are plain JSON by construction, so consumers get a serializable type here.
  */
 export type AuditPayloadValue =
   | string

@@ -21,9 +21,8 @@ import type { z } from "zod";
 import type { TournamentStatus } from "./tournament.js";
 
 /**
- * The pod engine reads the umbrella's own `tournaments.status`, so the pod
- * surface sees the same four values — a cancelled tournament still resolves
- * through `runState` and the public report token (ADR-033).
+ * The pod engine reads the umbrella's own `tournaments.status`; a cancelled
+ * tournament still resolves through `runState` and the public report token.
  */
 export type PodTournamentStatus = TournamentStatus;
 export type PodScoringScheme = z.infer<typeof podScoringSchemeSchema>;
@@ -45,32 +44,25 @@ export interface PodTournamentListResponse {
 
 export type PodPlayerResponse = z.infer<typeof podPlayerResponseSchema>;
 
-/** A standings row, fully derived from the finalized rounds. */
 export type PodStandingRow = z.infer<typeof podStandingRowSchema>;
 
 export type PodMemberResponse = z.infer<typeof podMemberResponseSchema>;
 
-/** The engine's per-pod penalty breakdown. Organizer-only; absent on the participant surface. */
+/** Organizer-only; absent on the participant surface. */
 export type PodPenaltyView = z.infer<typeof podPenaltyViewSchema>;
 
 export type PodResponse = z.infer<typeof podResponseSchema>;
 
-/** A player sitting a round out for win-equivalent points. */
 export type PodByeResponse = z.infer<typeof podByeResponseSchema>;
 
 export type PodRoundResponse = z.infer<typeof podRoundResponseSchema>;
 
-/**
- * One player's pre-round aggregates, used by the organizer's open-round warnings
- * and manual pairing editor. Organizer-only — `opponents` is a plain record so it
- * serializes over the wire (the engine's `PairingPlayer` uses a Map).
- */
+/** `opponents` is a plain record, not a Map, so it serializes over the wire. */
 export type PodSnapshotPlayer = z.infer<typeof podSnapshotPlayerSchema>;
 
-/** The owner dashboard payload for one tournament. */
 export type PodTournamentDetailResponse = z.infer<typeof podTournamentDetailResponseSchema>;
 
-/** The token-gated participant follow-along payload (no penalty internals). */
+/** The token-gated participant payload; no penalty internals. */
 export type PodReportResponse = z.infer<typeof podReportResponseSchema>;
 
 export type PodReportTokenResponse = z.infer<typeof podReportTokenResponseSchema>;

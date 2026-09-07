@@ -1,16 +1,9 @@
 /**
- * Uploads the card-text glyphs as application-owned emojis of a Discord app,
- * so the bot can render `:rb_might:` and friends as icons instead of words.
- * Application emojis work in every server the app is in — no per-guild upload.
- *
- * Run once per Discord application (dev and prod have separate tokens):
+ * Uploads the card-text glyphs as application-owned emojis of a Discord app.
  *
  *   bun run discord:emojis              # uses DISCORD_BOT_TOKEN from .env
  *   bun run discord:emojis -- --dry-run # render only, upload nothing
  *   bun run discord:emojis -- --force   # re-upload, replacing existing glyphs
- *
- * The bot picks the emojis up on its next start; anything missing here falls
- * back to plain words (`1 energy`, `Might`), so a partial upload is harmless.
  */
 /* oxlint-disable import/no-nodejs-modules -- standalone CLI tooling, never bundled */
 import { readdir, readFile } from "node:fs/promises";
@@ -23,22 +16,13 @@ import { requireEnv } from "./env.js";
 const API = "https://discord.com/api/v10";
 const GLYPH_DIR = path.join(import.meta.dirname, "../apps/web/public/images/glyphs");
 
-/** Discord's recommended emoji size; the 256 KB per-image cap is far away at this resolution. */
 const SIZE = 128;
-/** Breathing room for the outline the monochrome glyphs get. */
 const PAD = 8;
 
-// The catalog only prints energy costs up to 12. A higher one would simply
-// render as "13 energy" until this range grows and the script is re-run.
 const MAX_ENERGY = 12;
 
-// Glyphs whose artwork is a flat white shape (the site recolors them per
-// theme). Discord can't, so they get a dark outline that reads on both the
-// light and the dark client theme.
 const MONOCHROME = new Set(["might", "exhaust"]);
 
-// Eight-way offset stamp of the dark silhouette behind the white glyph — a
-// cheap dilation that needs no alpha-channel surgery.
 const OUTLINE_OFFSETS = [
   [-3, 0],
   [3, 0],
@@ -51,7 +35,6 @@ const OUTLINE_OFFSETS = [
 ] as const;
 
 interface GlyphAsset {
-  /** Glyph token name as it appears in card text, e.g. `rune_fury`. */
   token: string;
   png: Buffer;
 }
@@ -65,7 +48,6 @@ function transparent(): { r: number; g: number; b: number; alpha: number } {
   return { r: 0, g: 0, b: 0, alpha: 0 };
 }
 
-/** @returns The SVG rasterized to a transparent square PNG of the given size. */
 function rasterize(svg: Buffer, size: number): Promise<Buffer> {
   return sharp(svg, { density: 600 })
     .resize(size, size, { fit: "contain", background: transparent() })
@@ -73,7 +55,6 @@ function rasterize(svg: Buffer, size: number): Promise<Buffer> {
     .toBuffer();
 }
 
-/** @returns The white glyph stamped over a dark silhouette of itself. */
 async function withOutline(svg: Buffer): Promise<Buffer> {
   const glyph = await rasterize(svg, SIZE - PAD * 2);
   const silhouette = await sharp(glyph).negate({ alpha: false }).png().toBuffer();
@@ -88,13 +69,7 @@ async function withOutline(svg: Buffer): Promise<Buffer> {
     .toBuffer();
 }
 
-/**
- * The energy cost badge: the number in a filled disc, like the site's own
- * energy glyph. Drawn rather than rasterized — the site builds it from a
- * styled span, so there is no SVG to read.
- *
- * @returns The badge as an SVG source string.
- */
+// The site renders this badge from a styled span; no source SVG exists to read.
 function energySvg(amount: number): string {
   const fontSize = amount > 9 ? 58 : 76;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">
@@ -103,14 +78,8 @@ function energySvg(amount: number): string {
 </svg>`;
 }
 
-/**
- * Renders every glyph the bot can meet in card text: the icon SVGs the site
- * ships (`rune-fury.svg` → token `rune_fury`, unfilled variants only — the
- * filled ones are a card-frame treatment, never a text glyph) plus one badge
- * per energy cost.
- *
- * @returns The rendered glyphs, in upload order.
- */
+// Filled glyph variants are a card-frame treatment, never a text glyph, and
+// are skipped here.
 async function renderGlyphs(): Promise<GlyphAsset[]> {
   const entries = await readdir(GLYPH_DIR);
   const files = entries
@@ -162,8 +131,6 @@ async function discord(token: string, method: string, route: string, body?: unkn
 
 const force = process.argv.includes("--force");
 
-// Renders everything and reports, without touching the Discord application —
-// the safe way to check the artwork after changing a glyph or this script.
 if (process.argv.includes("--dry-run")) {
   const rendered = await renderGlyphs();
   for (const asset of rendered) {

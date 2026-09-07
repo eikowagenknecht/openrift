@@ -18,12 +18,8 @@ const entitySchema = z.object({
 const slugParamSchema = z.object({ slug: z.string().min(1) });
 
 /**
- * oRPC contract for the admin finish taxonomy CRUD (mounted at
- * `/api/admin/v1/finishes`, admin-gated by the mount). All procedures share
- * the `authedRoute` base (UNAUTHORIZED + FORBIDDEN). Domain codes per route:
- * `reorder` → BAD_REQUEST (invalid slugs); `create` → CONFLICT (slug taken);
- * `update` → NOT_FOUND; `remove` → NOT_FOUND + CONFLICT (well-known or in
- * use). The static `reorder` path precedes `{slug}`.
+ * Admin finish taxonomy CRUD, mounted at `/api/admin/v1/finishes`. The static
+ * `reorder` path must precede `{slug}`.
  */
 export const adminFinishesContract = {
   list: authedRoute

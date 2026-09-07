@@ -13,11 +13,6 @@ interface E2eState {
   webPid?: number;
 }
 
-/**
- * Playwright global teardown:
- * 1. Kill the API and web server processes
- * 2. Drop the temporary database
- */
 export default async function globalTeardown(_config: FullConfig) {
   let state: E2eState;
   try {
@@ -27,7 +22,6 @@ export default async function globalTeardown(_config: FullConfig) {
     return;
   }
 
-  // Kill server processes
   if (state.apiPid) {
     try {
       process.kill(state.apiPid, "SIGTERM");
@@ -46,14 +40,11 @@ export default async function globalTeardown(_config: FullConfig) {
     }
   }
 
-  // Drop temporary database
   console.log(`[e2e] Dropping ${state.tempDbName}...`);
   await dropTempDb(state.databaseUrl, state.tempDbName);
 
-  // Intentionally do NOT delete STATE_FILE: dropping the DB can take several
-  // seconds, and in that window a fresh UI session's global-setup may have
-  // already written a new state file. Deleting here would wipe it and break
-  // auth.setup with ENOENT on the next run. The file is overwritten on every
-  // global-setup, so leaving the stale pointer is harmless.
+  // Do NOT delete STATE_FILE: dropping the DB can take long enough that a
+  // fresh global-setup already wrote a new one, and deleting it here would
+  // race that write and break the next auth.setup with ENOENT.
   console.log("[e2e] Global teardown complete");
 }

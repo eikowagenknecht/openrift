@@ -1,13 +1,8 @@
 /**
  * Where the artwork sits on a card, as fractions of the card size.
  *
- * Every card in the catalogue shares its frame, name bar and text box, so any
- * matcher that looks at those regions is comparing shared pixels. The windows
- * were measured from the reference renders: portrait cards carry art from just
- * below the top border to the type line at half height (full-art runes have art
- * everywhere, so the same window still lands on artwork), landscape
- * battlefields put an upside-down text strip above the art band and the type
- * chip below it. Both windows stay clear of the cost icons in the corners.
+ * Measured from reference renders; every card shares frame, name bar and text
+ * box, so any matcher over these regions is comparing shared pixels too.
  */
 export interface ArtWindow {
   x0: number;
@@ -19,11 +14,6 @@ export interface ArtWindow {
 export const ART_PORTRAIT: ArtWindow = { x0: 0.07, y0: 0.05, x1: 0.93, y1: 0.5 };
 export const ART_LANDSCAPE: ArtWindow = { x0: 0.04, y0: 0.2, x1: 0.96, y1: 0.58 };
 
-/**
- * The art window for an image in its own orientation, in pixels.
- *
- * @returns The window rectangle.
- */
 export function artWindowRect(
   width: number,
   height: number,

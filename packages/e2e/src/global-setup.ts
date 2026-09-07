@@ -10,9 +10,6 @@ import { connectToDb, createTempDb, replaceDbName } from "./helpers/db.js";
 
 const repoRoot = resolve(import.meta.dirname, "../../..");
 
-/**
- * Wait for a URL to respond (any non-network-error status), polling every second.
- */
 async function waitForServer(url: string, timeoutMs: number) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -27,11 +24,7 @@ async function waitForServer(url: string, timeoutMs: number) {
   throw new Error(`Server at ${url} did not start within ${timeoutMs}ms`);
 }
 
-/**
- * Wait for the API's /health endpoint to report status "ok" — i.e. the
- * database is reachable, migrated, and has seed data. Protects against tests
- * firing before the backend has fully warmed up.
- */
+// "ok" means the database is reachable, migrated, and has seed data.
 async function waitForApiHealthy(url: string, timeoutMs: number) {
   const start = Date.now();
   let lastStatus: string | undefined;
@@ -55,27 +48,17 @@ async function waitForApiHealthy(url: string, timeoutMs: number) {
   );
 }
 
-/**
- * Playwright global setup:
- * 1. Create a temporary database with migrations and seed data
- * 2. Start the API server pointing at the temp DB
- * 3. Start the web dev server pointing at the API
- * 4. Wait for both servers to be healthy
- */
 export default async function globalSetup(_config: FullConfig) {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
     throw new Error("DATABASE_URL is required for E2E tests. Set it in .env or pass it directly.");
   }
 
-  // ── 1. Create temporary database ────────────────────────────────────────
-
   console.log("[e2e] Creating temporary database...");
   const tempDbName = await createTempDb(databaseUrl, "e2e");
   const tempDbUrl = replaceDbName(databaseUrl, tempDbName);
   console.log(`[e2e]   → ${tempDbName}`);
 
-  // Run migrations via the API's migration system
   console.log("[e2e] Running migrations...");
   const apiRoot = resolve(repoRoot, "apps/api/src");
   const { createDb } = await import(`${apiRoot}/db/connect.js`);
@@ -92,24 +75,21 @@ export default async function globalSetup(_config: FullConfig) {
   await migrate(db, noopLogger);
   await db.destroy();
 
-  // Load seed data
   console.log("[e2e] Loading seed data...");
   const seedPath = resolve(apiRoot, "test/fixtures/seed.sql");
   const seedSql = readFileSync(seedPath, "utf-8");
   const sql = connectToDb(tempDbUrl);
   await sql.unsafe(seedSql);
 
-  // Refresh materialized views so the catalog query returns data.
-  // Migrations create the views before seed data is loaded, so they're empty.
+  // Migrations create the materialized views before seed data loads, so they
+  // start empty and need a refresh.
   console.log("[e2e] Refreshing materialized views...");
   await sql`REFRESH MATERIALIZED VIEW mv_card_aggregates`;
-  // Daily before latest — the latest view is defined over the daily one
-  // (migration 219), so refreshing it first would publish an empty result.
+  // mv_latest_printing_prices is defined over mv_daily_printing_prices;
+  // refreshing out of order would publish an empty result.
   await sql`REFRESH MATERIALIZED VIEW mv_daily_printing_prices`;
   await sql`REFRESH MATERIALIZED VIEW mv_latest_printing_prices`;
   await sql.end();
-
-  // ── 2. Start API server ─────────────────────────────────────────────────
 
   console.log("[e2e] Starting API server on port", API_PORT, "...");
   const apiProcess = spawn("bun", [resolve(apiRoot, "index.ts")], {
@@ -124,8 +104,7 @@ export default async function globalSetup(_config: FullConfig) {
       BETTER_AUTH_URL: WEB_BASE_URL,
       CORS_ORIGIN: WEB_BASE_URL,
       // auth.setup + login tests do several sign-in/sign-up calls in quick
-      // succession; the prod 10/min limit would trip during UI iteration.
-      // The limiter itself is covered by an API integration test.
+      // succession, which would trip the prod 10/min limit.
       DISABLE_AUTH_RATE_LIMIT: "1",
     },
   });
@@ -146,8 +125,6 @@ export default async function globalSetup(_config: FullConfig) {
   await waitForApiHealthy(`${API_BASE_URL}/api/health`, 120_000);
   console.log("[e2e] API server is ready");
 
-  // ── 3. Start web dev server ─────────────────────────────────────────────
-
   console.log("[e2e] Starting web dev server on port", WEB_PORT, "...");
   const webProcess = spawn("bun", ["run", "dev"], {
     cwd: resolve(repoRoot, "apps/web"),
@@ -162,11 +139,7 @@ export default async function globalSetup(_config: FullConfig) {
     },
   });
 
-  // Buffer recent web output so an unexpected exit can be diagnosed. Vite prints
-  // its real startup/restart error across several lines; trimming each chunk to a
-  // single line dropped the detail, leaving only "error when starting dev server:"
-  // with no cause — and every later test then failed with page.goto ERR_ABORTED
-  // against a dead server, hiding the root cause entirely.
+  // Vite's startup/restart errors span multiple lines; keeps the last 100 lines for diagnosis.
   const webOutputTail: string[] = [];
   const recordWeb = (data: Buffer, isError: boolean) => {
     for (const line of data.toString().split("\n")) {
@@ -187,10 +160,8 @@ export default async function globalSetup(_config: FullConfig) {
   webProcess.stdout?.on("data", (data: Buffer) => recordWeb(data, false));
   webProcess.stderr?.on("data", (data: Buffer) => recordWeb(data, true));
 
-  // Surface an unexpected death loudly with the buffered tail. Teardown kills the
-  // server with SIGTERM, which arrives either as signal "SIGTERM" or as exit
-  // code 143 (128 + 15) depending on how the shell wrapper forwards it — treat
-  // both as normal, so only some other non-zero exit is reported as a real crash.
+  // Teardown's SIGTERM can surface as signal "SIGTERM" or exit code 143
+  // depending on the shell wrapper; treat both as a normal exit.
   webProcess.on("exit", (code, signal) => {
     if (code !== 0 && code !== 143 && signal !== "SIGTERM") {
       console.error(
@@ -202,12 +173,8 @@ export default async function globalSetup(_config: FullConfig) {
   await waitForServer(`${WEB_BASE_URL}`, 60_000);
   console.log("[e2e] Web server is ready");
 
-  // Warm up the landing route in a real browser. Fetching HTML alone only
-  // warms the SSR module graph — the first test still pays the cost of Vite
-  // compiling the client JS bundle, which makes the initial render/hydration
-  // slow enough that the hero fan doesn't settle within test timeouts.
-  // Driving a real browser through the page exercises both SSR and client
-  // bundles, matching what tests actually do.
+  // A plain fetch only warms the SSR module graph; the first real test would
+  // still pay Vite's client-bundle compile cost and miss timeouts.
   console.log("[e2e] Warming up landing page in browser...");
   const warmupStart = Date.now();
   const browser = await chromium.launch();
@@ -215,22 +182,15 @@ export default async function globalSetup(_config: FullConfig) {
     const context = await browser.newContext({ viewport: { width: 1920, height: 1200 } });
     const page = await context.newPage();
     await page.goto(WEB_BASE_URL, { waitUntil: "networkidle", timeout: 120_000 });
-    // Confirm the hero fan rendered — if this passes, the client bundle
-    // compiled and the landing-summary query resolved into card images.
-    // After this, repeat runs of the same page are nearly instant.
     await page.locator('[data-fan-index="0"]').waitFor({ state: "attached", timeout: 30_000 });
 
-    // Pre-compile the heavy public routes too. Vite dev compiles each route on
-    // first request, and that first-hit latency is what let a test interact
-    // before its route had hydrated (flaky "click did nothing" / "toggle didn't
-    // open" failures). Warming them here means the first real test to hit each
-    // route pays no compile cost. Best-effort: a route that redirects or is slow
-    // still compiles its module graph on the way, so ignore navigation errors.
+    // Vite dev compiles each route on first request; without this, a test's
+    // first hit to a route can interact before it finished hydrating.
     for (const route of ["/cards", "/cards/annie-fiery", "/promos", "/sets", "/help", "/login"]) {
       try {
         await page.goto(`${WEB_BASE_URL}${route}`, { waitUntil: "networkidle", timeout: 60_000 });
       } catch {
-        // Compilation is triggered by the request itself; a timeout here is fine.
+        // Best-effort: the request itself triggers compilation even on timeout.
       }
     }
     await context.close();
@@ -238,8 +198,6 @@ export default async function globalSetup(_config: FullConfig) {
     await browser.close();
   }
   console.log(`[e2e]   → warmed in ${Date.now() - warmupStart}ms`);
-
-  // ── 4. Persist state for teardown ───────────────────────────────────────
 
   const state = {
     tempDbName,

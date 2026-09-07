@@ -1,8 +1,4 @@
-/**
- * Minimal RNG interface used by the pack opener. `next()` must return a uniform
- * float in [0, 1). Swap in `Math.random` for real play; swap in a seeded RNG
- * for deterministic tests.
- */
+// next() must return a uniform float in [0, 1).
 export interface Random {
   next: () => number;
 }
@@ -17,11 +13,6 @@ function toUint32(n: number): number {
   return ((n % UINT32_MODULUS) + UINT32_MODULUS) % UINT32_MODULUS;
 }
 
-/**
- * Mulberry32: tiny, fast, seedable PRNG. Good enough for tests, not crypto.
- * Accepts a 32-bit seed; produces a repeatable sequence for the same seed.
- * @returns A seeded Random that yields a deterministic uniform sequence.
- */
 export function mulberry32(seed: number): Random {
   let state = toUint32(seed);
   return {
@@ -36,10 +27,6 @@ export function mulberry32(seed: number): Random {
   };
 }
 
-/**
- * Pick an element uniformly at random from a non-empty array.
- * @returns One of the items, chosen uniformly.
- */
 function pickOne<T>(rng: Random, items: readonly T[]): T {
   if (items.length === 0) {
     throw new Error("pickOne called with empty array");
@@ -51,13 +38,7 @@ function pickOne<T>(rng: Random, items: readonly T[]): T {
   return item;
 }
 
-/**
- * Pick an element uniformly from a non-empty array, excluding any whose `id` is
- * already in `excluded`. If filtering leaves nothing (a sparse pool with fewer
- * unique printings than slots), fall back to picking from the full list — real
- * sets always have far more printings than slots, this guards tiny test pools.
- * @returns One of the items, preferring one not in `excluded`.
- */
+// Falls back to the full list when excluding leaves nothing: guards sparse test pools, real sets always have far more printings than slots.
 export function pickOneUnique<T extends { id: string }>(
   rng: Random,
   items: readonly T[],

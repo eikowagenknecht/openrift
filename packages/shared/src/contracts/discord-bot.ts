@@ -6,7 +6,6 @@ extendZodWithOpenApi(z);
 
 export const discordBotRedeemLinkSchema = z.object({
   code: z.string().min(1).max(64),
-  /** Discord guild snowflake (64-bit int as text). */
   guildId: z.string().min(1).max(32),
   guildName: z.string().max(200).nullish(),
 });
@@ -22,24 +21,20 @@ export const discordBotTradelistHolderPrintingSchema = z
   .object({
     printingId: z.uuid(),
     quantity: z.number().int().positive(),
-    /** Names of the shared lists the copies sit on, alphabetical. */
     listNames: z.array(z.string()),
   })
   .openapi("DiscordBotTradelistHolderPrinting");
 
 export const discordBotTradelistHolderSchema = z
   .object({
-    /** Display name only — the bot never sees account ids. */
     userName: z.string().nullable(),
     quantity: z.number().int().positive(),
-    /** The same copies split by printing, most copies first. */
     printings: z.array(discordBotTradelistHolderPrintingSchema),
   })
   .openapi("DiscordBotTradelistHolder");
 
 export const discordBotTradelistHoldersResponseSchema = z
   .object({
-    /** False when the guild has no linked group; holders is then empty. */
     linked: z.boolean(),
     groupName: z.string().nullable(),
     holders: z.array(discordBotTradelistHolderSchema),
@@ -48,14 +43,12 @@ export const discordBotTradelistHoldersResponseSchema = z
 
 export const discordBotSetTradeChannelSchema = z.object({
   guildId: z.string().min(1).max(32),
-  /** Discord channel snowflake (64-bit int as text). */
   channelId: z.string().min(1).max(32),
   enabled: z.boolean(),
 });
 
 export const discordBotTradeChannelsResponseSchema = z
   .object({
-    /** False when the guild has no linked group; channelIds is then empty. */
     linked: z.boolean(),
     channelIds: z.array(z.string()),
   })
@@ -70,14 +63,8 @@ export const discordBotAllTradeChannelsResponseSchema = z
 const TAG = "Discord Bot";
 
 /**
- * oRPC contract for the first-party Discord bot's privileged reads (mounted at
- * `/api/v1/discord-bot`). Both procedures are `meta: "bearer"`: they
- * authenticate off `Authorization: Bearer <secret>` against the single
- * `DISCORD_BOT_API_SECRET` service secret (constant-time compare in the
- * handler), not a session — the guild→group link table does the scoping. When
- * the secret is unset on the server, every call 401s. Domain codes:
- * `redeemLink` → NOT_FOUND (unknown or expired code), CONFLICT (guild already
- * linked to another group).
+ * Bearer auth against the single `DISCORD_BOT_API_SECRET` service secret, not a
+ * session. Every call 401s when the secret is unset on the server.
  */
 export const discordBotContract = {
   redeemLink: oc

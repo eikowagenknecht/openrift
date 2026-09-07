@@ -1,20 +1,13 @@
 import type { Matrix3, Point, Quad } from "./types";
 
 interface Line {
-  /** A point on the line. */
   px: number;
   py: number;
-  /** Unit direction vector. */
   dx: number;
   dy: number;
 }
 
-/**
- * Total-least-squares line fit, which unlike an ordinary least-squares fit is
- * stable for near-vertical edges.
- *
- * @returns The fitted line, or null when the points are too few or degenerate.
- */
+/** Total-least-squares line fit: stable for near-vertical edges, unlike ordinary least squares. */
 function fitLine(points: readonly Point[]): Line | null {
   if (points.length < 2) {
     return null;
@@ -38,7 +31,6 @@ function fitLine(points: readonly Point[]): Line | null {
     syy += dy * dy;
     sxy += dx * dy;
   }
-  // Principal eigenvector of the 2x2 covariance matrix.
   const theta = 0.5 * Math.atan2(2 * sxy, sxx - syy);
   const dx = Math.cos(theta);
   const dy = Math.sin(theta);
@@ -58,14 +50,8 @@ function intersectLines(a: Line, b: Line): Point | null {
 }
 
 /**
- * Snap an approximate quad onto the contour's straight edges. Each side is
- * re-fitted from the contour points that lie along it, ignoring the rounded
- * corner zones, and the corners are then taken as the intersections of
- * neighbouring sides. This is worth doing: at typical framing a card's corner
- * radius is a dozen pixels, and feeding that error into the unwarp smears the
- * whole descriptor.
- *
- * @returns The refined quad, or the input quad when a side could not be fitted.
+ * Snap an approximate quad onto the contour's straight edges, refitting each
+ * side and taking corners as intersections of neighbouring sides.
  */
 export function refineQuad(quad: Quad, contour: readonly Point[]): Quad {
   const buckets: Point[][] = [[], [], [], []];
@@ -137,12 +123,9 @@ function quadDiagonal(quad: Quad): number {
 }
 
 /**
- * Put a quad into canonical order: clockwise in image space, starting on a
- * short side, so that mapping it to an upright rectangle always lands the
- * card's long axis vertically. Only a 180-degree ambiguity is left, which the
- * matcher resolves by scoring both.
- *
- * @returns The reordered quad.
+ * Put a quad into canonical order: clockwise, starting on a short side, so the
+ * card's long axis lands vertically. Leaves a 180-degree ambiguity for the
+ * matcher to resolve by scoring both.
  */
 export function canonicalizeQuad(quad: Quad): Quad {
   const cx = (quad[0].x + quad[1].x + quad[2].x + quad[3].x) / 4;
@@ -162,11 +145,7 @@ export function canonicalizeQuad(quad: Quad): Quad {
   return [ordered[1], ordered[2], ordered[3], ordered[0]];
 }
 
-/**
- * Direct linear transform for four point correspondences, with h33 pinned to 1.
- *
- * @returns The 3x3 homography mapping `from` onto `to`, or null if degenerate.
- */
+/** Direct linear transform for four point correspondences, with h33 pinned to 1. */
 export function computeHomography(from: Quad, to: Quad): Matrix3 | null {
   const a: number[][] = [];
   const b: number[] = [];
@@ -185,11 +164,6 @@ export function computeHomography(from: Quad, to: Quad): Matrix3 | null {
   return [h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], 1];
 }
 
-/**
- * Gaussian elimination with partial pivoting.
- *
- * @returns The solution vector, or null when the matrix is singular.
- */
 function solveLinearSystem(a: number[][], b: number[]): number[] | null {
   const n = b.length;
   const m = a.map((row, i) => [...row, b[i]]);
@@ -222,11 +196,6 @@ function solveLinearSystem(a: number[][], b: number[]): number[] | null {
   return m.map((row, i) => row[n] / row[i]);
 }
 
-/**
- * Apply a homography to a point.
- *
- * @returns The transformed point.
- */
 export function applyHomography(h: Matrix3, p: Point): Point {
   const w = h[6] * p.x + h[7] * p.y + h[8];
   return {
@@ -235,13 +204,7 @@ export function applyHomography(h: Matrix3, p: Point): Point {
   };
 }
 
-/**
- * Intersection-over-union of two quads, approximated on their axis-aligned
- * bounding boxes. Good enough to decide whether two detections across
- * consecutive video frames are the same physical card.
- *
- * @returns A value in [0, 1].
- */
+/** Intersection-over-union of two quads, approximated on their axis-aligned bounding boxes. */
 export function quadIou(a: Quad, b: Quad): number {
   const boxA = boundingBox(a);
   const boxB = boundingBox(b);
@@ -258,11 +221,6 @@ export function quadIou(a: Quad, b: Quad): number {
   return overlap / (areaA + areaB - overlap);
 }
 
-/**
- * Axis-aligned bounds of a quad.
- *
- * @returns The bounding box.
- */
 export function boundingBox(quad: Quad): {
   minX: number;
   minY: number;

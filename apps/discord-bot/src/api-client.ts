@@ -17,19 +17,9 @@ export interface ApiClients {
   init: ContractRouterClient<InitContract>;
   prices: ContractRouterClient<PricesContract>;
   rules: ContractRouterClient<RulesContract>;
-  /** Privileged group reads; null when no service secret is configured. */
   discordBot: ContractRouterClient<DiscordBotContract> | null;
 }
 
-/**
- * Builds contract-typed oRPC clients for the API reads the bot needs.
- * Same OpenAPILink pattern as the web's `apiOrpcClient`, minus the SSR-only
- * header forwarding (the bot has no visitor context to propagate). The
- * privileged `discordBot` client authenticates with the shared service
- * secret; without one it stays null and the group features are off.
- *
- * @returns Typed clients for the catalog and prices contracts.
- */
 export function createApiClients(apiUrl: string, apiSecret?: string | null): ApiClients {
   return {
     catalog: createORPCClient(new OpenAPILink(catalogContract, { url: apiUrl })),

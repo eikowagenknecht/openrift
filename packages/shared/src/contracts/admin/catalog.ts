@@ -8,12 +8,8 @@ const TAG = "Admin - Catalog";
 
 const SETS = "/api/admin/v1/sets";
 
-/**
- * One language's release period. A null date (with a null precision) means
- * announced for that language without a date yet, which reads as unreleased.
- * Coarse precisions must carry the first day of their period — the same
- * invariant the `set_releases` CHECK enforces.
- */
+// Coarse precisions must carry the first day of their period — the same
+// invariant the `set_releases` CHECK enforces.
 const setReleaseInputSchema = z
   .object({
     releasedAt: isoDate.nullable(),
@@ -40,7 +36,6 @@ const setReleaseInputSchema = z
     { message: "releasedAt must be the first day of its period" },
   );
 
-/** Release periods keyed by language code. */
 const setReleasesSchema = z.record(z.string().min(1), setReleaseInputSchema);
 
 export const adminSetSchema = z.object({
@@ -55,13 +50,6 @@ export const adminSetSchema = z.object({
   printingCount: z.number(),
 });
 
-/**
- * oRPC contract for the admin set (catalog) management (mounted under
- * `/api/admin/v1/sets`, admin-gated by the mount): list / create / update /
- * delete sets and reorder them. Domain codes per route: `updateSet` → NOT_FOUND;
- * `createSet` → CONFLICT (slug already exists); `deleteSet` → CONFLICT (set
- * still has printings); `reorderSets` → BAD_REQUEST (invalid id list).
- */
 export const adminCatalogContract = {
   listSets: authedRoute
     .route({ method: "GET", path: SETS, tags: [TAG] })
@@ -73,7 +61,6 @@ export const adminCatalogContract = {
       withParams(idParamSchema, {
         name: setFieldRules.name,
         printedTotal: setFieldRules.printedTotal,
-        // Sent whole: languages missing from the map are no longer announced.
         releases: setReleasesSchema,
         setType: setFieldRules.setType,
       }),

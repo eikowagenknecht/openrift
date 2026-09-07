@@ -169,7 +169,6 @@ describe("cardSearchAltNames", () => {
   });
 
   it("never repeats the canonical name", () => {
-    // A non-Legend's display name is its own name, so there is no alternate.
     expect(cardSearchAltNames(recall)).toEqual([]);
     expect(cardSearchAltNames(azir, ["Emperor of the Sands"])).toEqual([
       "Azir, Emperor of the Sands",
@@ -380,9 +379,6 @@ describe("normalizeNameForIdentity", () => {
     expect(normalizeNameForIdentity("Unit-42X")).toBe("unit42x");
   });
 
-  // The ASCII-only `[^a-z0-9]` form emptied every one of these, and because the
-  // result is a grouping key, all of them collided into a single bucket — the
-  // admin candidates list once showed seven unrelated legends as one row.
   describe("non-Latin scripts", () => {
     it("keeps a CJK name instead of emptying it", () => {
       expect(normalizeNameForIdentity("影流之主")).toBe("影流之主");
@@ -405,7 +401,6 @@ describe("normalizeNameForIdentity", () => {
     });
 
     it("gives distinct keys to distinct non-Latin names", () => {
-      // The property that actually matters: no silent collision.
       const names = ["影流之主", "祖安狂人", "德玛西亚之力", "Владыка Теней", "Άρχοντας"];
       const keys = names.map((n) => normalizeNameForIdentity(n));
       expect(new Set(keys).size).toBe(names.length);
@@ -552,9 +547,7 @@ describe("toCents", () => {
   });
 
   it("rounds fractional cents using Math.round", () => {
-    // 1.005 * 100 = 100.49999... in IEEE 754, so Math.round gives 100
     expect(toCents(1.005)).toBe(100);
-    // 0.1 + 0.2 = 0.30000000000000004, * 100 = 30.000000000000004, rounds to 30
     expect(toCents(0.1 + 0.2)).toBe(30);
   });
 
@@ -601,7 +594,6 @@ describe("emptyToNull", () => {
   });
 
   it("returns the string for whitespace-only input", () => {
-    // Whitespace is truthy, so it passes through
     expect(emptyToNull("  ")).toBe("  ");
   });
 });
@@ -705,7 +697,6 @@ describe("compareWithLanguagePreference", () => {
   it("sorts unlisted languages alphabetically after listed ones", () => {
     const dePrinting = makePrinting({ id: "de", language: "DE" });
     const frPrinting = makePrinting({ id: "fr", language: "FR" });
-    // Preference is EN only — DE and FR are both unlisted, should sort alphabetically
     expect(compareWithLanguagePreference(dePrinting, frPrinting, ["EN"])).toBeLessThan(0);
     expect(compareWithLanguagePreference(frPrinting, dePrinting, ["EN"])).toBeGreaterThan(0);
   });
@@ -719,10 +710,9 @@ describe("compareWithLanguagePreference", () => {
 });
 
 describe("deduplicateByCard", () => {
-  it("picks EN printing when language preference is ['EN']", () => {
+  it("picks EN over SC even when SC comes first in the array", () => {
     const enPrinting = makePrinting({ id: "en", language: "EN" });
     const scPrinting = makePrinting({ id: "sc", language: "SC" });
-    // SC first in array to prove deduplication respects preference, not insertion order
     const result = deduplicateByCard([scPrinting, enPrinting], ["EN"]);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("en");
@@ -780,8 +770,6 @@ describe("titleCaseSlug", () => {
     expect(titleCaseSlug("proving-grounds")).toBe("Proving Grounds");
   });
 
-  // The finish slugs are hyphenated, so an underscore-only split rendered
-  // WellKnown.finish.METAL_DELUXE as "Metal-deluxe" on list exports.
   it("capitalizes every word of an underscored slug", () => {
     expect(titleCaseSlug("rainbow_foil")).toBe("Rainbow Foil");
     expect(titleCaseSlug("metal-deluxe")).toBe("Metal Deluxe");

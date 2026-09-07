@@ -10,12 +10,7 @@ export const LOAN_STATUSES = ["active", "returned", "written_off"] as const;
 
 const loanStatusSchema = z.enum(LOAN_STATUSES);
 
-/**
- * Record a loan (lender only, active immediately — ADR-039). Exactly one of
- * `borrowerUserId` (a friend-group co-member) or `borrowerName` (someone not
- * on the app) must be set. `contextCollectionId` biases the automatic copy
- * selection toward the collection the lend action was triggered in.
- */
+/** contextCollectionId biases the automatic copy selection toward the collection the lend action was triggered in. */
 export const createLoanSchema = z
   .object({
     printingId: z.uuid(),
@@ -28,16 +23,11 @@ export const createLoanSchema = z
     message: "Set exactly one of borrowerUserId or borrowerName",
   });
 
-/** Mark `quantity` more copies as physically returned (lender only). */
 export const returnLoanCopiesSchema = z.object({
   quantity: z.number().int().min(1),
 });
 
-/**
- * Close a loan whose outstanding copies are never coming back (lender only).
- * `removeCopies` is the ADR-039 apply/skip proposal: true disposes the
- * outstanding copies from the lender's collection, false only releases them.
- */
+/** true disposes the outstanding copies from the lender's collection, false only releases them. */
 export const writeOffLoanSchema = z.object({
   removeCopies: z.boolean(),
 });
@@ -57,9 +47,8 @@ export const loanResponseSchema = z
     /** The viewer's side: `lender` owns the copies, `borrower` holds them. */
     role: z.enum(["lender", "borrower"]),
     /**
-     * The other party, when they are a user. For lender-role rows this is the
-     * member borrower; for borrower-role rows it is always the lender. Null
-     * together with `counterpartyName` means a departed member borrower.
+     * For lender rows, the member borrower; for borrower rows, always the
+     * lender. Null with `counterpartyName` set means a departed member borrower.
      */
     counterparty: loanCounterpartySchema.nullable(),
     /** Free-text borrower name (lender-role rows only). */
@@ -97,15 +86,6 @@ export const loanBorrowerOptionsResponseSchema = z
 
 const TAG = "Loans";
 
-/**
- * oRPC contract for the authenticated lending endpoints (mounted at
- * `/api/v1/loans`, ADR-039). All require a session (`authedRoute`). Domain
- * codes per route: `create` → NOT_FOUND (printing or borrower) + BAD_REQUEST
- * (self-loan, borrower not a co-member) + CONFLICT (fewer unclaimed copies
- * than requested); the lifecycle mutations → NOT_FOUND (loan, or not the
- * viewer's side of it) + CONFLICT (wrong state) and take the loan id as a
- * path param. `returnCopies` also adds BAD_REQUEST (more than outstanding).
- */
 export const loansContract = {
   create: authedRoute
     .route({ method: "POST", path: "/api/v1/loans", tags: [TAG], successStatus: 201 })

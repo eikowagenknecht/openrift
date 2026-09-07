@@ -15,8 +15,6 @@ function row(label: string, cardIds: string[] = [], unranked?: boolean) {
 
 describe("tiersSchema", () => {
   it("leaves a row with no flag alone rather than stamping a false on it", () => {
-    // Most boards have no unranked row at all, so the flag stays off the stored
-    // jsonb entirely unless it is actually set.
     const parsed = tiersSchema.parse([row("S", [CARD_A])]);
 
     expect(parsed[0]).not.toHaveProperty("unranked");
@@ -33,8 +31,6 @@ describe("tiersSchema", () => {
   });
 
   it("rejects an unranked row above a ranked one", () => {
-    // The board is drawn in reading order, so this would put "did not make the
-    // cut" above a real tier.
     const result = tiersSchema.safeParse([row("Unranked", [], true), row("S", [CARD_A])]);
 
     expect(result.success).toBe(false);

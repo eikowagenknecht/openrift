@@ -1,33 +1,11 @@
 export interface BotEnv {
-  /** Discord bot token from the developer portal's Bot tab. */
   token: string;
-  /** Base URL of the OpenRift API, e.g. `http://api:3000` inside compose. */
   apiUrl: string;
-  /** Public site origin used for card links and embed image URLs. */
   siteUrl: string;
-  /**
-   * Shared service secret for the API's privileged bot endpoints (group
-   * linking, tradelist lookups). Null disables those features: /link isn't
-   * registered and card replies carry no tradelist info.
-   */
   apiSecret: string | null;
-  /**
-   * What trade-channel scanning does with what it finds. `log` (the default)
-   * writes the reply it would have posted to the log and posts nothing, so a
-   * server's real traffic can tune the matcher before the bot ever speaks
-   * unprompted; `reply` posts for real.
-   */
   tradeScanMode: "log" | "reply";
 }
 
-/**
- * Reads the bot's configuration from the environment. The localhost fallbacks
- * mirror the web app's `getSiteUrl()`: a missing var fails loudly in dev
- * instead of silently pointing at prod.
- *
- * @returns The resolved bot environment.
- * @throws {Error} When `DISCORD_BOT_TOKEN` is missing.
- */
 export function readBotEnv(env: Record<string, string | undefined> = process.env): BotEnv {
   const token = env.DISCORD_BOT_TOKEN;
   if (!token) {

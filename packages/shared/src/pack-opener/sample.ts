@@ -17,11 +17,6 @@ import type { Random } from "./rng.js";
 import { pickOneUnique } from "./rng.js";
 import type { PackPool, PackPrinting, PackPull, PackResult } from "./types.js";
 
-/**
- * Weighted pick over the four foil-slot rarity buckets, falling back gracefully
- * if one of them is empty in the current pool (e.g. a set with no Epic foils).
- * @returns A printing for the foil slot.
- */
 function pickFoilSlot(rng: Random, pool: PackPool, pulled: ReadonlySet<string>): PackPrinting {
   const buckets: { pool: PackPrinting[]; weight: number }[] = [
     { pool: pool.foilCommons, weight: FOIL_RARITY_WEIGHTS.common ?? 0 },
@@ -45,12 +40,7 @@ function pickFoilSlot(rng: Random, pool: PackPool, pulled: ReadonlySet<string>):
   return pickOneUnique(rng, fallback.pool, pulled);
 }
 
-/**
- * Decide which showcase/ultimate outcome (if any) replaces the foil slot. Order
- * matters: rarer outcomes are rolled first so their probability mass doesn't
- * get absorbed into a more common outcome when a pool is empty.
- * @returns The special pull, or null to fall through to a regular foil.
- */
+// Rarer outcomes are rolled first: their probability mass would otherwise get absorbed into a more common outcome when a pool is empty.
 function rollSpecialSlot(
   rng: Random,
   pool: PackPool,
@@ -94,12 +84,7 @@ function rollSpecialSlot(
   return null;
 }
 
-/**
- * Cascading roll for the token slot: alt-art Rune → foil Rune → Token → regular
- * Rune. Empty sub-pools skip their rate so probability mass falls through to
- * the next tier (matches how empty showcase pools behave in the foil slot).
- * @returns A pull for the token slot.
- */
+// Cascades alt-art Rune → foil Rune → Token → regular Rune; an empty sub-pool skips its rate and falls through to the next tier.
 function pickTokenSlot(rng: Random, pool: PackPool, pulled: ReadonlySet<string>): PackPull {
   const roll = rng.next();
   let cursor = 0;
@@ -134,13 +119,7 @@ function pickTokenSlot(rng: Random, pool: PackPool, pulled: ReadonlySet<string>)
   };
 }
 
-/**
- * Open a single booster pack from the given pool. Real packs never contain the
- * same printing twice, so each pull is constrained to printings not already in
- * the pack — the second flex slot can't repeat the first flex's Rare, etc. A
- * regular Common and its foil version are different printings and may coexist.
- * @returns A PackResult with all 14 pulls, in slot order.
- */
+// Real packs never repeat the same printing, so each pull excludes printings already in the pack. A Common and its foil version are different printings and may coexist.
 export function openPack(pool: PackPool, rng: Random): PackResult {
   const pulls: PackPull[] = [];
   const pulled = new Set<string>();
@@ -175,10 +154,6 @@ export function openPack(pool: PackPool, rng: Random): PackResult {
   return { pulls };
 }
 
-/**
- * Open N packs from the same pool.
- * @returns An array of PackResults, one per pack.
- */
 export function openPacks(pool: PackPool, rng: Random, n: number): PackResult[] {
   const results: PackResult[] = [];
   for (let i = 0; i < n; i++) {

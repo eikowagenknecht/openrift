@@ -3,11 +3,6 @@ import { describe, expect, it } from "vitest";
 import { boxBlurGray, downscaleGray, focusScore, toGray } from "./image";
 import type { GrayImage, RgbaImage } from "./types";
 
-/**
- * Build a grayscale image from explicit pixel values.
- *
- * @returns The image.
- */
 function gray(width: number, height: number, values: number[]): GrayImage {
   return { data: Uint8Array.from(values), width, height };
 }

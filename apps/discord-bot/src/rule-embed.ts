@@ -7,31 +7,15 @@ import type { IndexedRule, RuleIndex } from "./rule-search.js";
 
 const KIND_LABEL: Record<RuleKind, string> = { core: "Core Rules", tournament: "Tournament Rules" };
 
-// Discord's embed description cap is 4096; leave headroom so the assembled
-// parts (breadcrumb + body + sub-rule lines) never need a mid-link cut.
-// Only ever cut whole sub-rules, never mid-sentence — the one exception is a
-// single pathological rule body longer than BODY_LIMIT on its own.
+// Discord's embed description cap is 4096; leave headroom so assembled parts
+// never need a mid-link cut.
 const BODY_LIMIT = 3200;
 const DESCRIPTION_LIMIT = 4000;
 
-/**
- * The site link for a rule: the kind-level rules page (which redirects to the
- * latest version) with the rule's anchor, so links stay valid across imports.
- *
- * @returns The absolute URL.
- */
 function ruleUrl(siteUrl: string, entry: IndexedRule): string {
   return `${siteUrl}/rules/${entry.kind}#rule-${entry.rule.ruleNumber}`;
 }
 
-/**
- * Wraps rule references (`rule 540`, `603.7`, `CR 116`) in markdown links to
- * their OpenRift anchors — the same matching the site uses, but with absolute
- * URLs since Discord has no same-page anchors. `CR` always targets the core
- * rules; other forms stay within the quoted rule's own kind.
- *
- * @returns The content with references linkified.
- */
 export function linkifyRuleReferences(content: string, kind: RuleKind, siteUrl: string): string {
   // Fresh regex instance: the shared one is global/stateful across callers.
   const regex = new RegExp(RULE_REFERENCE_REGEX.source, "gu");
@@ -45,22 +29,9 @@ export function linkifyRuleReferences(content: string, kind: RuleKind, siteUrl: 
   );
 }
 
-/**
- * The context line above a rule body: the section heading directly above the
- * rule's block (in full — headings are short), then the bare numbers of the
- * existing numeric ancestors, e.g. `Game Objects › 120 › 120.1`. Never any
- * truncated prose: orientation comes from the heading and the numbers alone.
- * Without a heading the line is omitted entirely — ancestor numbers on their
- * own only repeat what the title citation already says.
- *
- * @returns The breadcrumb line, or undefined when no section heading sits
- * directly above the rule's block.
- */
 export function ruleBreadcrumb(index: RuleIndex, entry: IndexedRule): string | undefined {
-  // Section headings are sparse and don't nest reliably, so only a subtitle
-  // sitting directly above the rule's own block counts as its heading — a
-  // heading half the document away would be misleading context. (A subtitle
-  // entry itself gets no heading part: the preceding subtitle is a sibling.)
+  // Only a subtitle directly above the rule's block counts as its heading;
+  // one further away would be misleading context.
   if (entry.rule.ruleType !== "text") {
     return undefined;
   }
@@ -81,7 +52,6 @@ export function ruleBreadcrumb(index: RuleIndex, entry: IndexedRule): string | u
   return [previous.plain, ...ancestors.map((ancestor) => ancestor.number)].join(" › ");
 }
 
-// All descendants of a rule (any depth), in document order.
 function descendants(index: RuleIndex, entry: IndexedRule): IndexedRule[] {
   return index.entries.filter(
     (candidate) =>
@@ -89,9 +59,8 @@ function descendants(index: RuleIndex, entry: IndexedRule): IndexedRule[] {
   );
 }
 
-// A core-rules subtitle has no numeric children — its section is the run of
-// rules that follow it, up to the next subtitle. (Tournament subtitles DO
-// nest their section under their own number; `descendants` covers those.)
+// A core-rules subtitle has no numeric children; its section is the run of
+// rules up to the next subtitle (tournament subtitles nest instead, via `descendants`).
 function sectionRules(index: RuleIndex, entry: IndexedRule): IndexedRule[] {
   const position = index.entries.indexOf(entry);
   const section: IndexedRule[] = [];
@@ -105,12 +74,6 @@ function sectionRules(index: RuleIndex, entry: IndexedRule): IndexedRule[] {
   return section;
 }
 
-// Adds full-text sub-rule list items while they fit the description budget.
-// Rules are only ever dropped whole (with a closing "…and N more" line),
-// never cut mid-sentence. Each rule becomes a markdown bullet indented by its
-// depth below `base`, so the numbering hierarchy reads as a nested list;
-// newlines inside a rule (example blocks) are indented along, keeping them
-// attached to their bullet.
 function subRuleLines(
   rules: IndexedRule[],
   base: IndexedRule,
@@ -123,9 +86,8 @@ function subRuleLines(
   let used = 0;
   for (const rule of rules) {
     const segments = rule.number.split(".").length;
-    // Numeric descendants indent relative to the selected rule; a core-style
-    // section (whose rules don't share the heading's number) indents by each
-    // rule's own depth.
+    // Numeric descendants indent relative to `base`; a core-style section
+    // indents by each rule's own depth instead.
     const depth = rule.numberLower.startsWith(basePrefix)
       ? segments - baseSegments - 1
       : segments - 1;
@@ -154,16 +116,6 @@ export interface RuleEmbedInput {
   siteUrl: string;
 }
 
-/**
- * Builds the reply embed for a rule: the `CR 103.2`-style citation linking to
- * the rule's anchor on OpenRift, a heading-and-numbers breadcrumb, then the
- * whole block in full — the rule text plus every descendant (or, for a
- * section heading, the section's rules), references linkified, sub-rules only
- * ever dropped whole when the embed budget runs out — and the ruleset version
- * in the footer.
- *
- * @returns A plain APIEmbed ready to send.
- */
 export function buildRuleEmbed(input: RuleEmbedInput): APIEmbed {
   const { entry, index, siteUrl } = input;
   const isHeading = entry.rule.ruleType !== "text";

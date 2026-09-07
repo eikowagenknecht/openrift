@@ -1,13 +1,11 @@
 import type { ApiClients } from "./api-client.js";
 
-/** One holder's copies of a single printing, with the lists they sit on. */
 export interface TradelistHolderPrinting {
   printingId: string;
   quantity: number;
   listNames: string[];
 }
 
-/** Tradelist info for a card in one guild's linked group, ready for the embed. */
 export interface TradelistHolders {
   groupName: string | null;
   holders: {
@@ -17,14 +15,7 @@ export interface TradelistHolders {
   }[];
 }
 
-/**
- * Which members of the guild's linked OpenRift group offer the card on a
- * shared tradelist. Every "nothing to show" case collapses to null — feature
- * off (no service secret), not in a guild, guild not linked, nobody offers
- * the card, or the lookup failed — so callers just skip the embed field.
- *
- * @returns The holders to display, or null when there is nothing to show.
- */
+/** Null covers every "nothing to show" case (feature off, unlinked, no offers, lookup failure). */
 export async function fetchTradelistHolders(
   api: ApiClients,
   guildId: string | null | undefined,

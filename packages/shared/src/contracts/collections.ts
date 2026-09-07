@@ -29,28 +29,24 @@ export const updateCollectionSchema = z.object({
 });
 
 /**
- * Sets the caller's own deck-building availability for a collection. This is a
- * per-viewer preference (not a property of the collection), so any member with
- * access can set it for themselves — including for shared group collections.
+ * Per-viewer preference, not a property of the collection: any member with
+ * access can set it for themselves, including on shared group collections.
  */
 export const setCollectionDeckbuildingSchema = z.object({
   available: z.boolean(),
 });
 
 /**
- * Pushes the collection behind the sidebar's "Show more" toggle for the
- * caller. Per-viewer like the deck-building flag, so every member with access
- * may set it for themselves without hiding a shared binder for the group.
+ * Per-viewer like the deck-building flag: every member with access may set
+ * it for themselves without hiding a shared binder for the group.
  */
 export const setCollectionSidebarHiddenSchema = z.object({
   hidden: z.boolean(),
 });
 
 /**
- * Bulk reorder for the user's personal collections. The server re-numbers
- * `sort_order` so that the rows appear in the order given here on the next
- * fetch. Group-owned collections are not reorderable and are ignored if
- * passed; the inbox is treated like any other row.
+ * Group-owned collections are not reorderable and are ignored if passed;
+ * the inbox is treated like any other row.
  */
 export const reorderCollectionsSchema = z.object({
   orderedIds: z.array(z.uuid()).min(1).max(500),
@@ -62,8 +58,6 @@ export const collectionResponseSchema = z
     name: z.string(),
     description: z.string().nullable(),
     availableForDeckbuilding: z.boolean(),
-    // Per-viewer: true when the caller has pushed this collection behind the
-    // sidebar's "Show more" toggle.
     sidebarHidden: z.boolean(),
     isInbox: z.boolean(),
     sortOrder: z.number(),
@@ -78,9 +72,6 @@ export const collectionResponseSchema = z
     groupSlug: z.string().nullable(),
     groupName: z.string().nullable(),
     viewerCanAdmin: z.boolean(),
-    // The caller's decks that are stored in this collection (their deck box).
-    // Owner-scoped: a group member never sees another member's deck here.
-    // Usually empty or one entry, but two decks may share a box.
     homeDecks: z.array(z.object({ id: z.string(), name: z.string() })),
   })
   .openapi("CollectionResponse");
@@ -91,9 +82,6 @@ export const collectionListResponseSchema = z
 
 export const collectionShareResponseSchema = z
   .object({
-    // Nullable so GET /{id}/share can report an owned-but-unshared collection
-    // as { shareToken: null, isPublic: false } without 404ing. POST/rotate
-    // always return a non-null token; this only widens the unshared case.
     shareToken: z.string().nullable(),
     isPublic: z.boolean(),
   })
@@ -112,10 +100,8 @@ export const collectionGroupSharesResponseSchema = z
   .openapi("CollectionGroupSharesResponse");
 
 /**
- * Result of clearing a collection's contents. Copies reserved by a live trade
- * or out on a loan are physically pinned and stay put; they come back in
- * `keptCopyIds` so the client can report them and keep them in its synced
- * store.
+ * Copies reserved by a live trade or out on a loan are pinned and stay put;
+ * they come back in `keptCopyIds` so the client can report and track them.
  */
 export const clearCollectionResponseSchema = z
   .object({
@@ -134,17 +120,6 @@ export const resetCollectionsResponseSchema = z
 
 const TAG = "Collections";
 
-/**
- * oRPC contract for the authenticated collections endpoints (mounted at
- * `/api/v1/collections`). All require a session (the mount applies
- * `requireAuth`), so they share the `authedRoute` base (UNAUTHORIZED +
- * FORBIDDEN). Domain codes per route: `create` → NOT_FOUND (unknown group
- * slug); `get`, `update`, `copies`, `share`, `shareState`, `rotateShare`,
- * `unshare`, `groupShares`, `setDeckbuilding`, `setSidebarHidden`, `clear` → NOT_FOUND
- * (inaccessible collection); `remove` → NOT_FOUND + CONFLICT (inbox guard,
- * non-empty shared collection); `resetAll` → CONFLICT (copies reserved in
- * trades or lent out).
- */
 export const collectionsContract = {
   list: authedRoute
     .route({ method: "GET", path: "/api/v1/collections", tags: [TAG] })

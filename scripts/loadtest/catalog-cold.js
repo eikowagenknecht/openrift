@@ -1,11 +1,7 @@
-// Catalog cold-start: concurrent cache-busted hits to /catalog, the endpoint
-// that fires 7 parallel DB queries per request. This is what happens if CF
-// purges or a deploy invalidates caches during a traffic spike, so it is the
-// scenario most likely to exhaust the Postgres connection pool.
-//
-// Start low; if p95 stays flat, raise the target stages.
-//
-// Usage: BASE_URL=https://staging.openrift.example k6 run scripts/loadtest/catalog-cold.js
+// /catalog fires 7 parallel DB queries per request; this simulates a CF purge
+// or deploy invalidating caches during a traffic spike, the scenario most
+// likely to exhaust the Postgres connection pool. Start low, raise the
+// target stages if p95 stays flat.
 
 import { check, sleep } from "k6";
 import http from "k6/http";

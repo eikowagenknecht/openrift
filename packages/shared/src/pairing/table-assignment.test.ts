@@ -46,8 +46,6 @@ describe("assignTableNumbers", () => {
       ["a", 2],
       ["c", 2],
     ]);
-    // Pod 0 claims table 2; pod 1 has no free fixed table left and fills like
-    // an unfixed pod, keeping its relative order among the fillers.
     expect(assignTableNumbers(pods, fixed)).toEqual([2, 1, 3]);
   });
 
@@ -57,7 +55,6 @@ describe("assignTableNumbers", () => {
       ["f", 5],
       ["h", 2],
     ]);
-    // Within one pod the lowest fixed table wins.
     expect(assignTableNumbers(pods, fixed)).toEqual([1, 2]);
   });
 

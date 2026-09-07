@@ -8,8 +8,6 @@ import {
 
 describe("stagePresetConfigSchema", () => {
   it("accepts a preset that sets nothing", () => {
-    // A preset is a bundle of what the creator deliberately changed, so an empty
-    // one is meaningful: it applies nothing and every surface keeps its default.
     expect(stagePresetConfigSchema.parse({})).toEqual({});
   });
 
@@ -55,7 +53,6 @@ describe("createStagePresetSchema", () => {
   });
 
   it("rejects a name that is only whitespace", () => {
-    // Caught here rather than reaching the table's name <> '' check constraint.
     expect(createStagePresetSchema.safeParse({ name: "   ", config: {} }).success).toBe(false);
   });
 

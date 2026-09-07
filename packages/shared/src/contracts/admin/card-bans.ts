@@ -20,14 +20,7 @@ const banResponseSchema = z.object({
 const formatIdSchema = z.string().min(1);
 const reasonSchema = z.string().min(1).nullable().optional();
 
-/**
- * oRPC contract for the admin card-ban management (mounted under
- * `/api/admin/v1/cards/{id}/bans`, admin-gated by the mount). All four verbs
- * share the same path; create/update/remove carry their fields in the body
- * alongside the `{id}` path param (oRPC compact input). Domain codes per
- * route: `create` → NOT_FOUND (card not found) + CONFLICT (duplicate ban);
- * `update` → NOT_FOUND (ban not found); `remove` → NOT_FOUND (ban not found).
- */
+/** All four verbs share the same path, distinguished by HTTP method. */
 export const adminCardBansContract = {
   list: authedRoute
     .route({ method: "GET", path: BANS, tags: [TAG] })

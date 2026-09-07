@@ -1,16 +1,7 @@
 import type { ApiClients } from "./api-client.js";
 
-/** How often the trade-channel map is re-read, matching the catalog cadence. */
 const REFRESH_INTERVAL_MS = 30 * 60 * 1000;
 
-/**
- * Which channels of which guilds are opted into card-name scanning, held in
- * memory. Every message in every guild has to ask this question, so it cannot
- * be a request; the map is small (one row per linked server) and a stale entry
- * costs at most one refresh interval of scanning a channel that was just
- * turned off. `/tradechannel` writes through, so the server that changed the
- * setting sees it immediately.
- */
 export class TradeChannelCache {
   private channels = new Map<string, Set<string>>();
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -20,18 +11,11 @@ export class TradeChannelCache {
     this.api = api;
   }
 
-  /**
-   * Whether messages in this channel should be scanned. Unknown guilds and
-   * channels are "no", so a failed refresh degrades to silence rather than to
-   * scanning everything.
-   *
-   * @returns True when the channel is opted in.
-   */
+  // Unknown guilds and channels default to false: a failed refresh must not scan everything.
   isTradeChannel(guildId: string | null | undefined, channelId: string): boolean {
     return guildId ? (this.channels.get(guildId)?.has(channelId) ?? false) : false;
   }
 
-  /** Applies a `/tradechannel` change locally, so it takes effect before the next refresh. */
   set(guildId: string, channelIds: string[]): void {
     if (channelIds.length === 0) {
       this.channels.delete(guildId);
@@ -40,13 +24,7 @@ export class TradeChannelCache {
     this.channels.set(guildId, new Set(channelIds));
   }
 
-  /**
-   * Re-reads the whole map. A failure keeps the previous snapshot, like the
-   * catalog cache — the alternative is a transient API blip silently turning
-   * the feature off.
-   *
-   * @returns True when the refresh succeeded.
-   */
+  // A failed refresh keeps the previous map; it does not clear it.
   async refresh(): Promise<boolean> {
     if (!this.api.discordBot) {
       return false;

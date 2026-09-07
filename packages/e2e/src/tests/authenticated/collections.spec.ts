@@ -6,10 +6,8 @@ test.describe("collections", () => {
   }) => {
     await page.goto("/collections");
 
-    // The collections page should load without redirecting to login
     await expect(page).toHaveURL("/collections");
 
-    // Should show the "All Cards" sidebar link (the default collection)
     await expect(page.getByRole("link", { name: "All Cards", exact: true })).toBeVisible({
       timeout: 15_000,
     });

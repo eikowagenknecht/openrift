@@ -95,22 +95,17 @@ export type ProviderStatsResponse = z.infer<typeof providerStatsItemSchema>;
 
 export type CandidateCardUploadResponse = z.infer<typeof uploadCandidatesResponseSchema>;
 
-// ── Admin card detail response types ────────────────────────────────────────
-
 export type AdminCardResponse = z.infer<typeof adminCardResponseSchema>;
 
 export type AdminPrintingResponse = z.infer<typeof adminPrintingResponseSchema>;
 
-/** One source citation as the admin printing editor lists it. */
 export type AdminPrintingCitation = z.infer<typeof adminPrintingCitationSchema>;
 
 export type AdminMarketplaceName = z.infer<typeof marketplaceEnum>;
 
 /**
- * A marketplace variant visible to a printing. When `ownerPrintingId` differs
- * from the printing this row is shown under, the variant is inherited via
- * sibling fan-out (Cardmarket cross-language aggregate — variants are stored
- * with `variantLanguage = null` and surface on every sibling printing).
+ * When `ownerPrintingId` differs from the printing this row is shown under,
+ * the variant is inherited via Cardmarket's cross-language sibling fan-out.
  */
 export type AdminPrintingMarketplaceMappingResponse = z.infer<
   typeof adminPrintingMarketplaceMappingResponseSchema
@@ -119,8 +114,6 @@ export type AdminPrintingMarketplaceMappingResponse = z.infer<
 export type AdminCardDetailResponse = z.infer<typeof adminCardDetailResponseSchema>;
 
 export type UnmatchedCardDetailResponse = z.infer<typeof unmatchedCardDetailResponseSchema>;
-
-// ── Admin list response types ───────────────────────────────────────────────
 
 export type AdminSetResponse = z.infer<typeof adminSetSchema>;
 
@@ -158,7 +151,6 @@ export type AdminCardTagListResponse = z.infer<typeof adminCardTagListResponseSc
 
 export type DistributionChannelResponse = z.infer<typeof channelSchema>;
 
-/** Per-printing channel link as exposed by admin endpoints. */
 export type AdminPrintingDistributionChannelResponse = z.infer<
   typeof adminPrintingDistributionChannelResponseSchema
 >;
@@ -169,31 +161,18 @@ export type ProviderSettingResponse = z.infer<typeof providerSettingSchema>;
 
 export type IgnoredProductResponse = z.infer<typeof ignoredProductSchema>;
 
-// ── Image rehosting response types ──────────────────────────────────────────
-
 export type RehostImageResponse = z.infer<typeof rehostResultSchema>;
 
 export type UnrehostImagesRequest = z.input<typeof unrehostImagesInputSchema>;
 
 export type UnrehostImagesResponse = z.infer<typeof unrehostResultSchema>;
 
-/**
- * Async-job kickoff response for regenerate-images. The actual progress is
- * tracked on the corresponding `job_runs` row's `result` JSONB; clients
- * poll that row to render progress and decide whether to offer resume.
- */
+/** Progress is tracked on the `job_runs` row's `result` JSONB; clients poll that row. */
 export type RegenerateImagesKickoffResponse = z.infer<typeof jobStartedResponseSchema>;
 
 /**
- * Per-batch checkpoint written to `job_runs.result` while a regenerate job is
- * running, and left in place when the run finishes (succeeded, failed, or
- * cancelled). The `snapshot` is captured at run start so retries iterate the
- * same set even if images were added or removed in the meantime.
- *
- * Resume semantics: when the latest run for `images.regenerate` is `failed`
- * with `lastProcessedIndex < snapshot.length - 1` and `cancelRequested` is
- * false (or true — cancel is treated as a pause), a new run can pick up at
- * `lastProcessedIndex + 1`.
+ * `snapshot` is captured at run start so a resumed run iterates the same set
+ * even if images were added or removed in the meantime.
  */
 export type RegenerateImagesCheckpoint = z.infer<typeof regenerateImagesCheckpointSchema>;
 
@@ -217,55 +196,32 @@ export type LowResImagesResponse = z.infer<typeof lowResImagesResponseSchema>;
 
 export type MissingImageCard = z.infer<typeof missingImageCardSchema>;
 
-// ── Price refresh response types ────────────────────────────────────────────
-
 export type PriceRefreshUpsertCounts = z.infer<typeof priceRefreshUpsertCountsSchema>;
 
 export type PriceRefreshResponse = z.infer<typeof priceRefreshResponseSchema>;
 
-/**
- * Response for an admin endpoint that kicks off a long-running job in the
- * background. The caller gets a `runId` immediately and polls `/admin/job-runs`
- * for progress.
- */
+/** Caller gets a `runId` immediately and polls `/admin/job-runs` for progress. */
 export type JobRunStartedResponse = z.infer<typeof jobStartedResponseSchema>;
 
 export type ClearPricesResponse = z.infer<typeof clearPricesResponseSchema>;
 
-// ── Unified marketplace mappings response types ─────────────────────────────
-
-/**
- * Inferred from {@link unifiedMappingGroupResponseSchema} (zod-first, the single
- * source of truth). Carries the merged per-marketplace external IDs
- * (`tcgExternalId` / `cmExternalId` / `ctExternalId`).
- */
+/** Carries the merged per-marketplace external IDs (`tcgExternalId` / `cmExternalId` / `ctExternalId`). */
 export type UnifiedMappingPrintingResponse = z.infer<
   typeof unifiedMappingGroupResponseSchema
 >["printings"][number];
 
-/**
- * One printing in a single marketplace's mapping overview: the same descriptive
- * fields as {@link UnifiedMappingPrintingResponse}, with the three merged
- * external IDs collapsed to the one marketplace's `externalId`.
- */
+/** Same fields as {@link UnifiedMappingPrintingResponse}, with the three external IDs collapsed to one `externalId`. */
 export type MappingPrintingResponse = Omit<
   UnifiedMappingPrintingResponse,
   "tcgExternalId" | "cmExternalId" | "ctExternalId"
 > & { externalId: number | null };
 
-/**
- * One staged/assigned/unmatched marketplace product. Inferred from
- * {@link stagedProductResponseSchema}. `language` / `groupSetSlug` are `null`
- * when the marketplace doesn't expose that dimension.
- */
+/** `language` / `groupSetSlug` are `null` when the marketplace doesn't expose that dimension. */
 export type StagedProductResponse = z.infer<typeof stagedProductResponseSchema>;
 
 /**
- * A single (product × printing) mapping row. Authoritative: survives cases
- * where one printing is bound to multiple variants of the same marketplace
- * (can happen when two upstream products target the same printing).
- * `language` is `null` when the marketplace doesn't expose language as a
- * SKU dimension (CM/TCG). Inferred from {@link unifiedMappingGroupResponseSchema}.
+ * Survives one printing being bound to multiple variants of the same
+ * marketplace (two upstream products targeting the same printing).
  */
 export type MarketplaceAssignmentResponse = z.infer<
   typeof unifiedMappingGroupResponseSchema
@@ -273,13 +229,6 @@ export type MarketplaceAssignmentResponse = z.infer<
 
 export type UnifiedMappingGroupResponse = z.infer<typeof unifiedMappingGroupResponseSchema>;
 
-/**
- * The per-card fields shared by every mapping "group" shape (unified,
- * per-marketplace overview, and the client's suggestion-computation view).
- * Only the header is common: each shape carries its own `printings` and
- * marketplace product lists, so those stay separate rather than being forced
- * into one type.
- */
 export type MappingGroupHeader = Pick<
   UnifiedMappingGroupResponse,
   | "cardId"
@@ -293,7 +242,6 @@ export type MappingGroupHeader = Pick<
   | "setName"
 >;
 
-/** Inferred from {@link unifiedMappingsResponseSchema}'s `allCards` entries. */
 export type AssignableCardResponse = z.infer<
   typeof unifiedMappingsResponseSchema
 >["allCards"][number];
@@ -302,5 +250,4 @@ export type AdminUserResponse = z.infer<typeof adminUserSchema>;
 
 export type UnifiedMappingsResponse = z.infer<typeof unifiedMappingsResponseSchema>;
 
-/** Single-card variant of {@link UnifiedMappingsResponse} for the admin card-detail page. */
 export type UnifiedMappingsCardResponse = z.infer<typeof unifiedMappingsCardResponseSchema>;

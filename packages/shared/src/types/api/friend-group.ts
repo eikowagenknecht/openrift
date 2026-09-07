@@ -34,7 +34,6 @@ import type {
 import type { listGroupSharesResponseSchema } from "@openrift/shared/contracts/lists";
 import type { z } from "zod";
 
-// ADR-033 retired the `judge` role: judging now lives in tournament_staff.
 export type FriendGroupRole = z.infer<typeof friendGroupRoleSchema>;
 export type FriendGroupInviteDirection = z.infer<typeof friendGroupInviteDirectionSchema>;
 
@@ -101,17 +100,8 @@ export type FriendGroupDiscordLinkCodeResponse = z.infer<
 >;
 
 /**
- * One entry in a group's activity feed. A discriminated union over `kind`;
- * `at` is the ISO timestamp the feed sorts by (newest first).
- *
- * Card-bearing kinds (`trade-completed`, `match`) carry only `printingId` /
- * `cardId` — the client resolves the card name and image from its loaded
- * catalogue, the same way the trades and matches lists do.
- *
- * `match` is the one approximate kind: matches aren't stored, so `at` is the
- * latest of the timestamps that made the match possible (when both lists were
- * shared and both entries / the copy were created). It surfaces the viewer's
- * *incoming* matches only ("others now have something you want").
+ * `at` is the ISO timestamp the feed sorts by. `match` is approximate: matches
+ * aren't stored, so `at` is the latest of the timestamps that made it possible.
  */
 export type FriendGroupActivityEvent = z.infer<typeof friendGroupActivityEventSchema>;
 

@@ -20,11 +20,9 @@ const userSectionParamSchema = z.object({
 });
 
 /**
- * oRPC contract for per-section admin grants (mounted under `/api/admin/v1`,
- * admin-gated by the mount). These management endpoints are reachable by full
- * admins only — the gate lets grant holders through solely to their granted
- * section's paths, which never include this surface. Domain codes per route:
- * `add` → NOT_FOUND (unknown user); `remove` → NOT_FOUND (no such grant).
+ * Per-section admin grants, mounted under `/api/admin/v1`. Reachable by full
+ * admins only: the mount's gate lets section-grant holders through only to
+ * their granted section's paths, which never include this surface.
  */
 export const adminGrantsContract = {
   list: authedRoute

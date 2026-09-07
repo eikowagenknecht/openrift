@@ -2,13 +2,7 @@ import { canonicalizeQuad, refineQuad } from "./geometry";
 import type { CardCandidate, GrayImage, Point, Quad } from "./types";
 import { CARD_ASPECT } from "./types";
 
-/**
- * The slice of the OpenCV.js API this detector uses.
- *
- * Typed structurally and injected by the caller so the shared package never
- * depends on OpenCV: the API server imports from here too, and must not pull in
- * a ten-megabyte WASM build to do so.
- */
+/** Typed structurally so this stays free of the OpenCV WASM import; the API server uses it too. */
 export interface OpenCvLike {
   Mat: new (rows?: number, cols?: number, type?: number) => CvMat;
   MatVector: new () => CvMatVector;
@@ -56,16 +50,14 @@ interface CvMat {
   cols: number;
   data: Uint8Array;
   data32S: Int32Array;
-  /** @returns Nothing; frees the underlying WASM allocation. */
+  /** Frees the underlying WASM allocation. */
   delete: () => void;
 }
 
 interface CvMatVector {
-  /** @returns The number of contours held. */
   size: () => number;
-  /** @returns The contour at that position. */
   get: (index: number) => CvMat;
-  /** @returns Nothing; frees the underlying WASM allocation. */
+  /** Frees the underlying WASM allocation. */
   delete: () => void;
 }
 
@@ -76,11 +68,8 @@ interface CvRotatedRect {
 }
 
 export interface CvDetectOptions {
-  /** Long side the detector works at. */
   workingSize: number;
-  /** Smallest contour area to consider, as a fraction of the frame. */
   minAreaFraction: number;
-  /** How much of its bounding box a contour must fill. */
   minFill: number;
   maxCandidates: number;
 }
@@ -95,17 +84,9 @@ export const DEFAULT_CV_DETECT_OPTIONS: CvDetectOptions = {
 /** Builds a binary image from grayscale; the caller owns and frees the result. */
 type Recipe = (cv: OpenCvLike, gray: CvMat) => CvMat;
 
-/**
- * Segmentations run for every frame.
- *
- * No single threshold works on real footage: a card is bright against a dark
- * binder page and dark against a pale table, so the polarity flips between
- * scenes and sometimes within one frame. Running a handful and pooling what
- * they find is cheaper than trying to pick correctly in advance, and the
- * matcher discards whatever was not a card.
- */
+// No single threshold works on real footage: a card can be bright-on-dark or
+// dark-on-light depending on the surface, sometimes within one clip.
 const RECIPES: Recipe[] = [
-  /** @returns A binary image isolating bright regions. */
   (cv, gray) => {
     const blurred = new cv.Mat();
     cv.medianBlur(gray, blurred, 5);
@@ -123,7 +104,6 @@ const RECIPES: Recipe[] = [
     blurred.delete();
     return out;
   },
-  /** @returns A binary image isolating dark regions against a bright surface. */
   (cv, gray) => {
     const blurred = new cv.Mat();
     cv.GaussianBlur(gray, blurred, new cv.Size(7, 7), 0);
@@ -133,7 +113,6 @@ const RECIPES: Recipe[] = [
     blurred.delete();
     return out;
   },
-  /** @returns A binary image isolating bright regions by a global cut. */
   (cv, gray) => {
     const blurred = new cv.Mat();
     cv.GaussianBlur(gray, blurred, new cv.Size(7, 7), 0);
@@ -151,16 +130,8 @@ function close(cv: OpenCvLike, mat: CvMat, size: number): void {
   kernel.delete();
 }
 
-/**
- * Find cards with OpenCV contours and a rotated bounding box.
- *
- * This is the counterpart to {@link fitCardRects}: it excels where a card is
- * physically separate from its neighbours, at any rotation, which is precisely
- * where a centre-anchored rectangle search is weakest. Neither covers every
- * scene alone, so the pipeline runs both.
- *
- * @returns Card candidates in the frame's coordinates, best first.
- */
+// Counterpart to fitCardRects: finds cards physically separate from their
+// neighbours at any rotation, where a centre-anchored search is weakest.
 export function detectCardsWithCv(
   cv: OpenCvLike,
   frame: GrayImage,

@@ -9,15 +9,10 @@ import { connectToDb } from "../../helpers/db.js";
 
 type Sql = ReturnType<typeof connectToDb>;
 
-// ── Seed-data anchors ──────────────────────────────────────────────────────
-// Annie, Fiery — Unit, Champion super-type, single-domain Fury, energy 5,
-// power 1. Has tcgplayer prices via OGS-001 EN normal printing.
 const ANNIE_CARD_ID = "019cfc3b-038a-7c0c-a76c-e0a5e2f46b18";
 const ANNIE_NAME = "Annie, Fiery";
-const ANNIE_PRINTING_ID = "019cfc3b-03d6-74cf-adec-1dce41f631eb"; // OGS-001 EN normal
+const ANNIE_PRINTING_ID = "019cfc3b-03d6-74cf-adec-1dce41f631eb";
 
-// Tibbers — Unit, Signature super-type, multi-domain (Fury + Chaos), energy 8,
-// power 2. Has tcgplayer prices via OGS-018 EN normal printing.
 const TIBBERS_CARD_ID = "019cfc3b-038a-7aef-b46a-dc08a7a17008";
 const TIBBERS_NAME = "Tibbers";
 
@@ -99,21 +94,14 @@ async function apiAddCopiesToInbox(page: Page, printingId: string, count: number
 }
 
 function statsHeader(page: Page) {
-  // The sidebar's Stats collapsible is frameless — its trigger is the only
-  // button whose accessible name starts with "Stats" and ends in a card count.
+  // The Stats trigger has no test id; match its accessible name pattern.
   return page.getByRole("button", { name: /^Stats\b.*\bcards$/u }).first();
 }
 
-/**
- * The sidebar Stats panel only shows while a zone is active (the overview
- * draws its own, larger stats band). The deck editor starts on Overview, so
- * tests that inspect the sidebar panel must click a zone first.
- */
+// The sidebar Stats panel only shows while a zone is active; the deck editor
+// starts on Overview, so tests that inspect it must click a zone first.
 async function activateSidebarPanels(page: Page): Promise<void> {
-  // Pick Main Deck (exists for every format we test). The zone label is a
-  // Pressable named "Edit <zone>"; clicking it switches away from Overview and
-  // reveals the Stats panel below the zones. Retry in case the sidebar hasn't
-  // finished hydrating yet.
+  // Retry in case the sidebar hasn't finished hydrating yet.
   await expect(async () => {
     await page.getByRole("button", { name: "Edit Main Deck", exact: true }).first().click();
     await expect(statsHeader(page)).toBeVisible({
@@ -122,19 +110,11 @@ async function activateSidebarPanels(page: Page): Promise<void> {
   }).toPass({ timeout: 15_000 });
 }
 
-/**
- * Navigate to the deck editor and switch the sidebar out of Overview mode so
- * the Stats panel is visible for assertions.
- */
 async function gotoDeckWithPanels(page: Page, deckId: string): Promise<void> {
   await page.goto(`/decks/${deckId}`);
   await activateSidebarPanels(page);
 }
 
-/**
- * The hero's ownership chip — the deck's single missing-cards entry point.
- * @returns The chip locator.
- */
 function missingChip(page: Page) {
   return page.getByRole("button", { name: /\bmissing$/u }).first();
 }
@@ -159,12 +139,9 @@ test.describe("deck editor panels", () => {
       await expect(header).toBeVisible({ timeout: 15_000 });
       await expect(header).toContainText("0 cards");
 
-      // DomainBar returns null when totalCards is 0, so no tooltip triggers
-      // appear inside the Stats button.
+      // DomainBar renders null at zero cards: no tooltip triggers.
       await expect(header.locator('[data-slot="tooltip-trigger"]')).toHaveCount(0);
 
-      // Charts return null when there is no data; the body is open by default
-      // on desktop but contains nothing renderable.
       await expect(page.getByRole("heading", { level: 4, name: "Energy" })).toBeHidden();
       await expect(page.getByRole("heading", { level: 4, name: "Power" })).toBeHidden();
     });
@@ -181,22 +158,15 @@ test.describe("deck editor panels", () => {
       await expect(header).toBeVisible({ timeout: 15_000 });
       await expect(header).toContainText("3 cards");
 
-      // The single Fury segment is the only tooltip trigger inside the header
-      // — hover it and assert the tooltip content.
       const segment = header.locator('[data-slot="tooltip-trigger"]').first();
       await expect(segment).toBeVisible();
       await segment.hover();
-      // BaseUI's TooltipContent renders the content without role="tooltip"
-      // — match by text instead.
+      // BaseUI's TooltipContent has no role="tooltip"; match by text.
       await expect(page.getByText("Fury: 3", { exact: true })).toBeVisible();
 
-      // Body is open by default on desktop. Energy + Power headings render
-      // because Annie has both energy and power data; type breakdown shows
-      // a Unit row.
       await expect(page.getByRole("heading", { level: 4, name: "Energy" })).toBeVisible();
       await expect(page.getByRole("heading", { level: 4, name: "Power" })).toBeVisible();
 
-      // Click the header to collapse → chart body hidden.
       await header.click();
       await expect(page.getByRole("heading", { level: 4, name: "Energy" })).toBeHidden();
       await expect(page.getByRole("heading", { level: 4, name: "Power" })).toBeHidden();
@@ -211,8 +181,6 @@ test.describe("deck editor panels", () => {
       await gotoDeckWithPanels(page, deckId);
       await expect(statsHeader(page)).toBeVisible({ timeout: 15_000 });
 
-      // The counts and the price block live on the overview's hero and its
-      // Collection lens now — the sidebar shows charts only.
       await expect(page.getByText("Deck value")).toBeHidden();
       await expect(page.getByText("Owned value")).toBeHidden();
       await expect(page.getByRole("button", { name: "View missing cards" })).toBeHidden();
@@ -275,13 +243,11 @@ test.describe("deck editor panels", () => {
       const valueChip = page.getByRole("button", { name: "Show value breakdown" });
       await expect(valueChip).toBeVisible({ timeout: 15_000 });
 
-      // Match either "$X.XX" (TCGplayer/USD) or "X,XX €" (CardTrader/EUR) —
-      // the default favorite marketplace varies by seed order.
+      // Favorite marketplace varies by seed order: USD ($X.XX) or EUR (X,XX €).
       const priceRegex = /(?:\$\d+\.\d{2})|(?:\d+[.,]\d{2}\s?€)/u;
       await expect(valueChip.getByText(priceRegex)).toBeVisible();
 
       await valueChip.click();
-      // Annie is short two copies, so the completion figure is present.
       const completeRow = page.getByText("To complete").locator("..");
       await expect(completeRow.getByText(priceRegex)).toBeVisible();
     });
@@ -317,10 +283,8 @@ test.describe("deck editor panels", () => {
       await missingChip(page).click();
 
       const dialog = page.getByRole("dialog");
-      // Total shortfall = 2 (Annie) + 2 (Tibbers) = 4.
       await expect(dialog.getByText("Missing cards (4)")).toBeVisible();
 
-      // Both rows render, with the card name as a marketplace search link.
       const annieLink = dialog.getByRole("link", { name: ANNIE_NAME });
       const tibbersLink = dialog.getByRole("link", { name: TIBBERS_NAME });
       await expect(annieLink).toBeVisible();
@@ -328,30 +292,25 @@ test.describe("deck editor panels", () => {
 
       await expect(annieLink).toHaveAttribute("target", "_blank");
       await expect(annieLink).toHaveAttribute("rel", "noreferrer");
-      // The link points to the user's preferred marketplace (varies by seed),
-      // so accept any known marketplace domain.
+      // Preferred marketplace varies by seed; accept any known domain.
       await expect(annieLink).toHaveAttribute(
         "href",
         /(?:tcgplayer\.com|cardtrader\.com|cardmarket\.com)/u,
       );
 
-      // Both cards are in zone "main", so the list groups them under a single
-      // "Main Deck" heading (a plain label row, not a table header).
       await expect(dialog.getByText("Main Deck", { exact: true })).toHaveCount(1);
 
-      // Two copy buttons now: a Cardmarket-flavored one and the plain list.
       const copyButton = dialog.getByRole("button", { name: "Copy list" });
       await copyButton.click();
       await expect(dialog.getByRole("button", { name: "Copied" })).toBeVisible();
 
       const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
       const lines = clipboardText.split(/\r\n/u);
-      // Sorted by zone label then card name → Annie before Tibbers. The clip
-      // format now includes the printing short code and price.
+      // Sorted by zone label then card name: Annie before Tibbers.
       expect(lines[0]).toMatch(/^2x .*Annie, Fiery/u);
       expect(lines[1]).toMatch(/^2x .*Tibbers/u);
 
-      // Reverts after the 2s timeout.
+      // Copy button label reverts after a 2s timeout.
       await expect(dialog.getByRole("button", { name: "Copy list" })).toBeVisible({
         timeout: 5000,
       });
@@ -392,19 +351,15 @@ test.describe("deck editor panels", () => {
 
       await page.goto(`/decks/${deckId}`);
 
-      // The mobile zones drawer is closed by default and the deck opens on
-      // Overview, so the top-bar title reads "Zones". Click it to open the
-      // sidebar, then activate Main Deck to reveal the Stats panel below the
-      // zones. Clicking the zone closes the drawer, so re-open it to inspect
-      // the panel.
+      // Mobile zones drawer starts closed with the top-bar title "Zones".
       await page
         .getByRole("button", { name: /^Zones/u })
         .first()
         .click();
+      // Clicking the zone closes the drawer; re-open it to inspect the panel.
       await page.getByRole("button", { name: "Edit Main Deck", exact: true }).first().click();
-      // Re-open the sidebar after the zone click closed it. The title renders
-      // as "Main Deck(3)" with no space — the count span has ml-1 margin but
-      // no textual whitespace — so the regex matches an optional space.
+      // Title renders as "Main Deck(3)" with no textual whitespace before the
+      // count (the span has margin, not a space), so match an optional space.
       await page
         .getByRole("button", { name: /^Main Deck\s*\(\d+\)/u })
         .first()
@@ -413,7 +368,6 @@ test.describe("deck editor panels", () => {
       const stats = statsHeader(page);
       await expect(stats).toBeVisible();
 
-      // Mobile default: stats collapsed (matchMedia >=768px is false).
       await expect(page.getByRole("heading", { level: 4, name: "Energy" })).toBeHidden();
 
       await stats.click();

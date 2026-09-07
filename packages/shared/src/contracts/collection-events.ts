@@ -8,10 +8,6 @@ import { authedRoute } from "./_base.js";
 extendZodWithOpenApi(z);
 
 export const collectionEventsQuerySchema = z.object({
-  // Same keyset shape produced by query-helpers.ts's buildKeysetCursor:
-  // an ISO 8601 timestamp, optionally suffixed with "_<id>". Rejecting
-  // malformed cursors here means a garbage `cursor` fails with a 400 instead
-  // of reaching the repo's `new Date(...)` and producing a 500.
   cursor: keysetCursorSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });
@@ -46,11 +42,6 @@ export const collectionEventListResponseSchema = z
   })
   .openapi("CollectionEventListResponse");
 
-/**
- * oRPC contract for the authenticated collection-events feed.
- * `GET /api/v1/collection-events?cursor&limit` — cursor-paginated activity.
- * Requires a session (UNAUTHORIZED on missing session).
- */
 export const collectionEventsContract = {
   list: authedRoute
     .route({ method: "GET", path: "/api/v1/collection-events", tags: ["Collection Events"] })

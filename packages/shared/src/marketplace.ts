@@ -2,33 +2,18 @@ import type { Marketplace } from "./types/index.js";
 
 const AFFILIATE_BASE = "https://partner.tcgplayer.com/openrift";
 
-/**
- * Wraps a TCGplayer URL in the partner redirect that carries our affiliate id.
- * @returns The partner redirect URL targeting the given TCGplayer page.
- */
 export function affiliateUrl(url: string): string {
   return `${AFFILIATE_BASE}?u=${encodeURIComponent(url)}`;
 }
 
 const CT_SHARE_CODE = "openrift";
 
-/**
- * Appends our CardTrader share code to a CardTrader URL.
- * @returns The URL with the `share_code` query param attached.
- */
 export function cardtraderAffiliateUrl(url: string): string {
   const separator = url.includes("?") ? "&" : "?";
   return `${url}${separator}share_code=${CT_SHARE_CODE}`;
 }
 
-/**
- * Cardmarket's numeric language ids for the subset of languages our catalog
- * actually uses. Values taken from Cardmarket's public documentation.
- *
- * Keys are Cardmarket's own codes plus the printing codes we map onto them.
- * Nothing in the catalog distinguishes traditional Chinese today, so `ZH-TW`
- * is here only to keep the id table faithful to Cardmarket's list.
- */
+// Numeric language ids from Cardmarket's own docs. ZH-TW is unused by the catalog but kept for fidelity to their list.
 const CARDMARKET_LANGUAGE_CODES: Record<string, number> = {
   EN: 1,
   FR: 2,
@@ -36,8 +21,8 @@ const CARDMARKET_LANGUAGE_CODES: Record<string, number> = {
   ES: 4,
   IT: 5,
   "ZH-CN": 6,
-  SC: 6, // printings.language stores Riot's "SC" for CM's simplified Chinese
-  ZH: 6, // legacy: pre-SC preferences and bookmarked URLs still carry "ZH"
+  SC: 6,
+  ZH: 6,
   JA: 7,
   PT: 8,
   RU: 9,
@@ -45,16 +30,7 @@ const CARDMARKET_LANGUAGE_CODES: Record<string, number> = {
   "ZH-TW": 11,
 };
 
-/**
- * Returns the CM `&language=N` query fragment for a given printing language,
- * or an empty string when the language is unknown/missing. Cardmarket is the
- * only marketplace whose product page takes a language query param —
- * TCGplayer's URL scheme treats each language as a distinct productId, and
- * CardTrader handles language at the listing level.
- *
- * @returns The query fragment to append to the existing Cardmarket URL,
- *          including the leading `&`.
- */
+// Cardmarket is the only marketplace with a language query param: TCGplayer keys language into the productId, CardTrader into the listing.
 export function cardmarketLangParam(language: string | null | undefined): string {
   if (!language) {
     return "";
@@ -67,7 +43,6 @@ interface MarketplaceLinks {
   label: string;
   searchUrl: (query: string) => string;
   productUrl: (productId: number, language?: string | null) => string;
-  /** Whether the URLs above carry our affiliate id, so the UI can disclose it. */
   isAffiliate: boolean;
 }
 
@@ -98,12 +73,6 @@ export const MARKETPLACE_LINKS: Record<Marketplace, MarketplaceLinks> = {
   },
 };
 
-/**
- * Display label for a marketplace, falling back to the raw value for unknown
- * marketplaces. Use when the marketplace is typed loosely as `string` (e.g.
- * admin rows) so call sites don't re-declare their own label map.
- * @returns The marketplace's display label.
- */
 export function marketplaceLabel(name: string): string {
   return MARKETPLACE_LINKS[name as Marketplace]?.label ?? name;
 }

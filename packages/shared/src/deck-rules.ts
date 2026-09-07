@@ -2,58 +2,26 @@ import type { DeckFormatConfig } from "./types/api/deck.js";
 import type { CardType, DeckFormat, DeckZone, Domain, SuperType } from "./types/enums.js";
 import { WellKnown } from "./well-known.js";
 
-// ── Types ───────────────────────────────────────────────────────────────────
-
 export interface DeckCard {
   cardId: string;
   zone: DeckZone;
   quantity: number;
   cardName: string;
-  /** Primary type (`cardTypes[0]`); used only for display/sort bucketing. */
   cardType: CardType;
-  /** Full ordered type set (ADR-037); rules check membership here. */
   cardTypes: CardType[];
   superTypes: SuperType[];
   domains: Domain[];
   tags: string[];
-  /**
-   * Admin-curated `custom_tags.slug` assignments for this card. Consumed by
-   * tag-locked formats (e.g. Custom-Region) and ignored by everything else.
-   */
   customTagSlugs: readonly string[];
   keywords: string[];
-  /**
-   * Per-card deck copy-limit override from `Card.maxCopiesOverride`. `null`
-   * = normal rules (3 copies), `0` = unlimited ({@link UNLIMITED_COPIES}),
-   * positive = cap at that value.
-   */
   maxCopiesOverride: number | null;
-  /**
-   * True when the card sits on the base banlist — see `isBaseBanFormat` in
-   * well-known.ts. Mode-scoped bans (e.g. 2v2) deliberately do not set this:
-   * a deck carries no play-mode identity, so those stay a display-only
-   * ribbon rather than invalidating the deck everywhere.
-   */
   banned: boolean;
 }
 
 export interface DeckState {
   format: DeckFormat;
   cards: DeckCard[];
-  /**
-   * Format-specific config plucked from `decks.format_config`. Each format
-   * reads only the keys it cares about. `null` means the user hasn't picked
-   * config yet (e.g. Custom-Region deck without a region) — rules treat this
-   * as a "config required" violation rather than as "all checks pass".
-   */
   formatConfig?: DeckFormatConfig | null;
-  /**
-   * Catalogue-derived set of tags that name a Champion (e.g. "Ivern",
-   * "Karma"). Used by Custom-Region's signature-champion rule to tell
-   * champion-identifier tags apart from region/utility tags during overlap
-   * checks. Source of truth: distinct tags on Legend cards. Optional so
-   * legacy callers (and Standard format) keep working without it.
-   */
   championIdentifierTags?: ReadonlySet<string>;
 }
 
@@ -66,8 +34,6 @@ export interface DeckViolation {
 
 type DeckRule = (state: DeckState) => DeckViolation[];
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
-
 function cardsInZone(cards: DeckCard[], zone: DeckZone): DeckCard[] {
   return cards.filter((card) => card.zone === zone);
 }
@@ -76,16 +42,8 @@ function totalQuantity(cards: DeckCard[]): number {
   return cards.reduce((sum, card) => sum + card.quantity, 0);
 }
 
-/** `maxCopiesOverride` sentinel meaning "any number of copies". */
 export const UNLIMITED_COPIES = 0;
 
-/**
- * Resolves the per-name deck copy limit for a card: the card's
- * `maxCopiesOverride` when set (`UNLIMITED_COPIES` maps to `Infinity`),
- * otherwise the standard 3.
- *
- * @returns The maximum number of copies a deck may run of this card.
- */
 export function copyLimitFor(card: { maxCopiesOverride?: number | null }): number {
   const override = card.maxCopiesOverride;
   if (override === null || override === undefined) {
@@ -94,12 +52,8 @@ export function copyLimitFor(card: { maxCopiesOverride?: number | null }): numbe
   return override === UNLIMITED_COPIES ? Number.POSITIVE_INFINITY : override;
 }
 
-// Callers feed one row per printing (deck builder) or per deck-list line
-// (deck check), so the same card can arrive as several rows in one zone.
-// Rules assume one row per card per zone: per-row quantity caps would
-// undercount split copies, and per-card rules would emit the same violation
-// twice. Merge rows by summing quantities; card metadata is identical across
-// rows of the same cardId, so the first row's fields are kept.
+// Rules assume one row per card per zone (callers may feed several, e.g. one
+// per printing), so rows are merged by summing quantities before rules run.
 function aggregateByCardAndZone(cards: DeckCard[]): DeckCard[] {
   const byCardAndZone = new Map<string, DeckCard>();
   for (const card of cards) {
@@ -114,9 +68,6 @@ function aggregateByCardAndZone(cards: DeckCard[]): DeckCard[] {
   return [...byCardAndZone.values()];
 }
 
-// ── Rules ───────────────────────────────────────────────────────────────────
-
-// Legend zone must have exactly 1 card of type Legend.
 export const legendExactlyOne: DeckRule = (state) => {
   const legends = cardsInZone(state.cards, WellKnown.deckZone.LEGEND);
   const count = totalQuantity(legends);
@@ -151,7 +102,6 @@ export const legendExactlyOne: DeckRule = (state) => {
   return [];
 };
 
-// Champion zone must have exactly 1 card with Champion super type.
 export const championExactlyOne: DeckRule = (state) => {
   const champions = cardsInZone(state.cards, WellKnown.deckZone.CHAMPION);
   const count = totalQuantity(champions);
@@ -190,7 +140,6 @@ export const championExactlyOne: DeckRule = (state) => {
   return [];
 };
 
-// Champion's tags must overlap with the Legend's tags.
 export const championSharesTagWithLegend: DeckRule = (state) => {
   const legends = cardsInZone(state.cards, WellKnown.deckZone.LEGEND);
   const champions = cardsInZone(state.cards, WellKnown.deckZone.CHAMPION);
@@ -218,7 +167,6 @@ export const championSharesTagWithLegend: DeckRule = (state) => {
   return [];
 };
 
-// Runes zone must have exactly 12 cards total.
 export const runesExactlyTwelve: DeckRule = (state) => {
   const runes = cardsInZone(state.cards, WellKnown.deckZone.RUNES);
   const count = totalQuantity(runes);
@@ -254,7 +202,6 @@ export const runesExactlyTwelve: DeckRule = (state) => {
   return [];
 };
 
-// All cards in the runes zone must be type Rune.
 export const runesAllTypeRune: DeckRule = (state) => {
   const violations: DeckViolation[] = [];
 
@@ -272,7 +219,6 @@ export const runesAllTypeRune: DeckRule = (state) => {
   return violations;
 };
 
-// All runes must have a domain matching one of the Legend's 2 domains.
 export const runesMatchLegendDomains: DeckRule = (state) => {
   const legends = cardsInZone(state.cards, WellKnown.deckZone.LEGEND);
   if (legends.length !== 1) {
@@ -297,15 +243,8 @@ export const runesMatchLegendDomains: DeckRule = (state) => {
   return violations;
 };
 
-// Main zone must hold exactly 39 cards.
-//
-// The deck's 40-card main total is 39 here plus the 1 card `championExactlyOne`
-// requires, so counting the champion in this rule too would report the same
-// missing card twice — and on the wrong zone. A deck with a full 39-card main
-// and no champion is missing a *champion*, so CHAMPION_REQUIRED is the
-// violation that names it; flagging MAIN here painted a complete zone red and
-// compared it against a denominator (40) that the main zone's own target (39,
-// see ZONE_EXPECTED) never used. Each zone now answers for its own gap.
+// Main holds 39, not 40: the champion's slot is championExactlyOne's to
+// report, so a full main with no champion is not also flagged here.
 export const mainDeckExactly: DeckRule = (state) => {
   const count = totalQuantity(cardsInZone(state.cards, WellKnown.deckZone.MAIN));
 
@@ -331,7 +270,6 @@ export const mainDeckExactly: DeckRule = (state) => {
   return [];
 };
 
-// Max 3 copies of any card in the main deck (per-card override may lift this).
 export const mainDeckCopyLimit: DeckRule = (state) => {
   const violations: DeckViolation[] = [];
 
@@ -350,7 +288,6 @@ export const mainDeckCopyLimit: DeckRule = (state) => {
   return violations;
 };
 
-// Cards in main/sideboard must only have domains within the legend's domains (+ Colorless).
 const mainDeckDomainMatch: DeckRule = (state) => {
   const legends = cardsInZone(state.cards, WellKnown.deckZone.LEGEND);
   if (legends.length !== 1) {
@@ -378,7 +315,6 @@ const mainDeckDomainMatch: DeckRule = (state) => {
   return violations;
 };
 
-// If a Champion card is in the champion zone, at most 2 more copies in main (3 total).
 export const championCopyLimitAcrossZones: DeckRule = (state) => {
   const champions = cardsInZone(state.cards, WellKnown.deckZone.CHAMPION);
   if (champions.length !== 1) {
@@ -390,7 +326,6 @@ export const championCopyLimitAcrossZones: DeckRule = (state) => {
     (card) => card.cardId === championCardId,
   );
 
-  // The chosen copy counts toward the card's total limit, so main holds one less.
   if (mainCopies && mainCopies.quantity > copyLimitFor(mainCopies) - 1) {
     return [
       {
@@ -405,7 +340,6 @@ export const championCopyLimitAcrossZones: DeckRule = (state) => {
   return [];
 };
 
-// Sideboard can have at most this many cards.
 export const SIDEBOARD_MAXIMUM = 10;
 
 export const sideboardMaximum: DeckRule = (state) => {
@@ -424,7 +358,6 @@ export const sideboardMaximum: DeckRule = (state) => {
   return [];
 };
 
-// Cards with the [Unique] keyword may only appear once across main + sideboard.
 export const uniqueCopyLimit: DeckRule = (state) => {
   const violations: DeckViolation[] = [];
 
@@ -445,10 +378,8 @@ export const uniqueCopyLimit: DeckRule = (state) => {
   return violations;
 };
 
-// Formats without a sideboard reject any card parked there. Cards can land in
-// the sideboard via a format switch or an imported list with a sideboard
-// section — they are flagged, never auto-moved, and the builder keeps the
-// zone visible until the user empties it.
+// Cards can land here via a format switch or an imported list; they are
+// flagged, never auto-moved.
 export const sideboardNotAllowed: DeckRule = (state) => {
   const count = totalQuantity(cardsInZone(state.cards, WellKnown.deckZone.SIDEBOARD));
 
@@ -465,7 +396,6 @@ export const sideboardNotAllowed: DeckRule = (state) => {
   return [];
 };
 
-// Max 3 copies of any card in the sideboard (per-card override may lift this).
 export const sideboardCopyLimit: DeckRule = (state) => {
   const violations: DeckViolation[] = [];
 
@@ -484,7 +414,6 @@ export const sideboardCopyLimit: DeckRule = (state) => {
   return violations;
 };
 
-// Battlefield zone must have exactly 1 card (Custom-Region variant).
 const battlefieldExactlyOne: DeckRule = (state) => {
   const battlefields = cardsInZone(state.cards, WellKnown.deckZone.BATTLEFIELD);
   const count = totalQuantity(battlefields);
@@ -511,7 +440,6 @@ const battlefieldExactlyOne: DeckRule = (state) => {
   return [];
 };
 
-// Battlefield zone must have exactly 3 cards.
 export const battlefieldExactlyThree: DeckRule = (state) => {
   const battlefields = cardsInZone(state.cards, WellKnown.deckZone.BATTLEFIELD);
   const count = totalQuantity(battlefields);
@@ -547,7 +475,6 @@ export const battlefieldExactlyThree: DeckRule = (state) => {
   return [];
 };
 
-// All cards in the battlefield zone must be type Battlefield.
 export const battlefieldAllTypeBattlefield: DeckRule = (state) => {
   const violations: DeckViolation[] = [];
 
@@ -565,7 +492,6 @@ export const battlefieldAllTypeBattlefield: DeckRule = (state) => {
   return violations;
 };
 
-// No duplicate cards in the battlefield zone (each must be unique).
 export const battlefieldNoDuplicates: DeckRule = (state) => {
   const violations: DeckViolation[] = [];
 
@@ -583,7 +509,7 @@ export const battlefieldNoDuplicates: DeckRule = (state) => {
   return violations;
 };
 
-// Total Signature cards across main deck + sideboard must not exceed 3 (rule 103.2.d.1).
+// Rule 103.2.d.1.
 const signatureTotalLimit: DeckRule = (state) => {
   const signatureCards = [
     ...cardsInZone(state.cards, WellKnown.deckZone.MAIN),
@@ -605,7 +531,7 @@ const signatureTotalLimit: DeckRule = (state) => {
   return [];
 };
 
-// All Signature cards must share a Champion tag with the Legend (rule 103.2.d.2).
+// Rule 103.2.d.2.
 const signatureMatchesLegendTag: DeckRule = (state) => {
   const legends = cardsInZone(state.cards, WellKnown.deckZone.LEGEND);
   if (legends.length !== 1) {
@@ -636,16 +562,8 @@ const signatureMatchesLegendTag: DeckRule = (state) => {
   return violations;
 };
 
-// Each Signature card that doesn't belong to the Legend's champion must be
-// backed copy-for-copy by its champion in the deck: 3× "Death from Below" in
-// a Miss Fortune deck needs 3 Pyke copies. Any printing or variant of the
-// champion counts — matching is by champion-identifier tag, not card
-// identity. Champion copies are counted from the champion zone and main deck
-// only (sideboard champions don't back signatures). Signatures whose
-// champion tag matches the Legend are exempt — the Legend itself vouches for
-// them. Used by Custom-Region in place of signatureMatchesLegendTag. Falls
-// back to a no-op when no championIdentifierTags set is provided (e.g.
-// legacy callers).
+// A Signature not tagged to the Legend needs matching champion copies (any
+// printing) in the champion zone or main deck; sideboard doesn't count.
 const signatureChampionCopiesInDeck: DeckRule = (state) => {
   const championIdSet = state.championIdentifierTags;
   if (!championIdSet || championIdSet.size === 0) {
@@ -658,7 +576,6 @@ const signatureChampionCopiesInDeck: DeckRule = (state) => {
   }
   const legendTags = new Set(legends[0].tags);
 
-  // Champion copies available per champion-identifier tag.
   const championCopiesByTag = new Map<string, number>();
   for (const card of [
     ...cardsInZone(state.cards, WellKnown.deckZone.CHAMPION),
@@ -674,10 +591,8 @@ const signatureChampionCopiesInDeck: DeckRule = (state) => {
     }
   }
 
-  // Signature copies required per champion-identifier tag. Demand is summed
-  // per tag so two different Pyke signatures can't each claim the same Pyke
-  // copies. A signature carrying several champion tags is attributed to its
-  // best-supplied tag (most lenient reading of the "or" semantics).
+  // Demand sums per tag so two Signatures of the same champion can't claim
+  // the same copies; a multi-tag Signature goes to its best-supplied tag.
   const demandByTag = new Map<string, { copies: number; cards: DeckCard[] }>();
   for (const card of [
     ...cardsInZone(state.cards, WellKnown.deckZone.MAIN),
@@ -688,8 +603,7 @@ const signatureChampionCopiesInDeck: DeckRule = (state) => {
     }
     const signatureChampionTags = card.tags.filter((tag) => championIdSet.has(tag));
     if (signatureChampionTags.length === 0) {
-      // Signature with no recognised champion-identifier tag — data oddity,
-      // not something the user can fix. Skip rather than block the deck.
+      // A Signature with no recognised champion-identifier tag is skipped, not blocked.
       continue;
     }
     if (signatureChampionTags.some((tag) => legendTags.has(tag))) {
@@ -723,15 +637,13 @@ const signatureChampionCopiesInDeck: DeckRule = (state) => {
   return violations;
 };
 
-// No card on the base banlist may be played. Mode-scoped bans (e.g. 2v2) are
-// deliberately not enforced — `banned` only carries the base list, so those
-// keep their display-only ribbon (see isBaseBanFormat in well-known.ts).
+// `banned` only carries the base banlist; mode-scoped bans (e.g. 2v2) are
+// deliberately not enforced here and stay a display-only ribbon.
 export const noBannedCards: DeckRule = (state) => {
   const violations: DeckViolation[] = [];
 
   for (const card of state.cards) {
-    // Overflow is a parking area outside the deck proper — every other rule
-    // ignores its contents, so a banned card stashed there is not a violation.
+    // Overflow is outside the deck proper; every rule ignores its contents.
     if (card.zone === WellKnown.deckZone.OVERFLOW) {
       continue;
     }
@@ -749,16 +661,11 @@ export const noBannedCards: DeckRule = (state) => {
 };
 
 // Tokens are game objects an effect creates during play (rule 133.7.c), not
-// cards you register. The builder already refuses to put one in a zone, so
-// this catches the other door: an imported list or deck code naming a token
-// resolves against the whole catalogue and would otherwise sit in the deck
-// looking legal.
+// cards you register; an imported list or deck code can still name one.
 export const noTokenCards: DeckRule = (state) => {
   const violations: DeckViolation[] = [];
 
   for (const card of state.cards) {
-    // Overflow is a parking area outside the deck proper, same carve-out as
-    // `noBannedCards`.
     if (card.zone === WellKnown.deckZone.OVERFLOW) {
       continue;
     }
@@ -775,20 +682,10 @@ export const noTokenCards: DeckRule = (state) => {
   return violations;
 };
 
-// ── Tag-locked rules (custom-region and any future tag-locked format) ──────
-
-/**
- * Reads the chosen tag slugs from `state.formatConfig`. The shape is
- * enforced at the API boundary (`validateFormatConfig` in the decks route),
- * so the rule trusts the type and just unwraps the optional.
- *
- * @returns The slug list, or an empty array if no config is set.
- */
 function formatConfigTagSlugs(state: DeckState): readonly string[] {
   return state.formatConfig?.tagSlugs ?? [];
 }
 
-// Tag-locked formats are invalid until the user picks at least one tag.
 const formatTagRequired: DeckRule = (state) => {
   if (formatConfigTagSlugs(state).length > 0) {
     return [];
@@ -802,9 +699,6 @@ const formatTagRequired: DeckRule = (state) => {
   ];
 };
 
-// Every card across all zones must carry at least one of the chosen tags
-// (OR-match). A deck locked to ["bandle-city", "neutral"] accepts cards
-// tagged with either or both.
 const cardsCarryFormatTag: DeckRule = (state) => {
   const allowed = formatConfigTagSlugs(state);
   if (allowed.length === 0) {
@@ -812,9 +706,7 @@ const cardsCarryFormatTag: DeckRule = (state) => {
   }
   const violations: DeckViolation[] = [];
   for (const card of state.cards) {
-    // Runes carry no region tags and only provide generic power — every rune
-    // is legal in a tag-locked deck. Count/type checks still apply via
-    // runesExactlyTwelve / runesAllTypeRune.
+    // Runes carry no region tags; every rune is legal in a tag-locked deck.
     if (card.cardTypes.includes(WellKnown.cardType.RUNE)) {
       continue;
     }
@@ -830,8 +722,6 @@ const cardsCarryFormatTag: DeckRule = (state) => {
   }
   return violations;
 };
-
-// ── Rule Sets ───────────────────────────────────────────────────────────────
 
 const CONSTRUCTED_RULES: DeckRule[] = [
   noBannedCards,
@@ -856,11 +746,7 @@ const CONSTRUCTED_RULES: DeckRule[] = [
   signatureMatchesLegendTag,
 ];
 
-// Custom-Region: constructed minus the two pure-domain rules, plus the two
-// tag-locked rules. championSharesTagWithLegend stays (it's a tag rule, not
-// a domain rule). The format has no sideboard, so the two sideboard-cap rules
-// are replaced by sideboardNotAllowed. Order: tag rules first so a missing
-// tag pick reports the load-bearing violation before per-card noise.
+// Tag rules run first so a missing tag pick reports before per-card noise.
 const REGION_LOCKED_RULES: DeckRule[] = [
   formatTagRequired,
   cardsCarryFormatTag,
@@ -883,22 +769,10 @@ const REGION_LOCKED_RULES: DeckRule[] = [
   signatureChampionCopiesInDeck,
 ];
 
-/**
- * Whether decks of a format play a sideboard zone. Custom-Region has none:
- * the builder hides the zone (once empty), drops it as a move target, and
- * `sideboardNotAllowed` flags any cards still parked there.
- *
- * @returns true when the format allows sideboard cards.
- */
 export function formatHasSideboard(format: DeckFormat): boolean {
   return format !== WellKnown.deckFormat.CUSTOM_REGION;
 }
 
-/**
- * Validates a deck against the rules for its format.
- *
- * @returns An array of violations. Empty means the deck is valid.
- */
 export function validateDeck(state: DeckState): DeckViolation[] {
   let rules: DeckRule[];
   switch (state.format) {

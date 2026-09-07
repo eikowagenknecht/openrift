@@ -13,7 +13,6 @@ import { z } from "zod";
 
 import { authedRoute } from "./_base.js";
 
-/** How many outbound links a deck may carry. */
 export const MAX_DECK_LINKS = 5;
 
 extendZodWithOpenApi(z);
@@ -32,11 +31,7 @@ export const decksQuerySchema = z.object({
   includeArchived: z.enum(["true", "false"]).optional(),
 });
 
-/**
- * Free-form per-deck format config. Each format owns its shape; the schema
- * stays loose because the column is jsonb and validation lives in the route
- * handler (which knows the format). Pass `null` to clear.
- */
+/** Loose on purpose: the column is jsonb and validation lives in the route handler. */
 const formatConfigSchema = z.record(z.string(), z.unknown()).nullable();
 
 export const createDeckSchema = z.object({
@@ -45,16 +40,10 @@ export const createDeckSchema = z.object({
   format: deckFieldRules.format,
   formatConfig: formatConfigSchema.optional(),
   isPublic: z.boolean().optional(),
-  // Outbound links (see updateDeckSchema). Accepted at creation so an import
-  // that knows where the list came from can record it without a second call.
   links: z.array(deckLinkSchema).max(MAX_DECK_LINKS).optional(),
 });
 
-/**
- * One card group for the deck's draw-odds table: an AND of optional
- * conditions over structured card data, list fields matched any-of. Mirrors
- * the web app's odds-group shape.
- */
+/** An AND of optional conditions over structured card data; list fields matched any-of. */
 export const deckOddsGroupSchema = z.object({
   key: z.string().min(1).max(80),
   label: z.string().min(1).max(80),
@@ -67,11 +56,7 @@ export const deckOddsGroupSchema = z.object({
   powerMin: z.number().int().min(0).max(99).optional(),
 });
 
-/**
- * Per-deck draw-odds settings: the owner's custom groups plus which rows the
- * table shows. `selection: null` means the suggested defaults. Travels with
- * the deck, share page included.
- */
+/** `selection: null` means the suggested defaults. */
 export const deckOddsConfigSchema = z.object({
   customGroups: z.array(deckOddsGroupSchema).max(20),
   selection: z.array(z.string().min(1).max(80)).max(60).nullable(),
@@ -81,28 +66,18 @@ export type DeckOddsGroup = z.infer<typeof deckOddsGroupSchema>;
 export type DeckOddsConfig = z.infer<typeof deckOddsConfigSchema>;
 
 // isPublic is intentionally absent: a deck's public state is controlled only by
-// the /decks/{id}/share sub-resource, not by PATCH, so the two can't desync.
+// the /decks/{id}/share sub-resource, not by PATCH.
 export const updateDeckSchema = z.object({
   name: deckFieldRules.name.optional(),
   description: z.string().max(8000).nullish(),
   format: deckFieldRules.format.optional(),
   formatConfig: formatConfigSchema.optional(),
   oddsConfig: deckOddsConfigSchema.nullish(),
-  // Custom cover art: any card of the deck as the hero/tile backdrop, with an
-  // optional pinned printing and vertical crop focus. Null clears back to the
-  // legend-derived default.
   coverCardId: z.uuid().nullish(),
   coverPrintingId: z.uuid().nullish(),
   coverPosition: z.number().int().min(0).max(100).nullish(),
-  // Outbound links shown as chips next to the description on the deck and
-  // share pages: a video guide, the site the list came from. Replaces the
-  // whole list; an empty array clears it.
   links: z.array(deckLinkSchema).max(MAX_DECK_LINKS).optional(),
-  // Home collection: the box the deck physically lives in. Copies there stay
-  // buildable for this deck even when the collection is excluded from deck
-  // building. Null clears the link.
   collectionId: z.uuid().nullish(),
-  // Draft badge (ADR-042): "still tinkering". Display-only lifecycle state.
   isDraft: z.boolean().optional(),
 });
 
@@ -129,21 +104,17 @@ const deckMatchupSwapSchema = z.object({
 
 const deckMatchupPlanSchema = z
   .object({
-    // The opponent identity card (any type) — optional. Null for a matchup
-    // identified only by its free-text label (an archetype, a domain, …).
     opponentCardId: z.uuid().nullable().default(null),
-    // Free-text opponent label; carries archetype/domain/build names.
     opponentLabel: z.string().max(120).default(""),
     notes: z.string().max(4000).default(""),
     swaps: z.array(deckMatchupSwapSchema).max(40),
   })
-  // A matchup must be identifiable by at least one of card / label.
   .refine((matchup) => matchup.opponentCardId !== null || matchup.opponentLabel.trim() !== "", {
     message: "A matchup needs an opponent: link a card or enter a name",
     path: ["opponentLabel"],
   });
 
-/** PUT /decks/{id}/plan body — the whole plan, saved as a unit. */
+/** Saved as a whole plan; not merged field by field. */
 export const updateDeckPlanSchema = z.object({
   generalStrategy: z.string().max(8000).default(""),
   mulliganSplit: z.boolean().default(false),
@@ -180,24 +151,16 @@ export const deckResponseSchema = z
     coverPrintingId: z.string().nullable(),
     coverPosition: z.number().int().nullable(),
     links: z.array(deckLinkSchema),
-    /** Owner-only: the collection the deck is stored in, or null. */
     collectionId: z.string().nullable(),
-    /** Variant family this deck belongs to (ADR-042), or null if standalone. */
     familyId: z.string().nullable(),
-    /** The family member this one was copied from, or null. */
     predecessorDeckId: z.string().nullable(),
-    /** Whether this variant fronts its family in the deck list. */
     isPrimary: z.boolean(),
-    /** Draft badge: the owner marked this variant as work in progress. */
     isDraft: z.boolean(),
   })
   .openapi("DeckResponse");
 
 export const deckShareResponseSchema = z
   .object({
-    // Nullable so GET /decks/:id/share can report an owned-but-unshared deck
-    // as { shareToken: null, isPublic: false } rather than 404ing. Share /
-    // rotate always populate a string token.
     shareToken: z.string().nullable(),
     isPublic: z.boolean(),
   })
@@ -213,7 +176,6 @@ export const deckSummaryResponseSchema = z
   .object({
     id: z.string(),
     name: z.string(),
-    /** One-line plain-text preview of the description, for list tiles. */
     descriptionSnippet: z.string().nullable(),
     format: deckFormatSchema,
     formatConfig: formatConfigResponseSchema,
@@ -224,15 +186,10 @@ export const deckSummaryResponseSchema = z
     coverCardId: z.string().nullable(),
     coverPrintingId: z.string().nullable(),
     coverPosition: z.number().int().nullable(),
-    /** Owner-only: the collection the deck is stored in, or null. */
     collectionId: z.string().nullable(),
-    /** Variant family this deck belongs to (ADR-042), or null if standalone. */
     familyId: z.string().nullable(),
-    /** The family member this one was copied from, or null. */
     predecessorDeckId: z.string().nullable(),
-    /** Whether this variant fronts its family in the deck list. */
     isPrimary: z.boolean(),
-    /** Draft badge: the owner marked this variant as work in progress. */
     isDraft: z.boolean(),
   })
   .openapi("DeckSummaryResponse");
@@ -246,27 +203,10 @@ export const deckListItemResponseSchema = z
     typeCounts: z.array(z.object({ cardType: cardTypeSchema, count: z.number() })),
     domainDistribution: z.array(z.object({ domain: domainSchema, count: z.number() })),
     isValid: z.boolean(),
-    /**
-     * Completion across the format's required zones, the same figure the deck
-     * page's format badge carries. Excludes the sideboard, so it is not
-     * `totalCards` under another name.
-     */
     requiredProgress: z.number().int(),
     requiredTotal: z.number().int(),
     totalValueCents: z.number().int().nullable(),
-    /**
-     * Number of cards the viewer is missing to build this deck, matching the
-     * deck editor's ownership panel: needed minus buildable (deck-available,
-     * not lent out, not reserved) minus borrowed-in, summed across cards.
-     * `null` for browser-local decks (ADR-035), which have no server inventory.
-     */
     missingCount: z.number().int().nullable(),
-    /**
-     * Ids of the user's folders this deck is filed in (migration 231), in the
-     * folders' own display order. A deck may sit in several folders at once, so
-     * grouping by folder renders it once per folder. Always empty for
-     * browser-local decks (ADR-035), which have no server-side folders.
-     */
     folderIds: z.array(z.string()),
   })
   .openapi("DeckListItemResponse");
@@ -280,8 +220,6 @@ export const deckCardResponseSchema = z
     cardId: z.string(),
     zone: deckZoneSchema,
     quantity: z.number(),
-    // Optional pin to a specific printing for display. Null means "default art".
-    // The handlers already return this; the schema had drifted behind the type.
     preferredPrintingId: z.string().nullable(),
   })
   .openapi("DeckCardResponse");
@@ -310,30 +248,16 @@ export const deckExportResponseSchema = z
 
 const TAG = "Decks";
 
-/**
- * POST /decks/{id}/variants body (ADR-042): copy this deck into an editable
- * sibling descending from it.
- */
 export const createDeckVariantSchema = z.object({
-  /** Name for the new row; defaults to the source name plus "(variant)". */
   name: deckFieldRules.name.optional(),
 });
 
-/**
- * POST /decks/{id}/link body (ADR-042): join two decks that already exist into
- * one variant family. `markAsPreviousVersion` also records the other deck as
- * this one's predecessor, and is ignored when this deck already has one.
- */
+/** `markAsPreviousVersion` is ignored when this deck already has a predecessor. */
 export const linkDeckVariantSchema = z.object({
   otherDeckId: z.uuid(),
   markAsPreviousVersion: z.boolean().optional(),
 });
 
-/**
- * PUT /decks/{id}/predecessor body (ADR-042): point a deck at another member of
- * its family as the version it came from, or `null` to make it a root of the
- * family's history.
- */
 export const setDeckPredecessorSchema = z.object({
   predecessorDeckId: z.uuid().nullable(),
 });
@@ -342,21 +266,6 @@ const shareTokenParamSchema = z.object({ token: z.string().min(1) });
 const pinDeckBodySchema = z.object({ isPinned: z.boolean() });
 const archiveDeckBodySchema = z.object({ archived: z.boolean() });
 
-/**
- * oRPC contract for the authenticated decks endpoints (mounted at
- * `/api/v1/decks`). All require a session, so they share the `authedRoute`
- * base (UNAUTHORIZED + FORBIDDEN). Domain codes per route: `create` →
- * BAD_REQUEST (unknown format or invalid format config); `get`, `remove`,
- * `replaceCards`, `getPlan`, `clone`, `export`, `setPinned`,
- * `setArchived`, `getShare`, `share`, `rotateShare`, `unshare` →
- * NOT_FOUND; `update` → NOT_FOUND + BAD_REQUEST; `replacePlan` → NOT_FOUND +
- * BAD_REQUEST (invalid plan content); `cloneShared` → NOT_FOUND (unknown
- * share token); `createVariant` → NOT_FOUND; `linkVariant` → NOT_FOUND +
- * BAD_REQUEST (the two decks can't be linked); `setPredecessor` → NOT_FOUND +
- * BAD_REQUEST (the pointer would leave the family or close a loop);
- * `unlinkVariant` and `promotePrimary` → NOT_FOUND + BAD_REQUEST (the deck has
- * no variants).
- */
 export const decksContract = {
   list: authedRoute
     .route({ method: "GET", path: "/api/v1/decks", tags: [TAG] })
@@ -479,8 +388,7 @@ export const decksContract = {
     .input(idParamSchema)
     .errors({
       NOT_FOUND: { message: "Deck not found" },
-      // An archived meta-archive deck's share token is its public permalink
-      // (ADR-014), so rotation is refused rather than silently breaking links.
+      // Refused for an archived meta-archive deck: its share token is a public permalink.
       CONFLICT: { message: "This deck's link cannot be rotated" },
     })
     .output(deckShareResponseSchema),

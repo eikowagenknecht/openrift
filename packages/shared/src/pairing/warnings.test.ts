@@ -77,7 +77,6 @@ describe("computePairingWarnings", () => {
       { kind: "repeatedThreePod", podIndex: 0, playerId: "c", priorThreePods: 1 },
     ]);
 
-    // The same players in a 4-pod raise no repeated-3-pod warning.
     const fourPodPlayers = [...players, player("d", { pods3: 3 })];
     expect(
       computePairingWarnings([fourPod("a", "b", "c", "d")], fourPodPlayers).filter(

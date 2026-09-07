@@ -89,7 +89,6 @@ describe("searchRules", () => {
   it("resolves a game term to its defining rule first", () => {
     const results = searchRules(makeIndex(), "stun", 25);
     expect(results[0]?.number).toBe("423");
-    // The rule merely containing the word follows.
     expect(results.map((entry) => entry.number)).toContain("424");
   });
 
@@ -99,8 +98,6 @@ describe("searchRules", () => {
   });
 
   it("ranks italic term usage and phrase openers over mid-sentence mentions", () => {
-    // Models the real corpus: no `*Stun*` definition exists, so ranking falls
-    // to how the word is used.
     const index = buildRuleIndex(
       makeRulesSnapshot([
         makeRule({ ruleNumber: "124.2", content: "Statuses include Attached and Stunned." }),

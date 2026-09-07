@@ -17,14 +17,6 @@ import {
 } from "./disambiguate";
 import type { GrayImage, RgbaImage } from "./types";
 
-/**
- * Build a portrait card image whose text band carries a per-seed pattern.
- *
- * The art half is identical across seeds (like shared artwork); the lower
- * band's pixels vary by seed (like language glyphs).
- *
- * @returns The card image.
- */
 function cardWithTextPattern(seed: number, noise = 0): RgbaImage {
   const width = 63;
   const height = 88;
@@ -44,12 +36,6 @@ function cardWithTextPattern(seed: number, noise = 0): RgbaImage {
   return { data, width, height };
 }
 
-/**
- * Build a full-resolution portrait card (the rectified query size), with a
- * textured code strip so the strip survives rastering.
- *
- * @returns The card image.
- */
 function fullSizeCard(seed: number): RgbaImage {
   const width = 384;
   const height = 528;
@@ -67,14 +53,6 @@ function fullSizeCard(seed: number): RgbaImage {
   return { data, width, height };
 }
 
-/**
- * Build a signature-sized gray band: a shared base texture with a centred
- * stamp block whose pixels depend on `stamp` — like glyphs that differ
- * between two printings while the frame around them is identical. Stamp 0
- * leaves the base untouched.
- *
- * @returns The gray band.
- */
 function bandWithStamp(width: number, height: number, stamp: number): GrayImage {
   const data = new Uint8Array(width * height);
   for (let y = 0; y < height; y++) {
@@ -93,11 +71,6 @@ function bandWithStamp(width: number, height: number, stamp: number): GrayImage 
   return { data, width, height };
 }
 
-/**
- * Shift a signature diagonally, clamping at the border.
- *
- * @returns The shifted copy.
- */
 function shifted(signature: GrayImage, offset: number): GrayImage {
   const { width, height } = signature;
   const data = new Uint8Array(width * height);
@@ -207,10 +180,6 @@ describe("correlateSignatures", () => {
 });
 
 describe("discriminative tournament", () => {
-  // Stamp-block bands rather than rastered synthetic cards: real glyph
-  // differences are character-sized blocks, and the mask erosion (which
-  // removes thin provenance halos) legitimately removes per-pixel noise
-  // patterns too.
   const en = bandWithStamp(SIGNATURE_WIDTH, 36, 1);
   const sc = bandWithStamp(SIGNATURE_WIDTH, 36, 9);
   const misalignedEn = shifted(en, 2);
@@ -285,11 +254,6 @@ describe("resolvePrinting", () => {
   const stampPlain = bandWithStamp(STAMP_SIGNATURE_WIDTH, 30, 4);
   const stampPromo = bandWithStamp(STAMP_SIGNATURE_WIDTH, 30, 11);
 
-  /**
-   * Bundle band signatures into a printing signature.
-   *
-   * @returns The signature struct.
-   */
   function bands(
     name: GrayImage,
     code: GrayImage | null,
@@ -298,12 +262,6 @@ describe("resolvePrinting", () => {
     return { name, code, stamp };
   }
 
-  /**
-   * A collector-code lookup: the leading "en-"/"sc-" language tag does not
-   * change the code, mirroring the real catalogue.
-   *
-   * @returns The code, e.g. "ogn" for both "en-ogn" and "sc-ogn".
-   */
   function codeOf(key: string): string {
     return key.replace(/^(?:en|sc)-?/u, "") || "ogn";
   }
@@ -362,11 +320,6 @@ describe("resolvePrinting", () => {
   });
 
   it("never compares strips of printings sharing a collector code", () => {
-    // Two languages of ONE printing: same printed code, but the render files
-    // differ in provenance (simulated by genuinely different strip pixels).
-    // The name stage is blind (identical name bands, like an unregisterable
-    // scan pair) and the code stage must not manufacture evidence from the
-    // provenance difference.
     const resolution = resolvePrinting(
       bands(shifted(nameEn, 1), shifted(codeOgn, 1)),
       new Map([
@@ -409,13 +362,6 @@ describe("resolvePrinting", () => {
     expect(resolution).toBeNull();
   });
 
-  /**
-   * A marker lookup for the stamp-stage tests: keys ending in "-promo" carry
-   * the promo marker, "-mixed" renders serve disagreeing printings (unknown),
-   * everything else is unstamped.
-   *
-   * @returns The serialized marker set, or undefined for mixed renders.
-   */
   function markerKeyOf(key: string): string | undefined {
     if (key.endsWith("-mixed")) {
       return undefined;
@@ -424,8 +370,6 @@ describe("resolvePrinting", () => {
   }
 
   it("resolves a same-code marker pair through the stamp band", () => {
-    // Name band identical (same language) and codes equal, so the first two
-    // stages are structurally blind; only the stamp band separates the pair.
     const resolution = resolvePrinting(
       bands(shifted(nameEn, 1), shifted(codeOgn, 1), shifted(stampPromo, 1)),
       new Map([
@@ -455,8 +399,6 @@ describe("resolvePrinting", () => {
   });
 
   it("never compares stamps of printings sharing a marker set", () => {
-    // Two renders of one unstamped printing with provenance differences in
-    // the stamp band: the marker gate must refuse to see evidence there.
     const resolution = resolvePrinting(
       bands(shifted(nameEn, 1), shifted(codeOgn, 1), shifted(stampPlain, 1)),
       new Map([
@@ -495,9 +437,6 @@ describe("resolvePrinting", () => {
   });
 
   it("never compares stamps of two differently-marked variants", () => {
-    // Both variants carry art-placed stamps (summoner vs champion+summoner):
-    // their bottom-center bands differ only by provenance, and the gate must
-    // not let that decide.
     const resolution = resolvePrinting(
       bands(shifted(nameEn, 1), shifted(codeOgn, 1), shifted(stampPromo, 1)),
       new Map([
@@ -511,10 +450,6 @@ describe("resolvePrinting", () => {
   });
 
   it("treats known-equal languages as carrying no name evidence", () => {
-    // Two same-language renders whose name bands differ by provenance (the
-    // pixels differ, the printed glyphs do not): with the language gate the
-    // name stage abstains and the stamp band decides; ungated, provenance
-    // would fabricate a name pick.
     const provenanceA = bandWithStamp(SIGNATURE_WIDTH, 36, 1);
     const provenanceB = bandWithStamp(SIGNATURE_WIDTH, 36, 5);
     const resolution = resolvePrinting(
@@ -561,8 +496,6 @@ describe("resolvePrinting", () => {
   });
 
   it("does not let the stamp band decide when name evidence exists but is ambiguous", () => {
-    // Mirror of the code-strip rule: stamps are language-identical, so on a
-    // corrupt name frame the stamp band cannot rule out the losing language.
     const between = bandWithStamp(SIGNATURE_WIDTH, 36, 0);
     for (let i = 0; i < between.data.length; i++) {
       between.data[i] = Math.round((nameEn.data[i] + nameSc.data[i]) / 2);
@@ -580,10 +513,6 @@ describe("resolvePrinting", () => {
   });
 
   it("does not let the code strip decide when name evidence exists but is ambiguous", () => {
-    // A query name band sitting exactly between the two languages: name
-    // pairs evaluate but no side clears the margin, so the group might be
-    // cross-language with a corrupt band — the code strip must not pick
-    // anyway, even though the candidate codes differ.
     const between = bandWithStamp(SIGNATURE_WIDTH, 36, 0);
     for (let i = 0; i < between.data.length; i++) {
       between.data[i] = Math.round((nameEn.data[i] + nameSc.data[i]) / 2);

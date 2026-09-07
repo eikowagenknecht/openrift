@@ -12,13 +12,7 @@ import { z } from "zod";
 
 extendZodWithOpenApi(z);
 
-/**
- * One product containing one printing of this card (ADR-015). Kept as a
- * card-detail-only field rather than a member of
- * `catalogPrintingResponseSchema`: that schema also backs the synced catalog,
- * /promos, and /sets, and product membership is neither catalog data nor
- * wanted on those surfaces.
- */
+/** Kept off `catalogPrintingResponseSchema` since that schema also backs the synced catalog, /promos, and /sets. */
 export const cardDetailProductSchema = z
   .object({
     printingId: z.string().openapi({ example: "019cfc3b-03d3-7dac-86c9-27900cd43727" }),
@@ -28,11 +22,7 @@ export const cardDetailProductSchema = z
   })
   .openapi("CardDetailProduct");
 
-/**
- * One entry in the card page's "Related cards" strip: just enough for a
- * thumbnail link (`types`/`domains`/`rarity` drive the art frame). `rarity`
- * and `imageId` are null for a card with no usable printing art.
- */
+/** `rarity` and `imageId` are null for a card with no usable printing art. */
 export const cardDetailRelatedCardSchema = z
   .object({
     slug: z.string().openapi({ example: "yasuo-windrider" }),
@@ -53,16 +43,10 @@ export const cardDetailResponseSchema = z
     // The web groups by `printingId` for the selected printing's "Found in" row.
     products: z.array(cardDetailProductSchema).openapi({ example: [] }),
     related: z.array(cardDetailRelatedCardSchema).openapi({ example: [] }),
-    // prices are NOT inlined — read them from the /prices resource.
+    // Prices are not inlined here; read them from the /prices resource.
   })
   .openapi("CardDetailResponse");
 
-/**
- * oRPC contract for the public card-detail endpoint.
- * `GET /api/v1/cards/{cardSlug}` — a single card with all printings + their
- * sets (SSR-friendly; prices are served separately). Typed NOT_FOUND for an
- * unknown slug.
- */
 export const cardsContract = {
   detail: oc
     .route({ method: "GET", path: "/api/v1/cards/{cardSlug}", tags: ["Cards"] })

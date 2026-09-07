@@ -113,9 +113,8 @@ async function countCopiesInCollection(collectionId: string): Promise<number> {
   }
 }
 
-// TanStack Start encodes the server fn id as base64url(JSON) referencing the
-// source file + export name; matching on the decoded payload lets us target a
-// single server fn out of the bundle that fires during a route transition.
+// The server fn id is base64url(JSON) referencing the source file + export
+// name, so decoding it targets a specific fn out of the bundle.
 function isServerFn(url: string, fnName: string): boolean {
   const match = /\/_serverFn\/(?<encoded>[^/?#]+)/u.exec(url);
   const encoded = match?.groups?.encoded;
@@ -203,8 +202,6 @@ test.describe("collections CRUD", () => {
       const input = page.getByPlaceholder("Collection name");
       await expect(input).toBeVisible();
 
-      // "New collection" now opens a modal dialog (not an inline input that
-      // cancels on blur); Escape dismisses it.
       await page.keyboard.press("Escape");
 
       await expect(input).toHaveCount(0);
@@ -314,9 +311,8 @@ test.describe("collections CRUD", () => {
       await page.goto(`/collections/${inboxId}`);
       await expect(page.getByRole("link", { name: "Inbox" })).toBeVisible({ timeout: 15_000 });
 
-      // The Inbox still has a Collection actions kebab (share / deck-building
-      // toggle), but canDeleteCollection is false, so the "Delete collection"
-      // item inside it is not rendered.
+      // The Inbox keeps its Collection actions kebab, but canDeleteCollection
+      // is false, so "Delete collection" isn't rendered inside it.
       await page.getByRole("button", { name: "Collection actions" }).click();
       await expect(page.getByRole("menuitem", { name: "Delete collection" })).toHaveCount(0);
     });

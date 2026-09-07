@@ -22,15 +22,8 @@ export const clearPricesResponseSchema = z
   })
   .openapi("ClearPricesResponse");
 
-/**
- * oRPC contract for the admin operations (mounted under `/api/admin/v1`,
- * admin-gated by the mount): clear a marketplace's price data, plus
- * fire-and-forget price refreshes, a materialized-view refresh, and a full
- * card-token re-derivation (all 202 + run handle, polled via job-runs — a
- * synchronous response would hold the socket past Bun's idle timeout). All
- * procedures are session-gated (UNAUTHORIZED + FORBIDDEN from `authedRoute`);
- * no domain error codes are declared.
- */
+// Long-running operations return 202 + a run handle polled via job-runs,
+// since a synchronous response would hold the socket past Bun's idle timeout.
 export const adminOperationsContract = {
   clearPrices: authedRoute
     .route({ method: "POST", path: `${BASE}/clear-prices`, tags: [TAG] })

@@ -22,10 +22,8 @@ import { authedRoute } from "./_base.js";
 
 extendZodWithOpenApi(z);
 
-/**
- * Slugs that collide with app-level routes or obvious squat targets. Mirrored
- * in the route layer for a clean 400 before the DB rejects.
- */
+// Slugs that collide with app-level routes or squat targets, mirrored in the
+// route layer for a clean 400 before the DB rejects.
 export const RESERVED_FRIEND_GROUP_SLUGS = new Set(["new", "join", "create", "settings", "admin"]);
 
 export const createFriendGroupSchema = z
@@ -33,7 +31,6 @@ export const createFriendGroupSchema = z
     slug: friendGroupSlugSchema,
     name: z.string().min(1).max(60),
     description: z.string().max(500).nullable().optional(),
-    /** `true` (default) generates a join code; `false` creates an invite-only group. */
     generateCode: z.boolean().default(true),
   })
   .refine((data) => !RESERVED_FRIEND_GROUP_SLUGS.has(data.slug), {
@@ -64,7 +61,6 @@ export const friendGroupUpdateRoleSchema = z.object({
   role: z.enum(["admin", "member"]),
 });
 
-/** Which of the viewer's contact methods are revealed to a given group. */
 export const setRevealedContactsSchema = z.object({
   contactMethodIds: z.array(z.uuid()).max(500),
 });
@@ -101,7 +97,6 @@ export const friendGroupSlugAndLinkIdParamSchema = z.object({
   linkId: z.uuid(),
 });
 
-/** A Discord server linked to the group via the bot's /link command. */
 export const friendGroupDiscordLinkResponseSchema = z
   .object({
     id: z.string(),
@@ -117,7 +112,6 @@ export const friendGroupDiscordLinksResponseSchema = z
   })
   .openapi("FriendGroupDiscordLinksResponse");
 
-/** A one-time code to be redeemed with the bot's /link command in Discord. */
 export const friendGroupDiscordLinkCodeResponseSchema = z
   .object({
     code: z.string(),
@@ -138,10 +132,7 @@ export const friendGroupRoleSchema = z
   .enum(["owner", "admin", "member"])
   .openapi("FriendGroupRole");
 
-/**
- * Which way a pending membership row points: the group invited the user, or
- * the user asked to join. Owns the `friend_group_invites.direction` vocabulary.
- */
+// Owns the `friend_group_invites.direction` vocabulary.
 export const friendGroupInviteDirectionSchema = z.enum(["invite", "request"]);
 
 export const friendGroupResponseSchema = z
@@ -150,7 +141,6 @@ export const friendGroupResponseSchema = z
     slug: z.string(),
     name: z.string(),
     description: z.string().nullable(),
-    /** Nullable when the group has disabled code-based joining. */
     code: z.string().nullable(),
     codeRotatedAt: z.string(),
     createdAt: z.string(),
@@ -158,13 +148,9 @@ export const friendGroupResponseSchema = z
   })
   .openapi("FriendGroupResponse");
 
-/**
- * The window the groups index's trade-volume line covers. Shared so the number
- * the query filters on and the number the copy names cannot drift apart.
- */
 export const TRADE_VOLUME_WINDOW_DAYS = 30;
 
-/** A member teaser for avatar stacks — profile basics without the email. */
+// No email: this is a teaser, not the full member record.
 export const friendGroupMemberPreviewSchema = z
   .object({
     userId: z.string(),
@@ -179,29 +165,15 @@ export const friendGroupSummaryResponseSchema = friendGroupResponseSchema
     viewerRole: friendGroupRoleSchema,
     memberCount: z.number().int().nonnegative(),
     pendingRequestCount: z.number().int().nonnegative(),
-    /** First few members (owner and admins first) for the tile avatar stack. */
     memberPreviews: z.array(friendGroupMemberPreviewSchema),
     sharedListCount: z.number().int().nonnegative(),
-    /**
-     * Cards traded in the group over {@link TRADE_VOLUME_WINDOW_DAYS}, for the
-     * index card's volume line. A rate rather than a timestamp: one swap
-     * yesterday and forty this month are both "active" on a freshness line, and
-     * only one of them is a group worth opening.
-     */
     recentTradedCardCount: z.number().int().nonnegative(),
-    /**
-     * Cards traded in the group ever, which only separates "quiet lately" from
-     * "never got going" when the recent count is zero.
-     */
     tradedCardCount: z.number().int().nonnegative(),
   })
   .openapi("FriendGroupSummaryResponse");
 
-/**
- * A join request the viewer has sent and is still waiting on. Only the member
- * count is exposed: a group doesn't reveal its roster to someone it hasn't
- * accepted yet.
- */
+// A pending join request the viewer sent. Only member count is exposed; the
+// roster stays hidden until the request is accepted.
 const friendGroupOutgoingRequestSchema = z.object({
   id: z.string(),
   groupId: z.string(),
@@ -244,7 +216,6 @@ export const friendGroupShareResponseSchema = z
   })
   .openapi("FriendGroupShareResponse");
 
-/** One cover art slot for a shared collection's thumb stack / fan. */
 export const friendGroupCollectionCoverSchema = z
   .object({
     printingId: z.string(),
@@ -261,7 +232,6 @@ export const friendGroupCollectionShareResponseSchema = z
     userName: z.string().nullable(),
     sharedAt: z.string(),
     copyCount: z.number().int().nonnegative(),
-    /** Representative card art from the collection's contents, fan-ordered. */
     coverPrintings: z.array(friendGroupCollectionCoverSchema).default([]),
   })
   .openapi("FriendGroupCollectionShareResponse");
@@ -290,23 +260,7 @@ export const friendGroupDetailResponseSchema = z
     shares: z.array(friendGroupShareResponseSchema),
     collectionShares: z.array(friendGroupCollectionShareResponseSchema),
     pendingRequests: z.array(friendGroupRequestResponseSchema),
-    /**
-     * Lifetime cards traded in the group, by anyone with anyone: the summed
-     * quantity over rows at least one party has settled. Group-wide, because
-     * the hero stat it feeds is about the group.
-     */
     cardsTradedCount: z.number().int().nonnegative().default(0),
-    /**
-     * Cards the *viewer* has traded with each other member of this group
-     * (counterparty userId → summed quantity), over the rows whose swap is done
-     * from the viewer's side — see `cardTradeState` in `@openrift/shared`.
-     * Members the viewer has traded nothing with are absent.
-     *
-     * Viewer-scoped, unlike {@link cardsTradedCount}: it renders as a badge
-     * beside a person on a page the viewer is reading, where a group-wide total
-     * reads as a claim about the two of them and was wrong for every member the
-     * viewer had never actually traded with.
-     */
     cardsTradedByMember: z.record(z.string(), z.number().int().nonnegative()).default({}),
   })
   .openapi("FriendGroupDetailResponse");
@@ -318,10 +272,6 @@ export const friendGroupJoinPreviewResponseSchema = z
     name: z.string(),
     description: z.string().nullable(),
     memberCount: z.number().int().nonnegative(),
-    /**
-     * `"member"` if the viewer is already in. `"pending"` if a request is
-     * already queued. `"available"` otherwise.
-     */
     viewerStatus: z.enum(["available", "pending", "member"]),
   })
   .openapi("FriendGroupJoinPreviewResponse");
@@ -364,14 +314,10 @@ export const friendGroupMatchRowSchema = z
     counterpartyGravatarHash: z.string(),
     counterpartyListId: z.string(),
     counterpartyListName: z.string(),
-    // The viewer's own list that produced this match: their wishlist for an
-    // incoming row (they want the card), their tradelist for an outgoing one.
     viewerListName: z.string(),
     sellEntryId: z.string().nullable(),
     sellListId: z.string(),
     copyId: z.string(),
-    // The offered copy's recorded condition (or grading) and public note, so
-    // the counterparty sees what they'd get before requesting (ADR-038).
     condition: z.string().nullable(),
     grader: z.string().nullable(),
     grade: z.number().nullable(),
@@ -399,12 +345,8 @@ export const friendGroupMatchesResponseSchema = z
   })
   .openapi("FriendGroupMatchesResponse");
 
-// One printing in a group-owned "bulk box" collection that the viewer's wish
-// lists still want, with the quantity actually takeable. Quantities follow the
-// trade-matching pipeline: demand is manual + rule wish entries netted against
-// firm live trades, supply drops reserved/loaned/altered copies, and the
-// fulfillable amount is a bounded allocation of the two (never more than the
-// residual want, never more than the box holds).
+// fulfillableQuantity is bounded by both the net wanted quantity and the box's
+// available stock (reserved/loaned/altered copies excluded).
 export const friendGroupBoxWantRowSchema = z
   .object({
     collectionId: z.string(),
@@ -435,7 +377,6 @@ export const friendGroupActivityEventSchema = z
       printingId: z.string(),
       cardId: z.string(),
       quantity: z.number().int().positive(),
-      /** NULL once that party deleted their account; the name is the snapshot. */
       giverUserId: z.string().nullable(),
       giverName: z.string().nullable(),
       receiverUserId: z.string().nullable(),
@@ -525,32 +466,8 @@ const TAG = "Friend Groups";
 
 const FG = "/api/v1/friend-groups";
 
-/**
- * oRPC contract for the friend-groups endpoints (mounted at
- * `/api/v1/friend-groups`). All require a session, so they share the
- * `authedRoute` base (UNAUTHORIZED + FORBIDDEN). Domain codes per route:
- * `create` → CONFLICT (slug taken); `join`, `get`, `update`,
- * `remove`, `rotateCode`, `disableCode`, `enableCode`, `shareableLists`,
- * `shareableCollections`, `matches`, `activity` → NOT_FOUND (group); `join`
- * also adds CONFLICT (already a member); `update` also adds CONFLICT (slug
- * taken);
- * `acceptInvite`, `declineInvite` → NOT_FOUND (group or invite); `leave` →
- * NOT_FOUND + CONFLICT (owner must transfer first); `transferOwnership` →
- * NOT_FOUND + BAD_REQUEST (invalid target); `updateRole` → NOT_FOUND +
- * CONFLICT (cannot change owner's role); `setRevealedContacts`,
- * `getMemberDetail` → NOT_FOUND (member); `kickMember` → NOT_FOUND +
- * BAD_REQUEST (self-kick) + CONFLICT (cannot kick owner); `shareList`,
- * `unshareList`, `getSharedList` → NOT_FOUND (group or list);
- * `shareCollection`, `unshareCollection`, `getSharedCollection` → NOT_FOUND
- * (group or collection); `createDiscordLinkCode`, `listDiscordLinks` →
- * NOT_FOUND (group); `deleteDiscordLink` → NOT_FOUND (group or link). The
- * static single-segment paths (pending-requests-count, join, and `preview`
- * over on the public contract) take precedence over `{slug}`.
- *
- * `update` uses the detailed input structure because the path `slug`
- * (current) and the optional body `slug` (rename target) would otherwise
- * collide under the compact merge.
- */
+// Static single-segment paths (pending-requests-count, join, and `preview` on
+// the public contract) take precedence over `{slug}`.
 export const friendGroupsContract = {
   list: authedRoute
     .route({ method: "GET", path: FG, tags: [TAG] })
@@ -575,6 +492,8 @@ export const friendGroupsContract = {
     .input(friendGroupSlugParamSchema)
     .errors({ NOT_FOUND: { message: "Group not found" } })
     .output(friendGroupDetailResponseSchema),
+  // Detailed input structure: the path `slug` and body `slug` (rename target) would
+  // otherwise collide under the compact merge.
   update: authedRoute
     .route({ method: "PATCH", path: `${FG}/{slug}`, tags: [TAG], inputStructure: "detailed" })
     .input(z.object({ params: friendGroupSlugParamSchema, body: updateFriendGroupSchema }))
@@ -731,8 +650,6 @@ export const friendGroupsContract = {
     .input(friendGroupSlugParamSchema)
     .errors({ NOT_FOUND: { message: "Group not found" } })
     .output(friendGroupActivityResponseSchema),
-  // Discord linking (admin+): generating a code and unlinking are the group's
-  // consent surface for the bot's group-scoped replies in that server.
   createDiscordLinkCode: authedRoute
     .route({ method: "POST", path: `${FG}/{slug}/discord-links/code`, tags: [TAG] })
     .input(friendGroupSlugParamSchema)

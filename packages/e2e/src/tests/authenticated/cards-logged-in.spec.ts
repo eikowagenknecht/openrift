@@ -54,14 +54,8 @@ async function deleteUser(email: string) {
   }
 }
 
-// OGS-001 "Annie, Fiery", EN normal — the printing the cards view shows by
-// default. Seeding any printing of the card is not enough: the cell's owned
-// pill counts the *displayed* printing, so a copy of a sibling variant leaves
-// the strip empty.
-// The printing the cards-view tile stands on: a tile keeps the first printing
-// of its card in the active sort order, and for OGS-001 that is the foil. The
-// strip counts the tile's own printing, not the card's siblings, so seeding the
-// normal printing instead leaves the tile reading zero.
+// A tile keeps the first printing in sort order; for OGS-001 "Annie, Fiery"
+// that's the foil, so seeding the normal printing reads zero on the tile.
 const ANNIE_FIERY_TILE_PRINTING = "019d17a1-2723-733a-a21e-4630e4370046";
 
 async function seedInboxCopy(email: string, printingId: string): Promise<void> {
@@ -79,33 +73,24 @@ async function seedInboxCopy(email: string, printingId: string): Promise<void> {
   }
 }
 
-/**
- * Locate the desktop owned-count toggle. It's an icon-only toggle whose
- * accessible name flips between "Show owned count" and "Hide owned count"
- * depending on its pressed state, so match either.
- * @returns A locator for the show-owned-count toggle.
- */
+// The icon-only toggle's accessible name flips between "Show owned count"
+// and "Hide owned count" depending on pressed state, so match either.
 function catalogModeButton(page: Page) {
   return page.getByRole("button", { name: /(?:Show|Hide) owned count/u }).first();
 }
 
 async function waitForCards(page: Page) {
-  // Catalog tiles are image-only (name in the art image's alt) and the grid is
-  // window-virtualized, so scroll a known seed card into view by image role.
   await waitForCatalogLoaded(page);
 }
 
-// The owned-count toggle only renders for logged-in users and hydrates a beat
-// after the grid; under heavy parallel load that can lag past the default
-// assertion timeout, so wait for it with headroom before inspecting/clicking it.
+// Hydrates a beat after the grid, which can lag past the default assertion
+// timeout under heavy parallel load.
 async function waitForOwnedCountToggle(page: Page) {
   await expect(catalogModeButton(page)).toBeVisible({ timeout: 15_000 });
 }
 
-// Open the QuickAddPalette via its keyboard shortcut, retrying the keypress
-// until the palette appears. A single press can be dropped while handlers settle
-// under load (the Meta shortcut is especially unreliable on headless Linux); the
-// visibility guard keeps a retry from toggling an already-open palette shut.
+// A single keypress can be dropped while handlers settle under load (Meta+k
+// is especially unreliable on headless Linux), so retry until visible.
 async function openQuickAddPalette(page: Page, shortcut: "Control+k" | "Meta+k"): Promise<Locator> {
   const paletteInput = page.getByPlaceholder('Add to "Inbox"...');
   await expect(async () => {
@@ -117,13 +102,8 @@ async function openQuickAddPalette(page: Page, shortcut: "Control+k" | "Meta+k")
   return paletteInput;
 }
 
-/**
- * Match a TanStack Start server fn response by the source-level function name.
- * The id in /_serverFn/{id} is a base64url(JSON) blob that references the file
- * + variable name, so decoding it lets us target a specific fn out of the bundle
- * that fires during a route transition.
- * @returns True when the URL belongs to the named server fn.
- */
+// The id in /_serverFn/{id} is base64url(JSON) referencing the file + variable
+// name, so decoding it targets a specific fn out of the bundle.
 function isServerFn(url: string, fnName: string): boolean {
   const match = /\/_serverFn\/(?<encoded>[^/?#]+)/u.exec(url);
   const encoded = match?.groups?.encoded;
@@ -137,12 +117,8 @@ function isServerFn(url: string, fnName: string): boolean {
   }
 }
 
-/**
- * Wait until the collections query resolves so `inboxId` is populated on the
- * client. The Ctrl+K handler in card-browser.tsx is gated on `inboxId`, so
- * pressing the shortcut before collections loads silently drops the event.
- * @returns A promise that resolves when the collections response is seen.
- */
+// The Ctrl+K handler in card-browser.tsx is gated on `inboxId`, so pressing
+// the shortcut before collections loads silently drops the event.
 function waitForCollectionsLoaded(page: Page) {
   return page.waitForResponse((res) => isServerFn(res.url(), "fetchCollections") && res.ok(), {
     timeout: 15_000,
@@ -165,13 +141,10 @@ test.describe("cards /cards (logged in)", () => {
     await page.goto("/cards");
     await waitForCards(page);
 
-    // The grid is grouped by set and virtualized, so search for the seeded card
-    // to bring its cell into view before checking the owned strip.
     await typeSearch(page, "Annie, Fiery");
 
-    // Turn the owned-count toggle on. Retry while it still reads "Show owned
-    // count" — an early click can be dropped while the toolbar re-hydrates after
-    // the search; the guard avoids over-toggling it back off.
+    // An early click can be dropped while the toolbar re-hydrates after the
+    // search, so retry while it still reads "Show owned count".
     await expect(async () => {
       if (await page.getByRole("button", { name: "Show owned count" }).isVisible()) {
         await catalogModeButton(page).click();
@@ -181,14 +154,11 @@ test.describe("cards /cards (logged in)", () => {
       });
     }).toPass({ timeout: 15_000 });
 
-    // OwnedCollectionsPopover only renders when the user owns >= 1 copy of a
-    // printing. Its trigger is the strip's count pill: a package icon plus the
-    // bare count (the "×N" spelling only survives in the table's actions
-    // column), so the button's accessible name is just "1".
+    // The strip's count pill is a package icon plus the bare count ("×N"
+    // survives only in the table's actions column), so its name is just "1".
     const ownedPill = page.getByRole("button", { name: "1", exact: true }).first();
     await expect(ownedPill).toBeVisible({ timeout: 10_000 });
 
-    // Opening it proves the pill is the owned strip's, not some other "1".
     await ownedPill.click();
     await expect(page.getByText("In your collections")).toBeVisible();
   });
@@ -213,7 +183,6 @@ test.describe("cards /cards (logged in)", () => {
     await page.goto("/cards");
     await waitForCards(page);
     await waitForOwnedCountToggle(page);
-    // The shortcut handler is gated on inboxId, so wait for collections first.
     await collectionsLoaded;
 
     await openQuickAddPalette(page, "Meta+k");
@@ -226,27 +195,24 @@ test.describe("cards /cards (logged in)", () => {
     await page.goto("/cards");
     await waitForCards(page);
     await waitForOwnedCountToggle(page);
-    // The shortcut handler is gated on inboxId, so wait for collections first.
     await collectionsLoaded;
 
     const paletteInput = await openQuickAddPalette(page, "Control+k");
 
-    // Use the full name so "Annie, Fiery" is the top match — plain "Annie" now
-    // ranks "Annie, Dark Child, Starter" first, which would be added instead.
+    // Full name needed: plain "Annie" now ranks "Annie, Dark Child, Starter"
+    // first, which would be added instead.
     await paletteInput.fill("Annie, Fiery");
-    // Matches render as card-row buttons whose accessible name starts with the card name.
     await expect(page.getByRole("button", { name: /Annie, Fiery/iu }).first()).toBeVisible({
       timeout: 10_000,
     });
 
-    // First Enter expands the printings for the top result; second Enter adds the
-    // first printing to the Inbox (see PaletteInner.handleKeyDown).
+    // First Enter expands the printings for the top result; second adds the
+    // first printing to the Inbox.
     await paletteInput.press("Enter");
     await paletteInput.press("Enter");
 
     await expect(page.getByText(/Added 1×\s*Annie, Fiery/iu)).toBeVisible({ timeout: 10_000 });
 
-    // Verify the copy landed in the user's Inbox.
     const sql = loadDb();
     try {
       const rows = (await sql`
@@ -266,12 +232,10 @@ test.describe("cards /cards (logged in)", () => {
     await page.goto("/cards");
     await waitForCards(page);
 
-    // No desktop show-owned-count toggle.
     await expect(
       page.getByRole("button").filter({ has: page.locator("svg.lucide-package") }),
     ).toHaveCount(0);
 
-    // Open the mobile options drawer — there should be no "Collection mode" row.
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole("button", { name: "Options" }).click();
     await expect(page.getByText("Collection mode")).not.toBeVisible();

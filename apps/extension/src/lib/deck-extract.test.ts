@@ -7,10 +7,8 @@ import {
   findDeckCode,
 } from "./deck-extract";
 
-// Mock the Piltover decoder so deck-code validation accepts exactly one known
-// string — same pattern as the web app's deck-import-parsers tests. The code
-// literal is repeated inside the factory because vi.mock is hoisted above the
-// const declaration.
+// The code literal is repeated inside the factory because vi.mock is
+// hoisted above any const declaration.
 vi.mock("@piltoverarchive/riftbound-deck-codes", () => ({
   getDeckFromCode: vi.fn((code: string) => {
     if (code === "CEBAGAYDAMBQGE") {
@@ -20,22 +18,12 @@ vi.mock("@piltoverarchive/riftbound-deck-codes", () => ({
   }),
 }));
 
-/** A base32-shaped string the mocked decoder accepts. */
 const VALID_CODE = "CEBAGAYDAMBQGE";
 
-/**
- * Builds a document from a body fragment.
- * @returns The parsed document.
- */
 function documentFrom(bodyHtml: string): Document {
   return new DOMParser().parseFromString(`<html><body>${bodyHtml}</body></html>`, "text/html");
 }
 
-/**
- * Builds a decklist table row for a card: quantity in a bold cell, name as a
- * card link.
- * @returns The row HTML.
- */
 function cardRow(quantity: number, slug: string, name: string): string {
   return `<tr class="card-list-item">
     <td style="width:20px"><b>${quantity}&nbsp;</b></td>
@@ -46,15 +34,10 @@ function cardRow(quantity: number, slug: string, name: string): string {
   </tr>`;
 }
 
-/**
- * Builds a group-header row with an "&nbsp; legend (1)" style subheader.
- * @returns The row HTML.
- */
 function groupRow(label: string, count: number): string {
   return `<tr><td colspan="3"><div class="subheader text-white mb-2">&nbsp; ${label} (${count})</div></td></tr>`;
 }
 
-/** A full table-layout decklist with every zone group. */
 const FULL_DECK_TABLE = `<table><tbody>
   ${groupRow("legend", 1)}
   ${cardRow(1, "diana-scorn-of-the-moon", "Diana, Scorn of the Moon")}
@@ -150,15 +133,10 @@ describe("extractTableDecklist", () => {
   });
 });
 
-/**
- * Builds a card row in the sectioned-list decklist markup.
- * @returns The row HTML.
- */
 function listRow(quantity: number, name: string): string {
   return `<div class="card-name-text"><span class="me-2">${quantity}</span><span>${name}</span></div>`;
 }
 
-/** A sectioned-list deck: section headers with card-name rows. */
 const SECTIONED_LIST = `
   <div class="section-header"><span>Champion (1)</span></div>
   ${listRow(1, "Irelia, Blade Dancer")}

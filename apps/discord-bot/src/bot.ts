@@ -103,7 +103,6 @@ const LINK_COMMAND = {
       required: true,
     },
   ],
-  // Server managers only — linking decides what the bot reveals here.
   default_member_permissions: PermissionFlagsBits.ManageGuild.toString(),
   dm_permission: false,
 } as const;
@@ -133,7 +132,6 @@ const TRADE_CHANNEL_COMMAND = {
       required: true,
     },
   ],
-  // Server managers only — this decides where the bot speaks unprompted.
   default_member_permissions: PermissionFlagsBits.ManageGuild.toString(),
   dm_permission: false,
 } as const;
@@ -171,7 +169,6 @@ function indexFor(cache: CatalogCache): CardSearchIndex<CatalogCard> | null {
   return cachedIndex.index;
 }
 
-/** Same lazy-per-snapshot pattern, for the free-prose scan of trade channels. */
 let cachedScanIndex: { snapshot: unknown; index: ScanIndex } | null = null;
 
 function scanIndexFor(cache: CatalogCache): ScanIndex | null {
@@ -188,7 +185,6 @@ function scanIndexFor(cache: CatalogCache): ScanIndex | null {
   return cachedScanIndex.index;
 }
 
-/** Same lazy-per-snapshot pattern as the card index, for the rules. */
 let cachedRuleIndex: { snapshot: unknown; index: RuleIndex } | null = null;
 
 function ruleIndexFor(cache: RulesCache): RuleIndex | null {
@@ -218,12 +214,7 @@ async function marketplaceInfoFor(
   }
 }
 
-/**
- * Builds a card reply: the embed plus the id of the printing it settled on, so
- * the caller's Details button can ask for that same printing.
- *
- * @returns The embed and printing id, or null while the catalog is loading.
- */
+/** Returns the embed plus the settled printing id, so the Details button can ask for that same printing. */
 async function embedForCard(
   ctx: BotContext,
   card: CatalogCard,
@@ -250,13 +241,7 @@ async function embedForCard(
   return { embed, printingId: printing?.id };
 }
 
-/**
- * The Details button under a card reply: the stat line and card text are left
- * off the embed because they are printed on the artwork, and this opens them
- * on demand, ephemerally.
- *
- * @returns The button, ready to put in an action row.
- */
+/** Stat line and card text are left off the embed because the artwork already shows them; this opens them on demand. */
 function detailsButton(card: CatalogCard, printingId: string | undefined, multiple: boolean) {
   return new ButtonBuilder()
     .setStyle(ButtonStyle.Secondary)
@@ -264,11 +249,7 @@ function detailsButton(card: CatalogCard, printingId: string | undefined, multip
     .setLabel(detailsLabel(legendDisplayName(card), multiple));
 }
 
-/**
- * Answers a Details button click with an ephemeral card-details embed. The
- * button carries the card and printing ids, so a click still works after a
- * catalog refresh or a bot restart — only a card that left the catalog fails.
- */
+/** The button's customId carries the card and printing ids, so a click still works after a catalog refresh or bot restart. */
 async function handleDetailsButton(ctx: BotContext, interaction: ButtonInteraction) {
   const parsed = parseDetailsCustomId(interaction.customId);
   if (!parsed) {
@@ -348,7 +329,6 @@ async function handleRuleCommand(ctx: BotContext, interaction: ChatInputCommandI
     });
     return;
   }
-  // No API round trip needed — the embed is built from the cached snapshot.
   await interaction.reply({
     embeds: [buildRuleEmbed({ entry, index, siteUrl: ctx.env.siteUrl })],
   });
@@ -366,9 +346,8 @@ async function handleCardCommand(ctx: BotContext, interaction: ChatInputCommandI
     return;
   }
   await interaction.deferReply();
-  // With no explicit printing option, the name query itself is the hint: a
-  // code-typed lookup (`/card name:ogn202`) shows that exact printing, while
-  // a plain name falls through to the default printing inside resolvePrinting.
+  // With no printing option, the name query itself is the printing hint
+  // (`/card name:ogn202` shows that exact printing).
   const reply = await embedForCard(
     ctx,
     card,
@@ -389,12 +368,6 @@ async function handleCardCommand(ctx: BotContext, interaction: ChatInputCommandI
   });
 }
 
-/**
- * The /link command: redeems a one-time code from a group's Manage page,
- * binding this guild to that group. Restricted to members with Manage Server
- * (see LINK_COMMAND); failures stay ephemeral, the success confirmation is
- * public so the channel sees the server got linked.
- */
 async function handleLinkCommand(ctx: BotContext, interaction: ChatInputCommandInteraction) {
   const api = ctx.api.discordBot;
   if (!api || !interaction.inGuild()) {
@@ -429,12 +402,6 @@ async function handleLinkCommand(ctx: BotContext, interaction: ChatInputCommandI
   });
 }
 
-/**
- * The /tradechannel command: opts the current channel in or out of card-name
- * scanning. Restricted to members with Manage Server, and only meaningful in a
- * guild already linked to a group — linking is the group's consent, this is
- * the server saying where that consent applies.
- */
 async function handleTradeChannelCommand(
   ctx: BotContext,
   interaction: ChatInputCommandInteraction,
@@ -471,8 +438,7 @@ async function handleTradeChannelCommand(
     });
     return;
   }
-  // Write through so the setting applies to the very next message here,
-  // rather than at the cache's next refresh.
+  // Write through so the setting applies to the very next message, not at the cache's next refresh.
   ctx.tradeChannels.set(interaction.guildId, data.channelIds);
   const mode =
     ctx.env.tradeScanMode === "reply"
@@ -511,7 +477,6 @@ async function handleDeckCommand(ctx: BotContext, interaction: ChatInputCommandI
     });
     return;
   }
-  // Defer: the image render below is a real API round trip.
   await interaction.deferReply();
   const image = await fetchDeckImage(ctx.env.apiUrl, deck);
   const imageAttachmentName = image ? "deck.png" : undefined;
@@ -522,7 +487,6 @@ async function handleDeckCommand(ctx: BotContext, interaction: ChatInputCommandI
     siteUrl: ctx.env.siteUrl,
     imageAttachmentName,
   });
-  // A real link button under the embed — the title link alone is easy to miss.
   const openButton = new ButtonBuilder()
     .setStyle(ButtonStyle.Link)
     .setLabel("Open in OpenRift")
@@ -538,13 +502,7 @@ type MessageMatch =
   | { type: "card"; card: CatalogCard; reference: string }
   | { type: "rule"; entry: IndexedRule };
 
-/**
- * Answers a post in a trade channel with the offers the guild's linked group
- * holds for the cards it names — no brackets, no command, nothing the poster
- * had to know about. Silence is the default: cards nobody offers contribute
- * no line, and a message whose every name draws a blank produces no reply, so
- * the noise floor is the group's actual supply rather than the match count.
- */
+/** Cards nobody offers contribute no line; a message that matches nothing produces no reply. */
 async function handleTradeScan(ctx: BotContext, message: Message) {
   const index = scanIndexFor(ctx.cache);
   if (!index) {
@@ -565,8 +523,6 @@ async function handleTradeScan(ctx: BotContext, message: Message) {
   if (!reply) {
     return;
   }
-  // Log-only is the default: a channel's real traffic tunes the matcher
-  // before the bot ever posts something nobody asked for.
   if (ctx.env.tradeScanMode !== "reply") {
     console.log(
       `[trade-scan log-only] #${message.channelId}: matched ${cards
@@ -583,8 +539,7 @@ async function handleMessage(ctx: BotContext, message: Message) {
     return;
   }
   if (ctx.tradeChannels.isTradeChannel(message.guildId, message.channelId)) {
-    // Isolated: a scan failure must not swallow the [[card name]] reply below,
-    // which is the path someone explicitly asked for.
+    // A scan failure must not swallow the [[card name]] reply below.
     try {
       await handleTradeScan(ctx, message);
     } catch (error) {
@@ -598,8 +553,6 @@ async function handleMessage(ctx: BotContext, message: Message) {
   const ruleIndex = ruleIndexFor(ctx.rules);
   const matches: MessageMatch[] = [];
   for (const reference of extractCardReferences(message.content)) {
-    // Citation-shaped references ([[cr 103.1]], [[tr202]], bare [[103.1]])
-    // resolve as rules; everything else stays a card lookup.
     if (isRuleCitation(reference)) {
       const entry = ruleIndex ? findRule(ruleIndex, reference) : undefined;
       if (entry && !matches.some((match) => match.type === "rule" && match.entry === entry)) {
@@ -615,9 +568,7 @@ async function handleMessage(ctx: BotContext, message: Message) {
   if (matches.length === 0) {
     return;
   }
-  // For cards, the reference doubles as the printing hint so [[OGN-202]]
-  // shows that printing; plain names fall through to the default inside
-  // resolvePrinting.
+  // For cards, the reference doubles as the printing hint, so [[OGN-202]] shows that printing.
   const replies = await Promise.all(
     matches.map(async (match) => {
       if (match.type === "card") {
@@ -634,7 +585,7 @@ async function handleMessage(ctx: BotContext, message: Message) {
   if (resolved.length === 0) {
     return;
   }
-  // Buttons attach to the message, not to an embed, so a reply covering
+  // Buttons attach to the message, not to an embed, so one reply covering
   // several mentions carries one labelled button per card.
   const cards = resolved.flatMap((result) =>
     result.card ? [{ card: result.card, printingId: result.printingId }] : [],
@@ -651,14 +602,7 @@ async function handleMessage(ctx: BotContext, message: Message) {
   });
 }
 
-/**
- * Wires up the Discord client: registers the slash commands on ready and
- * handles slash commands, autocomplete, and `[[card name]]` message scans.
- * Handler failures are logged, never thrown — one bad lookup must not take
- * down the gateway connection.
- *
- * @returns The configured (not yet logged-in) client.
- */
+/** Handler failures are logged, never thrown; one bad lookup must not take down the gateway connection. */
 export function createBot(ctx: BotContext): Client {
   const client = new Client({
     intents: [
@@ -671,8 +615,6 @@ export function createBot(ctx: BotContext): Client {
   const onReady = async (readyClient: Client<true>) => {
     console.log(`Logged in as ${readyClient.user.tag}`);
     try {
-      // /link only exists when the group features are configured — an
-      // unregistered command beats one that can only apologize.
       await readyClient.application.commands.set([
         CARD_COMMAND,
         DECK_COMMAND,
@@ -682,8 +624,7 @@ export function createBot(ctx: BotContext): Client {
     } catch (error) {
       console.error("Failed to register slash commands", error);
     }
-    // Card text renders glyphs as the app's own emojis; a failed fetch (or an
-    // app they were never uploaded to) just falls back to plain words.
+    // A failed fetch (or an app the glyphs were never uploaded to) falls back to plain words.
     try {
       glyphEmojis = await fetchGlyphEmojis(readyClient);
       console.log(`Glyph emojis loaded: ${glyphEmojis.size}`);

@@ -78,7 +78,6 @@ describe("buildTermAnchors", () => {
       makeRule({ ruleNumber: "158.2.a", ruleType: "text", content: "*Action*" }),
       makeRule({ ruleNumber: "806", ruleType: "text", content: "*Action*" }),
     ]);
-    // The keyword glossary at 806 wins over the earlier subsection heading.
     expect(anchors.get("action")).toBe("806");
   });
 
@@ -120,7 +119,6 @@ describe("buildTermAnchors", () => {
         content: "All *Game Objects* in the collective *Play Areas* are *Public Information.*",
       }),
     ]);
-    // Has italics + ends with period; not a heading.
     expect(anchors.has("all")).toBe(false);
   });
 

@@ -9,9 +9,8 @@ import { connectToDb } from "../../helpers/db.js";
 
 type Sql = ReturnType<typeof connectToDb>;
 
-// Seed printings (apps/api/src/test/fixtures/seed.sql).
-// Annie, Fiery: Unit, Fury domain, Epic rarity (two printings — normal + foil promo).
-// Garen, Rugged: Unit, Body domain, Rare rarity (normal).
+// Seed printings (apps/api/src/test/fixtures/seed.sql). Annie, Fiery: Unit, Fury,
+// Epic (normal + foil promo printings). Garen, Rugged: Unit, Body, Rare.
 const ANNIE_FIERY_NORMAL = "019cfc3b-03d6-74cf-adec-1dce41f631eb";
 const ANNIE_FIERY_FOIL = "019d17a1-2723-733a-a21e-4630e4370046";
 const GAREN_RUGGED_NORMAL = "019cfc3b-03d6-752a-adc5-19033009d65d";
@@ -89,15 +88,8 @@ async function getUserId(sql: Sql, email: string): Promise<string> {
 }
 
 async function setFlagOverride(sql: Sql, userId: string, flagKey: string, enabled: boolean) {
-  // Use a per-user override only. The authenticated /feature-flags endpoint
-  // merges per-user overrides on top of global defaults, and the web app's
-  // `fetchFeatureFlags` server fn forwards cookies via the `withCookies`
-  // middleware (see apps/web/src/lib/feature-flags.ts), so per-user
-  // overrides are visible during SSR and client-side fetches alike.
-  //
-  // We intentionally do NOT mirror onto the global `feature_flags` table —
-  // the global row is shared across all tests, and flipping it would race
-  // with parallel describe blocks that assume the default state.
+  // Per-user override only: the global feature_flags row is shared across all
+  // tests, and flipping it would race with parallel describe blocks.
   await sql`
     INSERT INTO user_feature_flags (user_id, flag_key, enabled)
     VALUES (${userId}, ${flagKey}, ${enabled})
@@ -175,9 +167,7 @@ test.describe("collection stats", () => {
         await expect(page.getByText("No cards in collection yet")).toBeVisible({
           timeout: 15_000,
         });
-        // The "Browse cards" button uses Button render={<Link />}; BaseUI's
-        // Button primitive keeps role="button" even when rendered as an <a>,
-        // so look up by both role and fall back to accessible-name text.
+        // BaseUI's Button keeps role="button" even rendered as an <a> (render={<Link />}).
         const browse = page
           .getByRole("link", { name: /Browse cards/u })
           .or(page.getByRole("button", { name: /Browse cards/u }));
@@ -237,16 +227,13 @@ test.describe("collection stats", () => {
           .first();
         await expect(valueLink).toBeVisible({ timeout: 15_000 });
         await expect(valueLink).toHaveAttribute("rel", "noreferrer");
-        // The link points to the user's preferred marketplace (first entry in
-        // the prefs order). Default seed is CardTrader first, so accept any
-        // of the known marketplace domains.
+        // Seed default marketplace order puts CardTrader first; accept any known domain.
         await expect(valueLink).toHaveAttribute(
           "href",
           /(?:tcgplayer\.com|cardtrader\.com|cardmarket\.com)/u,
         );
 
-        // The value itself is rendered; we don't hard-code an amount since prices
-        // vary across the seed but assert a non-empty numeric string is shown.
+        // Prices vary across the seed; only assert a non-empty numeric string.
         const valueText = (await valueLink.locator("p.text-2xl").textContent()) ?? "";
         expect(valueText.trim().length).toBeGreaterThan(0);
       });
@@ -323,15 +310,13 @@ test.describe("collection stats", () => {
         const groupGroup = page.getByRole("group", { name: /Group by/iu });
         await expect(groupGroup).toBeVisible({ timeout: 15_000 });
 
-        // Every group-by value also names a filter chip and a distribution
-        // chart legend elsewhere on the page (some of them inside the hidden
-        // mobile filter drawer), so scope the row assertions to the
-        // Completion section itself.
+        // Group-by values also label filter chips and chart legends elsewhere on
+        // the page, so scope the row assertions to the Completion section itself.
         const completion = page
           .getByRole("heading", { name: "Completion", level: 2 })
           .locator("xpath=ancestor::section[1]");
 
-        // Default is "Set" — the only seeded set is OGS (Proving Grounds, supplemental).
+        // Default is "Set": the only seeded set is OGS (Proving Grounds, supplemental).
         await expect(completion.getByText("Proving Grounds")).toBeVisible();
         await expect(completion.getByText("Supplemental", { exact: true })).toBeVisible();
 
@@ -360,7 +345,6 @@ test.describe("collection stats", () => {
     test.beforeAll(async ({ browser }) => {
       state = await setupBlock(browser, "count");
       await withSignedInContext(state.user, browser, async (context) => {
-        // 3 copies of one Annie printing — playset of a non-Legend card.
         await seedCopies(context, ANNIE_FIERY_NORMAL, 3, state.inboxId);
       });
     });
@@ -381,12 +365,10 @@ test.describe("collection stats", () => {
         await expect(overallRow).toContainText(/^Overall\D*1\s*\//u);
 
         await countGroup.getByRole("button", { name: "Printings" }).click();
-        // One printing owned.
         await expect(overallRow).toContainText(/^Overall\D*1\s*\//u);
 
-        // The third mode counts toward a playset rather than raw copies.
+        // Playset mode counts toward a max-3 target, not raw copies.
         await countGroup.getByRole("button", { name: "Playset" }).click();
-        // Three copies counted toward a max-3 playset target.
         await expect(overallRow).toContainText(/^Overall\D*3\s*\//u);
       });
     });
@@ -412,10 +394,8 @@ test.describe("collection stats", () => {
         const page = await context.newPage();
         await page.goto("/collections/stats");
 
-        // The stats page hosts the same CompactFilterBar the card browsers
-        // use, always expanded — there is no show/hide toggle any more, and
-        // no mobile drawer on this page. Each dimension is a group named
-        // "<label> filter".
+        // The CompactFilterBar is always expanded here, no mobile drawer; each
+        // dimension is a group named "<label> filter".
         await expect(page.getByRole("group", { name: "Domain filter" })).toBeVisible({
           timeout: 15_000,
         });
@@ -440,17 +420,13 @@ test.describe("collection stats", () => {
           timeout: 15_000,
         });
 
-        // The stats page carries the compact filter bar, where an active
-        // domain reads as a pressed toggle rather than a removable chip.
+        // An active domain here is a pressed toggle, not a removable chip.
         const furyToggle = page
           .getByRole("group", { name: "Domain filter" })
           .getByRole("button", { name: "Fury" });
         await expect(furyToggle).toHaveAttribute("aria-pressed", "true");
 
-        // Group-by "Domain" reveals the per-domain rows — Fury should show owned > 0
-        // (Annie is Fury). We no longer assert on "body" because Body is a
-        // card subtype rather than a domain, and now appears in other stats
-        // sections unrelated to the domain filter.
+        // Body is a card subtype, not a domain, so it isn't asserted here.
         const groupGroup = page.getByRole("group", { name: /Group by/iu });
         await groupGroup.getByRole("button", { name: "Domain" }).click();
         const completion = page
@@ -485,7 +461,6 @@ test.describe("collection stats", () => {
           timeout: 15_000,
         });
 
-        // Distribution card titles.
         await expect(
           page.locator('[data-slot="card-title"]', { hasText: /^Domain$/u }),
         ).toBeVisible();
@@ -496,17 +471,14 @@ test.describe("collection stats", () => {
           page.locator('[data-slot="card-title"]', { hasText: /^Type$/u }),
         ).toBeVisible();
 
-        // Seeded rarities are Epic (Annie) and Rare (Garen) — both appear in
-        // the rarity chart legend. Scope to that card: the same words label
-        // the rarity filter chips higher up the page, some of which are not
-        // visible at this viewport.
+        // The same words label rarity filter chips higher up the page, so scope
+        // to the rarity chart card.
         const rarityCard = page
           .locator('[data-slot="card"]')
           .filter({ has: page.locator('[data-slot="card-title"]', { hasText: /^Rarity$/u }) });
         await expect(rarityCard.getByText("Epic", { exact: true }).first()).toBeVisible();
         await expect(rarityCard.getByText("Rare", { exact: true }).first()).toBeVisible();
 
-        // Price extremes — both card tiles link into /cards/<slug>.
         const cheapest = page.getByRole("link", { name: /Annie, Fiery|Garen, Rugged/u }).first();
         await expect(cheapest).toBeVisible();
         await expect(cheapest).toHaveAttribute("href", /^\/cards\//u);
@@ -522,7 +494,6 @@ test.describe("collection stats", () => {
     test.beforeAll(async ({ browser }) => {
       state = await setupBlock(browser, "energy");
       await withSignedInContext(state.user, browser, async (context) => {
-        // Annie, Fiery: Unit with energy=5 and power=1 — the chart renders.
         await seedCopies(context, ANNIE_FIERY_NORMAL, 1, state.inboxId);
       });
     });
@@ -572,8 +543,7 @@ test.describe("collection stats", () => {
       await withSignedInContext(state.user, browser, async (context) => {
         const page = await context.newPage();
         await page.goto("/collections/stats");
-        // Wait for the stats page to finish loading before asserting the
-        // absence of the Value Over Time heading (gated by the flag).
+        // Wait for load before asserting absence, or the check could pass on the loading state.
         await expect(page.getByRole("heading", { name: "Stats" })).toBeVisible({
           timeout: 15_000,
         });

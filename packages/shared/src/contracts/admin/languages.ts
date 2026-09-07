@@ -24,12 +24,8 @@ const hexColorSchema = z
   .nullable();
 
 /**
- * oRPC contract for the admin languages taxonomy CRUD (mounted at
- * `/api/admin/v1/languages`, admin-gated by the mount). All procedures share
- * the `authedRoute` base (UNAUTHORIZED + FORBIDDEN). Languages are keyed by
- * their `code`. Domain codes per route: `reorder` → BAD_REQUEST (invalid
- * codes); `create` → CONFLICT (code taken); `update` → NOT_FOUND; `remove` →
- * NOT_FOUND + CONFLICT (in use). The static `reorder` path precedes `{code}`.
+ * Admin-gated by the mount, not enforced here. The static `reorder` path
+ * must precede `{code}` for routing to match it.
  */
 export const adminLanguagesContract = {
   list: authedRoute

@@ -16,9 +16,8 @@ async function createDeckViaApi(
   return body.id;
 }
 
-// TanStack Start encodes each server fn id as base64url(JSON) with the source
-// file + export name; decoding the segment lets us wait on a specific mutation
-// without colliding with other server fns that fire during the same transition.
+// TanStack Start encodes each server fn id as base64url(JSON); decoding lets
+// us wait on a specific mutation without colliding with other server fns.
 function isServerFn(url: string, fnName: string): boolean {
   const match = /\/_serverFn\/(?<encoded>[^/?#]+)/u.exec(url);
   const encoded = match?.groups?.encoded;
@@ -35,10 +34,8 @@ function isServerFn(url: string, fnName: string): boolean {
 // Valid UUID shape, guaranteed not to match any real deck.
 const BOGUS_DECK_ID = "00000000-0000-0000-0000-0000000dead1";
 
-// The kebab trigger in the editor top bar is an unlabeled icon button; BaseUI's
-// DropdownMenu marks its trigger with aria-haspopup="menu". The page header
-// user-avatar menu also uses that attribute now, so scope to the main element
-// (which the header is NOT inside) to find the deck kebab.
+// Scoped to main: the page header's user-avatar menu also carries
+// aria-haspopup="menu", which would otherwise match first.
 function kebabTrigger(page: Page) {
   return page.locator("main").locator('button[aria-haspopup="menu"]').first();
 }
@@ -80,44 +77,31 @@ test.describe("deck editor shell", () => {
 
       await page.goto(`/decks/${deckId}`);
 
-      // Title shows the deck name on desktop.
       await expect(page.getByRole("heading", { name: "Shell Test Deck" }).first()).toBeVisible({
         timeout: 15_000,
       });
 
-      // Back arrow links to /decks.
       const backLink = page.locator('a[href="/decks"]').first();
       await expect(backLink).toBeVisible();
 
-      // Format badge: a fresh constructed deck may render either the valid
-      // "Constructed ✓" branch or the amber "N issue(s)" violation branch;
-      // both render text starting with "Constructed".
+      // A fresh constructed deck may render the valid "Constructed ✓" branch
+      // or the amber "N issue(s)" branch; both start with "Constructed".
       await expect(page.getByText(/Constructed/u).first()).toBeVisible();
 
-      // (The "Saved" status tooltip indicator was removed from the top bar;
-      // the "Constructed · Draft" badge now communicates the unsaved state.)
-
-      // Share is the bar's one desktop-only action; Export and Print sit in
-      // the kebab with the rest of the deck actions.
       await expect(page.getByRole("button", { name: "Share", exact: true })).toBeVisible();
 
-      // Kebab menu opens a dropdown. Renaming a server deck now happens in the
-      // combined name-and-description dialog ("Rename" is the local-deck-only
-      // wording), so that is the item to look for.
+      // Renaming a server deck opens the name-and-description dialog, not a
+      // bare "Rename" item (that wording is local-deck-only).
       await kebabTrigger(page).click();
       await expect(page.getByRole("menuitem", { name: "Export" })).toBeVisible();
       await expect(page.getByRole("menuitem", { name: "Print" })).toBeVisible();
       await expect(page.getByRole("menuitem", { name: "Name & description" })).toBeVisible();
 
-      // Close the menu before navigating.
       await page.keyboard.press("Escape");
 
-      // Back arrow returns to /decks and the list renders.
       await backLink.click();
       await expect(page).toHaveURL(/\/decks$/u, { timeout: 15_000 });
-      // The deck name renders as an h3 inside the tile link (the link's own
-      // accessible name isn't the deck name); the server list loads after the
-      // client-side back navigation, so give it headroom.
+      // The list reloads from the server after client-side back navigation.
       await expect(page.getByRole("heading", { level: 3, name: /Shell Test Deck/u })).toBeVisible({
         timeout: 15_000,
       });
@@ -135,9 +119,8 @@ test.describe("deck editor shell", () => {
       });
 
       await page.goto(`/decks/${deckId}`);
-      // There are two copies of the deck name in the page top-bar (mobile and
-      // desktop variants) — assert the heading is present, and use a role
-      // lookup to match either the visible h1 or the kebab-menu Rename menu.
+      // Top bar renders two copies of the heading (mobile + desktop); .first()
+      // picks one.
       await expect(page.getByRole("heading", { name: "Rename Me" }).first()).toBeVisible({
         timeout: 15_000,
       });
@@ -145,9 +128,7 @@ test.describe("deck editor shell", () => {
       await kebabTrigger(page).click();
       await page.getByRole("menuitem", { name: "Name & description" }).click();
 
-      // Server decks rename through the "Deck details" dialog, which also
-      // carries the description and links fields — so target the Name box
-      // rather than the dialog's only textbox.
+      // The "Deck details" dialog has other textboxes (description/links); target Name explicitly.
       const dialog = page.getByRole("dialog");
       await expect(dialog.getByRole("heading", { name: "Deck details" })).toBeVisible();
       const input = dialog.getByLabel("Name", { exact: true });
@@ -188,10 +169,8 @@ test.describe("deck editor shell", () => {
         timeout: 15_000,
       });
 
-      // Freeform never produces violations, and it has no completion target
-      // either, so it draws the neutral outline badge (green with a check is
-      // for a valid *constructed* deck). "Freeform" also appears in the
-      // main-area description paragraph, so scope to the badge itself.
+      // "Freeform" also appears in the main-area description paragraph, so
+      // scope to the badge itself.
       await expect(
         page
           .locator('[data-slot="badge"]')
@@ -213,16 +192,12 @@ test.describe("deck editor shell", () => {
         timeout: 15_000,
       });
 
-      // Empty constructed decks render the muted "Constructed · Draft" badge
-      // (the "N issue(s)" popover only appears once the deck has cards).
+      // The "N issue(s)" popover only appears once the deck has cards.
       await expect(page.getByText("Constructed · Draft")).toBeVisible();
     });
   });
 
   test.describe("save status", () => {
-    // Flipping `isDirty` requires card-zone edits in the deck-builder store —
-    // those flows live in chunks 3/4. This chunk asserts only the steady
-    // "Saved" state of a freshly-loaded deck.
     test("fresh deck shows the Saved tooltip", async ({ authenticatedPage }) => {
       const page = authenticatedPage;
       const deckId = await createDeckViaApi(page.request, {
@@ -235,16 +210,12 @@ test.describe("deck editor shell", () => {
         timeout: 15_000,
       });
 
-      // The "Saved" tooltip-trigger indicator was removed from the top bar.
-      // On a fresh, unsaved deck the format badge now reads "Constructed · Draft"
-      // instead — that's the new signal for "no unsaved edits yet".
       await expect(page.getByText("Constructed · Draft")).toBeVisible();
     });
 
     test.skip("unsaved + saving states require card edits (chunks 3/4)", () => {
-      // Dirty state only flips when cards are added/removed/reordered via the
-      // deck-builder store. Rename mutations go through a different code path
-      // that does not touch `isDirty`. Covered in chunks 3 and 4.
+      // isDirty only flips on card-zone edits in the deck-builder store, not
+      // on rename mutations.
     });
   });
 
@@ -263,8 +234,7 @@ test.describe("deck editor shell", () => {
         timeout: 15_000,
       });
 
-      // Zone order comes from the init query, so we assert that each expected
-      // zone label appears at least once rather than a strict ordering.
+      // Zone order comes from the init query: assert presence, not order.
       for (const label of [
         "Legend",
         "Chosen Champion",
@@ -291,25 +261,19 @@ test.describe("deck editor shell", () => {
 
       await page.goto(`/decks/${deckId}`);
 
-      // Wait for the deck editor to mount (the lazy route loads after goto).
-      // On mobile the <h1> renders "Zones" when no zone is active (the deck
-      // name only renders on desktop via md:inline), so wait for the mobile
-      // title heading before interacting.
+      // On mobile the <h1> reads "Zones" until a zone is active; wait for it
+      // since the lazy route mounts after goto.
       await expect(page.getByRole("heading", { name: "Zones", level: 1 }).first()).toBeVisible({
         timeout: 15_000,
       });
 
-      // Sidebar closed → the "Deck Zones" heading is not visible.
       await expect(page.getByRole("heading", { name: "Deck Zones" })).toBeHidden({
         timeout: 15_000,
       });
 
-      // Mobile title shows "Zones" when no zone is active (the editor now
-      // opens on the Overview), and zone+count once a zone is activated.
       const mobileTitle = page.getByRole("button", { name: /^Zones/u }).first();
       await expect(mobileTitle).toBeVisible();
 
-      // Tapping the title toggles the sidebar open.
       await mobileTitle.click();
       await expect(page.getByRole("heading", { name: "Deck Zones" })).toBeVisible();
       await expect(page.getByRole("button", { name: "Close" })).toBeVisible();
@@ -317,13 +281,9 @@ test.describe("deck editor shell", () => {
   });
 
   test.describe("hovered card preview", () => {
-    // The preview is a floating portal rendered by HoveredCardPreview with
-    // empty alt text and no role — by our conventions we don't add a
-    // data-testid just to locate it. A real card must also be seeded into the
-    // deck to trigger the preview, which belongs to chunks 3/4.
-    test.skip("hovering a card row shows the preview (chunks 3/4)", () => {
-      // Covered once the card browser / zone drag-drop flows land.
-    });
+    // HoveredCardPreview renders empty alt text and no role, so there is no
+    // locator for it without a card seeded into the deck to trigger it.
+    test.skip("hovering a card row shows the preview (chunks 3/4)", () => {});
   });
 
   test.describe("SEO", () => {

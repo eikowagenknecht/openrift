@@ -1,11 +1,5 @@
-// scripts/dev.ts — orchestrates the dev servers, auto-picking free ports so
-// `bun run dev` works in any worktree alongside main with no per-worktree config.
-//
-// It prefers the conventional defaults (api 3000, web 5173) and only shifts to
-// the next free pair when those are busy. So the first instance up (typically
-// main) keeps the stable ports, and each additional worktree gets its own pair.
-// The web server is told where its api lives via API_INTERNAL_URL, so it never
-// accidentally talks to another instance's api.
+// Auto-picks free ports (from api 3000, web 5173) so `bun run dev` works in
+// any worktree alongside main with no per-worktree config.
 // oxlint-disable-next-line import/no-nodejs-modules -- dev orchestrator runs in Node/Bun
 import { spawn } from "node:child_process";
 // oxlint-disable-next-line import/no-nodejs-modules -- dev orchestrator runs in Node/Bun
@@ -15,10 +9,6 @@ const API_DEFAULT_PORT = 3000;
 const WEB_DEFAULT_PORT = 5173;
 const PORT_SCAN_RANGE = 100;
 
-/**
- * Check whether a TCP port is free on the loopback interface.
- * @returns true if nothing is listening on the port.
- */
 function isPortFree(port: number): Promise<boolean> {
   // oxlint-disable-next-line promise/avoid-new -- wrapping the net.Server callback API
   return new Promise((resolve) => {
@@ -31,10 +21,6 @@ function isPortFree(port: number): Promise<boolean> {
   });
 }
 
-/**
- * Find the first free port at or after the preferred one.
- * @returns the chosen free port.
- */
 async function findFreePort(preferred: number): Promise<number> {
   for (let port = preferred; port < preferred + PORT_SCAN_RANGE; port++) {
     if (await isPortFree(port)) {
@@ -47,11 +33,8 @@ async function findFreePort(preferred: number): Promise<number> {
 const apiPort = await findFreePort(API_DEFAULT_PORT);
 const webPort = await findFreePort(WEB_DEFAULT_PORT);
 
-// DEV_HTTPS makes vite serve TLS with a self-signed cert. `bun run dev` sets it,
-// so the default dev origin is a secure context (the camera-based admin scan
-// page needs one on real phones). `bun run dev:http` leaves it unset for flows
-// that can't take a self-signed cert. The api stays plain http either way; only
-// the browser-facing origin needs the secure context.
+// `bun run dev` sets DEV_HTTPS so vite serves TLS with a self-signed cert,
+// giving the camera-based admin scan page a secure context on real phones.
 const webScheme = process.env.DEV_HTTPS ? "https" : "http";
 console.log(`\n  web → ${webScheme}://localhost:${webPort}\n  api → http://localhost:${apiPort}\n`);
 
@@ -66,10 +49,8 @@ const children = [
       ...process.env,
       PORT: String(webPort),
       API_INTERNAL_URL: `http://localhost:${apiPort}`,
-      // Vite's browser proxy for /api/v1, /api/auth, /api/health falls back to
-      // localhost:3000 — without this, direct-from-browser fetches (e.g. the
-      // landing summary) silently hit another instance's api when this one got
-      // a shifted port.
+      // Vite's browser proxy falls back to localhost:3000; without this,
+      // direct-from-browser fetches hit another instance's api on a shifted port.
       VITE_API_PROXY_TARGET: `http://localhost:${apiPort}`,
     },
   }),
@@ -77,7 +58,6 @@ const children = [
 
 let shuttingDown = false;
 
-/** Tear down both child servers once, on signal or first child exit. */
 function shutdown(): void {
   if (shuttingDown) {
     return;

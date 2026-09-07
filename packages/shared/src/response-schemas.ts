@@ -16,19 +16,11 @@ import {
 } from "./types/enums.js";
 import { WellKnown } from "./well-known.js";
 
-// Register `.openapi()` on the shared Zod singleton. Idempotent, so it is safe
-// alongside `@hono/zod-openapi` (which also extends Zod). Done here rather than
-// relying on an import-order side effect so this module is self-sufficient: it
-// is now imported via oRPC contracts that never pull in `@hono/zod-openapi`.
+// extendZodWithOpenApi is idempotent. oRPC contracts never import `@hono/zod-openapi`, which also calls it.
 extendZodWithOpenApi(z);
 
-// ── Error envelope ───────────────────────────────────────────────────────────
-// The single shape every 4xx/5xx returns ({ error, code }). Published here so
-// routes can document their error responses and the typed client can codegen
-// the error type. `details` (validation issues / dev stack) is deliberately NOT
-// in the schema: it is an optional dev/validation extra, not part of the stable
-// contract, and a `z.unknown()` field would break createServerFn's return-type
-// check on the web side.
+// `details` (validation issues / dev stack) is deliberately not in the schema:
+// a `z.unknown()` field would break createServerFn's return-type check.
 const errorCodeValues = Object.values(ERROR_CODES) as [ErrorCode, ...ErrorCode[]];
 
 export const apiErrorResponseSchema = z
@@ -38,22 +30,11 @@ export const apiErrorResponseSchema = z
   })
   .openapi("ApiErrorResponse");
 
-// ── Field-diff values ────────────────────────────────────────────────────────
-// A diffed field's value: a JSON scalar or an array of scalars. This is the
-// heterogeneous-but-not-nested shape that card/printing field values take in a
-// change diff (string, number, boolean, null, string[], …).
-//
-// Deliberately NON-recursive: a fully recursive JSON type breaks both
-// @hono/zod-openapi (TS2589 "excessively deep") and hc's response-type inference
-// (it leaks the ZodType through). And it must not be `unknown` — TanStack Start's
-// createServerFn return-type check rejects `unknown` as non-serializable. This
-// bounded union satisfies all three.
-
+// Deliberately non-recursive: a fully recursive JSON type breaks @hono/zod-openapi
+// (TS2589) and leaks the ZodType through hc's response-type inference.
 const diffScalarSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 export type DiffValue = z.infer<typeof diffScalarSchema> | z.infer<typeof diffScalarSchema>[];
 export const diffValueSchema = z.union([diffScalarSchema, z.array(diffScalarSchema)]);
-
-// ── Enums ────────────────────────────────────────────────────────────────────
 
 export const cardTypeSchema = z.string().openapi({ example: "Unit" });
 export const raritySchema = z.string().openapi({ example: "Epic" });
@@ -65,9 +46,7 @@ export const cardSizeSchema = z.string().openapi({ example: "standard" });
 
 export const deckFormatSchema = z.string().openapi({ example: "constructed" });
 
-// The closed deck-zone vocabulary, sourced from the WellKnown taxonomy (which is
-// checked against the `deck_zones` reference table at API startup) so the schema
-// stays in lockstep with the slugs the code branches on.
+// Checked against the `deck_zones` reference table at API startup.
 const DECK_ZONE_VALUES = [
   WellKnown.deckZone.MAIN,
   WellKnown.deckZone.SIDEBOARD,
@@ -80,57 +59,25 @@ const DECK_ZONE_VALUES = [
 export const deckZoneSchema = z.enum(DECK_ZONE_VALUES);
 export const cardFaceSchema = z.enum(["front", "back"]);
 
-/**
- * How complete an archived deck's list is (ADR-014). Built from the same
- * constant the `MetaListStatus` type is, so the wire vocabulary and the values
- * the code branches on cannot drift apart. See that type for what each state
- * means.
- */
 export const metaListStatusSchema = z.enum(META_LIST_STATUSES);
 
-/**
- * How much an archived event counts for. Built from the same constant as the
- * `MetaEventTier` type; see that type for what each tier holds.
- */
 export const metaEventTierSchema = z.enum(META_EVENT_TIERS);
 
-/**
- * How a player left the event: they played it out, were knocked out, or walked
- * away. Built from the same constant as the `MetaEntryStatus` type.
- */
 export const metaEntryStatusSchema = z.enum(META_ENTRY_STATUSES);
 
 export const metaOverlayStatusSchema = z.enum(META_OVERLAY_STATUSES);
 
-/**
- * Whether a contributor's name appears on the archive pages they contributed
- * to, and which profile field it reads (ADR-014). Built from the same constant
- * as the `MetaCreditVisibility` type.
- */
 export const metaCreditVisibilitySchema = z.enum(META_CREDIT_VISIBILITIES);
 
-/** Where a user's decklist submission ended up (ADR-014, ADR-036). */
 export const metaSubmissionStatusSchema = z.enum(META_SUBMISSION_STATUSES);
 
-/** Why an admin resolved a decklist submission without accepting it. */
 export const metaSubmissionReasonSchema = z.enum(META_SUBMISSION_REASONS);
 
-/** What a contribution to the archive asks for (ADR-014). */
 export const metaSubmissionKindSchema = z.enum(META_SUBMISSION_KINDS);
-
-// ── Health ───────────────────────────────────────────────────────────────────
 
 export const healthResponseSchema = z
   .object({ status: z.string().openapi({ example: "ok" }) })
   .openapi("HealthResponse");
-
-// ── Admin Status ────────────────────────────────────────────────────────────
-
-// ── Feature Flags ────────────────────────────────────────────────────────────
-
-// ── Keywords ─────────────────────────────────────────────────────────────────
-
-// ── Init ─────────────────────────────────────────────────────────────────────
 
 export const distributionChannelSchema = z.object({
   id: z.string().openapi({ example: "019cfc3b-0369-7000-8000-000000000002" }),
@@ -142,17 +89,7 @@ export const distributionChannelSchema = z.object({
   childrenLabel: z.string().nullable().openapi({ example: null }),
 });
 
-// ── Prices ───────────────────────────────────────────────────────────────────
-
-// ── Catalog ──────────────────────────────────────────────────────────────────
-
-/**
- * One language's release period for a set. `releasedAt` is the first day of
- * the period, `precision` how wide it is; both null means announced with no
- * date. Whether the set is *released* is derived from this (see
- * `isReleased` in `set-release.ts`), never sent as its own field — a stored
- * flag would go stale the moment a date passed with the response cached.
- */
+/** `releasedAt` is the first day of the period; both null means announced with no date. */
 export const setReleaseSchema = z.object({
   releasedAt: z.string().nullable().openapi({ example: "2025-10-31" }),
   precision: z.enum(["day", "month", "quarter", "year"]).nullable().openapi({ example: "day" }),
@@ -194,13 +131,7 @@ const printingImageSchema = z.object({
   imageId: imageIdSchema,
 });
 
-/**
- * One citation backing what the catalog claims about a promo printing
- * (migration 258) — usually a video, sometimes a post, occasionally something
- * with no permalink at all, which is why `sourceUrl` is nullable. The label is
- * free text; the icon shown next to it is derived from the URL's host, never
- * from the label.
- */
+/** `sourceUrl` is nullable: some citations have no permalink at all. */
 const printingCitationSchema = z.object({
   id: z.string().openapi({ example: "019d02f1-d14f-769f-9295-9852db692dbe" }),
   label: z.string().openapi({ example: "Launch party unboxing (RiftboundDaily)" }),
@@ -256,14 +187,11 @@ export const catalogPrintingResponseSchema = z.object({
   isOvernumbered: z.boolean().openapi({ example: false }),
   markers: z.array(markerSchema).openapi({ example: [] }),
   distributionChannels: z.array(printingDistributionChannelSchema).openapi({ example: [] }),
-  // `.optional()` rather than this file's usual always-present array: almost no
-  // printing is cited, and this schema backs the full-catalog read every visitor
-  // downloads. The server omits the key entirely when the list is empty, so an
-  // uncited printing costs nothing. Read it as `printing.citations ?? []`.
+  // Key omitted entirely when the list is empty; read as `printing.citations ?? []`.
   citations: z.array(printingCitationSchema).optional().openapi({ example: [] }),
   finish: finishSchema,
   size: cardSizeSchema,
-  // Omitted rather than sent as `false`; read it as `=== true`.
+  // Absent when false; read it as `=== true`.
   hasFoilTwin: z.literal(true).optional().openapi({ example: true }),
   images: z.array(printingImageSchema),
   artist: z.string().openapi({ example: "Kudos Productions" }),
@@ -275,16 +203,9 @@ export const catalogPrintingResponseSchema = z.object({
   printedYear: z.number().int().nullable().openapi({ example: 2025 }),
   language: z.string().openapi({ example: "EN" }),
   comment: z.string().nullable().openapi({ example: null }),
-  // Integer sort key from the `printings_ordered` view. The handler already
-  // emits it (via the `...rest` spread) and the web sorts printings by it, but
-  // the schema previously omitted it — so the typed client inferred a response
-  // missing this required field.
   canonicalRank: z.number().int().openapi({ example: 1 }),
-  // Substitute-art override, omitted for the `auto` default that nearly every
-  // printing carries — spelling it out would cost the catalog a field per
-  // printing to say "nothing special". `pinned` is emitted only together with a
-  // servable `fallbackImageId`, so a client never has to handle one without the
-  // other (a pin whose file is not rehosted yet is emitted as if `auto`).
+  // Omitted for the `auto` default; emitted only together with a servable
+  // `fallbackImageId`, so a client never has to handle one without the other.
   fallbackArtMode: z.enum(["pinned", "none"]).optional().openapi({ example: "pinned" }),
   fallbackImageId: z
     .string()
@@ -293,20 +214,6 @@ export const catalogPrintingResponseSchema = z.object({
   cardId: z.string().openapi({ example: "019cfc3b-0389-744b-837c-792fd586300e" }),
 });
 
-// ── Landing Summary ─────────────────────────────────────────────────────────
-
-// ── Card Detail ─────────────────────────────────────────────────────────────
-
-// ── Sets ────────────────────────────────────────────────────────────────────
-
-// ── Promos page (public — distribution channels of every kind) ─────────────
-
-// ── Sitemap Data ────────────────────────────────────────────────────────────
-
-// ── Collections ──────────────────────────────────────────────────────────────
-
-// ── Copies ───────────────────────────────────────────────────────────────────
-
 export const copyLinkSchema = z
   .object({
     url: z.url({ protocol: /^https?$/u }).max(500),
@@ -314,13 +221,7 @@ export const copyLinkSchema = z
   })
   .openapi("CopyLink");
 
-// ── Decks ────────────────────────────────────────────────────────────────────
-
-/**
- * An outbound link on a deck (guide video, the site the list came from). Unlike
- * a copy's links these render on the public share page, so the host has to be
- * on the shared allowlist. A missing title falls back to the site's name.
- */
+/** Renders on the public share page, so the host must be on the shared allowlist. */
 export const deckLinkSchema = z
   .object({
     url: z
@@ -331,12 +232,8 @@ export const deckLinkSchema = z
   })
   .openapi("DeckLink");
 
-/**
- * Per-copy metadata (ADR-038), shared by the authenticated copy shape and the
- * public share projection. `notesPrivate` is deliberately not part of this
- * shape: it exists only on the authenticated schema and is stripped from every
- * public surface.
- */
+// `notesPrivate` is deliberately not part of this shape: it exists only on the
+// authenticated schema and is stripped from every public surface.
 export const copyMetadataResponseShape = {
   /** Ungraded condition slug (`conditions` reference table); null = unrecorded. */
   condition: z.string().nullable(),
@@ -355,24 +252,14 @@ export const copyResponseSchema = z
     id: z.string(),
     printingId: z.string(),
     collectionId: z.string(),
-    /**
-     * Owning group of the copy's collection, or null for personal collections.
-     * The client uses it to keep group-owned copies out of personal "owned"
-     * totals while still showing them inside the group collection.
-     */
+    /** Owning group of the copy's collection, or null for personal collections. */
     groupId: z.string().nullable(),
     ...copyMetadataResponseShape,
-    /**
-     * Visible to anyone with access to the copy's collection (group members
-     * included). "Private" means stripped from public share surfaces only.
-     */
+    /** "Private" means stripped from public share surfaces only, not from group members. */
     notesPrivate: z.string().nullable(),
-    /** True when the copy is out on a live loan (ADR-039): still owned, physically absent. */
+    /** Still owned, physically absent. */
     onLoan: z.boolean(),
-    /**
-     * True when the copy is pinned to a live outgoing trade (ADR-034): still
-     * owned, but reserved — the deck builder excludes it from buildable stock.
-     */
+    /** Still owned, but excluded from buildable deck stock while pinned to a trade. */
     reserved: z.boolean(),
   })
   .openapi("CopyResponse");
@@ -384,13 +271,8 @@ export const copyListResponseSchema = z
   })
   .openapi("CopyListResponse");
 
-// ── Collection Events ────────────────────────────────────────────────────────
-
-// ── Decks ────────────────────────────────────────────────────────────────────
-
-// Mirrors DeckFormatConfig in shared/types/api/deck.ts. Schema stays a
-// concrete object (not z.record) so TanStack's server-fn type inference can
-// propagate the response shape through the client hooks.
+// Stays a concrete object (not z.record) so TanStack's server-fn type inference
+// can propagate the response shape through the client hooks.
 export const formatConfigResponseSchema = z
   .object({
     tagSlugs: z.array(z.string()).optional(),
@@ -428,10 +310,6 @@ export const deckPlanResponseSchema = z
   })
   .openapi("DeckPlanResponse");
 
-// ── Preferences ──────────────────────────────────────────────────────────────
-
-// ── Trade preferences (ADR-017) ─────────────────────────────────────────────
-
 export const tradePricePrefResponseSchema = z
   .enum(["cm_lowest", "tcg_lowest", "ct_zero", "absolute"])
   .openapi("TradePricePref");
@@ -448,15 +326,7 @@ export const tradePreferenceSchema = z
   })
   .openapi("TradePreference");
 
-// ── Lists (unified wishlist / tradelist / organize) ─────────────────────────
-
-/**
- * The list vocabularies, and the single owner of these values. The DB CHECKs on
- * `lists.intent` / `lists.kind` permit exactly these sets. The request schemas in
- * `contracts/lists.ts` build their own bare `z.enum` from these arrays rather
- * than reusing the response schemas below, so the `.openapi()` component names
- * stay attached to the response side only.
- */
+// The DB CHECKs on `lists.intent` / `lists.kind` permit exactly these sets.
 export const LIST_INTENTS = ["wish", "trade", "organize"] as const;
 export const LIST_KINDS = ["card", "printing", "copy"] as const;
 
@@ -473,12 +343,11 @@ export const listEntryBaseShape = {
 
 const listEntryDetailBaseShape = {
   ...listEntryBaseShape,
-  // Rule-only entries (ADR-034) have no `list_entries` row, so id is null and
-  // they aren't individually editable — only excludable.
+  // Rule-only entries have no `list_entries` row, so id is null and they
+  // aren't individually editable — only excludable.
   id: z.string().nullable(),
   source: z.enum(["manual", "rule", "both"]),
-  // Rule's contribution to `quantity` (ADR-034 additive model); manual part is
-  // `quantity - ruleQuantity`.
+  // Manual part of `quantity` is `quantity - ruleQuantity`.
   ruleQuantity: z.number(),
   cardName: z.string(),
 };
@@ -511,11 +380,9 @@ export const listEntryDetailResponseSchema = z
       copyId: z.string(),
       printingId: z.string(),
       ...listEntryDetailPrintingFieldsShape,
-      // True when the copy is pinned to a live in-app trade (ADR-019): it's
-      // mid-trade, so the tradelist shows a "Reserved" badge and blocks Sold.
+      // Mid-trade: the tradelist shows a "Reserved" badge and blocks Sold.
       reserved: z.boolean(),
-      // True when the copy is out on a live loan (ADR-039): physically absent,
-      // so the tradelist shows an "On loan" badge and it never matches.
+      // Physically absent: the tradelist shows an "On loan" badge and it never matches.
       onLoan: z.boolean(),
     }),
   ])
@@ -542,14 +409,6 @@ export const publicListDetailResponseSchema = z
   })
   .openapi("PublicListDetailResponse");
 
-// ── User share bundle (ADR-018) ─────────────────────────────────────────────
-
-// ── Rules ───────────────────────────────────────────────────────────────────
-
-// ── Collection Value History ────────────────────────────────────────────────
-
-// ── Friend groups (ADR-013) ─────────────────────────────────────────────────
-
 export const contactMethodSchema = z
   .object({
     id: z.string(),
@@ -567,27 +426,11 @@ export const contactMethodSchema = z
   })
   .openapi("ContactMethod");
 
-// ── Unified marketplace mappings (admin) ─────────────────────────────────────
-// Concrete schemas for the two unified-mappings GETs. Authored zod-first; the
-// matching TS interfaces in types/api/admin.ts are `z.infer`-ed from these so
-// there is a single source of truth, and the route response schemas use these
-// directly so hc can infer the web response types. The service builders
-// (buildUnifiedMappingsResponse / buildUnifiedMappingsCardResponse) return the
-// inferred types, so their handler output satisfies these schemas.
-
-// ─── Card trades (ADR-019) ───────────────────────────────────────────────────
-
-// ── Pod tournaments (ADR-022) ────────────────────────────────────────────────
-
-/**
- * The umbrella tournament lifecycle, and the single owner of these four values.
- * The DB CHECK on `tournaments.status` permits exactly this set.
- */
+/** The DB CHECK on `tournaments.status` permits exactly this set. */
 export const TOURNAMENT_STATUSES = ["setup", "running", "completed", "cancelled"] as const;
 
-// The pod engine reads the same `tournaments.status` column, so it carries the
-// same four values (ADR-033). Kept as its own OpenAPI component because the pod
-// response schemas reference it by that name.
+// The pod engine reads the same `tournaments.status` column, kept as its own
+// OpenAPI component because the pod response schemas reference it by that name.
 export const podTournamentStatusSchema = z.enum(TOURNAMENT_STATUSES).openapi("PodTournamentStatus");
 export const podScoringSchemeSchema = z.enum(["standard", "three_pod_reduced"]);
 export const podPlayerStatusSchema = z.enum(["active", "dropped"]);
@@ -675,11 +518,6 @@ export const podReportTokenResponseSchema = z
   .object({ reportToken: z.string().nullable() })
   .openapi("PodReportTokenResponse");
 
-// The pod-engine running payload (standings + rounds + open-round snapshot),
-// shared by the unified tournaments run-state and round-running endpoints
-// (ADR-033). The pod engine drives a `pod_rounds`-format tournament's pairings
-// and standings; these mirror the hand-written types in
-// `types/api/pod-tournament.ts`.
 export const podTournamentResponseSchema = z
   .object({
     id: z.string(),
@@ -738,8 +576,6 @@ export const podTournamentDetailResponseSchema = z
   })
   .openapi("PodTournamentDetailResponse");
 
-// ─── Deck check (ADR-025) ─────────────────────────────────────────────────────
-
 export const deckCheckEntryStateSchema = z.enum([
   "editable",
   "submitted",
@@ -770,5 +606,3 @@ export const deckViolationSchema = z.object({
   message: z.string(),
   cardId: z.string().optional(),
 });
-
-// ─── Deck check player self-service (ADR-026) ────────────────────────────────

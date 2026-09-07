@@ -57,14 +57,8 @@ export const publicUserBundleResponseSchema = z
   .openapi("PublicUserBundleResponse");
 
 /**
- * oRPC contract for the public user-share bundle reads (ADR-018). The bundle
- * token resolves to the owner; per-list visibility additionally requires either
- * a per-list share token or a friend-group share with the viewer's groups. The
- * mount applies `loadSession` so an authenticated viewer sees their
- * group-shared lists; anonymous viewers see public-only.
- *
- * An unknown token / list is a typed NOT_FOUND. The bundle-list `listId` is a
- * UUID — a malformed id is a clean 400 (BAD_REQUEST) from input validation.
+ * The bundle token resolves the owner; per-list visibility additionally needs
+ * a per-list share token or a friend-group share with the viewer's groups.
  */
 export const publicUserShareContract = {
   bundle: oc

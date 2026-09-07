@@ -9,9 +9,8 @@ const CSV_MAX_CHARS = 2000;
 
 const CSV_MAX_ITEMS = 200;
 
-// A comma-separated UUID list, validated + bounded at the edge. Without this a
-// non-UUID element reaches the repo's `sql`${id}::uuid`` interpolation and
-// Postgres throws → a 500 (and a dev-mode SQL leak) for what is client error.
+// Without this a non-UUID element reaches the repo's `sql`${id}::uuid``
+// interpolation and Postgres throws a 500 with a dev-mode SQL leak.
 const csvUuidList = z
   .string()
   .min(1)
@@ -31,8 +30,6 @@ const csvUuidList = z
     { message: `must be a comma-separated list of at most ${CSV_MAX_ITEMS} UUIDs` },
   );
 
-// Slug-filter CSV: not interpolated as ::uuid, so it can't 500, but bound it
-// anyway so a single request can't build a pathologically large IN-list.
 const csvBounded = z.string().min(1).max(CSV_MAX_CHARS);
 
 export const collectionValueHistoryQuerySchema = z.object({
@@ -54,8 +51,6 @@ export const collectionValueHistoryQuerySchema = z.object({
   keywordsPresence: z.enum(["any", "none"]).optional(),
   tagsPresence: z.enum(["any", "none"]).optional(),
   customTagsPresence: z.enum(["any", "none"]).optional(),
-  // Negation companions (ADR-034), mirroring the include params above so the
-  // chart answers the same question as the rest of the stats page.
   setsExclude: csvBounded.optional(),
   languagesExclude: csvBounded.optional(),
   domainsExclude: csvBounded.optional(),
@@ -89,11 +84,6 @@ export const collectionValueHistoryResponseSchema = z
   })
   .openapi("CollectionValueHistoryResponse");
 
-/**
- * oRPC contract for the authenticated collection value-over-time series.
- * `GET /api/v1/collection-value-history?marketplace&range&...scope` — a time
- * series of collection value. Requires a session (UNAUTHORIZED on missing session).
- */
 export const collectionValueHistoryContract = {
   get: authedRoute
     .route({

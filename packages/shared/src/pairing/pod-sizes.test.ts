@@ -46,8 +46,6 @@ describe("determinePodSizes", () => {
       expect(sizes).not.toBeNull();
       const { fours, threes } = sizes!;
       expect(fours * 4 + threes * 3).toBe(count);
-      // Minimal threes: you can never trade 4 threes for 3 fours (both = 12),
-      // so the chosen `threes` is in 0..3 except where forced higher is impossible.
       expect(threes).toBeLessThanOrEqual(3);
     }
   });

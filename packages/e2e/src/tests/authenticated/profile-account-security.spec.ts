@@ -56,18 +56,8 @@ async function createAndLogin(
   await signIn(page.request, email, password);
 }
 
-/**
- * Navigates to /profile and waits for the session-gated content to hydrate.
- *
- * The profile page returns null until `useSession` resolves, so typing into
- * inputs immediately after goto silently drops the input because React
- * remounts the form when the session data arrives.
- *
- * @returns resolves once the Account section is rendered.
- */
-// The whole profile is one page now, so several sections each render a "Save"
-// button. Scope the display-name form's Save via the form that holds the Name
-// input so the locator stays unique.
+// Several sections each render a "Save" button; scope by the form holding
+// the Name input so the locator stays unique.
 function nameSaveButton(page: Page) {
   return page
     .locator("form")
@@ -80,9 +70,8 @@ async function gotoProfileReady(page: Page): Promise<void> {
   await expect(page.getByRole("heading", { name: "Account", level: 2 })).toBeVisible({
     timeout: 15_000,
   });
-  // Wait for React hydration on the Account Info form — the profile page is a
-  // lazy route that renders `null` until `useSession` resolves, then mounts
-  // the form. Typing before hydration silently drops input events.
+  // The profile page renders null until useSession resolves, then mounts the
+  // form; typing before hydration silently drops input events.
   await page.waitForFunction(
     () => {
       const form = document.querySelector("form");
@@ -129,8 +118,7 @@ test.describe("profile account & security", () => {
       await updateRequest;
 
       await expect(page.getByText("Name updated.")).toBeVisible({ timeout: 10_000 });
-      // There are multiple card titles on the profile page; the header card
-      // (first in document order) shows the user's display name.
+      // Multiple card titles exist; the header card is first in document order.
       await expect(page.locator('[data-slot="card-title"]').first()).toHaveText("Updated Name", {
         timeout: 10_000,
       });
@@ -146,7 +134,6 @@ test.describe("profile account & security", () => {
       await expect(nameInput).toHaveValue("Initial Name", { timeout: 15_000 });
 
       await nameInput.fill("");
-      // The schema runs on submit; click Save (still enabled because "" !== defaultName).
       await nameSaveButton(page).click();
 
       await expect(page.getByText("Name is required.")).toBeVisible({ timeout: 10_000 });
@@ -193,7 +180,6 @@ test.describe("profile account & security", () => {
 
       await gotoProfileReady(page);
 
-      // Step input → send OTP to current email.
       const newEmailInput = page.getByLabel(/^new email$/iu);
       await expect(newEmailInput).toBeVisible({ timeout: 15_000 });
 
@@ -211,7 +197,6 @@ test.describe("profile account & security", () => {
       await sendButton.click();
       await sendCurrentRequest;
 
-      // Step verify-current.
       await expect(
         page.getByText(new RegExp(`Enter the 6-digit code sent to ${oldEmail}`, "iu")),
       ).toBeVisible({ timeout: 10_000 });
@@ -225,7 +210,6 @@ test.describe("profile account & security", () => {
         await page.getByRole("button", { name: /^verify$/iu }).click();
         await requestEmailChange;
 
-        // Step verify-new.
         await expect(
           page.getByText(new RegExp(`Enter the 6-digit code sent to ${newEmail}`, "iu")),
         ).toBeVisible({ timeout: 10_000 });
@@ -246,7 +230,6 @@ test.describe("profile account & security", () => {
         // The currentEmail label updates after the session re-invalidates.
         await expect(page.getByText(`(${newEmail})`)).toBeVisible({ timeout: 10_000 });
 
-        // DB confirms the change.
         const rows = (await sql`
           SELECT email FROM users WHERE email = ${newEmail}
         `) as { email: string }[];
@@ -286,10 +269,8 @@ test.describe("profile account & security", () => {
       await page.locator('input[autocomplete="one-time-code"]').first().fill(otp);
       await page.getByRole("button", { name: /^verify$/iu }).click();
 
-      // Either OTP error is a pass, for the reason spelled out in
-      // auth/verify-email.spec.ts: better-auth sweeps expired verification
-      // rows on any verification read, so whether the API answers "expired" or
-      // "invalid" depends on which got there first.
+      // Either error is a pass: better-auth sweeps expired verification rows on
+      // any read, so whether it answers "expired" or "invalid" is a race.
       await expect(
         page.getByText(
           /Code expired\. Please request a new one\.|Incorrect code\. Please try again\./u,
@@ -326,7 +307,6 @@ test.describe("profile account & security", () => {
       const newEmail = uniqueEmail("email-toomany-new");
       await createAndLogin(page, oldEmail, "EmailTestPassword1!", "Email E2E");
 
-      // Intercept the request-email-change call before driving the UI.
       await page.route("**/api/auth/email-otp/request-email-change", async (route) => {
         await route.fulfill({
           status: 400,
@@ -392,7 +372,6 @@ test.describe("profile account & security", () => {
 
       await page.getByRole("button", { name: /^cancel$/iu }).click();
 
-      // Back at the input step with a cleared field.
       await expect(page.getByLabel(/^new email$/iu)).toHaveValue("");
       await expect(
         page.getByRole("button", { name: /send code to current email/iu }),
@@ -490,7 +469,7 @@ test.describe("profile account & security", () => {
       await changeRequest;
       await expect(page.getByText("Password updated.")).toBeVisible({ timeout: 10_000 });
 
-      // Use a fresh APIRequestContext so we don't pollute the page's cookies.
+      // A fresh context avoids polluting the page's cookies.
       const fresh = await browser.newContext();
       try {
         const oldAttempt = await fresh.request.post(`${API_BASE_URL}/api/auth/sign-in/email`, {
@@ -517,8 +496,7 @@ test.describe("profile account & security", () => {
 
       await gotoProfileReady(page);
 
-      // Scope to the Connected Accounts card so we don't match the footer
-      // Discord link by accident.
+      // Scoped to avoid matching the footer's Discord link.
       const card = page.locator('[data-slot="card"]', {
         has: page.getByText("Connected Accounts"),
       });
@@ -526,7 +504,6 @@ test.describe("profile account & security", () => {
       await expect(card.getByText("Google", { exact: true })).toBeVisible();
       await expect(card.getByText("Discord", { exact: true })).toBeVisible();
 
-      // Both providers offer Connect; neither shows Unlink yet.
       await expect(card.getByRole("button", { name: /^connect$/iu })).toHaveCount(2);
       await expect(card.getByRole("button", { name: /^unlink$/iu })).toHaveCount(0);
     });
@@ -537,12 +514,10 @@ test.describe("profile account & security", () => {
       const email = uniqueEmail("connected-link");
       await createAndLogin(page, email, "ConnectedTestPassword1!", "Connected E2E");
 
-      // Stop the browser from actually leaving for accounts.google.com.
       await page.route("https://accounts.google.com/**", (route) => route.abort());
 
-      // Intercept the link-social response and capture the body before the
-      // browser navigates (otherwise the response body is garbage-collected
-      // and response.json() throws a "No resource with given identifier" error).
+      // Capture the link-social response body before navigation; afterward
+      // it's garbage-collected and response.json() throws.
       const capturedUrl = new Promise<string>((resolve) => {
         void page.route("**/api/auth/link-social", async (route) => {
           const response = await route.fetch();
@@ -555,7 +530,7 @@ test.describe("profile account & security", () => {
       await gotoProfileReady(page);
       await expect(page.getByText("Connected Accounts")).toBeVisible({ timeout: 15_000 });
 
-      // The first Connect button corresponds to the first SOCIAL_PROVIDERS entry (Google).
+      // The first Connect button is the first SOCIAL_PROVIDERS entry (Google).
       await page
         .getByRole("button", { name: /^connect$/iu })
         .first()
@@ -605,11 +580,8 @@ test.describe("profile account & security", () => {
       await expect(page.getByRole("button", { name: /^connect$/iu })).toHaveCount(2);
     });
 
-    // The "single linked account" tooltip guard requires a user with exactly
-    // one social account and no credential password. listAccounts returns the
-    // credential row alongside any social row, so the disabled-Unlink path is
-    // not reachable for users created via email/password sign-up. See
-    // apps/web/src/components/profile/connected-accounts-section.tsx:70.
+    // Needs a user with exactly one social account and no credential password;
+    // email/password sign-up always adds a credential row, so this state is unreachable there.
     test.skip("disables Unlink on the only remaining account and shows the tooltip", () => {});
   });
 });

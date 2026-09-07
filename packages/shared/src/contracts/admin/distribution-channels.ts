@@ -25,14 +25,9 @@ export const channelSchema = z.object({
 });
 
 /**
- * oRPC contract for the admin distribution-channels taxonomy CRUD (mounted at
- * `/api/admin/v1/distribution-channels`, admin-gated by the mount). All
- * procedures share the `authedRoute` base (UNAUTHORIZED + FORBIDDEN). Channels
- * are keyed by their UUID `id` and may nest via `parentId`. Domain codes per
- * route: `reorder` → BAD_REQUEST (invalid ids); `create` → CONFLICT (slug
- * taken); `update` → NOT_FOUND + CONFLICT (id not found, slug taken); `remove`
- * → NOT_FOUND + CONFLICT (id not found, has children or in use). The static
- * `reorder` path precedes `{id}`.
+ * Admin distribution-channels taxonomy CRUD, mounted at
+ * `/api/admin/v1/distribution-channels`. The static `reorder` path must
+ * precede `{id}`.
  */
 export const adminDistributionChannelsContract = {
   list: authedRoute

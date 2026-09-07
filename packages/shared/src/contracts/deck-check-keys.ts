@@ -22,16 +22,8 @@ const keyParamSchema = z.object({ keyId: z.uuid() });
 const orgParamSchema = z.object({ orgId: z.uuid() });
 const orgKeyParamSchema = z.object({ orgId: z.uuid(), keyId: z.uuid() });
 
-/**
- * Host-scoped deck-check integration keys (ADR-033). Keys belong to a host —
- * the current user (`/me`) or an organization — rather than a friend group, so
- * any host can mint provider push credentials. Personal keys are the caller's
- * own; organization keys require an owner/manager membership. Minting returns
- * the plaintext token exactly once. The base carries UNAUTHORIZED + FORBIDDEN;
- * org and per-key routes add NOT_FOUND.
- */
+// Minting returns the plaintext token exactly once.
 export const deckCheckKeysContract = {
-  // ── Personal keys (host = the current user) ────────────────────────────────
   listMine: authedRoute
     .route({ method: "GET", path: ME_BASE, tags: [TAG] })
     .output(deckCheckKeysResponseSchema),
@@ -59,7 +51,6 @@ export const deckCheckKeysContract = {
     .errors({ NOT_FOUND: { message: "Key not found" } })
     .input(keyParamSchema),
 
-  // ── Organization keys (host = the org; owner/manager only) ─────────────────
   listForOrg: authedRoute
     .route({ method: "GET", path: ORG_BASE, tags: [TAG] })
     .errors({ NOT_FOUND: { message: "Organization not found" } })

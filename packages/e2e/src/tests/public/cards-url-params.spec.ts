@@ -3,11 +3,8 @@ import { expect, test } from "@playwright/test";
 import { cardImage } from "../../helpers/catalog.js";
 import { scrollUntilVisible } from "../../helpers/virtualized.js";
 
-// Deep-link tests for /cards search-param parsing. Each test hits /cards with
-// one URL param group and asserts the grid reflects it — either by a known
-// seed card appearing/disappearing, the count label changing, or the empty
-// state being shown. Seed data comes from apps/api/src/test/fixtures/seed.sql
-// (set OGS "Proving Grounds"). Grid tiles are image-only (card name in alt).
+// Seed data comes from apps/api/src/test/fixtures/seed.sql (set OGS
+// "Proving Grounds"). Grid tiles are image-only (card name in alt).
 
 const LOAD_TIMEOUT = 15_000;
 
@@ -34,9 +31,7 @@ test.describe("card browser URL params", () => {
   test("?rarities=Epic narrows the grid to Epic printings", async ({ page }) => {
     await page.goto(`/cards?rarities=${encodeURIComponent(JSON.stringify(["epic"]))}`);
 
-    // Annie, Fiery has an Epic printing in the seed
     await scrollUntilVisible(page, cardImage(page, "Annie, Fiery"));
-    // Flash is a Common Spell, filtered out
     await expect(cardImage(page, "Flash").first()).not.toBeVisible();
   });
 
@@ -44,7 +39,6 @@ test.describe("card browser URL params", () => {
     await page.goto(`/cards?domains=${encodeURIComponent(JSON.stringify(["fury"]))}`);
 
     await scrollUntilVisible(page, cardImage(page, "Annie, Fiery"));
-    // Lux, Illuminated is a Mind card, filtered out
     await expect(cardImage(page, "Lux, Illuminated").first()).not.toBeVisible();
   });
 
@@ -52,23 +46,18 @@ test.describe("card browser URL params", () => {
     await page.goto(`/cards?types=${encodeURIComponent(JSON.stringify(["legend"]))}`);
 
     await scrollUntilVisible(page, cardImage(page, "Dark Child, Starter"));
-    // Unit/Spell cards are filtered out
     await expect(cardImage(page, "Annie, Fiery").first()).not.toBeVisible();
   });
 
   test("?energyMin=2&energyMax=2 shows only 2-cost cards", async ({ page }) => {
     await page.goto("/cards?energyMin=2&energyMax=2");
 
-    // Flash and Incinerate are 2-cost Spells
     await scrollUntilVisible(page, cardImage(page, "Flash"));
     await scrollUntilVisible(page, cardImage(page, "Incinerate"));
-    // Annie, Fiery is 5-cost, filtered out
     await expect(cardImage(page, "Annie, Fiery").first()).not.toBeVisible();
   });
 
   test("?priceMin=&priceMax= narrows the grid", async ({ page }) => {
-    // Use a range no seeded printing can satisfy so the grid empties regardless
-    // of how prices evolve in the seed.
     await page.goto("/cards?priceMin=999999&priceMax=1000000");
 
     await expect(page.getByText(/No cards found/iu)).toBeVisible({ timeout: LOAD_TIMEOUT });
@@ -77,17 +66,11 @@ test.describe("card browser URL params", () => {
   test("?markersPresence=any shows only cards with at least one marker", async ({ page }) => {
     await page.goto("/cards?markersPresence=any");
 
-    // Annie, Fiery has a nexus-marked printing (OGS-001 foil) in the seed.
-    // Firestorm (OGS-002) has no marker on any printing, so it should be
-    // filtered out.
     await scrollUntilVisible(page, cardImage(page, "Annie, Fiery"));
     await expect(cardImage(page, "Firestorm").first()).not.toBeVisible();
   });
 
   test("?groupBy=<unknown value> falls back to the default grouping", async ({ page }) => {
-    // Unknown enum-ish values (an old bookmark after a rename, a hand-edited
-    // URL) must degrade to the default grouping and be stripped from the URL,
-    // never crash the grid to the route error page.
     await page.goto("/cards?groupBy=garbage");
 
     await scrollUntilVisible(page, cardImage(page, "Annie, Fiery"));
@@ -97,7 +80,6 @@ test.describe("card browser URL params", () => {
   test("?banned=true shows only banned cards", async ({ page }) => {
     await page.goto(`/cards?banned=${encodeURIComponent(JSON.stringify(true))}`);
 
-    // Blast of Power is the only banned card in the seed
     await scrollUntilVisible(page, cardImage(page, "Blast of Power"));
     await expect(cardImage(page, "Annie, Fiery").first()).not.toBeVisible();
   });
@@ -105,15 +87,12 @@ test.describe("card browser URL params", () => {
   test("?errata=true shows only cards with errata", async ({ page }) => {
     await page.goto(`/cards?errata=${encodeURIComponent(JSON.stringify(true))}`);
 
-    // Annie, Fiery has errata in the seed
     await scrollUntilVisible(page, cardImage(page, "Annie, Fiery"));
-    // Garen, Rugged has none
     await expect(cardImage(page, "Garen, Rugged").first()).not.toBeVisible();
   });
 
   test("?sort=name&sortDir=desc reverses the grid order", async ({ page }) => {
-    // Tall viewport so the whole seed fits without the window virtualizer
-    // unmounting either end of the list.
+    // Tall viewport so the window virtualizer keeps both ends mounted.
     await page.setViewportSize({ width: 1280, height: 4000 });
     await page.goto("/cards?sort=name&sortDir=desc");
 
@@ -127,16 +106,13 @@ test.describe("card browser URL params", () => {
     if (!zephyrBox || !annieBox) {
       throw new Error("Expected both cards to have bounding boxes");
     }
-    // Descending name order: Zephyr Sage renders above Annie, Fiery
     expect(zephyrBox.y).toBeLessThan(annieBox.y);
   });
 
   test("?groupBy=type shows type group headers", async ({ page }) => {
     await page.goto("/cards?groupBy=type");
 
-    // Group headers render as buttons whose accessible name is the (capitalized)
-    // group label. The grid is window-virtualized (see card-grid.tsx), so
-    // headers below the fold need to be scrolled into view first.
+    // The grid is window-virtualized, so headers below the fold need scrolling into view.
     for (const name of ["Unit", "Spell", "Legend"]) {
       await scrollUntilVisible(page, page.getByRole("button", { name, exact: true }), {
         timeout: LOAD_TIMEOUT,
@@ -147,32 +123,25 @@ test.describe("card browser URL params", () => {
   test("?view=printings changes the count label unit", async ({ page }) => {
     await page.goto("/cards?view=printings");
 
-    // The SearchBar count label switches to "printings" when view=printings
     await expect(page.getByText(/\d+ printings\b/u).first()).toBeVisible({ timeout: LOAD_TIMEOUT });
   });
 
   test("unknown and malformed params are silently stripped from the URL", async ({ page }) => {
     await page.goto("/cards?bogus=x&promo=nonsense&priceMin=abc");
 
-    // Grid still renders (no error boundary) and a known card is visible
     await scrollUntilVisible(page, cardImage(page, "Annie, Fiery"));
-    // All invalid params get stripped from the URL
     await expect.poll(() => page.url()).not.toContain("bogus=");
     await expect.poll(() => page.url()).not.toContain("promo=");
     await expect.poll(() => page.url()).not.toContain("priceMin=");
   });
 
-  // The heading is the same in the modal (the default) and the docked pane, so
-  // this asserts the deep link resolves without pinning either surface.
   test("?printingId=<id> opens the card detail and strips the param", async ({ page }) => {
-    // Annie, Fiery OGS-001 EN normal printing from the seed
     const printingId = "019cfc3b-03d6-74cf-adec-1dce41f631eb";
     await page.goto(`/cards?printingId=${printingId}`);
 
     await expect(page.getByRole("heading", { level: 2, name: /Annie, Fiery/u })).toBeVisible({
       timeout: LOAD_TIMEOUT,
     });
-    // The deep-link handler replaces history, stripping printingId from the URL
     await expect.poll(() => page.url()).not.toContain("printingId=");
   });
 });

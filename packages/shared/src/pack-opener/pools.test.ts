@@ -84,7 +84,6 @@ describe("buildPool", () => {
   it("keeps Token-supertype cards out of the common pool", () => {
     const printings: PackPrinting[] = [
       printing({ id: "c", rarity: "common" }),
-      // Sprite/Recruit are Common-rarity Unit cards with the Token super type.
       printing({ id: "sprite", cardTypes: ["unit"], cardSuperTypes: ["token"], rarity: "common" }),
     ];
     const pool = buildPool(printings);

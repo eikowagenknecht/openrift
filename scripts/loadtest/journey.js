@@ -1,11 +1,5 @@
-// Realistic anonymous visitor journey: land on home, browse the card grid,
-// click into a card, occasionally view a set. Shared slug pool so CDN/browser
-// caches behave as they would in production.
-//
-// Peaks at 200 concurrent VUs. Against a Cloudflare-fronted host this mostly
-// exercises the edge; if you want to stress the origin, use cache-miss.js.
-//
-// Usage: BASE_URL=https://staging.openrift.example k6 run scripts/loadtest/journey.js
+// Against a Cloudflare-fronted host this mostly exercises the edge; use
+// cache-miss.js to stress the origin.
 
 import { check, sleep } from "k6";
 import http from "k6/http";

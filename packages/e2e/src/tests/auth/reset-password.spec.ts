@@ -220,9 +220,8 @@ test.describe("reset password", () => {
       await page.locator("#confirm-password").fill("NewPassword1!");
       await page.getByRole("button", { name: /reset password/iu }).click();
 
-      // Either OTP error is a pass, for the reason spelled out in
-      // verify-email.spec.ts: better-auth's expired-row sweep decides whether
-      // the API reports the code as expired or merely invalid.
+      // better-auth's expired-row sweep race decides whether the code reports
+      // as expired or merely invalid; either is a pass.
       await expect(
         page.getByText(
           /Code expired\. Please request a new one\.|Incorrect code\. Please try again\./u,

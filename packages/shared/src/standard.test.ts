@@ -4,7 +4,6 @@ import { findStandardArtFallback, isStandardPrinting } from "./standard.js";
 import { makePrinting as stubPrinting } from "./test-factories.js";
 import type { Marker, Printing } from "./types/index.js";
 
-// Pinned identity for this file's assertions; everything else is the default.
 function makePrinting(overrides: Partial<Printing> = {}): Printing {
   return stubPrinting({
     id: "00000000-0000-0000-0000-000000000001",
@@ -146,10 +145,7 @@ describe("findStandardArtFallback", () => {
     expect(result?.printing?.id).toBe("p-en");
   });
 
-  it("never returns the printing itself", () => {
-    // An imageless standard printing can't be its own fallback; a standard
-    // printing that HAS an image doesn't need one, but the resolver still must
-    // not echo it back (the error-recovery path asks with the image present).
+  it("never returns the printing itself even when it already has an image", () => {
     const target = makePrinting({ id: "p-target", language: "EN", images: frontImage("img-a") });
     expect(findStandardArtFallback(target, [target])).toBeNull();
   });
@@ -230,7 +226,6 @@ describe("findStandardArtFallback", () => {
         fallbackArtMode: "pinned",
         fallbackImageId: "img-alt",
       });
-      // Non-standard, so the derived search would never have picked it.
       const altArt = makePrinting({
         id: "p-alt",
         artVariant: "altart",
@@ -269,8 +264,6 @@ describe("findStandardArtFallback", () => {
     });
 
     it("derives as usual when a pin arrives without a servable image", () => {
-      // The wire omits `fallbackImageId` for a pin whose file is not rehosted
-      // yet. Deriving beats showing nothing while the rehost is pending.
       const target = makePrinting({ id: "p-target", fallbackArtMode: "pinned" });
       const standard = makePrinting({ id: "p-std", images: frontImage("img-std") });
       const result = findStandardArtFallback(target, [target, standard]);

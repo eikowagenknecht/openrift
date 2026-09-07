@@ -214,10 +214,8 @@ test.describe("signup page", () => {
       await page.getByLabel("Password").fill(password);
       await page.getByRole("button", { name: /^sign up$/iu }).click();
 
-      // Better-auth's sign-up/email endpoint returns success for an
-      // unverified duplicate (re-sends the OTP), so the UI navigates to
-      // /verify-email. For a verified duplicate it returns USER_ALREADY_EXISTS
-      // which surfaces as an inline error. Accept either outcome.
+      // An unverified duplicate re-sends the OTP and navigates to
+      // /verify-email; a verified one shows an inline error. Accept either.
       await expect(async () => {
         const url = page.url();
         const hasError = await page

@@ -22,10 +22,6 @@ const TEST_ORDERS: EnumOrders = {
   cardSizes: ["standard", "oversized"],
 };
 
-/**
- * Wrapper that supplies `orders` so existing tests don't need to pass it.
- * @returns The result of `getAvailableFilters` with `TEST_ORDERS` as the default.
- */
 function getAvailableFilters(
   printings: Printing[],
   options: Partial<Parameters<typeof getAvailableFiltersRaw>[1]> = {},
@@ -33,10 +29,8 @@ function getAvailableFilters(
   return getAvailableFiltersRaw(printings, { orders: TEST_ORDERS, ...options });
 }
 
-// Tests inject prices via a WeakMap keyed by printing identity, since the
-// production `Printing` type no longer carries prices on the object itself.
-// `withPrice(makePrinting(...), 1.50)` attaches a price; `getTestPrice` reads it
-// when passed as the `getPrice` option to filterCards/sortCards/getAvailableFilters.
+// Prices aren't on `Printing`; tests inject them via a WeakMap keyed by
+// identity, read through the `getPrice` option.
 const TEST_PRICES = new WeakMap<Printing, number>();
 function withPrice(printing: Printing, price: number): Printing {
   TEST_PRICES.set(printing, price);
@@ -75,23 +69,12 @@ function makePrinting(
 function emptyFilters(overrides: Partial<CardFilters> = {}): CardFilters {
   return {
     ...EMPTY_CARD_FILTERS,
-    // Narrow the default search scope to name-only so search tests stay focused;
-    // every other dimension comes from EMPTY_CARD_FILTERS.
     searchScope: ["name"],
     ...overrides,
   };
 }
 
-// ---------------------------------------------------------------------------
-// parseSearchTerms
-// ---------------------------------------------------------------------------
-
-/**
- * `parseSearchTerms` reduced to the two fields these tests assert on. The parser
- * also attaches the folded and squashed forms of each term; those are covered in
- * `search-fold.test.ts` and would only add noise to every expectation here.
- * @returns The parsed terms as `{ field, text }` pairs.
- */
+/** Folded/squashed forms are covered separately in `search-fold.test.ts`. */
 function terms(raw: string): { field: string | null; text: string }[] {
   return parseSearchTerms(raw).map(({ field, text }) => ({ field, text }));
 }
@@ -158,7 +141,6 @@ describe("parseSearchTerms", () => {
   });
 
   it("ignores empty prefix values", () => {
-    // n: with nothing after it — the regex will try to match but get empty
     expect(terms('n:""')).toEqual([]);
   });
 
@@ -171,12 +153,10 @@ describe("parseSearchTerms", () => {
   });
 
   it("ignores a bare prefix with no value (n: alone)", () => {
-    // "n:" followed by nothing — the regex captures empty match[3]
     expect(terms("n:")).toEqual([]);
   });
 
   it("parses prefix followed by whitespace as empty (ignored)", () => {
-    // "n: dragon" — "n:" captures empty, "dragon" becomes bare term
     const result = terms("n: dragon");
     expect(result).toEqual([{ field: null, text: "dragon" }]);
   });
@@ -200,18 +180,12 @@ describe("parseSearchTerms", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// searchPrefixFields
-// ---------------------------------------------------------------------------
-
 describe("searchPrefixFields", () => {
   it("reports no fields for a query without prefixes", () => {
     expect(searchPrefixFields("fire dragon")).toEqual([]);
   });
 
   it("reports the field of a prefix that has no term yet", () => {
-    // The point of the helper: "n:" is not a term (parseSearchTerms drops it)
-    // but the search bar must already show the chip.
     expect(searchPrefixFields("n:")).toEqual(["name"]);
     expect(parseSearchTerms("n:")).toEqual([]);
   });
@@ -242,10 +216,6 @@ describe("searchPrefixFields", () => {
     expect(searchPrefixFields("z:teemo")).toEqual([]);
   });
 });
-
-// ---------------------------------------------------------------------------
-// filterCards
-// ---------------------------------------------------------------------------
 
 describe("filterCards", () => {
   const printings = [
@@ -346,8 +316,6 @@ describe("filterCards", () => {
     expect(result).toHaveLength(3);
   });
 
-  // -- Search --
-
   it("filters by bare search term using default scope (name)", () => {
     const result = filterCards(printings, emptyFilters({ search: "dragon" }));
     expect(result).toHaveLength(1);
@@ -375,8 +343,6 @@ describe("filterCards", () => {
   });
 
   it("un-prefixed terms search all fields when mixed with prefixed terms", () => {
-    // "k:freeze golem" — k:freeze matches Ice Golem, and "golem" must also match
-    // Since there's a prefix, un-prefixed "golem" searches ALL fields
     const result = filterCards(printings, emptyFilters({ search: "k:freeze golem" }));
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Ice Golem");
@@ -417,8 +383,6 @@ describe("filterCards", () => {
     expect(result[0].card.name).toBe("Mind Weaver");
   });
 
-  // -- Set filter --
-
   it("filters by set", () => {
     const result = filterCards(printings, emptyFilters({ sets: ["Set Beta"] }));
     expect(result).toHaveLength(1);
@@ -429,8 +393,6 @@ describe("filterCards", () => {
     const result = filterCards(printings, emptyFilters({ sets: ["Set Alpha", "Set Beta"] }));
     expect(result).toHaveLength(3);
   });
-
-  // -- Language filter --
 
   it("filters by language", () => {
     const catalog = [
@@ -462,8 +424,6 @@ describe("filterCards", () => {
     expect(result).toHaveLength(2);
   });
 
-  // -- Rarity filter --
-
   it("filters by rarity", () => {
     const result = filterCards(printings, emptyFilters({ rarities: ["common"] }));
     expect(result).toHaveLength(1);
@@ -475,15 +435,13 @@ describe("filterCards", () => {
     expect(result).toHaveLength(2);
   });
 
-  // -- Type filter --
-
   it("filters by card type", () => {
     const result = filterCards(printings, emptyFilters({ types: ["spell"] }));
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Mind Weaver");
   });
 
-  it("matches multi-type cards under every type they carry (ADR-037)", () => {
+  it("matches multi-type cards under every type they carry", () => {
     const unitGear = makePrinting({
       id: "p-dual",
       cardId: "c-dual",
@@ -498,8 +456,6 @@ describe("filterCards", () => {
     expect(excluded.map((p) => p.id)).not.toContain("p-dual");
   });
 
-  // -- SuperType filter --
-
   it("filters by superType", () => {
     const result = filterCards(printings, emptyFilters({ superTypes: ["champion"] }));
     expect(result).toHaveLength(1);
@@ -510,8 +466,6 @@ describe("filterCards", () => {
     const result = filterCards(printings, emptyFilters({ superTypes: ["champion"] }));
     expect(result.find((p) => p.card.name === "Ice Golem")).toBeUndefined();
   });
-
-  // -- Domain filter --
 
   it("filters by domain", () => {
     const result = filterCards(printings, emptyFilters({ domains: ["fury"] }));
@@ -531,8 +485,6 @@ describe("filterCards", () => {
     expect(result[0].card.name).toBe("Mind Weaver");
   });
 
-  // -- Stat range filters --
-
   it("filters by energy min", () => {
     const result = filterCards(printings, emptyFilters({ energy: { min: 4, max: null } }));
     expect(result).toHaveLength(1);
@@ -547,7 +499,7 @@ describe("filterCards", () => {
 
   it("filters by energy range", () => {
     const result = filterCards(printings, emptyFilters({ energy: { min: 3, max: 5 } }));
-    expect(result).toHaveLength(2); // Fire Dragon (5) and Ice Golem (3)
+    expect(result).toHaveLength(2);
   });
 
   it("filters by might min", () => {
@@ -558,22 +510,20 @@ describe("filterCards", () => {
 
   it("filters by power min", () => {
     const result = filterCards(printings, emptyFilters({ power: { min: 3, max: null } }));
-    expect(result).toHaveLength(1); // Fire Dragon (6)
+    expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Fire Dragon");
   });
 
   it("filters by power max", () => {
     const result = filterCards(printings, emptyFilters({ power: { min: null, max: 3 } }));
-    expect(result).toHaveLength(2); // Ice Golem (2), Mind Weaver (0)
+    expect(result).toHaveLength(2);
   });
 
   it("filters by might max", () => {
     const result = filterCards(printings, emptyFilters({ might: { min: null, max: 3 } }));
-    expect(result).toHaveLength(1); // Mind Weaver (0)
+    expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Mind Weaver");
   });
-
-  // -- Art variant filter --
 
   it("filters by artVariant", () => {
     const result = filterCards(printings, emptyFilters({ artVariants: ["altart"] }));
@@ -586,15 +536,11 @@ describe("filterCards", () => {
     expect(result).toHaveLength(3);
   });
 
-  // -- Finish filter --
-
   it("filters by finish", () => {
     const result = filterCards(printings, emptyFilters({ finishes: ["foil"] }));
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Ice Golem");
   });
-
-  // -- Card size filter --
 
   it("filters by card size", () => {
     const standard = makePrinting({ id: "std", size: "standard" });
@@ -602,8 +548,6 @@ describe("filterCards", () => {
     const result = filterCards([standard, oversized], emptyFilters({ cardSizes: ["oversized"] }));
     expect(result.map((p) => p.id)).toEqual(["ovr"]);
   });
-
-  // -- isSigned filter --
 
   it("filters by isSigned", () => {
     const withSigned = [
@@ -647,8 +591,6 @@ describe("filterCards", () => {
     expect(result[0].card.name).toBe("Signed Card");
   });
 
-  // -- isOvernumbered filter --
-
   it("filters by isOvernumbered independently of art variant", () => {
     const withOvernumbered = [
       makePrinting({ shortCode: "OGN-303a", isOvernumbered: true, artVariant: "altart" }),
@@ -666,8 +608,6 @@ describe("filterCards", () => {
     const result = filterCards(mixed, emptyFilters({ isOvernumbered: false }));
     expect(result.map((p) => p.shortCode)).toEqual(["OGN-007"]);
   });
-
-  // -- markers filter --
 
   it("filters by presence.markers=any", () => {
     const withPromo = [
@@ -711,10 +651,7 @@ describe("filterCards", () => {
     expect(result[0].card.name).toBe("Promo Card");
   });
 
-  // -- Price filter --
-
   it("excludes printings with null price when price filter is active", () => {
-    // All our test printings have no price set
     const result = filterCards(printings, emptyFilters({ price: { min: 0, max: null } }));
     expect(result).toHaveLength(0);
   });
@@ -784,8 +721,6 @@ describe("filterCards", () => {
     expect(result[0].card.name).toBe("Expensive Card");
   });
 
-  // -- Combined filters --
-
   it("combines multiple filters (AND across dimensions)", () => {
     const result = filterCards(
       printings,
@@ -810,8 +745,6 @@ describe("filterCards", () => {
     expect(result).toHaveLength(0);
   });
 
-  // -- Edge cases: null artVariant defaults to "normal" --
-
   it("treats null artVariant as normal when filtering", () => {
     const nullArtVariant = [
       makePrinting({
@@ -824,8 +757,6 @@ describe("filterCards", () => {
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Null Art Card");
   });
-
-  // -- Edge cases: card text search with null errata --
 
   it("card text search handles null errata", () => {
     const nullTextCard = [
@@ -850,8 +781,6 @@ describe("filterCards", () => {
     expect(result).toHaveLength(0);
   });
 
-  // -- Edge cases: isSigned filter set to false --
-
   it("filters by isSigned=false excludes signed cards", () => {
     const cards = [
       makePrinting({
@@ -869,8 +798,6 @@ describe("filterCards", () => {
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Unsigned Card");
   });
-
-  // -- Edge cases: presence.markers set to "none" --
 
   it("filters by presence.markers=none excludes marked cards", () => {
     const cards = [
@@ -890,15 +817,11 @@ describe("filterCards", () => {
     expect(result[0].card.name).toBe("Regular Card");
   });
 
-  // -- Edge cases: range boundary exactness --
-
   it("includes values exactly at range boundaries", () => {
     const result = filterCards(printings, emptyFilters({ energy: { min: 5, max: 5 } }));
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Fire Dragon");
   });
-
-  // -- Edge cases: stat filters with null stats --
 
   it("excludes cards with null energy when energy filter is active", () => {
     const cards = [
@@ -969,8 +892,6 @@ describe("filterCards", () => {
     expect(result).toHaveLength(0);
   });
 
-  // -- NONE sentinel: include / isolate null-stat cards --
-
   it("includes null-energy cards when min is NONE", () => {
     const cards = [
       makePrinting({
@@ -1028,14 +949,10 @@ describe("filterCards", () => {
     expect(result[0].card.name).toBe("spell");
   });
 
-  // -- Edge case: search with no search string returns all --
-
   it("returns all printings when search is empty string", () => {
     const result = filterCards(printings, emptyFilters({ search: "" }));
     expect(result).toHaveLength(3);
   });
-
-  // -- Edge case: empty arrays for enum filters pass everything --
 
   it("empty sets/rarities/types arrays pass all values through", () => {
     const result = filterCards(
@@ -1052,8 +969,6 @@ describe("filterCards", () => {
     );
     expect(result).toHaveLength(3);
   });
-
-  // -- Edge case: search with effect text match only --
 
   it("card text search matches errata effectText only (not rulesText)", () => {
     const cards = [
@@ -1084,10 +999,7 @@ describe("filterCards", () => {
     expect(result).toHaveLength(1);
   });
 
-  // -- Edge case: multiple search scopes without prefixes --
-
   it("bare search respects searchScope when no prefixes are used", () => {
-    // search for "alice" with scope ["name"] — should NOT match artist
     const result = filterCards(printings, emptyFilters({ search: "alice", searchScope: ["name"] }));
     expect(result).toHaveLength(0);
   });
@@ -1100,8 +1012,6 @@ describe("filterCards", () => {
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Fire Dragon");
   });
-
-  // -- markers / channels filter: detailed branch coverage --
 
   it("filters by distributionChannelSlugs (channel-only filter)", () => {
     const channelNexus = {
@@ -1193,8 +1103,6 @@ describe("filterCards", () => {
     expect(result[0].card.name).toBe("Promo Card");
   });
 
-  // -- Generic presence predicate: any / none per dimension --
-
   describe("presence predicate", () => {
     const channel = {
       id: "ch1",
@@ -1206,14 +1114,12 @@ describe("filterCards", () => {
       childrenLabel: null,
     };
 
-    // For each dimension: a printing that HAS a value and one that has NONE.
     const withMarker = makePrinting({
       cardId: "has-marker",
       markers: [{ id: "1", slug: "promo", label: "Promo", description: null }],
     });
     const withoutMarker = makePrinting({ cardId: "no-marker", markers: [] });
     const withSuperType = makePrinting({ cardId: "has-super", card: { superTypes: ["champion"] } });
-    // "basic" is the placeholder supertype — it must count as "no supertype".
     const onlyBasic = makePrinting({ cardId: "basic-only", card: { superTypes: ["basic"] } });
     const withChannel = makePrinting({
       cardId: "has-channel",
@@ -1291,7 +1197,6 @@ describe("filterCards", () => {
         card: { keywords: [] },
       });
       const cards = [both, withMarker, withoutKeyword];
-      // markers=any AND keywords=none: only "both" qualifies (withMarker has a keyword).
       expect(
         filterCards(cards, emptyFilters({ presence: { markers: "any", keywords: "none" } })).map(
           (p) => p.cardId,
@@ -1306,7 +1211,6 @@ describe("filterCards", () => {
 
     it("matches the old hasAnyMarker semantics (migration equivalence)", () => {
       const cards = [withMarker, withoutMarker];
-      // Old hasAnyMarker=true ⇔ presence.markers=any; false ⇔ none; null ⇔ absent.
       expect(filterCards(cards, emptyFilters({ presence: { markers: "any" } }))).toEqual(
         cards.filter((p) => p.markers.length > 0),
       );
@@ -1328,8 +1232,6 @@ describe("filterCards", () => {
     const result = filterCards(cards, emptyFilters({ markerSlugs: ["promo"] }));
     expect(result).toHaveLength(0);
   });
-
-  // -- keywords filter --
 
   describe("keywords filter", () => {
     const shieldCard = makePrinting({ cardId: "shield", card: { keywords: ["Shield", "Tank"] } });
@@ -1443,8 +1345,6 @@ describe("filterCards", () => {
     });
   });
 
-  // -- customTagSlugs filter --
-
   it("customTagSlugs filter passes all when empty", () => {
     const cards = [
       makePrinting({ cardId: "a", card: { name: "A" } }),
@@ -1488,8 +1388,6 @@ describe("filterCards", () => {
     expect(result).toHaveLength(0);
   });
 
-  // -- Range edge case: value below min --
-
   it("excludes value below min in range filter", () => {
     const cards = [
       makePrinting({
@@ -1512,8 +1410,6 @@ describe("filterCards", () => {
     const result = filterCards(cards, emptyFilters({ energy: { min: 3, max: null } }));
     expect(result).toHaveLength(0);
   });
-
-  // -- Range edge case: value above max --
 
   it("excludes value above max in range filter", () => {
     const cards = [
@@ -1538,10 +1434,6 @@ describe("filterCards", () => {
     expect(result).toHaveLength(0);
   });
 });
-
-// ---------------------------------------------------------------------------
-// filterCards — punctuation-tolerant search
-// ---------------------------------------------------------------------------
 
 describe("filterCards search folding", () => {
   // Real catalogue values: fixTypography stores U+2019 apostrophes, U+2212 for
@@ -1573,8 +1465,6 @@ describe("filterCards search folding", () => {
         tags: ["Sentinel"],
       },
     }),
-    // Mentions "Equip" as prose rather than as the bracketed keyword, so the
-    // bracket-precision test below has something it must NOT match.
     makePrinting({
       id: "OGN-400",
       shortCode: "OGN-400",
@@ -1615,7 +1505,7 @@ describe("filterCards search folding", () => {
 
   describe("card text", () => {
     it("finds a minus-sign value typed as an ASCII hyphen", () => {
-      // Stored as U+2212. Typing "-1" returned nothing before folding.
+      // Stored as U+2212, the actual minus sign, not an ASCII hyphen.
       expect(names({ search: "d:-1 might" })).toEqual(["Doran’s Shield"]);
     });
 
@@ -1631,8 +1521,7 @@ describe("filterCards search folding", () => {
     });
 
     it("does not join words across punctuation in prose", () => {
-      // Squashing prose would make this match "damage. Draw". The control shows
-      // the text really is there to be joined.
+      // Squashing prose would incorrectly match "damage. Draw".
       expect(names({ search: "d:damage" })).toEqual(["Kai’Sa, Survivor", "Sterak’s Gage"]);
       expect(names({ search: "d:damagedraw" })).toEqual([]);
     });
@@ -1675,7 +1564,7 @@ describe("filterCards search folding", () => {
     });
 
     it("keeps a CJK artist name searchable", () => {
-      // normalizeNameForIdentity reduced this to "darkglow", losing the CJK half.
+      // normalizeNameForIdentity strips CJK characters, keeping only the Latin half.
       expect(names({ search: "a:黯荧岛" })).toEqual(["Doran’s Shield"]);
     });
 
@@ -1705,8 +1594,8 @@ describe("filterCards search folding", () => {
 
   describe("keyword translation reverse map", () => {
     it("resolves a translated label whose key was folded", () => {
-      // buildTranslationReverseMap folds its keys, so the lookup here uses the
-      // folded term rather than a merely lowercased one.
+      // buildTranslationReverseMap folds its keys; the lookup must use the
+      // folded term, not a merely lowercased one.
       const result = filterCards(
         printings,
         emptyFilters({ search: "k:护盾", searchScope: [...ALL_SEARCH_FIELDS] }),
@@ -1716,10 +1605,6 @@ describe("filterCards search folding", () => {
     });
   });
 });
-
-// ---------------------------------------------------------------------------
-// filterCards — negation (exclude) dimensions + isStandard (ADR-034)
-// ---------------------------------------------------------------------------
 
 describe("filterCards negation", () => {
   it("excludes by scalar dimension (rarity)", () => {
@@ -1754,7 +1639,6 @@ describe("filterCards negation", () => {
       makePrinting({ rarity: "common", card: { slug: "a" } }),
       makePrinting({ rarity: "rare", card: { slug: "b" } }),
     ];
-    // Include common+rare, but exclude common → only rare survives.
     const result = filterCards(
       cards,
       emptyFilters({ rarities: ["common", "rare"], raritiesExclude: ["common"] }),
@@ -1763,15 +1647,12 @@ describe("filterCards negation", () => {
   });
 
   it("tolerates a persisted filter missing a newer dimension", () => {
-    // Regression: list rules (ADR-034) persist their filter as jsonb and are
-    // re-hydrated with a bare JSON.parse. A rule saved before `keywordsExclude`
-    // existed lacks the key, and `noneExcluded` used to throw on `undefined`.
+    // Filters persist as jsonb and rehydrate via a bare JSON.parse, so a rule
+    // saved before a dimension existed lacks that key entirely.
     const card = makePrinting({ card: { slug: "a", keywords: ["Shield"] } });
     const stale = emptyFilters();
-    // Drop a dimension the way an older persisted rule would not carry it.
     delete (stale as Partial<CardFilters>).keywordsExclude;
     expect(() => filterCards([card], stale)).not.toThrow();
-    // Absent = no constraint, so the card still passes.
     expect(filterCards([card], stale)).toHaveLength(1);
   });
 });
@@ -1799,10 +1680,6 @@ describe("filterCards isStandard", () => {
     expect(result.map((p) => p.card.slug)).toEqual(["nonstd"]);
   });
 });
-
-// ---------------------------------------------------------------------------
-// getAvailableFilters
-// ---------------------------------------------------------------------------
 
 describe("getAvailableFilters", () => {
   const printings = [
@@ -2087,15 +1964,10 @@ describe("getAvailableFilters", () => {
         },
       }),
     ]);
-    // Mind appears in both, but should only be listed once
     const mindCount = result.domains.filter((d) => d === "mind").length;
     expect(mindCount).toBe(1);
   });
 });
-
-// ---------------------------------------------------------------------------
-// sortCards
-// ---------------------------------------------------------------------------
 
 describe("sortCards", () => {
   // Matches `makePrinting`'s default set, plus a second main set that sorts
@@ -2235,8 +2107,7 @@ describe("sortCards", () => {
       setId: SET_PROMO_ID,
       cardId: "PRM-001",
     });
-    // The promo set leads the catalog array but is supplemental, so it still
-    // sorts last — the same order the grid's set headers use.
+    // Promo leads the catalog array here, to prove it still sorts last.
     const result = sortCards([...printings, promo], "id", {
       sets: [{ id: SET_PROMO_ID, setType: "supplemental" }, ...SETS],
     });
@@ -2268,8 +2139,7 @@ describe("sortCards", () => {
   });
 
   it("throws when sorting by id without the catalog's sets", () => {
-    // The set half of a card ID can't be derived from the printing alone, so a
-    // missing catalog is a programming error rather than a silent mis-sort.
+    // A card ID's set can't be derived from the printing alone.
     expect(() => sortCards(printings, "id")).toThrow("`sets` is required");
   });
 
@@ -2341,7 +2211,6 @@ describe("sortCards", () => {
         },
       }),
     ];
-    // desc reverses rarity (Rare first) but tiebreaker stays ascending
     const result = sortCards(tied, "rarity", {
       sortDir: "desc",
       rarityOrder: TEST_ORDERS.rarities,
@@ -2659,7 +2528,6 @@ describe("sortCards", () => {
           },
         }),
       ];
-      // Override so Alpha appears more expensive
       const result = sortCards(printingsWithCustomPrice, "price", {
         sortDir: "desc",
         getPrice: (p) => (p.cardId === "a" ? 100 : 1),
@@ -2788,10 +2656,6 @@ describe("sortCards", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// computeFilterCounts
-// ---------------------------------------------------------------------------
-
 describe("computeFilterCounts", () => {
   const sample = [
     makePrinting({
@@ -2836,8 +2700,6 @@ describe("computeFilterCounts", () => {
   });
 
   it("excludes the dim's own filter so multi-select still widens", () => {
-    // With language=EN selected, the language counts must still show DE/JA's
-    // potential matches — otherwise the user couldn't multi-select.
     const counts = computeFilterCounts(sample, emptyFilters({ languages: ["EN"] }), {
       countBy: "printing",
     });
@@ -2847,7 +2709,6 @@ describe("computeFilterCounts", () => {
   });
 
   it("narrows other dims based on the active filter", () => {
-    // With language=EN, rarity counts reflect only EN printings: c1 (Common) + c2 (Rare).
     const counts = computeFilterCounts(sample, emptyFilters({ languages: ["EN"] }), {
       countBy: "printing",
     });
@@ -2856,8 +2717,6 @@ describe("computeFilterCounts", () => {
   });
 
   it("ignores both the include and exclude of the faceted dimension", () => {
-    // Excluding EN must not zero out the EN count in the language facet itself,
-    // so the user can still un-exclude it (same widening rule as include).
     const counts = computeFilterCounts(sample, emptyFilters({ languagesExclude: ["EN"] }), {
       countBy: "printing",
     });
@@ -2866,7 +2725,6 @@ describe("computeFilterCounts", () => {
   });
 
   it("a dimension's exclude narrows other dimensions' counts", () => {
-    // Exclude all EN printings → only DE (c1 common) + JA (c3 rare) remain.
     const counts = computeFilterCounts(sample, emptyFilters({ languagesExclude: ["EN"] }), {
       countBy: "printing",
     });
@@ -2887,7 +2745,6 @@ describe("computeFilterCounts", () => {
     const counts = computeFilterCounts(sample, emptyFilters({ languages: ["DE"] }), {
       countBy: "printing",
     });
-    // Only c1's DE printing matches; rarity Rare and domains Calm/Mind/Body have 0 matches.
     expect(counts.rarities.get("common")).toBe(1);
     expect(counts.rarities.get("rare") ?? 0).toBe(0);
     expect(counts.domains.get("fury")).toBe(1);
@@ -2895,7 +2752,6 @@ describe("computeFilterCounts", () => {
   });
 
   it("counts unique cards (not printings) when countBy='card'", () => {
-    // EN+DE printings of c1 should count once toward c1's domain "fury".
     const counts = computeFilterCounts(sample, emptyFilters(), { countBy: "card" });
     expect(counts.domains.get("fury")).toBe(1);
     expect(counts.rarities.get("common")).toBe(1);
@@ -2903,7 +2759,6 @@ describe("computeFilterCounts", () => {
   });
 
   it("counts each domain of a multi-domain card", () => {
-    // c3 has domains ["mind", "body"] — both should be counted.
     const counts = computeFilterCounts(sample, emptyFilters(), { countBy: "card" });
     expect(counts.domains.get("mind")).toBe(1);
     expect(counts.domains.get("body")).toBe(1);
@@ -2975,8 +2830,6 @@ describe("computeFilterCounts", () => {
         emptyFilters({ markerSlugs: ["top-8"] }),
         { countBy: "printing" },
       );
-      // promo stays at 2 even though top-8 is selected — picking another marker
-      // must still widen results.
       expect(counts.markers.get("promo")).toBe(2);
       expect(counts.markers.get("top-8")).toBe(1);
     });
@@ -2987,7 +2840,6 @@ describe("computeFilterCounts", () => {
         emptyFilters({ markerSlugs: ["top-8"] }),
         { countBy: "printing" },
       );
-      // Only p2 (event) carries the top-8 marker.
       expect(counts.channels.get("event")).toBe(1);
       expect(counts.channels.get("store") ?? 0).toBe(0);
     });
@@ -3035,25 +2887,20 @@ describe("computeFilterCounts", () => {
 
     it("counts flags at their primary-on state when the chip is null/true", () => {
       const counts = computeFilterCounts(flagSample, emptyFilters(), { countBy: "printing" });
-      expect(counts.flags.signed).toBe(1); // only p-signed has isSigned=true
-      expect(counts.presence.markers.any).toBe(1); // only p-promo has any marker
-      expect(counts.flags.banned).toBe(1); // only c-plain has bans
-      expect(counts.flags.errata).toBe(1); // only c-plain has errata
+      expect(counts.flags.signed).toBe(1);
+      expect(counts.presence.markers.any).toBe(1);
+      expect(counts.flags.banned).toBe(1);
+      expect(counts.flags.errata).toBe(1);
     });
 
     it("counts flags at their false state when the chip is in 'Not X' mode", () => {
-      // With isSigned=false selected, the chip displays "Not Signed" — the
-      // count should reflect the number of *unsigned* printings.
       const counts = computeFilterCounts(flagSample, emptyFilters({ isSigned: false }), {
         countBy: "printing",
       });
-      expect(counts.flags.signed).toBe(2); // p-plain + p-promo are unsigned
+      expect(counts.flags.signed).toBe(2);
     });
 
     it("flag counts respect other active filters", () => {
-      // With domains=[Fury] active (default for makePrinting), all three sample
-      // cards still match domain — none are filtered out — so counts are stable.
-      // Use a non-matching domain to verify narrowing.
       const counts = computeFilterCounts(flagSample, emptyFilters({ domains: ["calm"] }), {
         countBy: "printing",
       });
@@ -3093,7 +2940,6 @@ describe("computeFilterCounts", () => {
     });
 
     it("ignores the dimension's own presence selection so counts still widen", () => {
-      // Selecting markers=none must not collapse the markers any/none counts.
       const counts = computeFilterCounts(
         presenceSample,
         emptyFilters({ presence: { markers: "none" } }),
@@ -3103,7 +2949,6 @@ describe("computeFilterCounts", () => {
     });
 
     it("ignores the dimension's own value selection when counting presence", () => {
-      // A specific marker selected must not skew markers presence counts.
       const counts = computeFilterCounts(presenceSample, emptyFilters({ markerSlugs: ["promo"] }), {
         countBy: "printing",
       });
@@ -3116,7 +2961,6 @@ describe("computeFilterCounts", () => {
         emptyFilters({ presence: { keywords: "any" } }),
         { countBy: "printing" },
       );
-      // keywords=any leaves only cm1, which has a marker.
       expect(counts.presence.markers).toEqual({ any: 1, none: 0 });
     });
   });
@@ -3159,8 +3003,6 @@ describe("computeFilterCounts", () => {
     });
 
     it("ignores its own filter so the slider can still drag outward", () => {
-      // With energy clamped to 1..1, the energy bounds should still reflect
-      // the catalog (1..5) so the user can drag the upper handle out.
       const counts = computeFilterCounts(
         rangeSample,
         emptyFilters({ energy: { min: 1, max: 1 } }),

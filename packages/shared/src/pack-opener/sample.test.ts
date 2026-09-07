@@ -97,9 +97,6 @@ describe("openPack", () => {
   });
 
   it("falls back to allowing duplicates when a bucket is too small", () => {
-    // Only one common printing but 7 common slots — the fallback inside
-    // pickOneUnique kicks in and we get 7 copies of the same printing rather
-    // than throwing.
     const pool = buildPool([
       p({ id: "c", rarity: "common" }),
       p({ id: "u", rarity: "uncommon" }),
@@ -169,8 +166,6 @@ describe("openPack", () => {
   });
 
   it("falls through to a regular Rune when token-slot sub-pools are empty", () => {
-    // No tokens, no foil runes, no alt-art runes — every token slot must be a
-    // plain normal-art normal-finish Rune.
     const pool = buildPool([
       p({ id: "c", rarity: "common" }),
       p({ id: "u", rarity: "uncommon" }),
@@ -203,7 +198,6 @@ describe("openPack", () => {
       }
     }
     const observed = packsWithEpic / n;
-    // Published rate: 1 in 4 packs. Allow 1% tolerance at this sample size.
     expect(observed).toBeGreaterThan(0.24);
     expect(observed).toBeLessThan(0.26);
   });
@@ -236,10 +230,9 @@ describe("openPack", () => {
     expect(altart / n).toBeLessThan(SHOWCASE_ALTART_RATE * 1.1);
     expect(overnumbered / n).toBeGreaterThan(SHOWCASE_OVERNUMBERED_RATE * 0.6);
     expect(overnumbered / n).toBeLessThan(SHOWCASE_OVERNUMBERED_RATE * 1.4);
-    // Signed and ultimate are too rare for tight bounds at this N; just assert presence/absence.
+    // Signed and ultimate are too rare for tight bounds at this N; just assert presence/absence and an upper bound.
     expect(signed).toBeGreaterThanOrEqual(0);
     expect(ultimate).toBeGreaterThanOrEqual(0);
-    // Sanity: expected signed ≈ n * 1/720 ≈ 69, ultimate ≈ n * 0.001 = 50. Cap the upper bound.
     expect(signed).toBeLessThan(n * SHOWCASE_SIGNED_RATE * 3);
     expect(ultimate).toBeLessThan(n * ULTIMATE_RATE * 3);
   });

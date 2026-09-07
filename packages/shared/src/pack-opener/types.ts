@@ -1,7 +1,3 @@
-/**
- * Minimal printing shape consumed by the pack opener. The API flattens the full
- * Printing row into this when serving the pool for a set+language.
- */
 export interface PackPrinting {
   id: string;
   cardId: string;
@@ -9,7 +5,6 @@ export interface PackPrinting {
   cardSlug: string;
   cardTypes: string[];
   cardSuperTypes: string[];
-  /** Champion-identifier tags (e.g. ["Azir"] on a Legend) for display names. */
   tags: string[];
   rarity: string;
   finish: string;
@@ -22,11 +17,6 @@ export interface PackPrinting {
   setSlug: string;
 }
 
-/**
- * Which slot in a pack produced the pull. Used for grouping the reveal UI and
- * for the stats panel (e.g. "1 flex slot was an Epic"). The token slot holds
- * either a Rune (most of the time) or a Token-supertype card like Sprite.
- */
 type PackSlot = "common" | "uncommon" | "flex" | "foil" | "token" | "showcase" | "ultimate";
 
 export interface PackPull {
@@ -39,9 +29,8 @@ export interface PackResult {
 }
 
 /**
- * Pool of printings partitioned by role. Each array may be empty — the opener
- * skips slots that have no eligible printings and absorbs the probability mass
- * back into adjacent slots (see `sample.ts`).
+ * Empty slots have their probability mass absorbed into adjacent slots by
+ * the opener (see `sample.ts`).
  */
 export interface PackPool {
   commons: PackPrinting[];
@@ -60,13 +49,6 @@ export interface PackPool {
   ultimates: PackPrinting[];
 }
 
-/**
- * True when every required slot has at least one printing. Sets missing any of
- * common/uncommon/rare/epic/foilCommon/foilUncommon/rune shouldn't be openable.
- * Token, foilRune, altArtRune, showcase, and ultimate pools may be empty; the
- * opener handles that gracefully.
- * @returns True if the set has a complete pool and can be opened.
- */
 export function isPoolOpenable(pool: PackPool): boolean {
   return (
     pool.commons.length > 0 &&

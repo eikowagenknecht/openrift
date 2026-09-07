@@ -15,10 +15,7 @@ interface ChangelogGroup {
 
 /**
  * Splits a `**Title** — body` entry into its bold title and body. Entries
- * without the ` — ` separator (e.g. legacy lines) keep their full text as the
- * message and carry no title.
- *
- * @returns the parsed title (if any) and the remaining message.
+ * without the ` — ` separator keep their full text as the message.
  */
 function parseEntryBody(raw: string): { title?: string; message: string } {
   const match = /^\*\*(?<title>[^*]+)\*\* — (?<message>.+)$/u.exec(raw);
@@ -30,12 +27,8 @@ function parseEntryBody(raw: string): { title?: string; message: string } {
 }
 
 /**
- * Parses the raw changelog markdown into per-date groups. Each `## date`
- * section may contain `### Highlights` / `### Other` sub-sections; lines that
- * appear before any sub-section (the legacy flat format) fall into `other`.
- *
- * @returns the changelog grouped by date, newest first, split into highlights
- *   and other entries.
+ * Each `## date` section may contain `### Highlights` / `### Other`
+ * sub-sections; lines before any sub-section fall into `other`.
  */
 export function parseChangelog(markdown: string): ChangelogGroup[] {
   const groups: ChangelogGroup[] = [];

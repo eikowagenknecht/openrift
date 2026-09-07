@@ -144,9 +144,6 @@ describe("findCard", () => {
 });
 
 describe("altNames", () => {
-  // What `legendComboResolutions` in the deck-check repo, `lookupByTagAndName`
-  // in both import matchers and the display-name remap in the collection
-  // palette each used to do on their own.
   const legendIndex = buildCardIndex(
     [
       {
@@ -189,8 +186,6 @@ describe("altNames", () => {
   });
 
   it("scores an alt-name hit at the tier that name reaches", () => {
-    // The colloquial form is an exact name, so it outranks a card that merely
-    // contains the words.
     const tierIndex = buildCardIndex(
       [
         { id: "c-1", slug: "a", name: "Emperor of the Sands", altNames: ["Azir, Emperor"] },
@@ -202,7 +197,6 @@ describe("altNames", () => {
   });
 
   it("matches an already-normalized alias key typed with punctuation", () => {
-    // `card_name_aliases` stores only the squashed key, never a spelling.
     const aliasIndex = buildCardIndex(
       [{ id: "c-1", slug: "a", name: "Blazing Scorcher", altNames: ["blazingscorcherpromo"] }],
       new Map(),
@@ -242,8 +236,6 @@ describe("resolveCard", () => {
   });
 
   it("reports a tie as ambiguous instead of guessing", () => {
-    // "Anni" is a name prefix of both Annie cards. The old importers accepted
-    // this silently as a >70% overlap and imported whichever sorted first.
     const result = resolveCard(resolveIndex, "Anni");
     expect(result.status).toBe("ambiguous");
     expect(result.status === "ambiguous" && result.candidates.map((c) => c.id)).toEqual([
@@ -270,8 +262,6 @@ describe("matchesCardQuery", () => {
   });
 
   it("is the case the raw toLowerCase().includes filters used to miss", () => {
-    // The regression this function exists for: the catalogue stores a curly
-    // apostrophe, so a straight one found nothing in the admin tables.
     expect("Doran’s Shield".toLowerCase().includes("doran's")).toBe(false);
     expect(matchesCardQuery("doran's", ["Doran’s Shield"])).toBe(true);
   });

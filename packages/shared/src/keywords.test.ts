@@ -2,11 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { extractBracketedTerms, extractKeywords } from "./keywords.js";
 
-// ── extractBracketedTerms ─────────────────────────────────────────────────
-
 describe("extractBracketedTerms", () => {
-  // ── Empty / missing input ───────────────────────────────────────────────
-
   it("returns empty array for empty string", () => {
     expect(extractBracketedTerms("")).toEqual([]);
   });
@@ -20,8 +16,6 @@ describe("extractBracketedTerms", () => {
   it("returns empty array when text has no brackets", () => {
     expect(extractBracketedTerms("Deal 3 damage to a unit.")).toEqual([]);
   });
-
-  // ── English (space-separated params) ────────────────────────────────────
 
   it("extracts a single keyword", () => {
     expect(extractBracketedTerms("[Shield]")).toEqual(["Shield"]);
@@ -62,8 +56,6 @@ describe("extractBracketedTerms", () => {
     expect(extractBracketedTerms("[:rb_rune_fire:]")).toEqual([]);
   });
 
-  // ── CJK: trailing digit stripping ──────────────────────────────────────
-
   it("strips trailing digit from CJK keyword", () => {
     expect(extractBracketedTerms("[坚守2]")).toEqual(["坚守"]);
   });
@@ -79,8 +71,6 @@ describe("extractBracketedTerms", () => {
   it("strips trailing digit and > together", () => {
     expect(extractBracketedTerms("[等级6>]")).toEqual(["等级"]);
   });
-
-  // ── CJK: trailing color stripping ──────────────────────────────────────
 
   it("strips trailing 蓝色 (blue)", () => {
     expect(extractBracketedTerms("[装配蓝色]")).toEqual(["装配"]);
@@ -110,8 +100,6 @@ describe("extractBracketedTerms", () => {
     expect(extractBracketedTerms("[装配黑色]")).toEqual(["装配"]);
   });
 
-  // ── CJK: combined digit + color stripping ──────────────────────────────
-
   it("strips trailing digit+color combination", () => {
     expect(extractBracketedTerms("[回响4蓝色]")).toEqual(["回响"]);
   });
@@ -120,13 +108,9 @@ describe("extractBracketedTerms", () => {
     expect(extractBracketedTerms("[回响12紫色]")).toEqual(["回响"]);
   });
 
-  // ── CJK: trailing Latin letter stripping ───────────────────────────────
-
   it("strips trailing Latin letter from CJK keyword", () => {
     expect(extractBracketedTerms("[装配A]")).toEqual(["装配"]);
   });
-
-  // ── CJK: no-op cases ──────────────────────────────────────────────────
 
   it("keeps plain CJK keyword unchanged", () => {
     expect(extractBracketedTerms("[坚守]")).toEqual(["坚守"]);
@@ -137,7 +121,6 @@ describe("extractBracketedTerms", () => {
   });
 
   it("preserves standalone CJK color word (too short after stripping)", () => {
-    // 蓝色 alone: stripping color leaves "", length < 2, so keeps original
     expect(extractBracketedTerms("[蓝色]")).toEqual(["蓝色"]);
   });
 
@@ -145,13 +128,9 @@ describe("extractBracketedTerms", () => {
     expect(extractBracketedTerms("[红色]")).toEqual(["红色"]);
   });
 
-  // ── CJK: space-separated params still work ────────────────────────────
-
   it("strips space-separated numeric params from CJK keywords", () => {
     expect(extractBracketedTerms("[护盾 2]")).toEqual(["护盾"]);
   });
-
-  // ── CJK: multiple terms ────────────────────────────────────────────────
 
   it("handles mixed CJK terms with different suffixes", () => {
     expect(extractBracketedTerms("[坚守2] [装配蓝色] [回响4蓝色] [等级6>]")).toEqual([
@@ -162,14 +141,9 @@ describe("extractBracketedTerms", () => {
     ]);
   });
 
-  // ── Mixed EN and CJK (should not happen in practice but tests safety) ─
-
   it("does not strip digits from English keywords", () => {
-    // English keywords don't contain CJK chars, so CJK stripping is skipped
     expect(extractBracketedTerms("[Shield2]")).toEqual(["Shield2"]);
   });
-
-  // ── Nested markup (inherited from the shared tokenizer) ────────────────
 
   it("finds a keyword inside reminder text", () => {
     expect(extractBracketedTerms("(gain [Flying])")).toEqual(["Flying"]);
@@ -180,8 +154,6 @@ describe("extractBracketedTerms", () => {
   });
 
   it("keeps source order across nested and top-level brackets", () => {
-    // Positional correlation is the whole point of this function, so a keyword
-    // in reminder text has to land between its neighbours, not after them.
     expect(extractBracketedTerms("[Assault 1] _(also gains [Shield 2])_ [Deflect]")).toEqual([
       "Assault",
       "Shield",
@@ -190,18 +162,12 @@ describe("extractBracketedTerms", () => {
   });
 
   it("skips shape markers attached to a keyword", () => {
-    // The tokenizer folds [>] / [>>] into the keyword they decorate, so neither
-    // reaches the output as a term of its own.
     expect(extractBracketedTerms("[Level 3][>]")).toEqual(["Level"]);
     expect(extractBracketedTerms("[>>][Reaction]")).toEqual(["Reaction"]);
   });
 });
 
-// ── extractKeywords ───────────────────────────────────────────────────────
-
 describe("extractKeywords", () => {
-  // ── Empty / missing input ───────────────────────────────────────────────
-
   it("returns empty array for empty string", () => {
     expect(extractKeywords("")).toEqual([]);
   });
@@ -214,8 +180,6 @@ describe("extractKeywords", () => {
   it("returns empty array when text has no brackets", () => {
     expect(extractKeywords("Deal 3 damage to a unit.")).toEqual([]);
   });
-
-  // ── Basic extraction ───────────────────────────────────────────────────
 
   it("extracts a single keyword", () => {
     expect(extractKeywords("[Shield]")).toEqual(["Shield"]);
@@ -237,13 +201,9 @@ describe("extractKeywords", () => {
     expect(result).toHaveLength(3);
   });
 
-  // ── Deduplication ──────────────────────────────────────────────────────
-
   it("deduplicates repeated keywords", () => {
     expect(extractKeywords("[Shield] [Shield 2] [Shield 3]")).toEqual(["Shield"]);
   });
-
-  // ── Skipped tokens ────────────────────────────────────────────────────
 
   it("skips pure-number brackets", () => {
     expect(extractKeywords("[3]")).toEqual([]);
@@ -261,16 +221,12 @@ describe("extractKeywords", () => {
     expect(extractKeywords("[:rb_rune_fire:]")).toEqual([]);
   });
 
-  // ── Mixed content ─────────────────────────────────────────────────────
-
   it("extracts keywords from mixed text with non-keyword brackets", () => {
     const result = extractKeywords("When played, [Shield 2]. Deal [3] damage. [Assault 1].");
     expect(result).toContain("Shield");
     expect(result).toContain("Assault");
     expect(result).toHaveLength(2);
   });
-
-  // ── Nested markup (inherited from the shared tokenizer) ────────────────
 
   it("extracts a keyword from italicized reminder text", () => {
     expect(extractKeywords("_(This unit has [Shield].)_")).toEqual(["Shield"]);

@@ -1,11 +1,6 @@
 /* oxlint-disable import/no-nodejs-modules -- standalone script */
 /**
- * Write the Firefox update manifest for a signed build.
- *
- * Runs after `web-ext sign` in .github/workflows/release-extension.yml: it
- * takes the signed .xpi, hashes it, and emits the JSON Firefox polls to find
- * new versions. Generated rather than hand-maintained so the version, the
- * asset URL, and the hash can never drift from what was actually published.
+ * Writes the Firefox update manifest for a signed build.
  *
  * Usage: bun scripts/write-update-manifest.ts <signed.xpi> <out.json>
  */
@@ -31,8 +26,6 @@ const xpiBytes = readFileSync(xpiPath);
 const sha256 = createHash("sha256").update(xpiBytes).digest("hex");
 const fileName = basename(xpiPath);
 
-// The asset does not exist yet — the workflow uploads it to this tag in the
-// next step. The URL is derived from the version, so it is knowable up front.
 const manifest = buildUpdateManifest({
   version,
   xpiUrl: xpiDownloadUrl(version, fileName),

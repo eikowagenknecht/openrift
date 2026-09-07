@@ -9,12 +9,7 @@ interface RulesFetchers {
   fetchRules: (kind: RuleKind) => Promise<RulesListResponse>;
 }
 
-/**
- * In-memory cache of the latest core and tournament rules, mirroring
- * `CatalogCache`: rebuilt from the API on startup and on every refresh, and a
- * failed refresh keeps the previous snapshot. Kept separate from the catalog
- * cache so a rules fetch problem never blocks card lookups (or vice versa).
- */
+// Kept separate from CatalogCache so a rules fetch failure never blocks card lookups, or vice versa.
 export class RulesCache {
   readonly #fetchers: RulesFetchers;
   #snapshot: RulesSnapshot | null = null;
@@ -23,15 +18,11 @@ export class RulesCache {
     this.#fetchers = fetchers;
   }
 
-  /** @returns The latest snapshot, or null before the first successful refresh. */
   get snapshot(): RulesSnapshot | null {
     return this.#snapshot;
   }
 
-  /**
-   * Re-fetches both rule kinds and swaps the snapshot atomically. Throws on
-   * fetch failure and keeps the previous snapshot.
-   */
+  // Throws on fetch failure; the previous snapshot is left untouched.
   async refresh(): Promise<void> {
     const [core, tournament] = await Promise.all([
       this.#fetchers.fetchRules("core"),

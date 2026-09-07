@@ -129,11 +129,8 @@ test.describe("sign out", () => {
     await loginViaForm(page, email, password);
     await openUserMenu(page);
 
-    // Explicitly wait for the sign-out POST to resolve before asserting
-    // session state. Waiting only on the /cards URL change races with the
-    // cookie clear: router.navigate fires immediately after signOut() resolves,
-    // so the URL can flip before the browser has committed the Set-Cookie that
-    // drops the better-auth session token.
+    // router.navigate fires immediately after signOut() resolves, so the URL
+    // can flip before the Set-Cookie clearing the session actually commits.
     const signOutResponse = page.waitForResponse(
       (response) =>
         response.url().endsWith("/api/auth/sign-out") && response.request().method() === "POST",
@@ -169,9 +166,8 @@ test.describe("sign out", () => {
     await openUserMenu(page);
     await page.getByRole("menuitem", { name: "Sign out" }).click();
     await expect(page).toHaveURL(/\/cards$/u, { timeout: 15_000 });
-    // The sign-out redirect lands before the session cookie clear necessarily
-    // propagates; wait for the logged-out header (a Sign in link) so the guarded
-    // /profile visit below actually sees an anonymous session.
+    // The redirect can land before the cookie clear propagates; wait for the
+    // logged-out header so the /profile visit below sees an anonymous session.
     await expect(page.getByRole("link", { name: /sign in/iu }).first()).toBeVisible({
       timeout: 15_000,
     });
@@ -214,15 +210,11 @@ test.describe("sign out", () => {
     }
 
     await loginViaForm(page, email, password);
-    // The isAdmin query (admin/me) is fetched on the logged-out /login page and
-    // cached as false (401) with a 5-min staleTime, so it doesn't refetch after
-    // a client-side login. A fresh load rebuilds the query cache with the
-    // authenticated session, revealing the Admin entry.
+    // isAdmin is cached false (401, 5-min staleTime) from the logged-out
+    // /login page; reload to rebuild the query cache with the new session.
     await page.reload();
-    // The Admin entry is a menu item rendered as a Link to /admin; match it by
-    // href so it works whether it exposes a menuitem or link role. The isAdmin
-    // query resolves asynchronously after the reload, so retry re-opening the
-    // menu until the entry appears.
+    // Match by href since the Admin entry may expose a menuitem or link role;
+    // isAdmin resolves asynchronously, so retry re-opening the menu.
     const adminEntry = page.locator('a[href="/admin"]');
     await expect(async () => {
       await openUserMenu(page);
@@ -253,10 +245,8 @@ test.describe("sign out", () => {
     await page.goto("/collections");
     await expect(page).toHaveURL(/\/collections/u, { timeout: 15_000 });
 
-    // Collections wraps the page in a nested sidebar whose mobile trigger
-    // is also named "Menu". Target the header banner's user-menu button
-    // specifically, and retry in case the first click lands during sidebar
-    // state transitions.
+    // Collections' nested sidebar has its own "Menu" trigger; scope to the
+    // header banner's button and retry past sidebar transitions.
     await expect(async () => {
       await page.getByRole("banner").getByRole("button", { name: "Menu", exact: true }).click();
       await expect(page.getByRole("menuitem", { name: "Sign out" })).toBeVisible({

@@ -28,10 +28,8 @@ const OVERLAY_TAG = "Admin - Meta overlays";
 const BASE = "/api/admin/v1/meta";
 
 /**
- * Slugs the `/meta` route space already spends on its own pages. An event
- * claiming one would be shadowed by the static route and never reachable, so
- * they are rejected at the contract boundary rather than left to produce a
- * confusing 404 later. Add a name here whenever `/meta` gains a static child.
+ * A slug here would be shadowed by `/meta`'s own static routes and never
+ * reachable. Add a name whenever `/meta` gains a static child.
  */
 export const RESERVED_META_EVENT_SLUGS = [
   "admin",
@@ -62,8 +60,6 @@ const eventBodySchema = z.object({
   format: z.string().min(1),
   playerCount: z.number().int().positive().nullable().optional(),
   organizer: z.string().min(1).max(120).nullable().optional(),
-  // No `sourceUrl` (migration 255): attribution is the event's citation list,
-  // written through the source endpoints below and by linking a candidate.
   notes: z.string().max(4000).nullable().optional(),
   tier: metaEventTierSchema.optional(),
   country: countrySchema.nullable().optional(),
@@ -83,11 +79,8 @@ export const adminMetaEventSchema = z
     tier: metaEventTierSchema,
     country: z.string().nullable(),
     location: z.string().nullable(),
-    /** Standings rows the archive holds, decks and deckless entries alike. */
     playerRowCount: z.number().int().nonnegative(),
-    /** The subset of those rows with a decklist attached. */
     deckCount: z.number().int().nonnegative(),
-    /** The mirrors feeding this event, in promotion order. */
     sources: z.array(
       z.object({
         id: z.string(),
@@ -100,17 +93,12 @@ export const adminMetaEventSchema = z
   .openapi("AdminMetaEvent");
 
 const adminMetaEventListQuerySchema = z.object({
-  /** Matched against the event name and the organizer. */
   search: z.string().optional(),
-  /** A `deck_formats` slug. */
   format: z.string().optional(),
-  /** A provider that feeds the event, or `manual` for events no provider feeds. */
   source: z.enum(META_EVENT_SOURCE_FILTERS).optional(),
   dateFrom: isoDate.optional(),
   dateTo: isoDate.optional(),
-  /** True keeps only events holding fewer standings rows than the reported field. */
   incompleteStandings: z.coerce.boolean().optional(),
-  /** True keeps only events where no standings row carries a decklist. */
   noDecks: z.coerce.boolean().optional(),
   sort: z.enum(META_EVENT_SORTS).optional(),
   direction: z.enum(META_EVENT_SORT_DIRECTIONS).optional(),
@@ -128,14 +116,12 @@ export const adminMetaEventListResponseSchema = z
   .openapi("AdminMetaEventList");
 
 /**
- * One citation on an event, as the admin table lists it. Same row the public
- * event page prints — citations are not admin data, they are the credit line —
- * so this mirrors `metaEventSourceSchema` field for field.
+ * Mirrors the public event page's citation schema field for field: citations
+ * are the credit line, not admin-only data.
  */
 export const adminMetaEventSourceSchema = z
   .object({
     id: z.string(),
-    /** Null together with `externalId` for a hand-entered citation. */
     provider: z.string().nullable(),
     externalId: z.string().nullable(),
     label: z.string(),
@@ -143,11 +129,7 @@ export const adminMetaEventSourceSchema = z
   })
   .openapi("AdminMetaEventSource");
 
-/**
- * One standings row in the event's management table. The deck fields are all
- * null together for an entry the archive knows no list for, which is most of a
- * real event's field.
- */
+/** Deck fields are null together for a row the archive has no list for — most of a real event's field. */
 export const adminMetaPlayerSchema = z
   .object({
     id: z.string(),
@@ -163,20 +145,17 @@ export const adminMetaPlayerSchema = z
     championName: z.string().nullable(),
     listStatus: metaListStatusSchema,
     deckId: z.string().nullable(),
-    /** The deck's permalink slug; null together with `deckId`. */
     shareToken: z.string().nullable(),
     deckName: z.string().nullable(),
     deckFormat: deckFormatSchema.nullable(),
     cardCount: z.number().int().nonnegative(),
-    /** Fields accepted overlays own for this row; the sources no longer decide them. */
     claimedFields: z.array(z.string()),
   })
   .openapi("AdminMetaPlayer");
 
 /**
- * Structured card rows, not a deck code: the admin client parses whatever it
- * was pasted (deck code, text list) and sends the resolved cards, so the API
- * never owns a second parser.
+ * Structured, already-resolved card rows, not a deck code — the admin client
+ * parses whatever was pasted and sends the resolved cards.
  */
 const metaDeckCardSchema = z.object({
   cardId: z.uuid(),
@@ -185,44 +164,30 @@ const metaDeckCardSchema = z.object({
   preferredPrintingId: z.uuid().nullable().optional(),
 });
 
-/**
- * Free-form per-deck format config, same loose shape the user-facing deck
- * contract uses: the format owns the schema and the handler validates it.
- */
+/** Free-form: the format owns the schema and the handler validates it. */
 const formatConfigSchema = z.record(z.string(), z.unknown()).nullable();
 
-/** A list status a deck can actually hold — `"none"` means there is no deck. */
 const attachedListStatusSchema = metaListStatusSchema.exclude(["none"]);
 
 /**
- * The decklist attached to a standings row. Present creates or replaces the
- * archived deck (and mints its permalink); absent leaves the row standings-only.
+ * Present creates or replaces the archived deck (and mints its permalink);
+ * absent leaves the row standings-only.
  */
 const metaPlayerListSchema = z.object({
   name: z.string().min(1).max(200),
   format: z.string().min(1),
   formatConfig: formatConfigSchema.optional(),
   cards: z.array(metaDeckCardSchema).min(1).max(500),
-  /**
-   * `"partial"` means the main deck is complete and the side zones may be
-   * missing; it counts as a list everywhere a full one does.
-   */
   listStatus: attachedListStatusSchema.optional().default("full"),
 });
 
 const playerScalarFields = {
   playerName: z.string().min(1).max(80),
   rank: z.number().int().min(1),
-  /** True when `rank` is a cut bucket ("T8") rather than an exact standing. */
   rankIsTier: z.boolean().optional().default(false),
   wins: z.number().int().min(0).nullable().optional().default(null),
   losses: z.number().int().min(0).nullable().optional().default(null),
   draws: z.number().int().min(0).nullable().optional().default(null),
-  /**
-   * The legend the player played, which the archive knows for nearly every entry
-   * whether or not a list was published. Ignored when `list` is given: the
-   * deck's own legend zone wins there.
-   */
   legendCardId: z.uuid().nullable().optional().default(null),
   championCardId: z.uuid().nullable().optional().default(null),
 };
@@ -234,10 +199,8 @@ const createMetaPlayerSchema = z.object({
 });
 
 /**
- * A standings-row correction, claimed field by field: a present key is
- * claimed, an absent one says nothing, and a null on a nullable field clears
- * it. `playerName: null` hands a source-keyed row back to the source's
- * renames.
+ * Field-by-field correction: present is claimed, absent says nothing, null on
+ * a nullable field clears it. `playerName: null` reverts to the source's name.
  */
 const playerOverlayFieldsSchema = z
   .object({
@@ -257,29 +220,16 @@ const playerOverlayFieldsSchema = z
   })
   .partial();
 
-/**
- * The list an admin's overlay claims. No `format`: an archived deck's format
- * is the event's, which promotion owns. `name` is not overlay data either —
- * promotion preserves deck renames — so it is applied as a direct rename of
- * the derived deck after the promote.
- */
+/** No `format`: promotion decides it. `name` applies as a direct rename after promote, not a tracked claim. */
 const playerOverlayListSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   cards: z.array(metaDeckCardSchema).min(1).max(500),
   listStatus: attachedListStatusSchema.optional().default("full"),
 });
 
-// ── Candidate ingest (ADR-014) ───────────────────────────────────────────────
-// Wire validation here is deliberately lenient, exactly as the card pipeline's
-// upload is: value constraints are checked per item inside the ingest service so
-// one malformed event or player skips with a reported reason instead of 400-ing
-// the whole batch. Bounds, zone vocabulary, and date validity all live there.
-
 /**
- * Absent, null, `""`, and whitespace-only all mean "the source didn't give us
- * this". Scrapers routinely emit `""` for a field they found no value for, and
- * the live columns CHECK a minimum length, so folding it here is what keeps an
- * otherwise fine event from being skipped with a bounds complaint.
+ * Bounds and vocabulary are checked per item in the ingest service; one bad
+ * event/player is skipped, and the batch still succeeds.
  */
 const nullStr = z
   .string()
@@ -291,23 +241,11 @@ const nullStr = z
 const nullNum = z.number().nullable().optional().default(null);
 
 const uploadDeckCardSchema = z.object({
-  /** The card name as the source wrote it; matched through the shared alias index. */
   name: z.string(),
   zone: z.string(),
   quantity: z.number(),
 });
 
-/**
- * One player of an uploaded event. The list is optional and usually absent: the
- * official source publishes the whole field's records for every event and a
- * decklist for almost none.
- *
- * `listStatus` and `cards` have to agree, so the transform below settles it
- * rather than letting a producer claim a completeness its payload contradicts:
- * cards present defaults to `"full"` and may say `"partial"`, cards absent is
- * `"none"` and may say nothing else. An empty `cards` array is read as absent —
- * "no list" and "a list of nothing" are the same claim.
- */
 const uploadPlayerSchema = z
   .object({
     externalId: z.string(),
@@ -317,18 +255,11 @@ const uploadPlayerSchema = z
     wins: nullNum,
     losses: nullNum,
     draws: nullNum,
-    /**
-     * The standings columns behind the rank. Producers that publish only a
-     * placement omit them, which is most of them; the official source fills all
-     * four. `entryStatus` is checked against its vocabulary in the service,
-     * like every other value constraint here.
-     */
     matchPoints: nullNum,
     opponentMatchWinPct: nullNum,
     gameWinPct: nullNum,
     opponentGameWinPct: nullNum,
     entryStatus: nullStr,
-    /** Resolved through the same alias index as the card lines. */
     legendName: nullStr,
     championName: nullStr,
     cards: z.array(uploadDeckCardSchema).nullable().optional().default(null),
@@ -365,18 +296,14 @@ const uploadEventSchema = z.object({
   organizer: nullStr,
   sourceUrl: nullStr,
   notes: nullStr,
-  /** Null when the producer classified nothing; the accept classifies then. */
   tier: nullStr,
   country: nullStr,
   location: nullStr,
-  /** Source fields that map to nothing of ours, kept verbatim. */
   extraData: z.unknown().nullable().optional().default(null),
   players: z.array(uploadPlayerSchema).optional().default([]),
 });
 
 export const metaUploadSchema = z.object({
-  // Trimmed and bounded here rather than in the service: the provider names the
-  // whole batch, so a blank one is a 400 on the request, not a per-item skip.
   provider: z.string().trim().min(1),
   events: z.array(uploadEventSchema).min(1),
 });
@@ -398,9 +325,7 @@ export const metaUploadResponseSchema = z
     newPlayers: z.number().int(),
     updatedPlayers: z.number().int(),
     unchangedPlayers: z.number().int(),
-    /** Events and players whose key is on an ignore list. */
     ignoredSkipped: z.number().int(),
-    /** One line per dropped duplicate and per item that failed validation. */
     errors: z.array(z.string()),
     newEventDetails: z.array(uploadEventDetailSchema),
     updatedEventDetails: z.array(uploadEventDetailSchema),
@@ -408,21 +333,13 @@ export const metaUploadResponseSchema = z
   })
   .openapi("MetaUploadResponse");
 
-/**
- * One claimed field, with the value the overlay sets and what live holds today.
- *
- * `to` is nullable because clearing a field is a legitimate claim: the mask is
- * what distinguishes "set this to nothing" from "say nothing about this", and
- * this schema carries both sides so a reviewer sees the change, not just the
- * new value.
- */
+/** `to` nullable means "clear this field", distinct from the field being absent from the change list entirely. */
 const metaOverlayFieldChangeSchema = z.object({
   field: z.string(),
   from: z.string().nullable(),
   to: z.string().nullable(),
 });
 
-/** One line of a submitted decklist. `cardId` is null while the name matches nothing. */
 const metaOverlayCardSchema = z.object({
   lineNumber: z.number().int().nonnegative(),
   zone: z.string(),
@@ -442,7 +359,6 @@ export const metaOverlayMatchStateSchema = z.enum([
 /** Which live standings row a player overlay lands on, as far as the queue can tell without a second fetch. */
 export const metaOverlayRowMatchSchema = z.object({
   state: metaOverlayMatchStateSchema,
-  /** The anchored row for `linked`, the row Accept would link for `exact`, else null. */
   metaEventPlayerId: z.string().nullable(),
   playerName: z.string().nullable(),
   rank: z.number().int().nullable(),
@@ -455,42 +371,25 @@ export const metaOverlayQueueRowSchema = z
     id: z.string(),
     kind: z.enum(["event", "player"]),
     status: metaOverlayStatusSchema,
-    /** The push provider that wrote this overlay; null for people. */
     provider: z.string().nullable(),
-    /**
-     * The provider's own event key (event rows) or the key of the event a
-     * pushed player row belongs to. With `provider`, this is what a dismiss
-     * takes; null for people.
-     */
     sourceEventExternalId: z.string().nullable(),
-    /** The provider's own key for a pushed standings row. See above; null for people. */
     sourcePlayerExternalId: z.string().nullable(),
-    /** The proposal a player row rides on; null on event rows and on rows under a live event. */
     eventOverlayId: z.string().nullable(),
-    /** The live event this row lands on, resolved through the anchor or parent proposal; null on a proposal. */
     metaEventId: z.string().nullable(),
-    /** The standings row a player overlay is anchored to; null while loose. */
     metaEventPlayerId: z.string().nullable(),
     metaEventName: z.string().nullable(),
     metaEventSlug: z.string().nullable(),
-    /** The live event's date, or a proposal's own. */
     eventDate: isoDate.nullable(),
-    /** The live event's format, or a proposal's own. */
     eventFormat: z.string().nullable(),
-    /** What the submitter called the event, so a proposal still reads. */
     proposedName: z.string().nullable(),
     playerName: z.string().nullable(),
-    /** The finish this row claims, else the anchored row's; null on event rows. */
     rank: z.number().int().nullable(),
     rankIsTier: z.boolean().nullable(),
-    /** Null on event rows. */
     match: metaOverlayRowMatchSchema.nullable(),
     submittedBy: z.string().nullable(),
     submissionNote: z.string().nullable(),
     changes: z.array(metaOverlayFieldChangeSchema),
-    /** Card lines this overlay claims, empty unless it claims `cards`. */
     cards: z.array(metaOverlayCardSchema),
-    /** Names in {@link cards} that resolve to nothing, deduplicated. */
     unresolvedNames: z.array(z.string()),
     createdAt: isoDateTime,
   })
@@ -498,10 +397,7 @@ export const metaOverlayQueueRowSchema = z
 
 export const metaOverlayDetailSchema = metaOverlayQueueRowSchema.openapi("MetaOverlayDetail");
 
-/**
- * The subset of an overlay's claims an accept keeps; absent keeps every
- * claim. `cards` and `listStatus` are one claim: naming either keeps both.
- */
+/** Absent keeps every claim. `cards` and `listStatus` are one claim: naming either keeps both. */
 const acceptClaimFields = z
   .array(z.enum(META_PLAYER_OVERLAY_FIELDS))
   .nullable()
@@ -518,42 +414,25 @@ export const metaOverlayBulkAcceptResultSchema = z
 export const metaOverlayReviewResultSchema = z
   .object({
     metaEventId: z.string().nullable(),
-    /** True when accepting a proposal minted the live event. */
     created: z.boolean(),
   })
   .openapi("MetaOverlayReviewResult");
 
 /**
- * One field of the drift view: what each linked mirror published for it, and
- * what live shows.
- *
- * `claimedByOverlay` is why a field can disagree with every source and still be
- * correct: an accepted overlay owns it, so promotion no longer lets a source
- * win it. The UI greys the source cells rather than flagging them as conflicts.
+ * `claimedByOverlay` fields are decided by an accepted overlay, not
+ * promotion — a source can disagree with live and still be correct.
  */
 const metaEventDriftFieldSchema = z.object({
   field: z.string(),
   live: z.string().nullable(),
-  /**
-   * One entry per linked source, in the same order as
-   * {@link metaEventDriftSchema.sources}. `value` is what promotion would use;
-   * `raw` is the source's own term where the projection rewrote it, so a
-   * reviewer can tell a mapping from a source's own words. Null when the
-   * projection passed the value through unchanged.
-   */
   bySource: z.array(z.object({ value: z.string().nullable(), raw: z.string().nullable() })),
   claimedByOverlay: z.boolean(),
-  /**
-   * The source the live value came from, or null when no source published it
-   * (a hand-entered value) or an overlay owns the field.
-   */
   wonBy: z.string().nullable(),
 });
 
 export const metaEventDriftSchema = z
   .object({
     metaEventId: z.string(),
-    /** The linked mirrors, in promotion order: the last one wins a contested field. */
     sources: z.array(
       z.object({
         id: z.string(),
@@ -561,7 +440,6 @@ export const metaEventDriftSchema = z
         externalId: z.string().nullable(),
         label: z.string(),
         priority: z.number().int(),
-        /** False when the provider has no crawler, so nothing promotes from it. */
         hasMirror: z.boolean(),
       }),
     ),
@@ -570,9 +448,8 @@ export const metaEventDriftSchema = z
   .openapi("MetaEventDrift");
 
 /**
- * One live event a proposed overlay might duplicate, with the signals behind
- * its rank. Ranked hints only — nothing is ever linked automatically, because a
- * wrong link fans two unrelated tournaments into one page.
+ * Ranked hints only: nothing links automatically, since a wrong link would
+ * fold two unrelated tournaments into one page.
  */
 export const metaEventMatchSuggestionSchema = z
   .object({
@@ -582,11 +459,8 @@ export const metaEventMatchSuggestionSchema = z
     eventDate: isoDate,
     format: z.string(),
     playerRowCount: z.number().int().nonnegative(),
-    /** Higher is better. Comparable only within one response. */
     score: z.number(),
-    /** Why it ranked, in the order the signals were weighed. */
     reasons: z.array(z.string()),
-    /** Same name, same date, same format: nothing is left for the reviewer to weigh. */
     isExact: z.boolean(),
   })
   .openapi("MetaEventMatchSuggestion");
@@ -612,45 +486,34 @@ export const metaUploadRevertResultSchema = z
   })
   .openapi("MetaUploadRevertResult");
 
-/** One live standings row a player overlay might describe, inside its event. */
 export const metaPlayerMatchSuggestionSchema = z
   .object({
     metaEventPlayerId: z.string(),
     playerName: z.string(),
     rank: z.number().int(),
     rankIsTier: z.boolean(),
-    /** The row's deck, when it already has one. */
     deckId: z.string().nullable(),
     score: z.number(),
     reasons: z.array(z.string()),
     isCurrent: z.boolean(),
-    /** The same player name, normalized: this is the row the overlay describes. */
     isExact: z.boolean(),
   })
   .openapi("MetaPlayerMatchSuggestion");
 
 /**
- * One standings row of a mirror the event cites but does not read, and the live
- * row the reviewer decided it is.
+ * One standings row of a mirror the event cites but does not read, and the
+ * live row the reviewer decided it is.
  */
 export const metaCrossSourceRowSchema = z
   .object({
     provider: z.string(),
-    /** The key promotion files this row under. */
     sourceIdentity: z.string(),
     playerName: z.string(),
     rank: z.number().int(),
     legendName: z.string().nullable(),
-    /** Whether the mirror published a list here, which is most of what a second mirror adds. */
     hasDeck: z.boolean(),
     state: z.enum(META_CROSS_SOURCE_STATES),
-    /** The live row a confirmed link names; null while unreviewed and for a distinct entry. */
     metaEventPlayerId: z.string().nullable(),
-    /**
-     * The shortlist, ranked. Live rows another entry of the same mirror is
-     * already linked to are left out: one mirror contributes at most one
-     * standing per live row, so offering them would only be refused.
-     */
     suggestions: z.array(metaPlayerMatchSuggestionSchema),
   })
   .openapi("MetaCrossSourceRow");
@@ -671,43 +534,13 @@ export const metaCrossSourceReviewSchema = z
   })
   .openapi("MetaCrossSourceReview");
 
-/**
- * oRPC contract for curating the meta archive (ADR-014), mounted under
- * `/api/admin/v1/meta` — the prefix the Hono `requireAdmin` middleware gates,
- * so no handler re-checks the role. Full admin only: the archive is not a
- * grantable section.
- *
- * The unit of curation is a standings row, not a deck: `meta_event_players`
- * holds one row per player and a decklist is an optional attachment to it, so
- * the write verbs create and edit players and pass a list along when there is
- * one.
- *
- * Domain codes: `createEvent` → CONFLICT (slug taken); `updateEvent`,
- * `deleteEvent`, `eventPlayers`, `createPlayer`, `deletePlayer`,
- * `eventSources`, `createEventSource`, `deleteEventSource` → NOT_FOUND;
- * `updateEvent` also CONFLICT when a rename collides; `deleteEventSource` also
- * CONFLICT for a provider citation, which is owned by its candidate's link.
- *
- * Citations replaced the single `source_url` column (migration 255). Only
- * hand-entered ones are created here; a provider's row is written when its
- * event is accepted into the archive.
- *
- * `deleteEvent` removes the underlying `decks` rows too. The player rows cascade
- * from the event, but `meta_event_players.deck_id` is ON DELETE RESTRICT, so the
- * decks are cleared and deleted explicitly rather than stranded under the
- * synthetic owner.
- */
+/** Mounted under the Hono `requireAdmin`-gated prefix, so no handler here re-checks the role. */
 export const adminMetaContract = {
   listEvents: authedRoute
     .route({ method: "GET", path: `${BASE}/events`, tags: [TAG] })
     .input(adminMetaEventListQuerySchema)
     .output(adminMetaEventListResponseSchema),
 
-  /**
-   * One event on its own. The list is paged, so nothing can resolve an event by
-   * scanning it: the standings page and the review screens each read the
-   * single row they are about through here.
-   */
   getEvent: authedRoute
     .route({ method: "GET", path: `${BASE}/events/{id}`, tags: [TAG] })
     .input(idParamSchema)
@@ -724,10 +557,8 @@ export const adminMetaContract = {
     .output(adminMetaEventSchema),
 
   /**
-   * Renames an event's slug, and nothing else: every data field is corrected
-   * through `writeEventOverlayFields`, so a re-promote can never silently
-   * revert an admin's edit. The slug is identity rather than data — no source
-   * publishes one, so it has no overlay to claim.
+   * Only the slug: every other field goes through `writeEventOverlayFields`,
+   * or a re-promote would silently revert the edit.
    */
   updateEvent: authedRoute
     .route({ method: "PATCH", path: `${BASE}/events/{id}`, tags: [TAG], successStatus: 204 })
@@ -737,6 +568,8 @@ export const adminMetaContract = {
       CONFLICT: { message: "An event with that slug already exists" },
     }),
 
+  // `meta_event_players.deck_id` is ON DELETE RESTRICT: the row's decks are
+  // cleared and deleted explicitly here.
   deleteEvent: authedRoute
     .route({ method: "DELETE", path: `${BASE}/events/{id}`, tags: [TAG], successStatus: 204 })
     .input(idParamSchema)
@@ -755,7 +588,6 @@ export const adminMetaContract = {
       NOT_FOUND: { message: "Event not found" },
       BAD_REQUEST: { message: "Unknown deck format" },
     })
-    // `deckId` and `shareToken` are null together when no list was supplied.
     .output(
       z.object({
         metaEventPlayerId: z.string(),
@@ -764,11 +596,7 @@ export const adminMetaContract = {
       }),
     ),
 
-  /**
-   * Renames a standings row's archived deck. Not an overlay: the deck's name
-   * is the archive's own derived artifact, promotion preserves whatever name
-   * is already there, so a direct rename is durable and needs no claim.
-   */
+  /** Not an overlay: promotion never touches a deck's name once set, so a direct rename needs no claim. */
   renamePlayerDeck: authedRoute
     .route({
       method: "POST",
@@ -797,8 +625,7 @@ export const adminMetaContract = {
       tags: [TAG],
       successStatus: 201,
     })
-    // Strict, so a body carrying `provider` / `externalId` fails validation
-    // instead of being silently stripped.
+    // Strict: a body carrying `provider` / `externalId` fails validation.
     .input(
       withParams(idParamSchema, {
         label: z.string().trim().min(1).max(60),
@@ -808,9 +635,8 @@ export const adminMetaContract = {
     .errors({ NOT_FOUND: { message: "Event not found" } })
     .output(adminMetaEventSourceSchema),
 
-  // Nested under the event rather than a flat `/event-sources/{id}`: the
-  // handler has to read the event's citations anyway, to refuse a provider row
-  // before deleting it.
+  // Nested under the event, not a flat `/event-sources/{id}`: the handler
+  // reads the event's citations anyway, to refuse a provider row before deleting it.
   deleteEventSource: authedRoute
     .route({
       method: "DELETE",
@@ -827,26 +653,6 @@ export const adminMetaContract = {
 
 export type AdminMetaContract = typeof adminMetaContract;
 
-/**
- * The overlay queue and the drift view (ADR-014 revision 3), on the
- * admin-gated `/api/admin/v1/meta` prefix.
- *
- * Two things need reviewing and they are deliberately not the same screen.
- * **Drift** is a read: it shows each linked mirror beside the live row so the
- * admin can see where they disagree. Its only writes are a source's priority
- * and an overlay claiming a field. **The queue** is the pending overlays, which
- * accept or reject settles.
- *
- * There is no per-cell accept. Taking one source's value for one field is
- * exactly what an overlay is, and a second way to spell that is a second thing
- * to keep consistent. Linking is `meta_event_sources`, not a candidate FK, so
- * the link/relink/unlink trio is gone with it.
- *
- * Domain codes: `acceptEventOverlay` → NOT_FOUND for an unknown id,
- * BAD_REQUEST when a proposal names no event, CONFLICT when no free slug could
- * be minted. `acceptPlayerOverlay` → CONFLICT while its event is still only
- * proposed. `reject` → NOT_FOUND.
- */
 export const adminMetaCandidatesContract = {
   upload: authedRoute
     .route({ method: "POST", path: `${BASE}/upload`, tags: [OVERLAY_TAG] })
@@ -869,16 +675,7 @@ export const adminMetaCandidatesContract = {
     .errors({ NOT_FOUND: { message: "Event not found" } })
     .output(metaEventDriftSchema),
 
-  /**
-   * The admin's correction path: claim event fields for the archive.
-   *
-   * Corrections are born accepted, so this writes the overlay and re-promotes
-   * in one call. One admin's edits on one event merge into a single overlay
-   * row; different submitters keep separate rows. Claiming every field at once
-   * would be indistinguishable from turning the sources off, which is what
-   * source priority is for — so callers send only the fields the admin
-   * actually changed.
-   */
+  /** Only send fields the admin actually changed — claiming every field would behave like disabling every source. */
   writeEventOverlayFields: authedRoute
     .route({ method: "POST", path: `${BASE}/events/{id}/overlays`, tags: [OVERLAY_TAG] })
     .input(
@@ -887,7 +684,6 @@ export const adminMetaCandidatesContract = {
           .array(
             z.object({
               field: z.enum(META_EVENT_OVERLAY_FIELDS),
-              /** Null clears the field, which the mask makes expressible. */
               value: z.string().nullable(),
             }),
           )
@@ -901,11 +697,7 @@ export const adminMetaCandidatesContract = {
     })
     .output(metaOverlayReviewResultSchema),
 
-  /**
-   * Hands one field back to the sources: every accepted overlay claiming it
-   * loses the claim, and the next promote lets the winning source decide it
-   * again.
-   */
+  /** Every accepted overlay claiming this field loses the claim, so the next promote lets a source decide it again. */
   releaseEventOverlayField: authedRoute
     .route({ method: "POST", path: `${BASE}/events/{id}/overlays/release`, tags: [OVERLAY_TAG] })
     .input(idParamSchema.extend({ field: z.enum(META_EVENT_OVERLAY_FIELDS) }))
@@ -913,11 +705,8 @@ export const adminMetaCandidatesContract = {
     .output(metaOverlayReviewResultSchema),
 
   /**
-   * The admin's correction path for a standings row, mirroring
-   * `writeEventOverlayFields`: one merged accepted overlay per (row, author),
-   * present keys claimed, re-promoted in the same call. `list` distinguishes
-   * absent (say nothing), an object (claim this list) and null (claim that
-   * there is no list).
+   * Mirrors `writeEventOverlayFields` for a standings row. `list`: absent says
+   * nothing, an object claims a list, null claims there is none.
    */
   writePlayerOverlayFields: authedRoute
     .route({ method: "POST", path: `${BASE}/players/{id}/overlays`, tags: [OVERLAY_TAG] })
@@ -933,11 +722,7 @@ export const adminMetaCandidatesContract = {
     })
     .output(metaOverlayReviewResultSchema),
 
-  /**
-   * See `releaseEventOverlayField`. Releasing `cards` or `listStatus` releases
-   * both: a list and its status can never disagree, so they claim and release
-   * as one.
-   */
+  /** Releasing `cards` or `listStatus` releases both: a list and its status can never disagree. */
   releasePlayerOverlayField: authedRoute
     .route({ method: "POST", path: `${BASE}/players/{id}/overlays/release`, tags: [OVERLAY_TAG] })
     .input(idParamSchema.extend({ field: z.enum(META_PLAYER_OVERLAY_FIELDS) }))
@@ -955,11 +740,7 @@ export const adminMetaCandidatesContract = {
     .input(z.object({ name: z.string().min(1).max(200), cardId: z.uuid() }))
     .output(z.object({ updated: z.number().int().nonnegative() })),
 
-  /**
-   * `metaEventId` accepts a proposal into an event the archive already has —
-   * the reviewer acting on a match suggestion — instead of minting a
-   * duplicate. Ignored for an overlay that already patches a live event.
-   */
+  /** `metaEventId` accepts the proposal into an event the archive already has; null mints a new one. */
   acceptEventOverlay: authedRoute
     .route({ method: "POST", path: `${BASE}/overlays/events/{id}/accept`, tags: [OVERLAY_TAG] })
     .input(idParamSchema.extend({ metaEventId: z.string().nullable().optional().default(null) }))
@@ -970,7 +751,6 @@ export const adminMetaCandidatesContract = {
     })
     .output(metaOverlayReviewResultSchema),
 
-  /** Points an upload at another archived event, keeping its status, and re-promotes both. */
   moveEventOverlay: authedRoute
     .route({ method: "POST", path: `${BASE}/overlays/events/{id}/move`, tags: [OVERLAY_TAG] })
     .input(idParamSchema.extend({ metaEventId: z.string() }))
@@ -980,10 +760,7 @@ export const adminMetaCandidatesContract = {
     })
     .output(metaOverlayReviewResultSchema),
 
-  /**
-   * `metaEventPlayerId` anchors the overlay to the row on an exact match;
-   * `fields` narrows what the accept keeps — see {@link acceptClaimFields}.
-   */
+  /** `fields` narrows what the accept keeps — see {@link acceptClaimFields}. */
   acceptPlayerOverlay: authedRoute
     .route({ method: "POST", path: `${BASE}/overlays/players/{id}/accept`, tags: [OVERLAY_TAG] })
     .input(
@@ -999,10 +776,7 @@ export const adminMetaCandidatesContract = {
     })
     .output(metaOverlayReviewResultSchema),
 
-  /**
-   * Many standings overlays at once, each optionally linked and narrowed
-   * first. Nothing is written when any item is refused.
-   */
+  /** All-or-nothing: nothing is written when any item is refused. */
   acceptPlayerOverlays: authedRoute
     .route({ method: "POST", path: `${BASE}/overlays/players/accept`, tags: [OVERLAY_TAG] })
     .input(
@@ -1026,11 +800,6 @@ export const adminMetaCandidatesContract = {
     })
     .output(metaOverlayBulkAcceptResultSchema),
 
-  /**
-   * Anchors a standings overlay to the live row it describes — the reviewer
-   * acting on a player match suggestion. An already-accepted overlay lands on
-   * the row immediately.
-   */
   linkPlayerOverlay: authedRoute
     .route({ method: "POST", path: `${BASE}/overlays/players/{id}/link`, tags: [OVERLAY_TAG] })
     .input(idParamSchema.extend({ metaEventPlayerId: z.string() }))
@@ -1117,11 +886,6 @@ export const adminMetaCandidatesContract = {
     .output(
       z.object({
         suggestions: z.array(metaEventMatchSuggestionSchema),
-        /**
-         * How many days apart two events may be and still be offered as one
-         * tournament. Travels so an empty list can say why ("no events within
-         * 3 days") instead of just being empty.
-         */
         windowDays: z.number().int().positive(),
       }),
     ),
@@ -1135,12 +899,7 @@ export const adminMetaCandidatesContract = {
     .input(idParamSchema)
     .output(z.object({ suggestions: z.array(metaPlayerMatchSuggestionSchema) })),
 
-  /**
-   * The cross-mirror review for one event (ADR-014, "Two mirrors on one
-   * event"): every standings row its cited-but-unread mirrors publish, each
-   * ranked against the live field. Empty for the ordinary event, which one
-   * mirror describes.
-   */
+  /** Empty for the ordinary event, which only one mirror describes. */
   crossSourceReview: authedRoute
     .route({ method: "GET", path: `${BASE}/events/{id}/cross-source`, tags: [OVERLAY_TAG] })
     .input(idParamSchema)
@@ -1148,12 +907,9 @@ export const adminMetaCandidatesContract = {
     .output(metaCrossSourceReviewSchema),
 
   /**
-   * Records decisions. A null `metaEventPlayerId` says the entry is nobody the
-   * event lists.
-   *
-   * Plural because the review's own bulk action settles a whole field of exact
-   * matches at once, and every decision re-promotes the event: one call is one
-   * promote, where a loop of single writes would promote forty times.
+   * A null `metaEventPlayerId` says the entry is nobody the event lists.
+   * Plural so a whole field of exact matches re-promotes the event once,
+   * not once per decision.
    */
   linkCrossSourcePlayers: authedRoute
     .route({ method: "POST", path: `${BASE}/events/{id}/cross-source/link`, tags: [OVERLAY_TAG] })
@@ -1177,10 +933,7 @@ export const adminMetaCandidatesContract = {
     })
     .output(z.void()),
 
-  /**
-   * Takes one decision back. Refused while the source is read, since promotion
-   * folds on the link and would mint a duplicate row without it.
-   */
+  /** Refused while the source is read: promotion folds on the link and would mint a duplicate row without it. */
   unlinkCrossSourcePlayer: authedRoute
     .route({ method: "POST", path: `${BASE}/events/{id}/cross-source/unlink`, tags: [OVERLAY_TAG] })
     .input(
@@ -1195,11 +948,7 @@ export const adminMetaCandidatesContract = {
     })
     .output(z.void()),
 
-  /**
-   * Lets a cited mirror be read again, or stops it being read. Turning it on is
-   * refused while any of its entries is undecided, since promotion would then
-   * archive someone twice.
-   */
+  /** Turning it on is refused while any entry is undecided, since promotion would then archive someone twice. */
   setSourceContributes: authedRoute
     .route({ method: "POST", path: `${BASE}/event-sources/{id}/contributes`, tags: [OVERLAY_TAG] })
     .input(idParamSchema.extend({ contributes: z.boolean() }))

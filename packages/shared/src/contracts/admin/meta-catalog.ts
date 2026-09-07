@@ -19,23 +19,16 @@ extendZodWithOpenApi(z);
 const TAG = "Admin - Meta catalogue";
 const BASE = "/api/admin/v1/meta/catalogue";
 
-/** The archive itself, which the catalogue feeds but does not own. */
 const ARCHIVE_BASE = "/api/admin/v1/meta/archive";
 
-/** What a crawl checkpoint carries, as both the API and the admin UI read it. */
 export interface CatalogCheckpoint {
   complete: boolean;
   cancelRequested: boolean;
   rows: number;
-  /** Every event starting at or before this was attempted. The resume point. */
   coveredThrough: string | null;
 }
 
-/**
- * Whether a stored `job_runs.result` is a crawl's and carries a usable resume
- * point. A run from before this shape existed reads as false, so it is started
- * fresh rather than resumed from a field it never wrote.
- */
+/** A run from before this shape existed is treated as false; it starts fresh. */
 export function isCatalogCheckpoint(value: unknown): value is CatalogCheckpoint {
   if (value === null || typeof value !== "object") {
     return false;
@@ -49,7 +42,6 @@ export function isCatalogCheckpoint(value: unknown): value is CatalogCheckpoint 
   );
 }
 
-/** A checkpoint worth continuing: it stopped early and said where. */
 export function isResumableCheckpoint(
   value: unknown,
 ): value is CatalogCheckpoint & { coveredThrough: string } {
@@ -68,43 +60,27 @@ export const metaCatalogRowSchema = z
     startAt: isoDateTime,
     endAtEstimate: isoDateTime.nullable(),
     displayStatus: z.string(),
-    /** `PUBLISHED` is what makes the event's individual decklists readable. */
     decklistStatus: z.string().nullable(),
     playerCount: z.number().int().nullable(),
     eventType: z.string().nullable(),
-    /** The source's format string. Null `mappedFormat` means it maps to nothing of ours. */
     eventFormat: z.string().nullable(),
-    /** The `deck_formats` slug the source's format maps to, when it maps at all. */
     mappedFormat: z.string().nullable(),
-    /**
-     * The label of a recognized official event template ("Regional Qualifier").
-     * Null covers two cases the reader cannot tell apart: the event runs no
-     * watched template, and it runs one whose name the source has stopped
-     * publishing. So a recognized template can show no badge.
-     */
     officialLabel: z.string().nullable(),
     storeName: z.string().nullable(),
     location: z.string().nullable(),
     timezone: z.string().nullable(),
     firstSeenAt: isoDateTime,
     lastSeenAt: isoDateTime,
-    /** Set when a covering crawl stopped returning the row; it is never deleted. */
     missingSince: isoDateTime.nullable(),
-    /** Null once the recheck ladder is exhausted, or while the event is not accepted. */
     nextCheckAt: isoDateTime.nullable(),
     checkStage: z.number().int(),
     triage: triageSchema,
     metaEventId: z.string().nullable(),
     metaEventSlug: z.string().nullable(),
-    /** When the last deep fetch landed; null before the first fetch. */
     fetchedAt: isoDateTime.nullable(),
-    /** Standings rows this source's mirror holds; null before the first fetch. */
     stagedPlayerCount: z.number().int().nonnegative(),
-    /** The mirrored rows whose legend is known. */
     stagedLegendCount: z.number().int().nonnegative(),
-    /** The staged rows carrying a card list. */
     stagedDeckCount: z.number().int().nonnegative(),
-    /** The source's own page for the event, which becomes its citation URL. */
     sourceUrl: z.string(),
   })
   .openapi("MetaCatalogRow");
@@ -118,15 +94,12 @@ const metaCatalogCountsSchema = z.object({
 const metaCatalogListQuerySchema = z.object({
   search: z.string().optional(),
   displayStatus: z.enum(META_CATALOG_DISPLAY_STATUSES).optional(),
-  /** True keeps only events whose organizer published decklists. */
   decklistPublished: z.coerce.boolean().optional(),
   minPlayers: z.coerce.number().int().min(0).optional(),
   dateFrom: isoDateTime.optional(),
   dateTo: isoDateTime.optional(),
   triage: triageSchema.optional(),
-  /** True keeps only rows a covering crawl stopped returning. */
   missing: z.coerce.boolean().optional(),
-  /** True keeps only accepted rows whose results were never fetched. */
   awaitingResults: z.coerce.boolean().optional(),
   sort: z.enum(META_CATALOG_SORTS).optional(),
   direction: z.enum(META_CATALOG_SORT_DIRECTIONS).optional(),
@@ -140,24 +113,18 @@ const metaCatalogListResponseSchema = z
     total: z.number().int(),
     page: z.number().int(),
     limit: z.number().int(),
-    /** Unfiltered bucket sizes, for the tab labels. */
     counts: metaCatalogCountsSchema,
   })
   .openapi("MetaCatalogListResponse");
 
-/** One catalogue row, addressed by the source's own key. */
 const catalogKeySchema = z.object({ externalId: z.string().min(1) });
 
-// ── playloltcg catalogue ────────────────────────────────────────────────────
-// A leaner row than uvsgames: no format mapping, no templates. The venue and the
-// sortWeight lifecycle stand in for the store name and display status.
 export const playloltcgCatalogRowSchema = z
   .object({
     activityShopId: z.number().int(),
     name: z.string(),
     shopName: z.string().nullable(),
     city: z.string().nullable(),
-    /** The sortWeight lifecycle, 1 registration-open … 5 finished; null if unknown. */
     status: z.number().int().nullable(),
     battleMode: z.string().nullable(),
     playerCount: z.number().int().nullable(),
@@ -165,39 +132,28 @@ export const playloltcgCatalogRowSchema = z
     triage: triageSchema,
     metaEventId: z.string().nullable(),
     metaEventSlug: z.string().nullable(),
-    /** When the last deep fetch landed; null before the first fetch. */
     fetchedAt: isoDateTime.nullable(),
-    /** Set when a covering crawl stopped returning the row; it is never deleted. */
     missingSince: isoDateTime.nullable(),
-    /** Null once the recheck ladder is exhausted, or while the event is not accepted. */
     nextCheckAt: isoDateTime.nullable(),
-    /** Standings rows this source's mirror holds; zero before the first fetch. */
     stagedPlayerCount: z.number().int().nonnegative(),
-    /** The mirrored rows whose legend is known. */
     stagedLegendCount: z.number().int().nonnegative(),
-    /** The staged decks the fetch actually got back. */
     stagedDeckCount: z.number().int().nonnegative(),
-    /** The source's own page for the event, its citation URL. */
     sourceUrl: z.string(),
   })
   .openapi("PlayloltcgCatalogRow");
 
 const playloltcgCatalogListQuerySchema = z.object({
   search: z.string().optional(),
-  /** One step of the sortWeight lifecycle, {@link PLAYLOLTCG_STATUSES}. */
   status: z.coerce
     .number()
     .int()
     .refine((value): value is PlayloltcgStatus => PLAYLOLTCG_STATUSES.some((s) => s === value))
     .optional(),
   minPlayers: z.coerce.number().int().min(0).optional(),
-  /** Inclusive calendar-day bounds; `start_at` is a date column, not an instant. */
   dateFrom: isoDate.optional(),
   dateTo: isoDate.optional(),
   triage: triageSchema.optional(),
-  /** True keeps only rows a covering crawl stopped returning. */
   missing: z.coerce.boolean().optional(),
-  /** True keeps only accepted rows whose results were never fetched. */
   awaitingResults: z.coerce.boolean().optional(),
   sort: z.enum(META_CATALOG_SORTS).optional(),
   direction: z.enum(META_CATALOG_SORT_DIRECTIONS).optional(),
@@ -217,52 +173,37 @@ const playloltcgCatalogListResponseSchema = z
 
 const playloltcgKeySchema = z.object({ activityShopId: z.number().int() });
 
-// ── topdeck catalogue ────────────────────────────────────────────────────────
-// Leaner still: one search carries the tournament, its standings and its lists,
-// so there is no fetch queue and no recheck column to show.
 export const topdeckCatalogRowSchema = z
   .object({
     tid: z.string(),
     name: z.string(),
-    /** The source's own format word, not ours: `Constructed`, `Sealed`, `2v2`. */
     format: z.string(),
     city: z.string().nullable(),
     country: z.string().nullable(),
     playerCount: z.number().int().nullable(),
     topCut: z.number().int().nullable(),
     isTeamEvent: z.boolean(),
-    /** The source publishes an instant; the venue-local day is derived at promotion. */
     startAt: isoDateTime,
     triage: triageSchema,
     metaEventId: z.string().nullable(),
     metaEventSlug: z.string().nullable(),
-    /** When the mirror last took this event's standings. */
     fetchedAt: isoDateTime.nullable(),
-    /** Set when a covering crawl stopped returning the row; it is never deleted. */
     missingSince: isoDateTime.nullable(),
     stagedPlayerCount: z.number().int().nonnegative(),
     stagedLegendCount: z.number().int().nonnegative(),
     stagedDeckCount: z.number().int().nonnegative(),
-    /**
-     * The provider the linked live event already reads, when accepting this row
-     * left it cited but not promoted. Null for the ordinary case.
-     */
     rivalProvider: z.string().nullable(),
-    /** The source's own page for the event, its citation URL. */
     sourceUrl: z.string(),
   })
   .openapi("TopdeckCatalogRow");
 
 const topdeckCatalogListQuerySchema = z.object({
   search: z.string().optional(),
-  /** The source's own format word; the axis playloltcg spends on its lifecycle. */
   format: z.string().min(1).optional(),
   minPlayers: z.coerce.number().int().min(0).optional(),
-  /** Inclusive calendar-day bounds, read against the instant `start_at` holds. */
   dateFrom: isoDate.optional(),
   dateTo: isoDate.optional(),
   triage: triageSchema.optional(),
-  /** True keeps only rows a covering crawl stopped returning. */
   missing: z.coerce.boolean().optional(),
   sort: z.enum(META_CATALOG_SORTS).optional(),
   direction: z.enum(META_CATALOG_SORT_DIRECTIONS).optional(),
@@ -283,11 +224,6 @@ const topdeckCatalogListResponseSchema = z
 const topdeckKeySchema = z.object({ tid: z.string().min(1) });
 
 const acceptCatalogEventSchema = catalogKeySchema.extend({
-  /**
-   * Overrides the format mapping, for an event whose source format maps to
-   * nothing. Without it such an event cannot be accepted, which is deliberate:
-   * the live column FKs to `deck_formats`.
-   */
   format: z.string().min(1).optional(),
 });
 
@@ -295,19 +231,15 @@ export const acceptedCatalogEventSchema = z
   .object({
     metaEventId: z.string(),
     slug: z.string(),
-    /** False when the key already fed a live event and this was a re-promote. */
     created: z.boolean(),
   })
   .openapi("AcceptedCatalogEvent");
 
 export const metaSyncSettingsSchema = z
   .object({
-    /** Null turns the rule off, rather than a threshold nothing meets. */
     autoAcceptMinPlayers: z.number().int().positive().nullable(),
     autoAcceptNotable: z.boolean(),
-    /** Accept every event running a recognized official template (Regional Qualifier, ...). */
     autoAcceptOfficial: z.boolean(),
-    /** Field size that files an event as competitive whatever its template says. */
     competitivePlayerFloor: z.number().int().positive(),
     updatedAt: isoDateTime,
   })
@@ -323,21 +255,13 @@ const metaSyncSettingsPatchSchema = z.object({
 export const metaSourceTemplateSchema = z
   .object({
     templateId: z.string(),
-    /** The source's own name for the template; null once it stops publishing one. */
     sourceName: z.string().nullable(),
-    /** Watched templates get the badge, the daily poll query, and the official auto-accept rule. */
     watched: z.boolean(),
-    /** The admin-mapped tier this template's events file under; null until mapped. */
     tier: metaEventTierSchema.nullable(),
-    /** What the name rules would guess, shown as a prefill for an unmapped template. Never stored. */
     suggestedTier: metaEventTierSchema.nullable(),
-    /** Catalogue events running this template. */
     eventCount: z.number().int().nonnegative(),
-    /** Mean players over {@link ranEventCount}; null until one of its events has run. */
     avgPlayers: z.number().nullable(),
-    /** Events that started before today and published a player count. */
     ranEventCount: z.number().int().nonnegative(),
-    /** The most recent event's name, which is all an unnamed template has. */
     sampleEventName: z.string().nullable(),
     lastStartAt: isoDateTime.nullable(),
   })
@@ -346,17 +270,13 @@ export const metaSourceTemplateSchema = z
 const metaSourceTemplatePatchSchema = z.object({
   templateId: z.string().min(1),
   watched: z.boolean().optional(),
-  /** Mapping a tier immediately reclassifies the template's events; null un-maps. */
   tier: metaEventTierSchema.nullable().optional(),
 });
 
 export const metaSourceFormatSchema = z
   .object({
-    /** The source's format string, verbatim. */
     sourceFormat: z.string(),
-    /** Catalogue events carrying it. */
     eventCount: z.number().int().nonnegative(),
-    /** The `deck_formats` slug it maps to; null = unmapped, never auto-accepted. */
     mappedFormat: z.string().nullable(),
   })
   .openapi("MetaSourceFormat");
@@ -387,53 +307,33 @@ export const metaSyncStatusSchema = z
   .object({
     catalog: z.object({
       total: z.number().int(),
-      /** Those the source marks finished, so standings could exist. */
       completed: z.number().int(),
-      /** Those whose organizer published decklists. */
       decklistPublished: z.number().int(),
-      /** Rows a covering crawl stopped returning. */
       missing: z.number().int(),
-      /** Accepted events waiting in the recheck queue. */
       queued: z.number().int(),
-      /** Those whose next visit is already overdue. */
       dueRecheck: z.number().int(),
-      /** Accepted events whose first results fetch has not landed yet. */
       acceptedAwaitingResults: z.number().int(),
-      /** Accepted events the source's listing no longer returns. */
       acceptedMissing: z.number().int(),
-      /** The newest `last_seen_at` in the catalogue: how fresh the mirror is. */
       lastSeenAt: isoDateTime.nullable(),
     }),
-    /** The same funnel on the archive's side, for the delta against `catalog`. */
     archive: z.object({
       events: z.number().int(),
       eventsWithStandings: z.number().int(),
       eventsWithDecklists: z.number().int(),
-      /** Archived decks across all events. */
       decks: z.number().int(),
     }),
     counts: metaCatalogCountsSchema,
-    /** Recent `meta.*` job runs, newest first. */
     runs: z.array(metaSyncRunSchema),
-    /** Whether each sync cron is registered in this deployment. */
     schedules: z.record(z.string(), z.boolean()),
   })
   .openapi("MetaSyncStatus");
 
-/**
- * What a manual trigger did. The long crawls answer immediately with a run
- * handle (`running`) because a full backfill outlives any gateway timeout;
- * the single-event fetch runs inline and answers with its result. Either way an
- * in-flight run of the same kind reports `already_running` rather than starting
- * a second one.
- */
+/** Long crawls answer with a run handle (`running`); a single-event fetch answers inline. */
 export const metaSyncTriggerResultSchema = z
   .object({
     status: z.enum(["running", "succeeded", "failed", "already_running"]),
     runId: z.string().nullable(),
-    /** The failure's message, when there is one. */
     message: z.string().nullable(),
-    /** The finished run's summary, for the triggers that wait. */
     result: z.record(z.string(), z.any()).nullable(),
   })
   .openapi("MetaSyncTriggerResult");
@@ -447,14 +347,10 @@ const idSweepWindowSchema = z
   })
   .optional();
 
-/**
- * The jobs a Stop can be aimed at. Not every source/job pair exists: only
- * uvsgames sweeps ids, and the playloltcg recheck answers no Stop at all.
- */
+/** Not every source/job pair exists here: only uvsgames sweeps ids. */
 export const META_CANCELLABLE_JOBS = ["backfill", "recheck", "id_sweep"] as const;
 export const metaCancellableJobSchema = z.enum(META_CANCELLABLE_JOBS);
 
-/** What a cancel request did to the run it was aimed at. */
 export const metaSyncCancelResultSchema = z
   .object({
     runId: z.string(),
@@ -463,17 +359,8 @@ export const metaSyncCancelResultSchema = z
   .openapi("MetaSyncCancelResult");
 
 /**
- * oRPC contract for the meta archive's catalogue triage and sync controls
- * (ADR-014, second revision), on the admin-gated `/api/admin/v1/meta` prefix.
- *
- * The catalogue is a mirror of the source's own listing, so nothing here edits
- * an event's data: the two actions are `accept` (create the live event and its
- * citation, then queue the deep fetch) and `dismiss` (write the ignore key).
- * Everything downstream of an accept is promotion.
- *
- * Domain codes: `accept` → NOT_FOUND for an unknown key, BAD_REQUEST when the
- * source's format maps to nothing and none was supplied, CONFLICT when no free
- * slug could be minted. `dismiss` / `undismiss` / `fetchEvent` → NOT_FOUND.
+ * The catalogue mirrors the source's own listing; nothing here edits an event.
+ * `accept` creates the live event and queues the deep fetch, `dismiss` writes the ignore key.
  */
 export const adminMetaCatalogContract = {
   list: authedRoute
@@ -538,20 +425,14 @@ export const adminMetaCatalogContract = {
     .input(z.object({ source: metaSourceSchema }))
     .output(metaSyncStatusSchema),
 
-  // ── Manual triggers ──────────────────────────────────────────────────────
-  // The same jobs the crons run, for a deployment with no schedules set (local
-  // dev) and for the maintainer truing up the long tail.
-
   runSync: authedRoute
     .route({ method: "POST", path: `${BASE}/sync/daily`, tags: [TAG], successStatus: 202 })
     .output(metaSyncTriggerResultSchema),
 
-  /** Continues the last backfill that stopped early, or starts one if none did. */
   runBackfill: authedRoute
     .route({ method: "POST", path: `${BASE}/sync/backfill`, tags: [TAG], successStatus: 202 })
     .output(metaSyncTriggerResultSchema),
 
-  /** The same crawl from the archive's first day, ignoring any resume point. */
   restartBackfill: authedRoute
     .route({
       method: "POST",
@@ -561,17 +442,12 @@ export const adminMetaCatalogContract = {
     })
     .output(metaSyncTriggerResultSchema),
 
-  /** One slice of the id sweep — the only way to reach an event the listing won't serve. */
   runIdSweep: authedRoute
     .route({ method: "POST", path: `${BASE}/sync/id-sweep`, tags: [TAG], successStatus: 202 })
     .input(idSweepWindowSchema)
     .output(metaSyncTriggerResultSchema),
 
-  /**
-   * Asks one of a source's running jobs to stop at its next checkpoint. The
-   * playloltcg recheck is the one pair that cannot answer a Stop, and is
-   * refused rather than silently flagged.
-   */
+  /** The playloltcg recheck is the one job that cannot answer a Stop and is refused. */
   cancelRun: authedRoute
     .route({ method: "POST", path: `${BASE}/sync/cancel`, tags: [TAG] })
     .input(z.object({ source: metaSourceSchema, job: metaCancellableJobSchema }))
@@ -586,35 +462,19 @@ export const adminMetaCatalogContract = {
     .route({ method: "POST", path: `${BASE}/sync/recheck`, tags: [TAG], successStatus: 202 })
     .output(metaSyncTriggerResultSchema),
 
-  /**
-   * Runs the auto-accept rules over every row still awaiting triage, rather
-   * than over the keys one crawl happened to write. This is what applies a rule
-   * turned on today to the events already in the list.
-   */
+  /** Runs the auto-accept rules over every row still awaiting triage, not just new ones. */
   runAutoAccept: authedRoute
     .route({ method: "POST", path: `${BASE}/sync/auto-accept`, tags: [TAG], successStatus: 202 })
     .output(metaSyncTriggerResultSchema),
 
-  // ── The archive itself ───────────────────────────────────────────────────
-  // Not a crawl: these two re-derive live rows from the mirrors already held.
-
-  /** Recent runs of the two archive passes, for the panel that starts them. */
   archiveJobs: authedRoute
     .route({ method: "GET", path: `${ARCHIVE_BASE}/jobs`, tags: [TAG] })
     .output(metaArchiveJobsSchema),
 
-  /**
-   * Applies the tier rules to the events they now file somewhere else.
-   * Classifies the whole archive from bulk reads and promotes the movers.
-   */
   runRetier: authedRoute
     .route({ method: "POST", path: `${ARCHIVE_BASE}/retier`, tags: [TAG], successStatus: 202 })
     .output(metaSyncTriggerResultSchema),
 
-  /**
-   * Promotion run again over every event, whether or not anything changed.
-   * Accepted overlays still win whatever they claim.
-   */
   runRepromote: authedRoute
     .route({
       method: "POST",
@@ -624,7 +484,6 @@ export const adminMetaCatalogContract = {
     })
     .output(metaSyncTriggerResultSchema),
 
-  // ── playloltcg (the Chinese source) ──────────────────────────────────────
   runPlayloltcgSync: authedRoute
     .route({ method: "POST", path: `${BASE}/playloltcg/sync`, tags: [TAG], successStatus: 202 })
     .output(metaSyncTriggerResultSchema),
@@ -633,7 +492,6 @@ export const adminMetaCatalogContract = {
     .route({ method: "POST", path: `${BASE}/playloltcg/recheck`, tags: [TAG], successStatus: 202 })
     .output(metaSyncTriggerResultSchema),
 
-  /** The same backlog sweep for playloltcg, where the rule is the threshold. */
   runPlayloltcgAutoAccept: authedRoute
     .route({
       method: "POST",
@@ -643,12 +501,10 @@ export const adminMetaCatalogContract = {
     })
     .output(metaSyncTriggerResultSchema),
 
-  /** Continues the last playloltcg backfill that stopped early, or starts one. */
   runPlayloltcgBackfill: authedRoute
     .route({ method: "POST", path: `${BASE}/playloltcg/backfill`, tags: [TAG], successStatus: 202 })
     .output(metaSyncTriggerResultSchema),
 
-  /** The playloltcg backfill from the archive's first day, ignoring the resume point. */
   restartPlayloltcgBackfill: authedRoute
     .route({
       method: "POST",
@@ -679,7 +535,6 @@ export const adminMetaCatalogContract = {
     .input(playloltcgKeySchema)
     .errors({ NOT_FOUND: { message: "Ignore entry not found" } }),
 
-  /** Pulls one accepted playloltcg event's results now, out of the ladder's turn. */
   playloltcgFetchEvent: authedRoute
     .route({
       method: "POST",
@@ -694,22 +549,18 @@ export const adminMetaCatalogContract = {
     })
     .output(metaSyncTriggerResultSchema),
 
-  // ── topdeck (the English-language tournament platform) ───────────────────
   runTopdeckSync: authedRoute
     .route({ method: "POST", path: `${BASE}/topdeck/sync`, tags: [TAG], successStatus: 202 })
     .output(metaSyncTriggerResultSchema),
 
-  /** The same backlog sweep for topdeck, where the rule is the threshold. */
   runTopdeckAutoAccept: authedRoute
     .route({ method: "POST", path: `${BASE}/topdeck/auto-accept`, tags: [TAG], successStatus: 202 })
     .output(metaSyncTriggerResultSchema),
 
-  /** Continues the last topdeck backfill that stopped early, or starts one. */
   runTopdeckBackfill: authedRoute
     .route({ method: "POST", path: `${BASE}/topdeck/backfill`, tags: [TAG], successStatus: 202 })
     .output(metaSyncTriggerResultSchema),
 
-  /** The topdeck backfill from the archive's first day, ignoring the resume point. */
   restartTopdeckBackfill: authedRoute
     .route({
       method: "POST",
@@ -740,7 +591,6 @@ export const adminMetaCatalogContract = {
     .input(topdeckKeySchema)
     .errors({ NOT_FOUND: { message: "Ignore entry not found" } }),
 
-  /** Pulls one accepted event's results now, without waiting for its ladder step. */
   fetchEvent: authedRoute
     .route({ method: "POST", path: `${BASE}/sync/fetch`, tags: [TAG] })
     .input(catalogKeySchema)

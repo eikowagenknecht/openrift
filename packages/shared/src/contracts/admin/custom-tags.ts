@@ -48,7 +48,6 @@ export const adminCustomTagCategoryListResponseSchema = z
 
 export const adminCustomTagAssignmentsResponseSchema = z
   .object({
-    /** Map of card id → array of custom-tag slugs (sorted). */
     assignments: z.record(z.string(), z.array(z.string())),
   })
   .openapi("AdminCustomTagAssignmentsResponse");
@@ -79,19 +78,8 @@ const updateCustomTagInput = z.object({
   description: z.string().min(1).nullable().optional(),
 });
 
-/**
- * oRPC contract for the admin custom-tags taxonomy (mounted under
- * `/api/admin/v1`, admin-gated by the mount). Covers three groups: tag
- * categories, the tags themselves, and per-card assignment. Domain codes per
- * route: `createCategory` → CONFLICT; `updateCategory` → NOT_FOUND + CONFLICT;
- * `removeCategory` → NOT_FOUND + CONFLICT (has tags); `createTag` → BAD_REQUEST
- * (unknown category) + CONFLICT; `updateTag` → NOT_FOUND + CONFLICT + BAD_REQUEST;
- * `removeTag` / `addCards` / `clearCards` / `getCardTags` → NOT_FOUND; `setCardTags` →
- * NOT_FOUND + BAD_REQUEST. The static `custom-tags/assignments` path precedes
- * `custom-tags/{id}` internally.
- */
+/** The static `custom-tags/assignments` path precedes `custom-tags/{id}` internally. */
 export const adminCustomTagsContract = {
-  // ── Categories ────────────────────────────────────────────────────────────
   listCategories: authedRoute
     .route({ method: "GET", path: CATEGORIES, tags: [TAG] })
     .output(adminCustomTagCategoryListResponseSchema),
@@ -115,7 +103,6 @@ export const adminCustomTagsContract = {
     })
     .input(idParamSchema),
 
-  // ── Tags ──────────────────────────────────────────────────────────────────
   listTags: authedRoute
     .route({ method: "GET", path: TAGS, tags: [TAG] })
     .output(adminCustomTagListResponseSchema),
@@ -153,7 +140,6 @@ export const adminCustomTagsContract = {
     .input(idParamSchema)
     .output(z.object({ removed: z.number() })),
 
-  // ── Per-card assignment ─────────────────────────────────────────────────
   getCardTags: authedRoute
     .route({ method: "GET", path: `${BASE}/cards/{id}/custom-tags`, tags: [TAG] })
     .errors({ NOT_FOUND: { message: "Card not found" } })

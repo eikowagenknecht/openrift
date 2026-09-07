@@ -3,12 +3,8 @@ import { expect, test } from "@playwright/test";
 
 import { WEB_BASE_URL } from "../../helpers/constants.js";
 
-// Kept in sync with apps/web/src/components/help/articles.ts — the e2e
-// package's tsconfig has no `@/*` alias into the web app, and the articles
-// module pulls in lucide + lazy imports that don't load under node, so the
-// slug/title/description triples are re-declared here. `how-to-play` is
-// omitted: it sets `featureFlag: "help-how-to-play"`, so with the flag off (the
-// e2e default) it doesn't render in the index/FAQ or as a standalone article.
+// Kept in sync with apps/web/src/components/help/articles.ts (not importable
+// here). `how-to-play` is omitted: its feature flag is off by default in e2e.
 const ARTICLES: { slug: string; title: string; description: string }[] = [
   {
     slug: "why-openrift",
@@ -80,9 +76,8 @@ const ARTICLES: { slug: string; title: string; description: string }[] = [
 const INDEX_DESCRIPTION =
   "Guides and frequently asked questions for OpenRift, including collection management, deck building, and import/export.";
 
-// Matches every heading in NOT_FOUND_HEADINGS in apps/web/src/components/error-message.tsx.
-// The pick() helper hashes the pathname to choose one, so this test asserts
-// that any of the known not-found headings rendered.
+// Matches every heading in NOT_FOUND_HEADINGS (apps/web/src/components/error-message.tsx);
+// pick() hashes the pathname to choose one.
 const NOT_FOUND_HEADING_REGEX =
   /Nothing here but dust|This card was never printed|Lost in the Rift|Page not found|You've wandered off the map|This page doesn't exist|No card at this address|The Rift has no record of this/u;
 
@@ -221,10 +216,6 @@ test.describe("help", () => {
   });
 
   test.describe("feature-flag gating", () => {
-    // No help article currently sets `featureFlag` in apps/web/src/components/help/articles.ts,
-    // so the flag-gated loader branch has no coverage to exercise. When a flagged
-    // article is added, extend this block with on/off cases following the pattern
-    // in packages/e2e/src/tests/authenticated/collections-stats.spec.ts.
     test.skip("no feature-flagged help articles currently — add one to cover this branch", () => {});
   });
 });

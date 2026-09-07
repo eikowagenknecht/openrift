@@ -1,24 +1,11 @@
 /**
- * The app's date and time display vocabulary.
+ * Date/time formatting. Never uses `Intl` or locale-dependent methods: those
+ * render differently on the server than in the visitor's browser, causing a
+ * React hydration mismatch (error #418).
  *
- * Every absolute form is ISO 8601 and every one of them is built from plain
- * `Date` getters, so this module never touches `Intl`. That is deliberate:
- * `toLocaleDateString` emits different text on a UTC datacenter server than in
- * the visitor's browser, which during hydration triggers a React mismatch
- * (error #418). With no locale in play there is nothing left to disagree on,
- * so any of these can be called from a server-rendered route.
- *
- * Two timezone rules, and only two:
- *
- * - A **calendar day** ({@link formatDay}, {@link formatMonth}) is always the
- *   UTC day. A day has no timezone of its own, so picking one and stating it
- *   is the only way the same row reads the same for everyone.
- * - An **instant** renders in UTC ({@link formatDayTime}) for admin and ops
- *   surfaces, where the reader knows the server runs in UTC, or in the
- *   viewer's own timezone ({@link formatDayTimeLocal}) for anything a player
- *   reads as a wall clock. The local form is the only function here that
- *   depends on where the caller is, so it belongs on `ssr: "data-only"` routes
- *   only.
+ * Calendar days ({@link formatDay}, {@link formatMonth}) are always UTC.
+ * Instants render in UTC ({@link formatDayTime}) or in the viewer's own
+ * timezone ({@link formatDayTimeLocal}, `ssr: "data-only"` routes only).
  */
 
 const MONTH_ABBREVIATIONS = [
@@ -44,60 +31,33 @@ function pad(value: number): string {
   return String(value).padStart(2, "0");
 }
 
-/**
- * Parses display input into a `Date`, or null when it can't be read. Every
- * formatter here funnels through this so bad data renders as an empty string
- * instead of throwing a `RangeError` out of a component.
- *
- * @returns The parsed date, or null when the input is unparseable.
- */
+/** Returns null on bad input; formatters render `""` for it. */
 function toDate(input: Date | string): Date | null {
   const date = input instanceof Date ? input : new Date(input);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
 /**
- * A calendar day as `2026-08-15`, in UTC. Accepts either a `YYYY-MM-DD` string
- * (which parses as UTC midnight, so the day is preserved) or a full instant
- * (whose UTC calendar day is taken).
- *
- * @returns The UTC day, or `""` when the input is unparseable.
+ * A `YYYY-MM-DD` string parses as UTC midnight, preserving the day; a full
+ * instant takes its UTC calendar day.
  */
 export function formatDay(input: Date | string): string {
   const date = toDate(input);
   return date === null ? "" : date.toISOString().slice(0, 10);
 }
 
-/**
- * A calendar month as `2026-08`, in UTC.
- *
- * @returns The UTC month, or `""` when the input is unparseable.
- */
 export function formatMonth(input: Date | string): string {
   const date = toDate(input);
   return date === null ? "" : date.toISOString().slice(0, 7);
 }
 
-/**
- * An instant as `2026-08-15 23:59`, in UTC. For admin and ops surfaces, where
- * UTC is understood. Anything a player reads as a wall clock wants
- * {@link formatDayTimeLocal} instead.
- *
- * @returns The UTC instant to minute precision, or `""` when unparseable.
- */
+/** UTC instant for admin/ops surfaces. */
 export function formatDayTime(input: Date | string): string {
   const date = toDate(input);
   return date === null ? "" : date.toISOString().slice(0, 16).replace("T", " ");
 }
 
-/**
- * The calendar day an instant falls on in the VIEWER's timezone, as
- * `2026-08-15`. Use this when the day is the viewer's own (grouping an activity
- * feed into "days" as they lived them); use {@link formatDay} when the day is a
- * property of the data. Same SSR caveat as {@link formatDayTimeLocal}.
- *
- * @returns The local day, or `""` when the input is unparseable.
- */
+/** Viewer's local day; use {@link formatDay} when the day is a property of the data, not the viewer's own. */
 export function formatDayLocal(input: Date | string): string {
   const date = toDate(input);
   if (date === null) {
@@ -106,25 +66,14 @@ export function formatDayLocal(input: Date | string): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-/**
- * The time of day of an instant in the VIEWER's timezone, as `14:30`. For rows
- * already grouped under a day, where repeating the date adds nothing. Always
- * 24-hour. Same SSR caveat as {@link formatDayTimeLocal}.
- *
- * @returns The local time to minute precision, or `""` when unparseable.
- */
 export function formatTimeLocal(input: Date | string): string {
   const date = toDate(input);
   return date === null ? "" : `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 /**
- * An instant as `2026-08-15 14:30`, in the VIEWER's timezone. The output
- * depends on where the caller runs, so this is safe only on `ssr: "data-only"`
- * routes; on a server-rendered route it produces a hydration mismatch for
- * every visitor outside UTC.
- *
- * @returns The local instant to minute precision, or `""` when unparseable.
+ * Depends on the caller's timezone: safe only on `ssr: "data-only"` routes,
+ * otherwise it causes a hydration mismatch (#418) for non-UTC visitors.
  */
 export function formatDayTimeLocal(input: Date | string): string {
   const date = toDate(input);
@@ -134,12 +83,6 @@ export function formatDayTimeLocal(input: Date | string): string {
   return `${formatDayLocal(date)} ${formatTimeLocal(date)}`;
 }
 
-/**
- * A compact UTC stamp for namespacing generated ids, as `20260815-1430`. UTC
- * keeps the suffix consistent regardless of the caller's timezone.
- *
- * @returns The `YYYYMMDD-HHmm` stamp, or `""` when the input is unparseable.
- */
 export function formatCompactUtcStamp(input: Date | string): string {
   const date = toDate(input);
   if (date === null) {
@@ -153,20 +96,12 @@ export function formatCompactUtcStamp(input: Date | string): string {
   return `${yyyy}${mm}${dd}-${hh}${mi}`;
 }
 
-/** The lines a calendar-leaf tile can draw. A tile renders the year only where the archive spans several. */
 export interface DateLeafParts {
   month: string;
   day: string;
   year: string;
 }
 
-/**
- * The lines of a calendar-leaf tile, in the VIEWER's timezone (the tile
- * marks "which day is this for me"). Same SSR caveat as
- * {@link formatDayTimeLocal}.
- *
- * @returns The uppercase short month, the day of month and the year, e.g. `AUG` / `15` / `2026`.
- */
 export function dateLeafParts(input: Date | string): DateLeafParts {
   const date = toDate(input);
   if (date === null) {
@@ -180,12 +115,8 @@ export function dateLeafParts(input: Date | string): DateLeafParts {
 }
 
 /**
- * The same lines in UTC, for a tile marking a calendar day that belongs to
- * an event rather than to the viewer. A tournament was held on one day
- * everywhere, so reading `2026-08-01` on a negative offset must not print JUL
- * 31, and SSR must not disagree with the browser about which day it was.
- *
- * @returns The uppercase short month, the day of month and the year, e.g. `AUG` / `15` / `2026`.
+ * UTC, unlike {@link dateLeafParts}: an event's day is fixed globally, so a
+ * reader at a negative offset must not see the day before.
  */
 export function dateLeafPartsUtc(input: Date | string): DateLeafParts {
   const date = toDate(input);
@@ -199,23 +130,12 @@ export function dateLeafPartsUtc(input: Date | string): DateLeafParts {
   };
 }
 
-/** Tuning for {@link formatRelativeTime}. */
 export interface RelativeTimeOptions {
-  /** The reference "now"; injectable so tests can pin the buckets. */
   now?: Date;
-  /** Resolve below a minute as seconds (`45s ago`) instead of collapsing it. */
   seconds?: boolean;
-  /** Carry the minutes alongside the hours (`in 2h 15m`). */
   compound?: boolean;
 }
 
-/**
- * The size of a gap, without direction: `45s`, `5m`, `2h 15m`, `3d`, `4w`,
- * `5mo`, `1y`. Buckets coarsen as the gap grows, since nobody reads "in 4380h".
- *
- * @returns The magnitude label, or `""` when it falls below the resolution the
- *   options allow (the caller phrases that case itself).
- */
 function magnitude(diffMs: number, options: RelativeTimeOptions): string {
   const minutes = Math.floor(diffMs / MINUTE_MS);
   if (minutes < 1) {
@@ -242,17 +162,6 @@ function magnitude(diffMs: number, options: RelativeTimeOptions): string {
   return `${Math.floor(days / 365)}y`;
 }
 
-/**
- * How far an instant is from now, in either direction: `just now`, `5m ago`,
- * `3h ago`, `2d ago`, `4w ago`, `1y ago` for the past, and `in 5m`, `in 3h`,
- * `in <1m` for the future. Locale- and timezone-independent (it is arithmetic
- * on two instants, not a rendering of either), so it is deterministic under
- * test and safe anywhere.
- *
- * @param input An instant, as a `Date` or an ISO-8601 string.
- * @param options Reference time and resolution; see {@link RelativeTimeOptions}.
- * @returns The relative label, or `""` when the input is unparseable.
- */
 export function formatRelativeTime(
   input: Date | string,
   options: RelativeTimeOptions = {},
@@ -271,16 +180,7 @@ export function formatRelativeTime(
   return past ? `${label} ago` : `in ${label}`;
 }
 
-/**
- * A calendar day relative to today: `Today`, `Yesterday`, `3 days ago`,
- * `Last week`, `2 weeks ago`, `Last month`, falling back to the plain day for
- * anything older. Both sides of the comparison are UTC days, matching
- * {@link formatDay}, so the bucket never shifts with the reader's timezone.
- *
- * @param day A `YYYY-MM-DD` calendar day.
- * @param now The reference "now"; injectable for tests.
- * @returns The relative label, or the ISO day once the gap outgrows the buckets.
- */
+/** Both sides compared in UTC, matching {@link formatDay}, so the bucket doesn't shift with the reader's timezone. */
 export function formatRelativeDay(day: string, now: Date = new Date()): string {
   const date = toDate(day);
   if (date === null) {

@@ -48,8 +48,6 @@ describe("cardTradeState", () => {
     }
   });
 
-  // A legacy completed row can still owe the viewer a settle; it is a pile in
-  // front of them whatever the status says.
   it("lets a pending settle win over a completed status", () => {
     expect(cardTradeState(trade({ status: "completed", actionNeeded: "settle" }))).toBe(
       "to-settle",
@@ -76,9 +74,6 @@ describe("isTradedCardTrade", () => {
     ).toBe(true);
   });
 
-  // The bug this rule exists for: a cancelled row keeps its sync timestamps
-  // when a departing member's trades are bulk-cancelled, and the old predicate
-  // tested only those timestamps.
   it("does not count a cancelled trade that carries a settle", () => {
     expect(
       isTradedCardTrade(

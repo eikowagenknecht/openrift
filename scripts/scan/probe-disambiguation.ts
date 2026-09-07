@@ -1,7 +1,5 @@
-// Offline calibration probe for the printing-disambiguation stage: correlates
-// reference renders against each other (same artwork, different printings) so
-// floor/margin/feature choices rest on ideally-aligned data. Temporary
-// analysis tool; run with: bun scripts/scan/probe-disambiguation.ts
+// Offline calibration probe for printing disambiguation. Temporary analysis
+// tool; run with: bun scripts/scan/probe-disambiguation.ts
 import type { GrayImage, PrintingSignature } from "../../packages/shared/src/scan/index.js";
 import {
   bestShiftCorrelation,
@@ -15,18 +13,12 @@ import { listReferenceImages, loadImage } from "./lib";
 const catalog = loadCatalog();
 const files = new Map(listReferenceImages().map((r) => [r.key, r.file]));
 
-// Group printings by artwork, keep portrait multi-printing groups.
 const groups = new Map<string, string[]>();
 for (const [key, entry] of catalog) {
   const artKey = entry.artKey ?? key;
   groups.set(artKey, [...(groups.get(artKey) ?? []), key]);
 }
 
-/**
- * Shift a signature by whole pixels, clamping at the border.
- *
- * @returns The shifted copy.
- */
 function shifted(signature: GrayImage, dx: number, dy: number): GrayImage {
   const { width, height } = signature;
   const data = new Uint8Array(width * height);
@@ -82,9 +74,6 @@ for (const [, keys] of groups) {
     sameLanguageMultiCodeGroups++;
   }
 
-  // Name band: discriminative margins with a misaligned query that IS
-  // printing A — clearly positive on the correct side, never positive on the
-  // wrong side.
   const a = signatures[0];
   const b = signatures[1];
   const nameQuery1 = shifted(a.s.name, 1, 1);
@@ -102,9 +91,6 @@ for (const [, keys] of groups) {
     nameWrongMargin1.push(nameWrong1);
   }
 
-  // Code strip, every pair in the group: same-publicCode pairs must yield no
-  // evidence (their strips are identical by construction — any margin here is
-  // false evidence); different-code pairs are the stage's actual signal.
   for (let i = 0; i < signatures.length; i++) {
     for (let j = i + 1; j < signatures.length; j++) {
       const left = signatures[i];
@@ -141,11 +127,6 @@ for (const [, keys] of groups) {
   }
 }
 
-/**
- * Summarize a sample as min/median/max.
- *
- * @returns The formatted summary.
- */
 function summary(values: number[]): string {
   const sorted = values.toSorted((a, b) => a - b);
   const median = sorted[Math.floor(sorted.length / 2)] ?? Number.NaN;
@@ -168,10 +149,6 @@ console.log(`code discriminative, wrong side, 1px shift    ${summary(codeWrongMa
 console.log(`code whole-strip floor, self 1px shift        ${summary(codeFloorSelf1)}`);
 console.log(`code whole-strip floor, wrong code            ${summary(codeFloorWrong)}`);
 
-// Stamp band: a dedicated pass over every artwork group holding a
-// marker-differing same-code pair (the pairs the name band and code strip are
-// both structurally blind to). Same-marker pairs double as the
-// false-evidence check, mirroring the code strip's same-code check.
 const stampCorrectMargin1: number[] = [];
 const stampCorrectMargin2: number[] = [];
 const stampWrongMargin1: number[] = [];
@@ -226,9 +203,6 @@ for (const [, keys] of groups) {
       const right = signatures[j];
       const query1 = shifted(left.stamp, 1, 1);
       const margin = discriminativeMargin(query1, left.stamp, right.stamp);
-      // The stage's gate: only plain-versus-marked pairs are stamp signal.
-      // Equal-marker pairs AND differently-marked pairs (art stamps) land in
-      // the false-evidence bucket the gate must exclude.
       if ((left.markers === "") === (right.markers === "")) {
         stampSameMarkerPairs++;
         if (margin !== null) {

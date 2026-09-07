@@ -98,8 +98,8 @@ const BOGUS_DECK_ID = "00000000-0000-0000-0000-0000000dead0";
 
 test.describe("decks list", () => {
   test.describe("access", () => {
-    // /decks and /decks/import are auth-optional (ADR-035): logged-out visitors
-    // see their browser-local decks, so there's no login redirect.
+    // /decks and /decks/import are auth-optional: logged-out visitors see
+    // their browser-local decks, so there's no login redirect.
     for (const path of ["/decks", "/decks/import"]) {
       test(`anonymous users can open ${path}`, async ({ page }) => {
         await page.goto(path);
@@ -108,7 +108,6 @@ test.describe("decks list", () => {
       });
     }
 
-    // A specific server-side deck still requires a session.
     test("redirects anonymous users from a specific deck to /login", async ({ page }) => {
       await page.goto(`/decks/${BOGUS_DECK_ID}`);
       await expect(page).toHaveURL(/\/login\b/u);
@@ -217,7 +216,6 @@ test.describe("decks list", () => {
       await page.getByRole("button", { name: "New Deck" }).click();
       const dialog = page.getByRole("dialog");
 
-      // Default values: name "New Deck", focus in the name input, format "Constructed".
       const nameInput = dialog.getByLabel("Name");
       await expect(nameInput).toHaveValue("New Deck");
       await expect(nameInput).toBeFocused();
@@ -225,14 +223,12 @@ test.describe("decks list", () => {
       const formatTrigger = dialog.getByLabel("Format");
       await expect(formatTrigger).toHaveText(/Constructed/u);
 
-      // Opening the Select shows both options.
       await formatTrigger.click();
       await expect(page.getByRole("option", { name: "Constructed" })).toBeVisible();
       await expect(page.getByRole("option", { name: "Freeform" })).toBeVisible();
-      // Close by re-picking Constructed so we don't change the default for the next assertion.
+      // Re-pick Constructed so the default is unchanged for the next assertion.
       await page.getByRole("option", { name: "Constructed" }).click();
 
-      // Clearing the name disables the Create button; typing re-enables it.
       const createButton = dialog.getByRole("button", { name: "Create" });
       await nameInput.fill("");
       await expect(createButton).toBeDisabled();
@@ -261,7 +257,6 @@ test.describe("decks list", () => {
       userEmail = await createAndLogin(page);
       await page.goto("/decks");
 
-      // First deck: defaults.
       await page.getByRole("button", { name: "New Deck" }).click();
       let createDialog = page.getByRole("dialog");
       await createDialog.getByLabel("Name").fill("Constructed Starter");
@@ -272,7 +267,6 @@ test.describe("decks list", () => {
       await firstRequest;
       await expect(page).toHaveURL(/\/decks\/[0-9a-f-]+$/u, { timeout: 15_000 });
 
-      // Second deck: navigate back and pick Freeform.
       await page.goto("/decks");
       await page.getByRole("button", { name: "New Deck" }).click();
       createDialog = page.getByRole("dialog");
@@ -287,7 +281,6 @@ test.describe("decks list", () => {
       await secondRequest;
       await expect(page).toHaveURL(/\/decks\/[0-9a-f-]+$/u, { timeout: 15_000 });
 
-      // Both tiles render on /decks.
       await page.goto("/decks");
       await expect(
         page.getByRole("heading", { level: 3, name: "Constructed Starter" }),
@@ -319,8 +312,8 @@ test.describe("decks list", () => {
       await expect(tile).toBeVisible({ timeout: 15_000 });
 
       await expect(tile.getByRole("heading", { level: 3, name: deckName })).toBeVisible();
-      // The card count rides on the format badge now, and an empty deck shows
-      // the bare format with no figure — so there is no "0 cards" text.
+      // The card count rides on the format badge; an empty deck shows the bare
+      // format with no figure, so there is no "0 cards" text.
       await expect(tile.getByText("Freeform")).toBeVisible();
       await expect(tile.getByText(/\bcards\b/u)).toHaveCount(0);
 
@@ -336,8 +329,7 @@ test.describe("decks list", () => {
       const tile = page.locator(`a[href="/decks/${deckId}"]`);
       await expect(tile).toBeVisible({ timeout: 15_000 });
 
-      // Click somewhere on the tile that isn't the menu trigger — the heading
-      // sits near the top of the card and is always present.
+      // The heading is always present and isn't the menu trigger.
       await tile.getByRole("heading", { level: 3, name: deckName }).click();
       await expect(page).toHaveURL(new RegExp(`/decks/${deckId}$`, "u"), { timeout: 15_000 });
     });
@@ -381,8 +373,7 @@ test.describe("decks list", () => {
 
       const dialog = page.getByRole("dialog");
       const input = dialog.getByRole("textbox");
-      // The dialog's confirm button is labelled "Save"; "Rename" is only the
-      // menu item that opens it.
+      // "Rename" is the menu item that opens the dialog; its confirm button is "Save".
       const renameButton = dialog.getByRole("button", { name: "Save" });
 
       await input.fill("");
@@ -482,7 +473,6 @@ test.describe("decks list", () => {
       await expect(tile).toHaveCount(0, { timeout: 15_000 });
       expect(await deckExists(deckId)).toBe(false);
 
-      // Only deck → empty state returns.
       await expect(page.getByText("No decks yet")).toBeVisible();
       await expect(page.getByRole("button", { name: "Create your first deck" })).toBeVisible();
     });

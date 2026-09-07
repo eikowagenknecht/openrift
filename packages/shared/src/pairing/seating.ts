@@ -1,42 +1,21 @@
 import { mathRandom } from "../pack-opener/rng.js";
 import type { Random } from "../pack-opener/rng.js";
 
-/**
- * Who has sat next to whom across earlier rounds, derived from the stored per-pod
- * seat orders. Both maps count rounds, so a pair that keeps landing together
- * keeps costing more.
- */
 export interface SeatingHistory {
-  /** Unordered neighbor pairs, keyed by {@link adjacentKey}. */
   adjacent: ReadonlyMap<string, number>;
-  /** Directed "b sat directly after a" pairs, keyed by {@link successionKey}. */
   succession: ReadonlyMap<string, number>;
 }
 
-/**
- * The unordered-pair key for two neighbors.
- * @returns `"a|b"` with the ids sorted, so both directions map to one key.
- */
+/** Sorts the ids so both directions of a neighbor pair map to one key. */
 export function adjacentKey(a: string, b: string): string {
   return a < b ? `${a}|${b}` : `${b}|${a}`;
 }
 
-/**
- * The directed key for "b sits directly after a" around the table.
- * @returns `"a>b"`.
- */
 function successionKey(a: string, b: string): string {
   return `${a}>${b}`;
 }
 
-/**
- * Fold stored seat orders into a {@link SeatingHistory}. Rows from pods without
- * seat data (rounds persisted before the seating feature) are skipped — they
- * carry no reliable order to count neighbors from.
- *
- * @param rows One row per pod member across the finalized rounds.
- * @returns The accumulated neighbor counts.
- */
+/** Rows from pods without seat data (persisted before the seating feature) are skipped. */
 export function foldSeatingHistory(
   rows: readonly { podId: string; playerId: string; seat: number | null }[],
 ): SeatingHistory {
@@ -63,7 +42,6 @@ export function foldSeatingHistory(
   return { adjacent, succession };
 }
 
-// All permutations of the given items (n <= 3 in practice, so at most 6).
 function permutations<T>(items: readonly T[]): T[][] {
   if (items.length <= 1) {
     return [[...items]];
@@ -74,17 +52,8 @@ function permutations<T>(items: readonly T[]): T[][] {
 }
 
 /**
- * Order a pod's players around the table so nobody repeats last rounds' seating:
- * primarily avoid neighbor pairs that have sat next to each other before, then
- * avoid repeating the exact turn order (the same player directly after the same
- * player), and pick randomly among equally fresh arrangements. The table is
- * circular, so the first player is fixed as an anchor and only the relative
- * order varies — with at most 4 seats that is 6 candidates, scored exhaustively.
- *
- * @param playerIds The pod's members, in any order.
- * @param history Neighbor counts from earlier rounds ({@link foldSeatingHistory}).
- * @param rng Randomness for tie-breaking; inject a seeded one for determinism.
- * @returns The players in seat order (index = seat around the table).
+ * The table is circular, so the first player is fixed as an anchor and only
+ * the relative order is scored, exhaustively, against repeat neighbors.
  */
 export function arrangeSeating(
   playerIds: readonly string[],
@@ -107,8 +76,8 @@ export function arrangeSeating(
       adjacentRepeats += history.adjacent.get(adjacentKey(current, next)) ?? 0;
       successionRepeats += history.succession.get(successionKey(current, next)) ?? 0;
     }
-    // Lexicographic (adjacent, succession): succession counts are bounded by
-    // the adjacent counts, so a small weight keeps them a pure tie-breaker.
+    // Succession counts are bounded by adjacent counts, so the 1000x weight
+    // keeps succession a pure tie-breaker.
     const score = adjacentRepeats * 1000 + successionRepeats;
     if (score < bestScore) {
       bestScore = score;

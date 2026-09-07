@@ -1,15 +1,9 @@
 /* oxlint-disable import/no-nodejs-modules -- standalone script */
 /**
- * Normalize SF: paths in lcov files to be repo-root-relative.
- *
- * Bun coverage writes paths relative to each package's directory, so the same
- * file can appear as e.g. `src/filters.ts` (from packages/shared) and
- * `../../packages/shared/src/filters.ts` (from apps/api). This causes
- * lcov-result-merger to treat them as separate entries instead of combining
- * hit counts.
- *
- * Usage: bun scripts/normalize-lcov.ts <lcov-file> [<lcov-file> ...]
- * Rewrites each file in-place.
+ * Bun coverage writes SF: paths relative to each package's directory, so the
+ * same file can appear under two different relative paths and
+ * lcov-result-merger treats them as separate entries. Rewrite them
+ * repo-root-relative, in place.
  */
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -30,8 +24,6 @@ function findPackageRoot(from: string): string {
 
 for (const lcovPath of process.argv.slice(2)) {
   const lcovDir = dirname(resolve(lcovPath));
-  // Bun writes SF: paths relative to the package root (cwd of bun test),
-  // not relative to the coverage directory.
   const packageRoot = findPackageRoot(lcovDir);
   const content = readFileSync(lcovPath, "utf-8");
 

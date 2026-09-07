@@ -17,13 +17,6 @@ export const siteSettingSchema = z.object({
   updatedAt: isoDateTime,
 });
 
-/**
- * oRPC contract for the admin site-settings CRUD (mounted at
- * `/api/admin/v1/site-settings`, admin-gated by the mount). Settings are keyed
- * by `key`. All procedures are session-gated (UNAUTHORIZED + FORBIDDEN from
- * `authedRoute`). Domain codes per route: `create` → CONFLICT (key already
- * exists); `update` → NOT_FOUND; `remove` → NOT_FOUND.
- */
 export const adminSiteSettingsContract = {
   list: authedRoute
     .route({ method: "GET", path: SS, tags: [TAG] })

@@ -10,8 +10,6 @@ const TAG = "Admin - Images";
 
 const BASE = "/api/admin/v1";
 
-// ── Shared result shapes ──────────────────────────────────────────────────
-
 export const rehostResultSchema = z.object({
   total: z.number(),
   rehosted: z.number(),
@@ -91,7 +89,6 @@ export const missingImageCardSchema = z
     cardId: z.string(),
     slug: z.string(),
     name: z.string(),
-    /** Printings without an active front image, counted per language code. */
     byLanguage: z.array(z.object({ language: z.string(), count: z.number() })),
   })
   .openapi("MissingImageCard");
@@ -105,14 +102,9 @@ const migrateResultSchema = z.object({
 });
 
 /**
- * oRPC contract for the admin image tooling (mounted under `/api/admin/v1`,
- * admin-gated by the mount). All procedures share the `authedRoute` base
- * (UNAUTHORIZED + FORBIDDEN). Covers rehosting, the resumable regenerate job +
- * cancel, cleanup/migration utilities, and read-only health reports (status,
- * broken, low-res, missing). `rehost-images` / `regenerate-images` carry query
- * params, so they use detailed input structure. Domain codes per route:
- * `cancelRegenerate` → NOT_FOUND (no job running) + CONFLICT (job still
- * initializing).
+ * Admin image tooling, mounted under `/api/admin/v1`. `rehost-images` /
+ * `regenerate-images` carry query params, so they use detailed input
+ * structure.
  */
 export const adminImagesContract = {
   rehost: authedRoute

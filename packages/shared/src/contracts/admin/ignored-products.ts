@@ -12,10 +12,9 @@ const TAG = "Admin - Ignored Products";
 const IP = "/api/admin/v1/ignored-products";
 
 /**
- * A single ignored marketplace product. Level 2 (`product`) denies the whole
- * upstream product (sealed product, bundles, etc.); level 3 (`variant`) denies
- * one specific SKU of an otherwise-mapped product. `language` is `null` for
- * marketplaces that don't expose language as a SKU dimension (CM/TCG).
+ * `product` denies the whole upstream product; `variant` denies one specific
+ * SKU. `language` is `null` for marketplaces that don't expose it as a SKU
+ * dimension (CM/TCG).
  */
 export const ignoredProductSchema = z
   .discriminatedUnion("level", [
@@ -38,8 +37,6 @@ export const ignoredProductSchema = z
   ])
   .openapi("IgnoredProductResponse");
 
-// POST/DELETE body: a batch keyed by level. Level 2 (product) denies the whole
-// upstream product; level 3 (variant) denies a specific (finish, language) SKU.
 const ignoreProductsInput = z.discriminatedUnion("level", [
   z.object({
     level: z.literal("product"),
@@ -62,12 +59,9 @@ const ignoreProductsInput = z.discriminatedUnion("level", [
 ]);
 
 /**
- * oRPC contract for the admin ignored-products controls (mounted at
- * `/api/admin/v1/ignored-products`, admin-gated by the mount). All procedures
- * share the `authedRoute` base (UNAUTHORIZED + FORBIDDEN). The list is a
- * `level`-discriminated union; ignore (POST) and unignore (DELETE) share the
- * same batch body. The DELETE carries a body (compact mode reads it; only
- * DELETE query params are dropped).
+ * Admin ignored-products controls, mounted at `/api/admin/v1/ignored-products`.
+ * The unignore DELETE carries a body (compact mode reads it; only query
+ * params are dropped).
  */
 export const adminIgnoredProductsContract = {
   list: authedRoute

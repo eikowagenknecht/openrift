@@ -13,11 +13,6 @@ import {
 
 const SITE = "https://openrift.example";
 
-/**
- * Builds an index over cards given as `[id, name]`, each with one printing.
- *
- * @returns The scan index for those cards.
- */
 function indexOf(
   entries: [string, string][],
   printings: Partial<CatalogPrinting>[] = [{ cardId: entries[0]?.[0] }],
@@ -51,8 +46,6 @@ describe("scanTokens", () => {
   });
 
   it("folds accents and swallows apostrophes like the site's search", () => {
-    // The apostrophe vanishes rather than splitting, so a name and the message
-    // quoting it reduce identically however the writer typed the quote mark.
     expect(scanTokens("Brïar’s Résolve")).toEqual(["briars", "resolve"]);
     expect(scanTokens("Briar's Resolve")).toEqual(["briars", "resolve"]);
   });
@@ -92,8 +85,6 @@ describe("scanForCards", () => {
   });
 
   it("matches a bare name only when a card actually carries it", () => {
-    // "Jinx" is its own card here, so it matches; the point is that it does
-    // NOT resolve to "Jinx, Rebel".
     expect(names(index, "anyone got Jinx?")).toEqual(["Jinx"]);
     const withoutBare = indexOf([["card-jinx", "Jinx, Rebel"]], [{ cardId: "card-jinx" }]);
     expect(names(withoutBare, "anyone got Jinx?")).toEqual([]);

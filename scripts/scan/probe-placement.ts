@@ -1,16 +1,7 @@
 /* oxlint-disable import/no-nodejs-modules -- standalone CLI tooling, never bundled */
 /**
- * Calibration probe for the placement detector.
- *
- * Replays a clip's frames through `createPlacementDetector` alone (no OpenCV,
- * no encoder, so it runs in a second) and prints every settle event with the
- * numbers the gates are cut from: how long the disturbance lasted, and how far
- * the settled view sits from the view before it.
- *
- * The point of the probe is separating the two kinds of settle: a card laid
- * down (must count) from a card nudged, a hand passing, a light flickering
- * (must not). Compare the printed events against the clip's hand-counted
- * placements before touching DEFAULT_PLACEMENT_OPTIONS.
+ * Replays a clip's frames through `createPlacementDetector` and prints every
+ * settle event with the numbers the gates are cut from.
  *
  * Usage: bun scripts/scan/probe-placement.ts [--clip 3d-print-scanner] [--all]
  */

@@ -11,11 +11,6 @@ import {
 
 const OPTIONS = { lockRun: 3, maxGapFrames: 6 };
 
-/**
- * Build a verified candidate.
- *
- * @returns The candidate.
- */
 function candidate(key: string, artKey: string, inliers: number): VerifiedCandidate {
   return { key, artKey, inliers };
 }
@@ -93,7 +88,6 @@ describe("observeWinner", () => {
     const state: AcceptState = new Map();
     observeWinner(state, 0, 0, winner("a", "artA"), "A", OPTIONS);
     observeWinner(state, 1, 0, winner("a", "artA"), "A", OPTIONS);
-    // A long pause resets the run; the lock then needs a full new run.
     observeWinner(state, 100, 3.3, winner("a", "artA"), "A", OPTIONS);
     observeWinner(state, 101, 3.4, winner("a", "artA"), "A", OPTIONS);
     const locked = observeWinner(state, 102, 3.4, winner("a", "artA"), "A", OPTIONS);
@@ -105,7 +99,6 @@ describe("observeWinner", () => {
     observeWinner(state, 0, 0, winner("a", "artA"), "A", OPTIONS);
     observeWinner(state, 1, 0, winner("a", "artA"), "A", OPTIONS);
     expect(observeWinner(state, 2, 0.1, winner("a", "artA"), "A", OPTIONS)).not.toBeNull();
-    // Still aiming at the same card: the run extends without locking again.
     expect(observeWinner(state, 3, 0.1, winner("a", "artA"), "A", OPTIONS)).toBeNull();
     expect(observeWinner(state, 4, 0.2, winner("a", "artA"), "A", OPTIONS)).toBeNull();
   });
@@ -115,7 +108,6 @@ describe("observeWinner", () => {
     observeWinner(state, 0, 0, winner("a", "artA"), "A", OPTIONS);
     observeWinner(state, 1, 0, winner("a", "artA"), "A", OPTIONS);
     expect(observeWinner(state, 2, 0.1, winner("a", "artA"), "A", OPTIONS)).not.toBeNull();
-    // The first copy is put down (long gap), then a second copy is aimed at.
     observeWinner(state, 100, 3.3, winner("a", "artA"), "A", OPTIONS);
     observeWinner(state, 101, 3.4, winner("a", "artA"), "A", OPTIONS);
     const relocked = observeWinner(state, 102, 3.5, winner("a", "artA"), "A", OPTIONS);
@@ -129,8 +121,6 @@ describe("observeWinner", () => {
     observeWinner(state, 0, 0, winner("a", "artA"), "A", OPTIONS);
     observeWinner(state, 1, 0, winner("a", "artA"), "A", OPTIONS);
     expect(observeWinner(state, 2, 0.1, winner("a", "artA"), "A", OPTIONS)).not.toBeNull();
-    // The swap is faster than the gap tolerance: without the re-arm these
-    // frames would extend the locked run and the second copy would be lost.
     rearmLockedTracks(state);
     observeWinner(state, 4, 0.2, winner("a", "artA"), "A", OPTIONS);
     observeWinner(state, 5, 0.2, winner("a", "artA"), "A", OPTIONS);
@@ -143,8 +133,6 @@ describe("observeWinner", () => {
     const state: AcceptState = new Map();
     observeWinner(state, 0, 0, winner("a", "artA"), "A", OPTIONS);
     observeWinner(state, 1, 0, winner("a", "artA"), "A", OPTIONS);
-    // Two wins in, not locked yet: a detector dropout must not restart the
-    // lock clock — the gap tolerance covers mid-aim blur.
     rearmLockedTracks(state);
     const locked = observeWinner(state, 2, 0.1, winner("a", "artA"), "A", OPTIONS);
     expect(locked?.artKey).toBe("artA");
@@ -156,8 +144,6 @@ describe("observeWinner", () => {
     observeWinner(state, 1, 0, winner("a", "artA"), "A", OPTIONS);
     expect(observeWinner(state, 2, 0.1, winner("a", "artA"), "A", OPTIONS)).not.toBeNull();
     rearmLockedTracks(state);
-    // One agreeing frame is not a run; the same held card must not re-count
-    // off a single post-re-arm win.
     expect(observeWinner(state, 4, 0.2, winner("a", "artA"), "A", OPTIONS)).toBeNull();
     expect(observeWinner(state, 5, 0.2, winner("a", "artA"), "A", OPTIONS)).toBeNull();
   });
@@ -169,7 +155,6 @@ describe("observeWinner", () => {
     const weight = frameWeight(strong, 11, 1.5);
     expect(weight).toBe(MAX_FRAME_WEIGHT);
     expect(observeWinner(state, 0, 0, strong, "A", options, weight)).toBeNull();
-    // Two frames this good carry the evidence of three ordinary ones.
     expect(observeWinner(state, 1, 0.03, strong, "A", options, weight)?.artKey).toBe("artA");
   });
 
@@ -178,8 +163,6 @@ describe("observeWinner", () => {
     const options = { ...OPTIONS, weighted: true };
     const marginal = { key: "a", artKey: "artA", inliers: 11, rivalInliers: 7 };
     const weight = frameWeight(marginal, 11, 1.5);
-    // Exactly on the inlier floor: the weakest frame the layer accepts, so it
-    // buys no shortcut at all.
     expect(weight).toBe(1);
     expect(observeWinner(state, 0, 0, marginal, "A", options, weight)).toBeNull();
     expect(observeWinner(state, 1, 0.03, marginal, "A", options, weight)).toBeNull();
@@ -192,13 +175,9 @@ describe("observeWinner", () => {
     observeWinner(state, 0, 0, winner("a", "artA"), "A", options);
     observeWinner(state, 1, 0, winner("a", "artA"), "A", options);
     expect(observeWinner(state, 2, 0.1, winner("a", "artA"), "A", options)).not.toBeNull();
-    // The card never moved; the pipeline simply lost it for a while. Without
-    // the gate this starts a fresh run and counts the same card again, which
-    // is what made the count depend on how fast the device happened to run.
     for (const frame of [100, 101, 102, 103]) {
       expect(observeWinner(state, frame, frame / 30, winner("a", "artA"), "A", options)).toBeNull();
     }
-    // Only a placement makes it countable again.
     rearmLockedTracks(state);
     observeWinner(state, 200, 6.6, winner("a", "artA"), "A", options);
     observeWinner(state, 201, 6.7, winner("a", "artA"), "A", options);
@@ -207,7 +186,6 @@ describe("observeWinner", () => {
 
   it("measures lock latency from the run that locked, not the first sighting", () => {
     const state: AcceptState = new Map();
-    // Glimpsed once during a pan, then aimed at properly much later.
     observeWinner(state, 0, 0, winner("a", "artA"), "A", OPTIONS);
     observeWinner(state, 100, 3.3, winner("a", "artA"), "A", OPTIONS);
     observeWinner(state, 101, 3.4, winner("a", "artA"), "A", OPTIONS);

@@ -19,39 +19,16 @@ import type {
 } from "./types/index.js";
 import { ruleFiltersOnPrice } from "./types/list-rule.js";
 
-/**
- * The reference-table orders a trade rule needs to rank owned copies by
- * "niceness" when choosing which to keep vs. offer. Each array is slugs in
- * ascending sort order (plain first, premium last), so a later index is the
- * nicer printing. Sourced from the DB reference tables (admin-driven), never
- * from prices — so the keep/offer split is stable over time.
- */
+/** Reference-table orders (plain first, premium last) for keep/offer ranking. Never sourced from prices, so the split stays stable over time. */
 export type KeepPriorityOrders = Pick<EnumOrders, "finishes" | "rarities" | "artVariants">;
 
-/**
- * Rank of a slug within its reference order — higher means nicer (keep-first).
- * An unlisted slug ranks below every listed one so it sorts into the offer pile.
- * @returns The zero-based order index, or `-1` when the slug is unlisted.
- */
 function orderRank(order: readonly string[], slug: string): number {
   return order.indexOf(slug);
 }
 
 /**
- * Compares two printings by keep-priority: the nicer one sorts first (kept).
- * The top printing tier is standard-vs-special ({@link isStandardPrinting}): a
- * special copy (marked, signed, alt art, overnumbered, premium finish) is kept
- * over a plain one, even across rarities — "keep the special one, offer the
- * plain reprint". Below that, lexicographic across rarity, finish, markers, art
- * variant, overnumbered, then signed — rarity/finish/art measured against their
- * reference order (premium last → higher rank kept), markers by presence (a
- * marked printing — promo stamp, event stamp — is kept over an unmarked one).
- * `canonicalRank` is the neutral final tiebreak so equally-nice printings stay
- * deterministic.
- * The ladder's overriding bottom tier is `reserved` (promised copies never fill
- * a keep slot). It is a copy property, so it lives in
- * {@link copyKeepComparator}, not here.
- * @returns Negative if `a` should be kept before `b`, positive if `b` first, 0 if equal.
+ * Keep-priority comparator for printings only; `reserved` is handled by the
+ * caller ({@link copyKeepComparator}), not here.
  */
 function comparePrintingKeepPriority(a: Printing, b: Printing, orders: KeepPriorityOrders): number {
   return (
@@ -72,57 +49,23 @@ const EMPTY_TRADE_PREFERENCE: TradePreference = {
   tradeType: null,
 };
 
-/** A copy owned by the list owner, fed into trade-rule evaluation (ADR-034). */
+/** A copy owned by the list owner, fed into trade-rule evaluation. */
 export interface OwnedCopyRow {
   copyId: string;
   printingId: string;
   cardId: string;
   collectionId: string;
-  /** Whether the copy is pinned to a live trade (ADR-019). */
   reserved: boolean;
 }
 
 export interface RuleEvalContext {
-  /** Full catalog of printings (server-assembled or client `useCatalog`). */
   catalog: Printing[];
-  /** Required for trade rules: the list owner's copies. */
   ownedCopies?: OwnedCopyRow[];
-  /**
-   * Card id → custom-tag slugs. Required for any rule whose filter uses
-   * `customTagSlugs` / `customTagSlugsExclude`; without it `filterCards` reads no
-   * tags and those dimensions silently no-op (ADR-034). The server threads this
-   * from the assembled catalog; the client from `useCustomTagAssignments`.
-   */
   customTagAssignments?: Record<string, readonly string[]>;
-  /**
-   * Reference orders used to rank a trade rule's owned copies by niceness when
-   * deciding which to keep vs. offer (rarity / finish / art variant). Optional:
-   * without it the keep/offer split falls back to copy id only. Only trade
-   * rules read it; the server supplies it, the client's wish preview omits it
-   * (it never computes the trade copy split).
-   */
   enumOrders?: KeepPriorityOrders;
-  /**
-   * Latest-price lookup (major currency units), required for any rule whose
-   * filter carries a price bound (`ruleFiltersOnPrice`). Each rule resolves
-   * prices against its own persisted `priceMarketplace`, so two rules can
-   * bound prices on different marketplaces. Without the lookup a price-bounded
-   * rule matches no priced printing (same as `filterCards` without `getPrice`).
-   * Note this makes which cards such a rule *asks for* time-varying: the set
-   * shifts as prices refresh, unlike the keep/offer ranking above, which
-   * deliberately never reads prices. What already counts as owned is not
-   * time-varying — `netOwned` nets price-blind (amendment 6).
-   */
   priceLookup?: PriceLookup;
 }
 
-/**
- * Per-rule price resolver for `filterCards`: reads the context's lookup at the
- * rule's persisted marketplace. Undefined when the rule names no marketplace or
- * the context carries no prices — `filterCards` then treats every printing as
- * price-less (a price-bounded filter only matches via the "None" sentinel).
- * @returns The resolver, or undefined when prices can't be resolved.
- */
 function rulePriceResolver(
   rule: ListRule,
   ctx: RuleEvalContext,
@@ -145,22 +88,10 @@ export interface VirtualEntry {
   printingId?: string;
   copyId?: string;
   quantity: number;
-  /** Reserved annotation on copy entries (ADR-019). */
   reserved?: boolean;
-  /**
-   * Card entries only: the printings the producing wish rules' filters matched
-   * — the only printings allowed to satisfy this want (ADR-034 amendment 3).
-   * Group matching rejects supply copies outside the set. `undefined` means any
-   * printing satisfies (non-card kinds; manual entries never restrict).
-   */
   acceptablePrintingIds?: ReadonlySet<string>;
 }
 
-/**
- * Resolves a {@link RuleQuantity} against a card. `fixed` clamps to ≥ 0;
- * `playset` multiplies the card's playset size (1 for legends / unique, else 3).
- * @returns The concrete desired/keep count.
- */
 function resolveQuantity(quantity: RuleQuantity, card: Card): number {
   if (quantity.mode === "fixed") {
     return Math.max(0, quantity.n);
@@ -170,49 +101,14 @@ function resolveQuantity(quantity: RuleQuantity, card: Card): number {
 
 /** One wish rule's evaluated matches, keyed for the list's kind. */
 interface WishRuleTargets {
-  /** Key (printing id or card id) → pre-net target quantity. */
   targets: Map<string, number>;
-  /** Card kind only: card id → the printing ids the rule's filter matched. */
   matchedPrintings: Map<string, Set<string>>;
-  /**
-   * Card kind only: card id → the printings whose owned copies net the want.
-   * Identical to {@link matchedPrintings} unless the rule relaxes a dimension
-   * for netting (a price bound, or the standard-printing flag under
-   * `countSpecialVersions`), in which case it is the superset the relaxed
-   * filter matched.
-   */
   netPrintings: Map<string, Set<string>>;
 }
 
 /**
- * One wish rule's per-key targets: matched keys (post-exclusion) mapped to the
- * rule's resolved quantity, before any `netOwned` subtraction. Netting happens
- * after combination in {@link combineWishRules} so summed rules share one
- * owned pool instead of each subtracting it again. For card kind the matched
- * printing ids per card come along too — they become the want's acceptable
- * printings and the netting pool (ADR-034 amendment 3).
- *
- * Two relaxations can widen the netting pool beyond the matched printings, by
- * re-running the filter with a dimension cleared. Only cards the strict filter
- * matched get a pool, so a relaxed pass never adds wants — it only lets more of
- * the owner's copies count against an existing one. Both keep the want and its
- * acceptable printings on the strict filter.
- *
- * - **Price is always cleared** for a `netOwned` rule (ADR-034 amendment 6).
- *   A price bound is a budget for what to buy, not a property that makes a copy
- *   you already own stop existing, so it must not decide what counts as owned.
- *   Leaving it on netted out exactly the copies people expected to count: a
- *   special version is nearly always dearer than the standard printing, so a cap
- *   tuned to the latter excluded it, and a printing with no price at all failed
- *   any bound outright (`matchesRange` rejects a null value). It also made
- *   netting time-varying — the same collection netted differently after a price
- *   refresh, with no user action.
- * - **`countSpecialVersions`** (card kind + `netOwned` + a filter restricted to
- *   standard printings) additionally clears the standard-printing flag, so owned
- *   special versions fill the shortfall while the list still only asks for
- *   standard printings. Without the standard restriction the flag is inert, so
- *   it never has the inverted effect of counting plain copies.
- * @returns The rule's targets plus, for card kind, its matched and netting printings.
+ * netOwned rules relax price when netting (a budget must not decide what
+ * already counts as owned); countSpecialVersions also relaxes the standard flag, but the want itself stays on the strict filter.
  */
 function wishRuleTargets(
   rule: WishRule,
@@ -235,8 +131,6 @@ function wishRuleTargets(
     }
     return { targets, matchedPrintings, netPrintings: matchedPrintings };
   }
-  // listKind === "card": collapse matched printings to their cards, keeping
-  // every matched printing id per card.
   for (const printing of matched) {
     if (excluded.has(printing.cardId)) {
       continue;
@@ -255,13 +149,9 @@ function wishRuleTargets(
   const relaxStandard =
     rule.countSpecialVersions === true && rule.netOwned === true && rule.filter.isStandard === true;
   if (!relaxPrice && !relaxStandard) {
-    // Nothing to clear: the pool is the matched set, and the two maps can share
-    // one object rather than paying a second full-catalog filter pass.
+    // netPrintings aliases matchedPrintings here; callers must not mutate one expecting the other to stay separate.
     return { targets, matchedPrintings, netPrintings: matchedPrintings };
   }
-  // Clearing either dimension only ever widens the match, so the relaxed set is
-  // a superset of the strict one for every targeted card. With the price range
-  // cleared no dimension reads prices, so the resolver is dropped too.
   const netFilter = {
     ...rule.filter,
     ...(relaxPrice ? { price: { min: null, max: null } } : {}),
@@ -282,12 +172,8 @@ function wishRuleTargets(
 }
 
 /**
- * The owner's non-reserved copy counts per printing, for `netOwned` wish
- * rules. Reserved copies are pinned to a live outgoing trade (ADR-019) — they
- * are about to leave the collection, so they no longer count as owned and must
- * not suppress the shortfall. (Incoming copies aren't in the owner's
- * collection yet, so they never reach this set.)
- * @returns Copy counts by printing id.
+ * Reserved copies (pinned to a live outgoing trade) don't count as owned,
+ * so they can't suppress a netOwned shortfall.
  */
 function ownedCountsByPrinting(ctx: RuleEvalContext): Map<string, number> {
   const byPrinting = new Map<string, number>();
@@ -300,10 +186,6 @@ function ownedCountsByPrinting(ctx: RuleEvalContext): Map<string, number> {
   return byPrinting;
 }
 
-/**
- * Merges `printings` into the set stored under `key`, creating it on first use.
- * @returns Nothing; mutates `map` in place.
- */
 function unionInto(map: Map<string, Set<string>>, key: string, printings: Iterable<string>): void {
   const existing = map.get(key);
   if (existing) {
@@ -316,12 +198,8 @@ function unionInto(map: Map<string, Set<string>>, key: string, printings: Iterab
 }
 
 /**
- * Total owned copies across a card's netting pool (filter-aware netting,
- * ADR-034 amendment 3): only copies whose printing a `netOwned` rule matched
- * count toward the target, so an owned copy outside the filter (excluded art
- * variant, other language) doesn't fill the want. Price is the exception, never
- * part of the pool's filter (amendment 6) — see {@link wishRuleTargets}.
- * @returns The owned-copy count within the pool (0 for a missing pool).
+ * Sums owned copies across a card's netting pool; an owned copy outside the
+ * pool doesn't count toward the target (price is never part of the pool, see {@link wishRuleTargets}).
  */
 function countOwnedInPool(
   pool: ReadonlySet<string> | undefined,
@@ -337,24 +215,7 @@ function countOwnedInPool(
   return count;
 }
 
-/**
- * Combines several wish rules' targets into per-key quantities (ADR-034
- * amendment 2). Per key, plain and `netOwned` targets accumulate in separate
- * buckets under the combine op (`sum` adds, `max` takes the larger); the owned
- * count is then subtracted from the net bucket **once**, so two summed
- * `netOwned` rules share one owned pool instead of double-crediting it. The
- * final quantity is the op over [plain bucket, clamped net shortfall].
- *
- * Card kind is filter-aware on both sides (ADR-034 amendment 3): each entry
- * carries the union of the contributing rules' matched printings as its
- * acceptable set, and netting only counts owned copies whose printing a
- * `netOwned` rule matched — an owned copy outside the filters neither fills
- * the want nor satisfies it in matching. A price bound, and the standard flag
- * under `countSpecialVersions`, widen only the netting pool (see
- * {@link wishRuleTargets}); the acceptable set stays strict, so a budget still
- * governs what the list asks for and what matching may send.
- * @returns One virtual entry per key with a positive combined quantity.
- */
+/** The owned count is subtracted from the net bucket once; subtracting per rule double-credits overlapping netOwned rules. */
 function combineWishRules(
   rules: WishRule[],
   listKind: ListKind,
@@ -363,8 +224,6 @@ function combineWishRules(
 ): VirtualEntry[] {
   const combine = (a: number, b: number): number => (mode === "sum" ? a + b : Math.max(a, b));
   const byKey = new Map<string, { plain: number; net: number }>();
-  // Card kind only: per card, the printings any contributing rule matched
-  // (acceptable set) and the ones the netOwned rules matched (netting pool).
   const acceptableByKey = new Map<string, Set<string>>();
   const netPoolByKey = new Map<string, Set<string>>();
   let anyNet = false;
@@ -419,25 +278,13 @@ function combineWishRules(
 
 /** One trade rule's keep/offer split for one group (card or printing). */
 interface TradeRulePool {
-  /** The rule's resolved keep count for this group. */
   keepN: number;
-  /** The rule's candidate copies, ordered keep-first (nicest first). */
   ordered: OwnedCopyRow[];
 }
 
 /**
- * Comparator over owned copies by keep priority. The overriding bottom tier is
- * `reserved`: a copy pinned to a live trade (ADR-019) is already promised and
- * will leave the collection, so it must never fill a keep slot — otherwise
- * reserving the spare of a keep-N stack would push a keeper into the offered
- * set and the rule would "replenish" the offer from copies meant to stay.
- * Sorted last, a reserved copy lands in the offered tail, where matching drops
- * it ({@link buildSupply}'s reserved exclusion) and the owner's list page shows
- * it annotated. Above that the printing's keep priority
- * ({@link comparePrintingKeepPriority}), with copy id (uuidv7) as the final
- * deterministic tiebreak. Without reference orders (or for unknown printings)
- * reserved and then the copy id decide.
- * @returns A comparator for `toSorted` that puts kept-first copies first.
+ * Sorts reserved copies last (already promised to a trade, so they must
+ * never fill a keep slot), then by printing niceness, then copy id as the final tiebreak.
  */
 function copyKeepComparator(
   printingById: Map<string, Printing>,
@@ -460,28 +307,7 @@ function copyKeepComparator(
   };
 }
 
-/**
- * The printing ids a rule set can ever consult from the owner's collection.
- *
- * Only two places read `ctx.ownedCopies`: {@link ownedCountsByPrinting} (for
- * `netOwned` wish rules) and {@link tradeRulePools} (trade supply). Both then
- * discard every copy whose printing isn't in the rule's matched set, and that
- * set comes from the catalog alone — no rule's match depends on what is owned.
- * So the caller can compute this first and load only the copies that can
- * survive the filter, instead of the owner's entire collection.
- *
- * Derived by calling the very same helpers the evaluator uses
- * ({@link filterCards}, {@link wishRuleTargets}) so the two cannot drift: a
- * printing this omits is a printing the evaluator would have discarded.
- *
- * Rules that never read copies (plain wish rules) contribute nothing, so an
- * empty result means no copy is needed at all.
- *
- * @param rules The list's rules.
- * @param listKind The list's kind, which decides whether wish targets are keyed by printing or card.
- * @param ctx Catalog and custom-tag assignments — `ownedCopies` is deliberately not required.
- * @returns The printing ids worth loading copies for.
- */
+/** Must call the same {@link filterCards} / {@link wishRuleTargets} as the evaluator, or a printing omitted here is one the evaluator would still match. */
 export function ownedCopyPrintingScope(
   rules: readonly ListRule[],
   listKind: ListKind,
@@ -510,17 +336,12 @@ export function ownedCopyPrintingScope(
     }
     const { targets, matchedPrintings, netPrintings } = wishRuleTargets(rule, listKind, ctx);
     if (listKind === "printing") {
-      // Keyed by printing: `ownedByPrinting.get(key)` reads the target ids
-      // directly, and `matchedPrintings` is empty on this branch.
       for (const id of targets.keys()) {
         scope.add(id);
       }
       continue;
     }
-    // Keyed by card: the netting pool is what gets counted. `netPrintings` is
-    // the relaxed superset when a price bound or `countSpecialVersions` widens
-    // it, and is the same map as `matchedPrintings` otherwise — union both so
-    // neither branch can be missed.
+    // netPrintings may just alias matchedPrintings; union both so neither branch is missed.
     addAll(netPrintings.values());
     addAll(matchedPrintings.values());
   }
@@ -528,13 +349,8 @@ export function ownedCopyPrintingScope(
 }
 
 /**
- * One trade rule's candidate copies grouped per the rule's `keepPer` (per card
- * by default, per printing when set) and ordered keep-first: the nicer printing
- * first (standard-vs-special → rarity → finish → markers → art → signed, per
- * {@link comparePrintingKeepPriority} — stable over time, no prices), reserved
- * copies last (already promised, so they never fill a keep slot), with copy id
- * (uuidv7) as the final deterministic tiebreak.
- * @returns Group key (card id or printing id) → the rule's keep count and ordered candidates.
+ * Groups a trade rule's candidate copies by `keepPer` (card or printing),
+ * ordered keep-first via {@link copyKeepComparator}.
  */
 function tradeRulePools(
   rule: TradeRule,
@@ -582,18 +398,8 @@ interface CountGroupAcc {
 }
 
 /**
- * Combines several trade rules' keep/offer splits into offered copy entries
- * (ADR-034 amendment 2).
- * - `protect`: a copy is offered iff at least one rule matched it and **no**
- *   matching rule kept it — every rule's kept copies are sacred, so stacking
- *   rules can only widen protection, never leak a guarded copy.
- * - `count-sum` / `count-max`: the rules' keep counts combine into one total
- *   (sum or max) within each grouping — per-card rules per card, per-printing
- *   rules per printing (counts against different group sizes never mix) — then
- *   the nicest that-many across the union of matched copies are kept and the
- *   rest offered — "keep N total, I don't care which". A copy kept by either
- *   grouping stays kept (the protect invariant applied across groupings).
- * @returns One quantity-1 entry per offered copy.
+ * `protect`: a copy is offered only if some rule matched it and no rule kept
+ * it. `count-sum`/`count-max`: keep counts combine per grouping (card vs printing) before the nicest N are kept.
  */
 function combineTradeRules(
   rules: TradeRule[],
@@ -635,8 +441,6 @@ function combineTradeRules(
       .filter((copy) => !kept.has(copy.copyId))
       .map((copy) => toEntry(copy));
   }
-  // count-sum / count-max: merge each rule's pools into its grouping's layer,
-  // then keep the nicest keepTotal per group and offer what no layer kept.
   const layers = {
     card: new Map<string, CountGroupAcc>(),
     printing: new Map<string, CountGroupAcc>(),
@@ -676,12 +480,7 @@ function combineTradeRules(
 }
 
 /**
- * Pure evaluator for a single dynamic list rule (ADR-034). Produces virtual
- * entries of the list's kind; nothing is persisted. Runs identically on the
- * server (read paths, matcher) and the client (editor preview). With one rule
- * every combine mode coincides, so this delegates to {@link evaluateListRules}.
- *
- * @returns The rule's virtual entries (empty when nothing matches).
+ * Evaluates a single rule via {@link evaluateListRules}; with one rule, every combine mode coincides.
  */
 export function evaluateListRule(
   rule: ListRule,
@@ -692,16 +491,8 @@ export function evaluateListRule(
 }
 
 /**
- * Evaluates a list's rules (ADR-034) and combines their outputs per the list's
- * combine mode (amendment 2): wish rules through {@link combineWishRules}
- * (`sum` default / `max`), trade rules through {@link combineTradeRules}
- * (`protect` default / `count-sum` / `count-max`). A mode that doesn't belong
- * to the rules' intent (or `null`/`undefined`, e.g. lists persisted before the
- * setting existed) falls back to the intent's default. The combined entries
- * are unique per key, so {@link expandList} only merges them with manual
- * entries.
- *
- * @returns The combined virtual entries across every rule (empty when none).
+ * Wish rules combine via {@link combineWishRules} (sum default / max); trade
+ * rules via {@link combineTradeRules} (protect default / count-sum / count-max). A missing or unrecognized mode falls back to the default.
  */
 export function evaluateListRules(
   rules: ListRule[],
@@ -720,8 +511,6 @@ export function evaluateListRules(
   ];
 }
 
-// ── expandList: the union authority (ADR-034 §II.4) ─────────────────────────
-
 /** A persisted (manual) `list_entries` row, fed into {@link expandList}. */
 export interface ManualEntryRow {
   id: string;
@@ -739,39 +528,16 @@ export interface ExpandedEntry {
   cardId?: string;
   printingId?: string;
   copyId?: string;
-  /**
-   * Total wanted/surplus count. For card/printing lists it is the manual
-   * entry's quantity **plus** the rule's contribution (ADR-034 additive model);
-   * for copy lists it is always 1 (a copy is one physical card, so manual and
-   * rule outputs union rather than sum).
-   */
   quantity: number;
-  /**
-   * The rule's contribution to {@link quantity}: the max across overlapping
-   * rules for card/printing, `1` when a rule produced a copy, else `0`. The
-   * manual part is `quantity - ruleQuantity`. Rule-only entries have
-   * `ruleQuantity === quantity`; pure manual entries have `ruleQuantity === 0`.
-   */
   ruleQuantity: number;
-  /** Real `list_entries.id` for manual/both; `null` for rule-only. */
   id: string | null;
   source: EntrySource;
   tradeOverride: TradePreference;
   reserved?: boolean;
-  /**
-   * Rule-only card entries: the printings allowed to satisfy this want, from
-   * {@link VirtualEntry.acceptablePrintingIds}. A manual part (`source` manual
-   * or both) lifts the restriction — a manual card want accepts any printing —
-   * so the field is `undefined` there (ADR-034 amendment 3).
-   */
   acceptablePrintingIds?: ReadonlySet<string>;
 }
 
-/**
- * Dedup key for an entry of the given kind: copies by `copyId`, card/printing
- * lists by `cardId`/`printingId`.
- * @returns The stable key, or `null` if the target id is missing.
- */
+/** Dedup key for an entry: copies by `copyId`, card/printing lists by `cardId`/`printingId`. */
 function targetKey(
   kind: ListKind,
   entry: { cardId?: string | null; printingId?: string | null; copyId?: string | null },
@@ -802,24 +568,8 @@ interface ExpansionAcc {
 }
 
 /**
- * Merges a list's manual entries with its rule output into one deduped set
- * (ADR-034). `ruleEntries` arrive pre-combined per key by `evaluateListRules`
- * (the list's combine mode); the rendered list is `manual ∪ rule output`:
- * - card/printing: quantity is **additive** — the manual part plus the rule's
- *   contribution. The manual part stays independently editable; the rule part
- *   is reported via {@link ExpandedEntry.ruleQuantity}. (Duplicate rule keys
- *   would still dedupe to their max as a residual guard.)
- * - copy conflicts: union (one physical copy), quantity stays 1, the manual row
- *   wins (keeps its id + trade override).
- * - `source = "both"` whenever a manual entry and the rule both hit a key;
- *   rule∩rule stays `source = "rule"`.
- * - rule-only entries get `id: null`, `source: "rule"`, and an empty trade
- *   override (so they inherit the list's defaults downstream).
- * - rule-only card entries keep their acceptable-printing set (rule∩rule
- *   overlaps union theirs); any manual part lifts the restriction (ADR-034
- *   amendment 3).
- *
- * @returns The deduped expanded entries (no guaranteed order).
+ * Merges manual entries with pre-combined rule output by key: card/printing
+ * quantities add (manual + rule), copy conflicts union with the manual row winning; `source` is `"both"` when manual and rule both hit a key.
  */
 export function expandList(
   listKind: ListKind,
@@ -858,7 +608,6 @@ export function expandList(
         printingId: rule.printingId,
         copyId: rule.copyId,
         manualQuantity: 0,
-        // Copies union (one physical card); card/printing carry the rule count.
         ruleQuantity: listKind === "copy" ? 1 : rule.quantity,
         id: null,
         hasManual: false,
@@ -871,16 +620,11 @@ export function expandList(
     }
     existing.hasRule = true;
     if (listKind === "copy") {
-      // Union: the manual row already wins (id + override kept). Carry the
-      // rule's reserved annotation only if the manual side lacked one.
       existing.ruleQuantity = 1;
       existing.reserved ??= rule.reserved;
     } else {
-      // Rule entries arrive pre-combined (one per key); duplicate keys dedupe
-      // to their max as a residual guard rather than double-counting.
+      // Rule entries arrive pre-combined per key; max here is a residual guard, not real combining.
       existing.ruleQuantity = Math.max(existing.ruleQuantity, rule.quantity);
-      // Acceptable sets union across rule entries; an unrestricted part (a
-      // manual entry, or a rule entry without a set) lifts the restriction.
       existing.acceptablePrintingIds =
         !existing.hasManual && existing.acceptablePrintingIds && rule.acceptablePrintingIds
           ? new Set([...existing.acceptablePrintingIds, ...rule.acceptablePrintingIds])
@@ -903,7 +647,6 @@ export function expandList(
     source: acc.hasManual && acc.hasRule ? "both" : acc.hasManual ? "manual" : "rule",
     tradeOverride: acc.tradeOverride,
     reserved: acc.reserved,
-    // A manual part accepts any printing, so only rule-only entries restrict.
     acceptablePrintingIds: acc.hasManual ? undefined : acc.acceptablePrintingIds,
   }));
 }

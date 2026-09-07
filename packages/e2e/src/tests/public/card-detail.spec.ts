@@ -7,8 +7,8 @@ import { dockDetailPane } from "../../helpers/detail-pane.js";
 
 const SEED_CARD_SLUG = "annie-fiery";
 const SEED_CARD_NAME = "Annie, Fiery";
-// Annie's normal-printing id — used to deep-link the detail pane, since the
-// virtualized /cards grid tile click is not drivable in the harness.
+// Annie's normal-printing id, for deep-linking the detail pane directly:
+// the virtualized /cards grid tile click isn't drivable in the harness.
 const ANNIE_PRINTING_ID = "019cfc3b-03d6-74cf-adec-1dce41f631eb";
 
 interface MarketplacePrices {
@@ -17,8 +17,6 @@ interface MarketplacePrices {
   cardtrader?: number;
 }
 
-// Prices are no longer inlined on the card-detail response (contracts/cards.ts):
-// they are served from the /prices resource, keyed by printing id.
 async function fetchPrices(): Promise<Record<string, MarketplacePrices | undefined>> {
   const res = await fetch(`${API_BASE_URL}/api/v1/prices`);
   if (!res.ok) {
@@ -90,12 +88,8 @@ async function fetchCardDetail(slug: string): Promise<CardDetailFixture> {
   return detail;
 }
 
-// Mirrors apps/web/src/lib/card-meta.ts so we can compare the head's
-// rendered description against what the helper would produce.
-// Follows card-meta's buildCardPriceLine: the first marketplace (in
-// ALL_MARKETPLACES order, CardTrader first) with any positive price wins, and
-// the wire's integer cents convert to major units. Only the currency
-// formatting is restated here — those formatters live in apps/web, not shared.
+// Mirrors apps/web/src/lib/card-meta.ts's buildCardPriceLine: keep this in
+// sync if that helper's formatting or marketplace-priority logic changes.
 function buildExpectedPriceLine(
   detail: CardDetailFixture,
   prices: Record<string, MarketplacePrices | undefined>,
@@ -119,10 +113,6 @@ function buildExpectedDescription(detail: CardDetailFixture, priceLine: string |
   const META = 155;
   const card = detail.card;
   const parts: string[] = [];
-  // card-meta.ts renders enum display labels, not raw slugs. The seed's domain
-  // and card-type labels are the Title-cased slug ("fury" → "Fury", "unit" →
-  // "Unit"), so capitalize to mirror the page output without shipping the label
-  // maps to the test.
   const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
   const domains = card.domains.length > 0 ? card.domains.map(capitalize).join("/") : null;
   const typeLine = domains ? `${domains} ${capitalize(card.type)}` : capitalize(card.type);
@@ -145,9 +135,8 @@ function buildExpectedDescription(detail: CardDetailFixture, priceLine: string |
   return parts.join(" ");
 }
 
-// Identifies the card-detail server fn out of the bundle of server fns that
-// run during a route transition. TanStack Start encodes the server fn id as
-// base64url(JSON) referencing the source file + export name.
+// TanStack Start encodes the server fn id as base64url(JSON) referencing the
+// source file + export name; decode it to match against the target fn.
 function isCardDetailServerFn(url: string): boolean {
   const match = /\/_serverFn\/(?<encoded>[^/?#]+)/u.exec(url);
   const encoded = match?.groups?.encoded;
@@ -184,19 +173,14 @@ test.describe("card detail route — essentials", () => {
     await expect(page.getByPlaceholder(/search/iu)).toBeVisible({ timeout: 10_000 });
   });
 
-  // A missing slug now renders the not-found fallback (RouteNotFoundFallback —
-  // "Nothing here but dust" with a "Go home" link), not the error fallback.
   test("an unknown slug renders the not-found fallback", async ({ page }) => {
     await page.goto("/cards/this-card-does-not-exist-anywhere", { waitUntil: "domcontentloaded" });
 
     await expect(page.getByRole("link", { name: "Go home" })).toBeVisible({ timeout: 10_000 });
   });
 
-  // Open the pane via deep-link (the /cards grid tile click is not drivable in
-  // the harness), then intercept the detail server fn and click through the
-  // pane's "Open card page" link — that client-side navigation runs the
-  // /cards/$slug loader in the browser, where page.route can fail it. The pane
-  // is opt-in, so it has to be docked before the app boots.
+  // The grid tile click isn't drivable in the harness, so open the pane via
+  // deep link and follow its "Open card page" link into the routed navigation.
   test("a 500 from the detail server fn renders the route error fallback", async ({ page }) => {
     await dockDetailPane(page);
     await page.goto(`/cards?printingId=${ANNIE_PRINTING_ID}`);
@@ -239,12 +223,8 @@ test.describe("card detail route — essentials", () => {
 
     await pane.getByRole("link", { name: /open card page/iu }).click();
 
-    // CardDetailPending renders Skeleton elements (data-slot="skeleton")
-    // before the loader resolves and the real h1 mounts. TanStack's
-    // defaults are pendingMs=1000 and pendingMinMs=500, so the skeleton's
-    // window is roughly t=1000ms..2000ms after the click — give the
-    // assertion enough room that navigation-scheduling jitter doesn't
-    // push the skeleton out of the window before we look.
+    // TanStack's defaults are pendingMs=1000/pendingMinMs=500, so the skeleton
+    // window is roughly t=1000..2000ms after the click.
     await expect(page.locator('[data-slot="skeleton"]').first()).toBeVisible({ timeout: 5000 });
     await expect(page.getByRole("heading", { level: 1, name: SEED_CARD_NAME })).toBeVisible({
       timeout: 10_000,
@@ -301,8 +281,8 @@ test.describe("card detail route — head / SEO / JSON-LD", () => {
     expect(typeof product.image).toBe("string");
     expect(product.image).toMatch(/^https?:\/\//u);
 
-    // `offers` is now an array of per-marketplace AggregateOffers, each in its
-    // own currency (TCGplayer=USD, Cardmarket/CardTrader=EUR).
+    // offers is an array of per-marketplace AggregateOffers, each in its own
+    // currency (TCGplayer=USD, Cardmarket/CardTrader=EUR).
     const offers = product.offers;
     expect(Array.isArray(offers), "Product should expose an offers array").toBe(true);
     expect(offers.length).toBeGreaterThan(0);
@@ -332,10 +312,6 @@ test.describe("card detail route — head / SEO / JSON-LD", () => {
 });
 
 test.describe("card detail route — related cards", () => {
-  // Regression: the selected printing used to live in component state, which
-  // survives a $cardSlug-only navigation (the route component stays mounted),
-  // so following a related-card link kept showing the previous card's
-  // printing in the info panel. The selection is now derived from the URL.
   test("following a related-card link resets the selected printing to the new card's", async ({
     page,
   }) => {
@@ -356,8 +332,6 @@ test.describe("card detail route — related cards", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: relatedDetail.card.name }),
     ).toBeVisible();
-    // The info panel now shows the new card's preferred printing, and the old
-    // card's code is gone from the page entirely.
     await expect(page.getByText(relatedDetail.printings[0].publicCode).first()).toBeVisible();
     await expect(page.getByText(oldCode, { exact: true })).toHaveCount(0);
   });
@@ -384,13 +358,11 @@ test.describe("card detail route — info panel", () => {
   test("renders the standard rows for code, rarity, finish, language, artist", async ({ page }) => {
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
-    // The rarity icon's sibling text reveals the rarity name.
     await expect(page.getByText("Code", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Rarity", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Finish", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Language", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Artist", { exact: true }).first()).toBeVisible();
-    // Annie, Fiery's seed printings are Epic rarity and Polar Engine Studio art.
     await expect(page.getByText("epic").first()).toBeVisible();
     await expect(page.getByText("Polar Engine Studio").first()).toBeVisible();
   });
@@ -412,14 +384,10 @@ test.describe("card detail route — info panel", () => {
 
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
-    // Default selection is the EN printing → "Printed name" row hidden.
     await expect(page.getByText("Printed name", { exact: true })).toBeHidden();
 
-    // Switching to the alt-language printing reveals it with the localized name.
-    // Multiple printings share a publicCode (normal/foil/language variants), so
-    // target the exact printing by id rather than by its visible publicCode text.
-    // Retry the click: the SSR'd button can receive a click before React
-    // attaches onClick, leaving state unchanged.
+    // Printings can share a publicCode, so target by id. Retry: a pre-hydration
+    // click can land before onClick attaches, leaving state unchanged.
     const altButton = page.locator(`button[data-printing-id="${altPrinting.id}"]`);
     const printedNameRow = page.getByText("Printed name", { exact: true });
     await expect(async () => {
@@ -447,9 +415,8 @@ test.describe("card detail route — info panel", () => {
     }
 
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
-    // Default is plain — Promo / Art variant info rows absent. Scope to
-    // `role="row"` so we don't match the "Promo" marker label that can also
-    // appear on a sibling printing button's badge strip.
+    // Scope to role=row; getByText("Promo") also matches a sibling printing's
+    // badge strip.
     await expect(
       page.getByRole("row").filter({ has: page.getByText("Promo", { exact: true }) }),
     ).toHaveCount(0);
@@ -457,28 +424,22 @@ test.describe("card detail route — info panel", () => {
       page.getByRole("row").filter({ has: page.getByText("Art variant", { exact: true }) }),
     ).toHaveCount(0);
 
-    // Pick the foil promo printing and verify the Promo row appears with the
-    // marker label rendered inside its promo box. (No seed printing has a
-    // non-normal artVariant, so the Art variant row stays hidden.)
-    // Multiple printings share the same publicCode, so target by id.
+    // No seed printing has a non-normal artVariant, so Art variant stays hidden.
+    // Printings share a publicCode, so target by id.
     const promoButton = page.locator(`button[data-printing-id="${promoPrinting.id}"]`);
 
-    // Let hydration settle before interacting — clicks that land before React
-    // attaches onClick fire as bare DOM events and do nothing.
     await page.waitForLoadState("networkidle");
     await expect(promoButton).toHaveAttribute("aria-pressed", "false");
 
-    // Retry the click using aria-pressed as the signal that state actually
-    // updated. A pre-hydration click leaves aria-pressed unchanged; once
-    // React is attached, clicking flips it to "true".
+    // Retry via aria-pressed: a pre-hydration click leaves it unchanged; once
+    // React attaches, clicking flips it to true.
     await expect(async () => {
       await promoButton.click();
       await expect(promoButton).toHaveAttribute("aria-pressed", "true", { timeout: 1000 });
     }).toPass({ timeout: 15_000 });
 
-    // Now the Promo row must have rendered with the marker-label badge inside.
-    // Scope the marker-label assertion to that row — the label also appears in
-    // printing-button badges and the price-history heading.
+    // Scope to this row; the marker label also appears in printing-button
+    // badges and the price-history heading.
     const promoRow = page
       .getByRole("row")
       .filter({ has: page.getByText("Promo", { exact: true }) })
@@ -488,7 +449,6 @@ test.describe("card detail route — info panel", () => {
   });
 
   test("type / domains / energy / might / power render only when present", async ({ page }) => {
-    // Annie, Fiery: Unit, Fury domain, energy 5, power 1, might 4, no mightBonus.
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
     await expect(page.getByText("Type", { exact: true }).first()).toBeVisible();
@@ -498,12 +458,10 @@ test.describe("card detail route — info panel", () => {
     await expect(page.getByText("Energy", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Might", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Power", { exact: true }).first()).toBeVisible();
-    // No mightBonus on Annie, Fiery in seed → row absent.
     await expect(page.getByText("Might bonus", { exact: true })).toBeHidden();
   });
 
   test("a Legend with no stats hides energy / might / power rows entirely", async ({ page }) => {
-    // Try a few seeded Legend slugs; whichever exists with no stats wins.
     const candidates = ["dark-child-starter", "lady-of-luminosity-starter"];
     let chosen: CardDetailFixture | null = null;
     for (const slug of candidates) {
@@ -540,10 +498,8 @@ test.describe("card detail route — info panel", () => {
       await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
       await expect(page.getByRole("heading", { level: 1, name: SEED_CARD_NAME })).toBeVisible();
-      // On mobile the right-column rows render twice: once in the main table
-      // (hidden via `hidden sm:table-cell`) and once in a separate
-      // `sm:hidden` stacked block. Filter to the visible copy so `.first()`
-      // doesn't land on the hidden one.
+      // Right-column rows render twice on mobile (hidden sm:table-cell, plus a
+      // sm:hidden stacked block); filter to the visible copy.
       await expect(page.getByText("Type", { exact: true }).filter({ visible: true })).toBeVisible();
       await expect(
         page.getByText("Domains", { exact: true }).filter({ visible: true }),
@@ -559,7 +515,6 @@ test.describe("card detail route — rules / effect / flavor / errata / bans", (
   test("rules text and flavor text render when set on the printing", async ({ page }) => {
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
-    // Annie, Fiery's seed printing has rules text and a flavor line.
     await expect(page.getByText("Rules", { exact: true })).toBeVisible();
     await expect(page.getByText(/Bonus Damage|Deal 3 damage/iu).first()).toBeVisible();
     await expect(page.getByText("Flavor", { exact: true })).toBeVisible();
@@ -585,7 +540,6 @@ test.describe("card detail route — rules / effect / flavor / errata / bans", (
   test("when errata has a sourceUrl, the source is a link with target=_blank and rel=noreferrer", async ({
     page,
   }) => {
-    // annie-stubborn carries seed errata with a sourceUrl.
     const slug = "annie-stubborn";
     const detail = await fetchCardDetailOrNull(slug);
     const errata = detail?.card.errata;
@@ -605,7 +559,6 @@ test.describe("card detail route — rules / effect / flavor / errata / bans", (
   });
 
   test("a banned card shows the Bans block with format, date, and reason", async ({ page }) => {
-    // blast-of-power is banned in freeform in seed.
     const slug = "blast-of-power";
     const detail = await fetchCardDetailOrNull(slug);
     const ban = detail?.card.bans[0];
@@ -641,9 +594,7 @@ test.describe("card detail route — printings list", () => {
 
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
-    // Each language group renders an h2 header above the printing buttons.
-    // The header pairs a LanguageChip with the label, so its text reads
-    // "EN English" rather than either part on its own.
+    // The heading combines a LanguageChip with the label: text reads "EN English".
     const headings = page.getByRole("heading", { level: 2 });
     await expect(headings.filter({ hasText: /English/u }).first()).toBeVisible();
   });
@@ -658,24 +609,17 @@ test.describe("card detail route — printings list", () => {
 
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
-    // Scope assertions to the info panel's Language row — bare getByText("EN")
-    // would also match the "English" group heading (case-insensitive substring
-    // match) and hide a broken state change.
+    // getByText("EN") also matches the "English" group heading; scope to the
+    // info panel's Language row.
     const languageRow = page
       .getByRole("row")
       .filter({ has: page.getByText("Language", { exact: true }) })
       .first();
     await expect(languageRow).toContainText("English");
 
-    // Sibling printings can share a publicCode (normal/foil/language variants)
-    // and have no visible text that distinguishes them, so target the intended
-    // printing by its data-printing-id.
     const altButton = page.locator(`button[data-printing-id="${altLang.id}"]`);
     await expect(altButton).toBeVisible();
-    // The Language row shows the full language label (via useLanguageLabels)
-    // rather than the raw ISO code. We don't ship the label map to the test,
-    // so assert the row no longer reads "English" after switching to a non-EN
-    // printing — that's enough to prove the state change landed.
+    // The localized label map isn't shipped to the test; only assert "English" no longer matches.
     await expect(async () => {
       await altButton.click();
       await expect(languageRow).not.toContainText("English", { timeout: 500 });
@@ -693,8 +637,6 @@ test.describe("card detail route — printings list", () => {
 
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
-    // Multiple printings share the same publicCode (normal/foil + language
-    // variants), so target the specific button by printing id.
     const button = page.locator(`button[data-printing-id="${foilPromo.id}"]`);
     await expect(button).toBeVisible();
     await expect(button.getByText("Foil", { exact: true })).toBeVisible();
@@ -711,8 +653,6 @@ test.describe("card detail route — printings list", () => {
 
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
-    // The Language row in the left column shows the selected printing's language.
-    // With default user preferences (English first), it should be "English".
     const languageRow = page
       .getByRole("row")
       .filter({ has: page.getByText("Language", { exact: true }) })
@@ -737,14 +677,13 @@ test.describe("card detail route — price history", () => {
   test("the time-range button group hides ranges longer than the data span", async ({ page }) => {
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
-    // Wait for the section to mount — the heading anchors it.
     await expect(page.getByRole("heading", { name: /^Price History — /u })).toBeVisible({
       timeout: 10_000,
     });
 
     const timeRange = page.getByRole("group", { name: /time range/iu });
     await expect(timeRange).toBeVisible();
-    // The "All" range is always available; clicking it keeps the group consistent.
+    // "All" is always available regardless of data span.
     const allButton = timeRange.getByRole("button", { name: "All" });
     await expect(allButton).toBeVisible();
     await allButton.click();
@@ -767,20 +706,11 @@ test.describe("card detail route — price history", () => {
     expect(enabledCount, "at least one marketplace should be available").toBeGreaterThan(0);
 
     if (enabledCount >= 2) {
-      // Click the second enabled marketplace and verify selection changed.
-      // Tracking by class state is brittle, but the disabled set itself is
-      // already user-visible (greyed-out look).
       await enabledButtons.nth(1).click();
     }
   });
 
-  // The price-history section no longer renders a snapshot table — it was
-  // replaced by the visx chart plus the time-range and price-source controls
-  // (covered above). There is no longer a tabular view to assert sort order or
-  // currency column headers against, so that test was removed.
-
-  // The chart is rendered with visx and the highlight handler is driven by
-  // SVG mouse events that don't reliably reproduce in headless playwright.
-  // Tracking this gap rather than shipping a flaky test.
+  // visx renders the chart via SVG mouse events that don't reproduce reliably
+  // in headless playwright.
   test.skip("hovering a chart point highlights the matching table row", () => {});
 });

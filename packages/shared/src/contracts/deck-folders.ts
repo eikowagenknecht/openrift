@@ -14,20 +14,12 @@ export const updateDeckFolderSchema = z.object({
   name: z.string().min(1).max(100),
 });
 
-/**
- * Bulk reorder for the user's folders. The server re-numbers `sort_order` so
- * the folders appear in the order given on the next fetch. Not bucket-scoped
- * (unlike lists) because folders are a single flat set per user.
- */
+/** Not bucket-scoped, unlike lists: folders are a single flat set per user. */
 export const reorderDeckFoldersSchema = z.object({
   orderedIds: z.array(z.uuid()).min(1).max(500),
 });
 
-/**
- * Replaces a deck's folder membership wholesale. An empty array files the deck
- * under no folder. Folder ids the caller doesn't own are ignored rather than
- * rejected.
- */
+/** Folder ids the caller doesn't own are ignored, not rejected. */
 export const setDeckFoldersSchema = z.object({
   folderIds: z.array(z.uuid()).max(100),
 });
@@ -49,13 +41,6 @@ export const deckFolderListResponseSchema = z
 
 const TAG = "Deck folders";
 
-/**
- * oRPC contract for user-authored deck folders, mounted at
- * `/api/v1/deck-folders`. All require a session, so they share the
- * `authedRoute` base. Domain codes: `update`, `remove` → NOT_FOUND;
- * `create`, `update` → CONFLICT (a folder with that name already exists);
- * `setForDeck` → NOT_FOUND (deck not found).
- */
 export const deckFoldersContract = {
   list: authedRoute
     .route({ method: "GET", path: "/api/v1/deck-folders", tags: [TAG] })

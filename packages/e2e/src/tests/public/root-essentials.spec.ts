@@ -88,10 +88,8 @@ test.describe("root essentials", () => {
   });
 
   test.describe("theme blocking script", () => {
-    // Guards against FOUC regressions: the server inlines a synchronous script
-    // that reads the theme cookie and, for "auto", checks prefers-color-scheme
-    // before React hydrates. If this ever stops being inlined, light/dark users
-    // would flash the wrong palette on first paint.
+    // Guards FOUC: if this script stops being inlined before hydration, users
+    // flash the wrong palette on first paint.
     test("inlines a matchMedia/theme-preference script in the document", async ({ page }) => {
       await page.goto("/");
       const html = await page.content();

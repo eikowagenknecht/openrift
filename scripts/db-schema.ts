@@ -6,18 +6,13 @@ import { migrate } from "../apps/api/src/db/migrate.js";
 import { createLogger } from "../packages/shared/src/logger.js";
 import { requireEnv } from "./env.js";
 
-// Regenerates docs/schema.sql from a FRESH migrate against a throwaway database,
-// NEVER from the shared dev DB. The dev DB drifts whenever an already-applied
-// migration is edited (PostgreSQL keeps original column ordinals), so dumping it
-// produces a schema that no longer matches what the migrations actually create —
-// which fails the schema-snapshot integration test. A clean migrate is the
-// source of truth.
+// Never dumps the shared dev DB: it drifts whenever an applied migration is
+// edited (Postgres keeps original column ordinals), failing the schema-snapshot test.
 const log = createLogger("db:schema");
 const url = requireEnv("DATABASE_URL");
 const TEMP_DB = "openrift_schema_dump";
 const CONTAINER = "openrift-db-1";
 
-/** @returns The connection URL pointed at a different database name. */
 function withDatabase(connectionUrl: string, dbName: string): string {
   return connectionUrl.replace(/\/[^/?]+(?<tail>\?|$)/u, `/${dbName}$<tail>`);
 }

@@ -33,10 +33,6 @@ import {
 import { EMPTY_CARD_FILTERS } from "./types/index.js";
 import type { ListRule } from "./types/index.js";
 
-// ---------------------------------------------------------------------------
-// Collection tracking schemas
-// ---------------------------------------------------------------------------
-
 describe("createCollectionSchema", () => {
   it("accepts valid input", () => {
     expect(createCollectionSchema.safeParse({ name: "My Collection" }).success).toBe(true);
@@ -167,10 +163,6 @@ describe("disposeCopiesSchema", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Deck schemas
-// ---------------------------------------------------------------------------
-
 describe("createDeckSchema", () => {
   it("accepts valid deck", () => {
     expect(createDeckSchema.safeParse({ name: "My Deck", format: "constructed" }).success).toBe(
@@ -234,10 +226,6 @@ describe("updateDeckCardsSchema", () => {
     ).toBe(true);
   });
 });
-
-// ---------------------------------------------------------------------------
-// List schemas (unified wish / trade / organize)
-// ---------------------------------------------------------------------------
 
 const CARD_ID = "c0000000-0001-4000-a000-000000000001";
 const PRINTING_ID = "d0000000-0001-4000-a000-000000000001";
@@ -363,10 +351,6 @@ describe("createListSchema", () => {
     ).toBe(false);
   });
 
-  // Dynamic-rule refinements (ADR-034): each rule's discriminant must match the
-  // list *kind* (card/printing take `wish`, copy takes `trade`), and the combine
-  // mode must belong to the kind (amendment 2). Every intent may carry rules,
-  // organize included (amendment 4).
   const wishRuleDraft: ListRule = {
     kind: "wish",
     filter: EMPTY_CARD_FILTERS,
@@ -652,10 +636,6 @@ describe("listIntentQuerySchema", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Param & query schemas
-// ---------------------------------------------------------------------------
-
 describe("idParamSchema", () => {
   it("accepts a valid UUID", () => {
     expect(idParamSchema.safeParse({ id: "550e8400-e29b-41d4-a716-446655440000" }).success).toBe(
@@ -777,8 +757,6 @@ describe("copiesQuerySchema", () => {
     expect(copiesQuerySchema.safeParse({ limit: 1000 }).success).toBe(true);
   });
 
-  // Regression (E1/PAG-1): the schema cap must match the server-side clamp
-  // (COPIES_PAGE_MAX = 1000); it previously advertised an unreachable 10000.
   it("rejects limit over the 1000 cap", () => {
     expect(copiesQuerySchema.safeParse({ limit: 1001 }).success).toBe(false);
     expect(copiesQuerySchema.safeParse({ limit: 10_000 }).success).toBe(false);
@@ -788,10 +766,6 @@ describe("copiesQuerySchema", () => {
     expect(copiesQuerySchema.safeParse({ limit: 0 }).success).toBe(false);
   });
 
-  // Regression: a syntactically invalid cursor used to pass this schema (it
-  // only checked non-empty string), reach the repo cursor parser's unconditional
-  // `new Date(cursor)`, and produce an Invalid Date that propagated into the
-  // Kysely query as a 500 instead of failing validation with a 400.
   it("rejects a garbage cursor", () => {
     expect(copiesQuerySchema.safeParse({ cursor: "not-a-date" }).success).toBe(false);
   });
@@ -837,8 +811,6 @@ describe("collectionValueHistoryQuerySchema", () => {
     ).toBe(true);
   });
 
-  // Regression (F1): a non-UUID element used to reach the repo's `::uuid` cast
-  // and surface as a 500. It must now fail validation at the edge (→ 400).
   it("rejects a CSV containing a non-UUID element", () => {
     expect(
       collectionValueHistoryQuerySchema.safeParse({ collectionIds: `${uuid1},not-a-uuid` }).success,
@@ -862,10 +834,6 @@ describe("collectionValueHistoryQuerySchema", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Deck plan schema (ADR-029)
-// ---------------------------------------------------------------------------
-
 describe("updateDeckPlanSchema matchup identity", () => {
   const cardId = "11111111-1111-4111-8111-111111111111";
 
@@ -888,10 +856,6 @@ describe("updateDeckPlanSchema matchup identity", () => {
     expect(result.success).toBe(false);
   });
 });
-
-// ---------------------------------------------------------------------------
-// Serialization primitives
-// ---------------------------------------------------------------------------
 
 describe("isoDateTime", () => {
   it("accepts the output of Date.toISOString()", () => {

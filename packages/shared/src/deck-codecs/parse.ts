@@ -4,10 +4,6 @@ import { parseTextFormat } from "./text.js";
 import { parseTTSFormat } from "./tts.js";
 import type { DeckCodeFormat } from "./types.js";
 
-/**
- * Parses a deck code/text in the given format into import entries.
- * @returns Parsed entries and any warnings.
- */
 export function parseDeckImportData(code: string, format: DeckCodeFormat): DeckCodeParseResult {
   const trimmed = code.trim();
   if (trimmed.length === 0) {

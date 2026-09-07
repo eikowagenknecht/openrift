@@ -51,8 +51,6 @@ describe("ruleBreadcrumb", () => {
   });
 
   it("skips a distant heading when the rule's block doesn't start right after it", () => {
-    // Models the sparse-heading corpus: 423.1.b has no existing ancestors and
-    // sits far from the last subtitle, which must not appear as its context.
     const index = buildRuleIndex(
       makeRulesSnapshot([
         makeRule({ ruleNumber: "201", ruleType: "subtitle", content: "Costs" }),
@@ -89,8 +87,6 @@ describe("buildRuleEmbed", () => {
     expect(embed.url).toBe(`${SITE_URL}/rules/core#rule-120`);
     expect(embed.description).toContain("A *Game Object* is anything in the game.");
     expect(embed.description).toContain("- **120.1** Cards are Game Objects.");
-    // Descendants of any depth are quoted in full, in document order, as a
-    // nested list indented by depth below the selected rule.
     expect(embed.description).toContain(
       `\n  - **120.1.a** Tokens too. See [rule 179](${SITE_URL}/rules/core#rule-179). Tokens.`,
     );
@@ -102,8 +98,6 @@ describe("buildRuleEmbed", () => {
     const index = makeIndex();
     const embed = buildRuleEmbed({ entry: findRule(index, "CR 119")!, index, siteUrl: SITE_URL });
     expect(embed.title).toBe("CR 119 — Game Objects");
-    // The section runs to the next subtitle, sub-rules included, indented by
-    // each rule's own depth (the section doesn't share the heading's number).
     expect(embed.description).toContain("- **120**");
     expect(embed.description).toContain("\n  - **120.1**");
     expect(embed.description).toContain("\n    - **120.1.a**");
@@ -138,7 +132,6 @@ describe("buildRuleEmbed", () => {
     );
     const embed = buildRuleEmbed({ entry: findRule(index, "CR 500")!, index, siteUrl: SITE_URL });
     expect(embed.description?.length).toBeLessThanOrEqual(4096);
-    // Every included sub-rule is complete, and the cut is announced.
     const included = [...embed.description!.matchAll(/\*\*500\.\d+\*\*/gu)].length;
     expect(included).toBeGreaterThan(0);
     expect(included).toBeLessThan(10);
@@ -147,8 +140,6 @@ describe("buildRuleEmbed", () => {
   });
 
   it("lists a tournament-style subtitle's own numeric children, without a sibling breadcrumb", () => {
-    // Tournament sections nest under the subtitle's own number (705 → 705.1),
-    // and the preceding subtitle is a sibling section, not context.
     const index = buildRuleIndex(
       makeRulesSnapshot(
         [],

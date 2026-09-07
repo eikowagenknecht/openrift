@@ -12,10 +12,6 @@ export const landingSummaryResponseSchema = z
     thumbnailIds: z.array(z.string()).openapi({
       example: ["019d02f1-d14f-769f-9295-9852db692dbe"],
     }),
-    // Same sample as thumbnailIds, carrying each printing's identity so the
-    // marketing vignettes can label the card they show. The ids stay as their
-    // own field so bundles from before this field keep working against the
-    // edge-cached payload.
     thumbnails: z
       .array(
         z.object({
@@ -41,14 +37,9 @@ export const landingSummaryResponseSchema = z
           },
         ],
       }),
-    // Legend art for the tier-list vignette, which ranks legends and so cannot
-    // draw from the general sample. Its own field, like `thumbnails`, so a
-    // bundle served an edge-cached body from before it keeps working.
     legendThumbnailIds: z.array(z.string()).openapi({
       example: ["019d02f1-d14f-769f-9295-9852db692dbe"],
     }),
-    // Real distribution channels for the promos vignette, so the miniature's
-    // "Promo" chips sit on printings that were actually handed out that way.
     promoSections: z
       .array(
         z.object({
@@ -85,13 +76,6 @@ export const landingSummaryResponseSchema = z
   })
   .openapi("LandingSummaryResponse");
 
-/**
- * oRPC contract for the public landing-summary endpoint.
- *
- * `GET /api/v1/landing-summary` — the lightweight hero payload (counts + a
- * per-day-stable thumbnail sample). Edge-cached; the ETag is produced by the
- * Hono `etag()` middleware around the mounted handler, not by the contract.
- */
 export const landingSummaryContract = {
   get: oc
     .route({ method: "GET", path: "/api/v1/landing-summary", tags: ["Catalog"] })

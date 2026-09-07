@@ -17,13 +17,6 @@ export const providerSettingSchema = z.object({
 
 const providerParamSchema = z.object({ provider: z.string().min(1) });
 
-/**
- * oRPC contract for the admin provider-settings (mounted at
- * `/api/admin/v1/provider-settings`, admin-gated by the mount). Provider
- * settings are keyed by `provider`; update upserts. All procedures are
- * session-gated (UNAUTHORIZED + FORBIDDEN from `authedRoute`). Domain codes per
- * route: `reorder` → BAD_REQUEST (duplicate providers in the submitted list).
- */
 export const adminProviderSettingsContract = {
   list: authedRoute
     .route({ method: "GET", path: PS, tags: [TAG] })

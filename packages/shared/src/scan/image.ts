@@ -1,10 +1,6 @@
 import type { GrayImage, RgbaImage } from "./types";
 
-/**
- * Convert packed RGBA to single-channel luma (ITU-R BT.601 weights).
- *
- * @returns A grayscale image the same size as the input.
- */
+/** Convert packed RGBA to single-channel luma (ITU-R BT.601 weights). */
 export function toGray(src: RgbaImage): GrayImage {
   const { data, width, height } = src;
   const out = new Uint8Array(width * height);
@@ -15,11 +11,8 @@ export function toGray(src: RgbaImage): GrayImage {
 }
 
 /**
- * Area-average downscale. Every source pixel contributes to exactly one
- * destination bin, which suppresses the aliasing that plain nearest-neighbour
- * sampling would introduce on a noisy camera frame.
- *
- * @returns A grayscale image of the requested size.
+ * Area-average downscale: every source pixel contributes to exactly one
+ * destination bin, which avoids the aliasing nearest-neighbour would add.
  */
 export function downscaleGray(src: GrayImage, dstW: number, dstH: number): GrayImage {
   if (dstW === src.width && dstH === src.height) {
@@ -48,12 +41,7 @@ export function downscaleGray(src: GrayImage, dstW: number, dstH: number): GrayI
   return { data: out, width: dstW, height: dstH };
 }
 
-/**
- * Separable box blur with running sums, so cost is independent of radius.
- * Edges are handled by clamping to the border pixel.
- *
- * @returns A blurred copy of the input.
- */
+/** Separable box blur with running sums, so cost is independent of radius. */
 export function boxBlurGray(src: GrayImage, radius: number): GrayImage {
   if (radius <= 0) {
     return { data: Uint8Array.from(src.data), width: src.width, height: src.height };
@@ -91,13 +79,7 @@ export function boxBlurGray(src: GrayImage, radius: number): GrayImage {
   return { data: out, width: w, height: h };
 }
 
-/**
- * Variance of the Laplacian, the standard cheap focus measure. A blurred frame
- * has little high-frequency energy and scores low, so this is what lets the
- * scanner skip junk frames instead of guessing from them.
- *
- * @returns The variance; higher means sharper.
- */
+/** Variance of the Laplacian: higher means sharper, near-zero for a blurred frame. */
 export function focusScore(src: GrayImage): number {
   const { data, width: w, height: h } = src;
   if (w < 3 || h < 3) {
@@ -119,11 +101,6 @@ export function focusScore(src: GrayImage): number {
   return sumSq / n - mean * mean;
 }
 
-/**
- * Rotate an RGBA image a quarter turn clockwise.
- *
- * @returns A new image; the input is untouched.
- */
 export function rotateRgbaCw(src: RgbaImage): RgbaImage {
   const { width, height, data } = src;
   const out = new Uint8ClampedArray(width * height * 4);

@@ -19,13 +19,7 @@ export const publicCollectionResponseSchema = z
   })
   .openapi("PublicCollectionResponse");
 
-/**
- * Copy projection for anonymous share viewers — deliberately narrower than
- * {@link copyResponseSchema}: `groupId`/`collectionId` are owner-internal and
- * `notesPrivate` never leaves authenticated surfaces. Public copy metadata
- * (condition, grading, altered flag, public notes, links) is included per
- * ADR-038.
- */
+/** Deliberately narrower than {@link copyResponseSchema}: `groupId`/`collectionId` are owner-internal and `notesPrivate` never leaves authenticated surfaces. */
 export const publicCopyResponseSchema = z
   .object({
     id: z.string(),
@@ -43,12 +37,6 @@ export const publicCollectionDetailResponseSchema = z
   })
   .openapi("PublicCollectionDetailResponse");
 
-/**
- * oRPC contract for the public (share-token) collection view.
- * `GET /api/v1/collections/share/{token}?cursor&limit` — anonymous, paginated
- * view of a shared collection, or a typed NOT_FOUND for an unknown token. The
- * `{token}` path segment merges into the input alongside the copies query.
- */
 export const publicCollectionsContract = {
   share: oc
     .route({ method: "GET", path: "/api/v1/collections/share/{token}", tags: ["Collections"] })

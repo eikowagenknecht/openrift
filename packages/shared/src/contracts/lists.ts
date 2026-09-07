@@ -28,18 +28,11 @@ import { authedRoute } from "./_base.js";
 
 extendZodWithOpenApi(z);
 
-// Request-side enums. Built from the shared value arrays rather than aliased to
-// the response schemas so the `.openapi()` component names stay on the response
-// side (see LIST_INTENTS in response-schemas.ts).
 const listIntentSchema = z.enum(LIST_INTENTS);
 
 const listKindSchema = z.enum(LIST_KINDS);
 
-/**
- * Allowed intent × kind combos. Mirrors the chk_lists_intent_kind DB
- * constraint (migration 133, renamed in 135).
- * @returns true if the combo is allowed.
- */
+/** Mirrors the chk_lists_intent_kind DB constraint. */
 const isAllowedIntentKind = (
   intent: (typeof LIST_INTENTS)[number],
   kind: (typeof LIST_KINDS)[number],
@@ -60,9 +53,8 @@ export const listIntentQuerySchema = z.object({
 });
 
 /**
- * `organize` lists never carry trade defaults. The route layer drops these
- * fields when intent === 'organize'; the schema lets clients pass them but the
- * CHECK constraint on the DB also rejects non-null values there.
+ * The route layer drops trade defaults for `organize` lists; the DB CHECK
+ * constraint also rejects non-null values there.
  */
 export const createListSchema = z
   .object({
@@ -71,11 +63,7 @@ export const createListSchema = z
     kind: listKindSchema,
     tradeDefaults: tradePreferenceInputSchema.optional(),
     currency: currencySchema.nullable().optional(),
-    // Dynamic list rules (ADR-034). Valid on every intent; each rule's
-    // discriminant must match the list kind (see refinements below).
     rules: listRulesSchema.optional(),
-    // How several rules combine (ADR-034 amendment 2). null/absent = the
-    // kind's default (card/printing: sum, copy: protect).
     ruleCombine: listRuleCombineSchema.nullable().optional(),
   })
   .refine((data) => isAllowedIntentKind(data.intent, data.kind), {
@@ -90,9 +78,6 @@ export const createListSchema = z
         (data.currency === undefined || data.currency === null)),
     { message: "organize lists cannot carry trade defaults or a currency" },
   )
-  // ADR-034 amendment 4: a rule's shape follows the list's kind, not its
-  // intent — card/printing lists take demand rules, copy lists supply rules —
-  // so organize lists carry rules too.
   .refine(
     (data) => (data.rules ?? []).every((rule) => rule.kind === ruleKindForListKind(data.kind)),
     { message: "rule kind must match the list kind" },
@@ -107,24 +92,14 @@ export const createListSchema = z
 
 export const updateListSchema = z.object({
   name: z.string().min(1).max(200).optional(),
-  // Pushes the list behind the sidebar's "Show more" toggle. A list has one
-  // viewer (its owner), so this is a plain property of the list.
   sidebarHidden: z.boolean().optional(),
   tradeDefaults: tradePreferenceInputSchema.optional(),
   currency: currencySchema.nullable().optional(),
-  // Set/replace the dynamic rules (ADR-034). An empty array clears them. The
-  // route layer validates each rule's kind against the existing list's kind.
   rules: listRulesSchema.optional(),
-  // Set/clear the combine mode (ADR-034 amendment 2). null = back to the
-  // kind's default. The route layer validates the mode against the kind.
   ruleCombine: listRuleCombineSchema.nullable().optional(),
 });
 
-/**
- * Bulk reorder for the user's lists in a single intent bucket. The server
- * re-numbers `sort_order` so the rows appear in the order given on the next
- * fetch. Sidebar groups lists by intent, so reorder is bucket-scoped.
- */
+/** Server renumbers sort_order to match orderedIds, scoped to one intent bucket. */
 export const reorderListsSchema = z.object({
   intent: listIntentSchema,
   orderedIds: z.array(z.uuid()).min(1).max(500),
@@ -146,26 +121,19 @@ export const bulkCreateListEntriesSchema = z.object({
     .max(500),
 });
 
-/**
- * Drag-from-collections sugar. The user picks copies and drops them on a list
- * in the sidebar; the server derives the right entry shape based on the
- * list's kind (card / printing / copy) and bulk-inserts the deduped result.
- */
 export const bulkAddCopiesToListSchema = z.object({
   copyIds: z.array(z.uuid()).min(1).max(500),
 });
 
 /**
- * Move entries from one list to another. The destination must have the same
- * `kind` and `intent` as the source — different `kind` would reshape every
- * entry, different `intent` would silently re-purpose them.
+ * Destination list must match the source's kind and intent: a different kind
+ * would reshape every entry, a different intent would silently repurpose them.
  */
 export const moveListEntriesSchema = z.object({
   toListId: z.uuid(),
   entryIds: z.array(z.uuid()).min(1).max(500),
 });
 
-/** Bulk-remove entries from a list. Scoped to the list + owner server-side. */
 export const bulkDeleteListEntriesSchema = z.object({
   entryIds: z.array(z.uuid()).min(1).max(500),
 });
@@ -175,7 +143,6 @@ const listResponseShape = {
   name: z.string(),
   intent: listIntentResponseSchema,
   kind: listKindResponseSchema,
-  // Manual entry count only (rule output is NOT expanded on summaries; ADR-034).
   entryCount: z.number().int().nonnegative(),
   isPublic: z.boolean(),
   shareToken: z.string().nullable(),
@@ -183,20 +150,16 @@ const listResponseShape = {
   updatedAt: z.string(),
   tradeDefaults: tradePreferenceSchema,
   currency: currencyResponseSchema.nullable(),
-  // Whether this list carries a dynamic rule (ADR-034).
   hasRule: z.boolean(),
-  // True when the owner has pushed this list behind the sidebar's "Show more".
   sidebarHidden: z.boolean(),
 };
 
 export const listResponseSchema = z.object(listResponseShape).openapi("ListResponse");
 
-/** Detail responses also carry the rules themselves so the editor can load them. */
 export const listDetailListResponseSchema = z
   .object({
     ...listResponseShape,
     rules: listRulesSchema,
-    // null = the intent's default combine mode (ADR-034 amendment 2).
     ruleCombine: listRuleCombineSchema.nullable(),
   })
   .openapi("ListDetailListResponse");
@@ -221,9 +184,8 @@ export const listDetailResponseSchema = z
   .openapi("ListDetailResponse");
 
 export const listShareResponseSchema = z
-  // shareToken is nullable so GET /lists/{id}/share can report an owned-but-
-  // unshared list (shareToken: null, isPublic: false) without 404-ing. Share /
-  // rotate always return a non-null token.
+  // shareToken is nullable: GET /share reports an owned-but-unshared list as
+  // null; share/rotate always return a non-null token.
   .object({ shareToken: z.string().nullable(), isPublic: z.boolean() })
   .openapi("ListShareResponse");
 
@@ -256,19 +218,6 @@ export const listGroupSharesResponseSchema = z
 
 const TAG = "Lists";
 
-/**
- * oRPC contract for the authenticated unified-lists endpoints (wishlist /
- * tradelist / organize; ADR-017), mounted at `/api/v1/lists`. All require a
- * session, so they share the `authedRoute` base (UNAUTHORIZED + FORBIDDEN).
- * Domain codes per route: `get`, `remove`, `bulkAddFromCopies`,
- * `bulkDeleteEntries`, `getShare`, `share`, `rotateShare`, `unshare`,
- * `groupShares` → NOT_FOUND; `update` → NOT_FOUND + BAD_REQUEST (no fields);
- * `createEntry` → NOT_FOUND + BAD_REQUEST (kind mismatch) + CONFLICT
- * (duplicate); `bulkCreateEntries` → NOT_FOUND + BAD_REQUEST (kind mismatch);
- * `moveEntries` → NOT_FOUND + BAD_REQUEST (incompatible lists);
- * `updateEntry` → NOT_FOUND + BAD_REQUEST (no fields); `removeEntry` →
- * NOT_FOUND.
- */
 export const listsContract = {
   list: authedRoute
     .route({ method: "GET", path: "/api/v1/lists", tags: [TAG] })

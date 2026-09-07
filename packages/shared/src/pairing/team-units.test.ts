@@ -46,7 +46,6 @@ describe("buildTeamUnits", () => {
   });
 
   it("halves the folded player-level opponent counts back to team meetings", () => {
-    // A played B once: each A member met each B member once (2 folded entries).
     const { units } = buildTeamUnits([
       player("a1", "A", {
         opponents: new Map([

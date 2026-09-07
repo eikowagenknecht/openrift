@@ -46,19 +46,9 @@ export type SetListResponse = z.infer<typeof setListResponseSchema>;
 
 export type SetDetailResponse = z.infer<typeof setDetailResponseSchema>;
 
-/**
- * Public "promos" page: cards distributed through any channel (event or
- * product). The page groups by channel and lists which printings appeared at
- * each.
- */
 export type PromosListResponse = z.infer<typeof promosListResponseSchema>;
 
 export type SitemapDataResponse = z.infer<typeof sitemapDataResponseSchema>;
 
-/**
- * Lightweight payload for the public landing page. Only the values the hero
- * needs: three counts for the count-up stats and a pre-filtered, sampled list
- * of front-face image_files.id values for the decorative card scatter
- * (battlefields excluded). The client builds thumbnail URLs via `imageUrl()`.
- */
+/** Sampled front-face `image_files.id` values for the card scatter; battlefields excluded. */
 export type LandingSummaryResponse = z.infer<typeof landingSummaryResponseSchema>;

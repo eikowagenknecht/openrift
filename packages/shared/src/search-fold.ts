@@ -1,65 +1,17 @@
 /**
- * Search-time text folding.
- *
- * This is the search side of a deliberate split. Folding here is generous
- * because it answers "what did the user mean?": accents fold, ligatures expand,
- * apostrophes vanish. `normalizeNameForIdentity` in `utils.ts` answers the
- * different question "are these two rows the same card?" and must *not* fold
- * accents, because a dedup key that merges distinct letters collides. Use this
- * module for anything a user typed; use the identity key for storage and dedup.
- *
- * Card data is stored with typographic punctuation: `fixTypography` turns `'`
- * into `’`, `...` into `…`, paired `"` into `“ ”`, and `-1` into `−1` with a
- * real U+2212 MINUS SIGN. None of those characters are reachable from a
- * keyboard, so a raw `includes` comparison makes "Doran's Shield" and
- * "d:-1 might" unfindable. Folding both the query and the haystack through
- * {@link foldForSearch} removes that whole class of miss.
- *
- * The fold is deliberately narrow. It only touches characters that carry no
- * meaning for search:
- *
- * - Compatibility-normalizes (NFKD) and drops combining marks, so `é` matches
- *   `e` and fullwidth `，` matches `,`. Expands the Latin letters NFKD leaves
- *   alone because they are letters in their own right (`ß` → `ss`, `æ` → `ae`).
- * - Collapses every dash variant (including U+2011 NON-BREAKING HYPHEN and
- *   U+2212 MINUS SIGN) onto the ASCII hyphen, which it then *keeps*.
- * - Deletes apostrophes and quote marks outright, so "Doran’s", "Doran's" and
- *   "Dorans" all collapse together.
- *
- * Everything else survives verbatim, and that is the load-bearing part. An
- * earlier draft folded `- . , [ ] • _` to spaces and it made text search worse,
- * not better: `d:−1 might` went from 7 correct hits to 183, and `d:[equip]`
- * went from 14 bracketed-keyword hits to 63, because the markup that made those
- * queries precise dissolved. Brackets, colons, underscores and bullets are
- * meaningful in rules text; they are not noise. Unrecognized characters are
- * kept rather than stripped, which is what keeps CJK card names and artist
- * names searchable (contrast `normalizeNameForIdentity`, which deletes them).
+ * Do not unify with `normalizeNameForIdentity` (utils.ts): it must not fold
+ * accents, or a dedup key would merge distinct letters. This function does
+ * not strip brackets, colons, underscores, or bullets: rules text uses them meaningfully.
  */
 
-/** Every dash variant that should behave like a plain ASCII hyphen. */
 const DASH_VARIANTS = /[‐‑‒–—―−]/gu;
 
-/**
- * Apostrophes and quote marks, removed outright so that the presence or absence
- * of one never decides a match. Includes the ASCII forms: by the time a term
- * reaches here `parseSearchTerms` has already consumed `"` as a phrase
- * delimiter, so a surviving quote is a literal the user pasted in.
- */
 const IGNORED_MARKS = /['’‘ʼ´`"“”«»]/gu;
 
-/** Combining marks left behind by NFKD (the accent of a decomposed `é`). */
 const COMBINING_MARKS = /\p{M}+/gu;
 
-/** Anything that is not a letter or a number, for {@link squashForSearch}. */
 const NON_ALPHANUMERIC = /[^\p{L}\p{N}]+/gu;
 
-/**
- * Latin letters that NFKD leaves alone because they are distinct letters rather
- * than accented forms, but which a searcher will type as their ASCII expansion.
- * Applied after lowercasing, so only the lowercase forms need listing. There are
- * none of these in the catalogue yet (EN and SC only), so this is groundwork for
- * the European printings rather than a fix for present data.
- */
 const LIGATURES: Readonly<Record<string, string>> = {
   ß: "ss",
   æ: "ae",
@@ -73,21 +25,7 @@ const LIGATURES: Readonly<Record<string, string>> = {
 };
 const LIGATURE_PATTERN = new RegExp(`[${Object.keys(LIGATURES).join("")}]`, "gu");
 
-/**
- * Fold text for search comparison. Apply to both the query term and the value
- * being searched. See the module comment for what is and is not folded.
- *
- * @returns The folded, lowercased text with whitespace collapsed.
- *
- * @example
- * ```ts
- * foldForSearch("Doran’s Shield")   // => "dorans shield"
- * foldForSearch("Doran's Shield")   // => "dorans shield"
- * foldForSearch("Give a unit −1")   // => "give a unit -1"
- * foldForSearch("épéeback")         // => "epeeback"
- * foldForSearch("[Equip]")          // => "[equip]"   (markup preserved)
- * ```
- */
+/** Apply to both the query term and the value being searched. */
 export function foldForSearch(text: string): string {
   return text
     .normalize("NFKD")
@@ -101,49 +39,21 @@ export function foldForSearch(text: string): string {
 }
 
 /**
- * Fold, then remove every separator, so that a query typed without punctuation
- * still matches. This is what lets `quickdraw` find `Quick-Draw` and `ogn269`
- * find `OGN-269`.
- *
- * **Only apply this to short identifier-like values** (card name, keywords,
- * tags, type, short code, artist), never to rules or flavor text. Squashing
- * prose joins words across boundaries and invents matches: measured against the
- * full catalogue it added 2380 spurious hits, with `the` alone gaining 18.
- *
- * @returns The folded text with all separators removed.
- *
- * @example
- * ```ts
- * squashForSearch("Quick-Draw")       // => "quickdraw"
- * squashForSearch("Kai’Sa, Survivor") // => "kaisasurvivor"
- * squashForSearch("莺之歌")            // => "莺之歌"  (kept, not deleted)
- * ```
+ * Only apply to short identifier-like values (card name, keywords, tags, type,
+ * short code, artist), never rules or flavor text: squashing prose invents matches.
  */
 export function squashForSearch(text: string): string {
   return foldForSearch(text).replaceAll(NON_ALPHANUMERIC, "");
 }
 
 /**
- * Folded-value cache for search haystacks.
- *
- * `filterCards` runs the predicate over every printing on every committed
- * query, and folding is meaningfully more work than the `.toLowerCase()` it
- * replaces (NFKD plus four passes, over rules text that runs to a few hundred
- * characters). Caching by raw string means the cost is paid once per distinct
- * value and every later query is a hash lookup.
- *
- * Keys are catalogue strings, so the cache saturates at roughly the number of
- * distinct card fields and does not grow with user input. Query terms are
- * folded eagerly in `parseSearchTerms` instead, and never land here.
+ * Keyed by catalogue string, not query input, so the cache saturates instead
+ * of growing unbounded; query terms are folded eagerly in `parseSearchTerms`.
  */
 const foldCache = new Map<string, string>();
 const squashCache = new Map<string, string>();
 
-/**
- * {@link foldForSearch}, memoized. Use for values pulled from the catalogue.
- *
- * @returns The folded text.
- */
+/** {@link foldForSearch}, memoized. Use for values pulled from the catalogue. */
 export function foldCached(text: string): string {
   let folded = foldCache.get(text);
   if (folded === undefined) {
@@ -153,11 +63,7 @@ export function foldCached(text: string): string {
   return folded;
 }
 
-/**
- * {@link squashForSearch}, memoized. Use for values pulled from the catalogue.
- *
- * @returns The folded text with all separators removed.
- */
+/** {@link squashForSearch}, memoized. Use for values pulled from the catalogue. */
 export function squashCached(text: string): string {
   let squashed = squashCache.get(text);
   if (squashed === undefined) {

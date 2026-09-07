@@ -6,13 +6,6 @@ import type { Card, CardFilters, FilterRange, PresenceDimension, Printing } from
 import { EMPTY_CARD_FILTERS, NONE, PRESENCE_DIMENSIONS } from "./types";
 import { boundsOf } from "./utils";
 
-// ---------------------------------------------------------------------------
-// Reference implementation: the original computeFilterCounts, which faceted by
-// re-running filterCards once per dimension (27 passes). The production
-// implementation is a single-pass bitmask scan; this test pins the two to
-// identical output over a randomized catalog and a broad scenario matrix.
-// ---------------------------------------------------------------------------
-
 interface RefOptions {
   countBy: "printing" | "card";
   keywordReverseMap?: Map<string, string>;
@@ -134,6 +127,10 @@ function refCountMatches(matched: Printing[], countBy: "printing" | "card"): num
 
 const REF_EMPTY_RANGE: FilterRange = { min: null, max: null };
 
+/**
+ * Naive reference impl: facets by re-running filterCards once per dimension.
+ * Pinned against the production single-pass bitmask scan for equivalence.
+ */
 function referenceComputeFilterCounts(
   printings: Printing[],
   filters: CardFilters,
@@ -238,10 +235,6 @@ function referenceComputeFilterCounts(
   }
   return result;
 }
-
-// ---------------------------------------------------------------------------
-// Randomized catalog fixture (seeded — deterministic across runs)
-// ---------------------------------------------------------------------------
 
 function seededRandom(seed: number): () => number {
   let s = seed;
@@ -369,10 +362,6 @@ function makeFilters(overrides: Partial<CardFilters>): CardFilters {
   return { ...EMPTY_CARD_FILTERS, ...overrides };
 }
 
-// ---------------------------------------------------------------------------
-// Scenario matrix
-// ---------------------------------------------------------------------------
-
 const SCENARIOS: Record<string, CardFilters> = {
   "no filters": makeFilters({}),
   "one include": makeFilters({ rarities: ["rare"] }),
@@ -457,8 +446,7 @@ describe("computeFilterCounts single-pass equivalence", () => {
     });
   }
 
-  it("backfills dimensions missing from persisted filters (ADR-034 jsonb hydration)", () => {
-    // A rule saved before newer dimensions existed lacks those keys entirely.
+  it("backfills dimensions missing from persisted filters", () => {
     const legacy = { sets: ["OGN"], rarities: [] } as unknown as CardFilters;
     const options = { countBy: "printing" as const };
     const actual = computeFilterCounts(CATALOG, legacy, options);

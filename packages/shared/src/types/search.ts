@@ -41,16 +41,10 @@ export const GROUP_BY_FIELDS = [
   "superType",
   "domain",
   "rarity",
-  // Printings-only, like channel and marker: it buckets the printings of one
-  // card together, which in cards view is always a section of exactly one tile.
   "card",
   "channel",
   "year",
   "marker",
-  // Copies-only, and only offered by /collections' "All cards" aggregate: it
-  // buckets physical copies by the collection holding them. Every other axis
-  // reads off the printing, so they work in every view; this one needs an item
-  // that *is* one copy. See isCopiesOnlyGrouping.
   "collection",
 ] as const;
 
@@ -64,10 +58,7 @@ export const SORT_DIRECTIONS = ["asc", "desc"] as const;
 
 export type SortDirection = (typeof SORT_DIRECTIONS)[number];
 
-/**
- * Sentinel value for "None" in a FilterRange. When used as `min`, null-stat
- * cards are included. When used as `max`, only null-stat cards can match.
- */
+/** As `min`, includes null-stat cards; as `max`, matches only null-stat cards. */
 export const NONE = -1;
 
 export interface FilterRange {
@@ -77,13 +68,6 @@ export interface FilterRange {
 
 export type RangeKey = "energy" | "might" | "power" | "price";
 
-/**
- * The multi-valued, optionally-empty dimensions a presence predicate can target.
- * For each, a filter can require the card/printing to have at least one value
- * ("any") or none ("none"), independent of which specific values. Single-valued
- * or always-present dimensions (rarity, type, finish, …) are excluded — "any /
- * none" is meaningless there.
- */
 export const PRESENCE_DIMENSIONS = [
   "markers",
   "superTypes",
@@ -95,17 +79,10 @@ export const PRESENCE_DIMENSIONS = [
 
 export type PresenceDimension = (typeof PRESENCE_DIMENSIONS)[number];
 
-/** "any" = has at least one value in the dimension; "none" = has none. */
 export type PresenceState = "any" | "none";
 
-// Every dimension carries a `.default()` so a persisted filter that predates a
-// newer dimension still parses: the absent key backfills to "no constraint"
-// instead of failing validation. Persisted list rules (ADR-034) store their
-// filter as jsonb, and it is re-validated against this schema on the read path
-// (oRPC output validation of `listDetailListResponseSchema`, ADR-034). Without
-// the defaults an older rule 500s the list detail endpoint. Keep every field
-// defaulted — `cardFiltersSchema.parse({})` must equal `EMPTY_CARD_FILTERS`
-// (enforced by a test), so a new dimension without a default is caught at once.
+// Every dimension needs a `.default()`, so an absent key backfills.
+// `cardFiltersSchema.parse({})` must equal EMPTY_CARD_FILTERS.
 const filterRangeSchema = z
   .object({
     min: z.number().nullable(),
@@ -113,17 +90,8 @@ const filterRangeSchema = z
   })
   .default(() => ({ min: null, max: null }));
 
-// Open string-enum dims (sets, languages, rarities, types, …) validate as plain
-// strings: the valid values are DB-driven, so the canonical types are open
-// strings (see types/enums.ts). The inferred field types are therefore
-// `string[]`, which is mutually assignable with the named enum arrays.
 const stringArray = () => z.array(z.string()).default(() => []);
 
-/**
- * The complete card-filter predicate. Single source of truth: the runtime Zod
- * schema (used to validate persisted list rules, ADR-034) and the `CardFilters`
- * type are one definition — `CardFilters` is `z.infer<typeof cardFiltersSchema>`.
- */
 export const cardFiltersSchema = z.object({
   search: z.string().default(""),
   searchScope: z
@@ -141,40 +109,19 @@ export const cardFiltersSchema = z.object({
   price: filterRangeSchema,
   artVariants: stringArray(),
   finishes: stringArray(),
-  // Filter to printings of these physical sizes (e.g. `standard`, `oversized`).
   cardSizes: stringArray(),
   isSigned: z.boolean().nullable().default(null),
   isOvernumbered: z.boolean().nullable().default(null),
-  // Generic per-dimension presence predicate. For each listed dimension, "any"
-  // requires the card/printing to carry at least one value, "none" requires it
-  // to carry none — independent of which specific values. Absent key = no
-  // constraint for that dimension. Supersedes the old `hasAnyMarker` boolean
-  // (which is now `presence.markers`). See PRESENCE_DIMENSIONS.
   presence: z
     .partialRecord(z.enum(PRESENCE_DIMENSIONS), z.enum(["any", "none"]))
     .default(() => ({})),
-  // Filter to printings that have at least one of these marker slugs.
   markerSlugs: stringArray(),
-  // Filter to printings distributed through at least one of these channel slugs.
   distributionChannelSlugs: stringArray(),
-  // Filter to cards that carry at least one of these custom-tag slugs.
-  // Admin-curated tags only relevant in the freeform deck builder; standard
-  // filtering should leave this empty.
   customTagSlugs: stringArray(),
-  // Filter to cards that carry at least one of these keyword names.
   keywords: stringArray(),
-  // Filter to cards that carry at least one of these printed tags. Values are
-  // the exact tag strings from card data ("Mount Targon"), not slugs — same
-  // convention as the `t:` search field.
   tags: stringArray(),
   isBanned: z.boolean().nullable().default(null),
   hasErrata: z.boolean().nullable().default(null),
-  // ── Negation companions (ADR-034) ─────────────────────────────────────────
-  // A row is rejected if it matches ANY excluded value.
-  // Scalar dims (sets, languages, rarities, types, artVariants, finishes):
-  //   value ∈ exclude.
-  // Array dims (superTypes, domains, markerSlugs, distributionChannelSlugs,
-  //   customTagSlugs): the row's array ∩ exclude ≠ ∅.
   setsExclude: stringArray(),
   languagesExclude: stringArray(),
   raritiesExclude: stringArray(),
@@ -188,18 +135,13 @@ export const cardFiltersSchema = z.object({
   customTagSlugsExclude: stringArray(),
   keywordsExclude: stringArray(),
   tagsExclude: stringArray(),
-  // Derived tri-state "standard printing" constraint (ADR-034).
-  // null = no constraint; true = standard only; false = non-standard only.
   isStandard: z.boolean().nullable().default(null),
 });
 
 export type CardFilters = z.infer<typeof cardFiltersSchema>;
 
-/**
- * A blank filter set: nothing selected, no constraints. Use this everywhere a
- * fresh `CardFilters` is constructed (spread then override) so new dimensions
- * stay in one place and never get forgotten at a call site.
- */
+// Spread and override this to build a fresh CardFilters, so a new dimension
+// never gets forgotten at a call site.
 export const EMPTY_CARD_FILTERS: CardFilters = {
   search: "",
   searchScope: [...DEFAULT_SEARCH_SCOPE],

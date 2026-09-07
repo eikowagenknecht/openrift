@@ -17,13 +17,7 @@ const artVariantSchema = z.object({
 
 const slugParamSchema = z.object({ slug: z.string().min(1) });
 
-/**
- * oRPC contract for the admin art-variants taxonomy CRUD (mounted at
- * `/api/admin/v1/art-variants`, admin-gated by the mount). Domain codes per
- * route: `reorder` → BAD_REQUEST (invalid slug list); `create` → CONFLICT
- * (slug taken); `update` → NOT_FOUND; `remove` → NOT_FOUND + CONFLICT
- * (well-known or in use). The static `reorder` path precedes `{slug}`.
- */
+/** `reorder`'s static path must precede `{slug}` in mount order. */
 export const adminArtVariantsContract = {
   list: authedRoute
     .route({ method: "GET", path: AV, tags: [TAG] })

@@ -3,7 +3,6 @@ import type { APIRequestContext, Download, Page } from "@playwright/test";
 import { expect, test } from "../../fixtures/test.js";
 import { API_BASE_URL, WEB_BASE_URL } from "../../helpers/constants.js";
 
-// Seeded catalog card — safe to add to any constructed deck's Main Deck.
 const ANNIE_CARD_ID = "019cfc3b-038a-7c0c-a76c-e0a5e2f46b18";
 
 interface DeckCardSeed {
@@ -56,8 +55,7 @@ async function grantClipboard(page: Page) {
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
 }
 
-// The deck top bar's overflow menu, which owns both Export and Print. Scoped
-// to main because the global header's user menu is also aria-haspopup="menu"
+// Scoped to main: the global header's user menu is also aria-haspopup="menu"
 // and comes first in DOM order.
 function kebabTrigger(page: Page) {
   return page.locator("main").locator('button[aria-haspopup="menu"]').first();
@@ -71,18 +69,11 @@ async function openExportDialog(page: Page) {
   return dialog;
 }
 
-/**
- * Opens the print dialog, which hosts the proxy sheet, the registration form,
- * and the deck sheet. Registration and proxies used to live in the export
- * dialog and on a top-bar "Proxies" button respectively.
- * @returns The open dialog, on the requested tab.
- */
 async function openPrintDialog(page: Page, tab: "Proxies" | "Registration" | "Deck sheet") {
   await kebabTrigger(page).click();
   await page.getByRole("menuitem", { name: "Print" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("heading", { name: "Print deck" })).toBeVisible();
-  // Proxies is the tab the dialog opens on.
   if (tab !== "Proxies") {
     await dialog.getByRole("tab", { name: tab }).click();
   }
@@ -93,11 +84,6 @@ function readClipboard(page: Page): Promise<string> {
   return page.evaluate(() => navigator.clipboard.readText());
 }
 
-/**
- * Awaits a download event without throwing when none fires — used in generation
- * tests where the PDF pipeline may not always produce a download in CI.
- * @returns The Download when one fires, otherwise null.
- */
 async function waitForOptionalDownload(page: Page, timeout: number): Promise<Download | null> {
   try {
     return await page.waitForEvent("download", { timeout });
@@ -121,13 +107,10 @@ test.describe("deck editor exports", () => {
       await page.goto(`/decks/${deckId}`);
       const dialog = await openExportDialog(page);
 
-      // The dialog is code-only now: Image never shipped, and Registration
-      // moved to the print dialog with the rest of the paper output.
       for (const tabName of ["Text", "Deck Code", "TTS"]) {
         await expect(dialog.getByRole("tab", { name: tabName })).toBeVisible();
       }
       await expect(dialog.getByRole("tab", { name: "Registration" })).toHaveCount(0);
-      // The dialog opens on the Text tab by default (useState<ExportTab>("text")).
       await expect(dialog.getByRole("tab", { name: "Text" })).toHaveAttribute(
         "aria-selected",
         "true",
@@ -163,10 +146,8 @@ test.describe("deck editor exports", () => {
         );
         const dialog = await openExportDialog(page);
 
-        // Default tab (Text) fires the mutation on open. For the other tabs,
-        // click the trigger after the initial request lands — that re-fires the
-        // mutation with the new format. The server fn was switched to GET so
-        // don't filter on method.
+        // Default tab (Text) fires the mutation on open; the other tabs re-fire
+        // it by clicking the trigger after the initial request lands.
         await exportRequest;
         if (tab === "Deck Code" || tab === "TTS") {
           const switchRequest = page.waitForRequest((request) =>
@@ -178,10 +159,8 @@ test.describe("deck editor exports", () => {
 
         const codeBox = dialog.getByRole("textbox");
         await expect(codeBox).toBeVisible({ timeout: 15_000 });
-        // The textbox is rendered before `currentData?.code` lands (export
-        // request is still in-flight in React-Query terms). Wait for a
-        // non-empty value before reading it; otherwise inputValue() returns
-        // "" and the length assertion fails racy.
+        // The textbox renders before the export request resolves; wait for a
+        // non-empty value or inputValue() races and returns "".
         await expect(codeBox).not.toHaveValue("", { timeout: 15_000 });
         const code = await codeBox.inputValue();
         expect(code.length).toBeGreaterThan(0);
@@ -190,7 +169,7 @@ test.describe("deck editor exports", () => {
         await expect(dialog.getByRole("button", { name: "Copied" })).toBeVisible();
 
         const clipboard = await readClipboard(page);
-        // The component normalizes \n → \r\n for iOS clipboard safety.
+        // The component normalizes \n to \r\n for iOS clipboard safety.
         expect(clipboard.replaceAll("\r\n", "\n")).toBe(code);
       });
     }
@@ -207,17 +186,15 @@ test.describe("deck editor exports", () => {
       });
       await page.goto(`/decks/${deckId}`);
 
-      // Abort the auto-save so isDirty stays true while we inspect tabs.
       await page.route(
         (url) => isServerFn(url.toString(), "saveDeckCardsFn"),
         (route) => route.abort(),
       );
 
-      // Flip isDirty via the card browser's "+" button.
       await page.getByRole("button", { name: "Edit Main Deck", exact: true }).first().click();
       await page.getByPlaceholder(/search/iu).fill("Annie, Fiery");
-      // Scope the Add click to the card tile so we don't race with the sidebar
-      // adding a duplicate "Add to deck" button once the optimistic update lands.
+      // Scope to the card tile: the sidebar adds a duplicate "Add to deck"
+      // button once the optimistic update lands.
       const annieTile = page
         .getByRole("img", { name: "Annie, Fiery" })
         .locator(
@@ -226,19 +203,11 @@ test.describe("deck editor exports", () => {
         .first();
       await expect(annieTile).toBeVisible({ timeout: 15_000 });
       await annieTile.getByRole("button", { name: "Add to deck" }).click();
-      // Wait for the optimistic update to land so isDirty is reliably true
-      // before we open the export dialog. The sidebar's zone counter is the
-      // barrier rather than the tile's own in-deck pill: this test only needs
-      // the card to be in the deck, and the counter says so whether or not the
-      // browser is still the surface on screen.
+      // Wait on the sidebar's zone counter, not the tile's in-deck pill: it's
+      // the reliable signal the optimistic update landed.
       await expect(page.getByText("1/39", { exact: true }).first()).toBeVisible({
         timeout: 5000,
       });
-
-      // The amber "Constructed" violation badge used to be asserted here as a
-      // proxy for isDirty, but the indicator was removed from the top bar.
-      // The Registration/banner assertions below are what the test actually
-      // cares about — skip the amber-indicator check.
 
       const dialog = await openExportDialog(page);
       const banner = dialog.getByText(
@@ -256,8 +225,7 @@ test.describe("deck editor exports", () => {
       await page.keyboard.press("Escape");
       await expect(dialog).toBeHidden();
 
-      // Registration renders from the live draft rather than an exported code,
-      // so the print dialog carries no such warning.
+      // Registration renders from the live draft, not an exported code.
       const printDialog = await openPrintDialog(page, "Registration");
       await expect(
         printDialog.getByText(
@@ -291,13 +259,12 @@ test.describe("deck editor exports", () => {
 
       const dialog = await openPrintDialog(page, "Registration");
 
-      // Registration builds its PDF from the draft in memory, so opening it
-      // must not reach for an exported code.
+      // Registration builds its PDF from the in-memory draft, not an export.
       await page.waitForTimeout(500);
       expect(exportRequestFired).toBe(false);
 
       await expect(dialog.getByLabel("Deck Name")).toHaveValue(deckName);
-      // Regular E2E user is "E2E User" — the component splits on whitespace.
+      // E2E user's display name is "E2E User"; the component splits on whitespace.
       await expect(dialog.getByLabel("First Name")).toHaveValue("E2E");
       await expect(dialog.getByLabel("Last Name")).toHaveValue("User");
 
@@ -307,9 +274,8 @@ test.describe("deck editor exports", () => {
       await dialog.getByLabel("Deck Designer").fill("E2E Tester");
       await dialog.getByPlaceholder("YYYY-MM-DD").fill("2026-05-01");
 
-      // Default page size is A4; the trigger text reflects the current label.
-      // Addressed by label because the print dialog keeps the other tabs
-      // mounted, and each of them has a page-size select of its own.
+      // By label: the print dialog keeps every tab mounted, each with its own
+      // page-size select.
       await expect(dialog.getByLabel("Page Size", { exact: true })).toContainText("A4");
 
       const downloadPromise = waitForOptionalDownload(page, 30_000);
@@ -321,8 +287,6 @@ test.describe("deck editor exports", () => {
         expect(download.suggestedFilename()).toContain("registration");
       }
 
-      // Regardless of whether the download fired, the generating state must
-      // resolve (button re-enables or dialog closes).
       await expect(async () => {
         const stillGenerating = await dialog
           .getByRole("button", { name: /Generating/u })
@@ -344,8 +308,6 @@ test.describe("deck editor exports", () => {
 
       const exportDialog = await openExportDialog(page);
 
-      // Deck Code tab renders the textbox without crashing even for an empty
-      // deck (server returns a short code for zero cards).
       await expect(exportDialog.getByRole("textbox").first()).toBeVisible({ timeout: 15_000 });
 
       await page.keyboard.press("Escape");
@@ -353,8 +315,6 @@ test.describe("deck editor exports", () => {
 
       const printDialog = await openPrintDialog(page, "Registration");
 
-      // An empty deck has nothing to register, so the button is disabled
-      // rather than clickable-but-inert.
       const download = printDialog.getByRole("button", { name: "Download PDF" });
       await expect(download).toBeVisible();
       await expect(download).toBeDisabled();
@@ -383,7 +343,6 @@ test.describe("deck editor exports", () => {
       await expect(renderModeTrigger).toContainText("Card images");
       await expect(pageSizeTrigger).toContainText("A4");
 
-      // Opening the render mode select exposes both options.
       await renderModeTrigger.click();
       await expect(page.getByRole("option", { name: "Text placeholders" })).toBeVisible();
       await expect(page.getByRole("option", { name: "Card images" })).toBeVisible();
@@ -408,9 +367,8 @@ test.describe("deck editor exports", () => {
 
       await dialog.getByRole("button", { name: "Generate PDF" }).click();
 
-      // The button flips into the disabled loading state ("Generating…" or
-      // "Rendering N/M…"). Either label is acceptable — just assert the
-      // Generate PDF label is gone while generation runs.
+      // Loading label is "Generating…" or "Rendering N/M…"; either is fine, so
+      // just assert the Generate PDF label is gone.
       await expect(dialog.getByRole("button", { name: "Generate PDF" })).toBeHidden({
         timeout: 15_000,
       });
@@ -420,8 +378,6 @@ test.describe("deck editor exports", () => {
         expect(download.suggestedFilename()).toMatch(/\.pdf$/u);
       }
 
-      // Generation eventually completes: either the dialog closes on success
-      // or the button returns to the "Generate PDF" label on failure.
       await expect(async () => {
         const closed = await dialog.isHidden().catch(() => true);
         const reenabled = await dialog

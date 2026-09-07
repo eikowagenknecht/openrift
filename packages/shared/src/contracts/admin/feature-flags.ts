@@ -27,15 +27,11 @@ const overrideSchema = z.object({
 const userKeyParamSchema = z.object({ id: z.string().min(1), key: z.string().min(1) });
 
 /**
- * oRPC contract for the admin feature-flags tooling (mounted under
- * `/api/admin/v1`, admin-gated by the mount). All procedures share the
- * `authedRoute` base (UNAUTHORIZED + FORBIDDEN). Covers global flag CRUD plus
- * per-user overrides. Domain codes per route: `create` → CONFLICT (key taken);
- * `update` → NOT_FOUND; `remove` → NOT_FOUND; `removeOverride` → NOT_FOUND.
- * The static `feature-flags/overrides` path precedes `feature-flags/{key}`.
+ * Admin feature-flags CRUD plus per-user overrides, mounted under
+ * `/api/admin/v1`. The static `feature-flags/overrides` path must precede
+ * `feature-flags/{key}`.
  */
 export const adminFeatureFlagsContract = {
-  // ── Global flags ──────────────────────────────────────────────────────────
   list: authedRoute
     .route({ method: "GET", path: FF, tags: [TAG] })
     .output(z.object({ flags: z.array(flagSchema) })),
@@ -70,7 +66,6 @@ export const adminFeatureFlagsContract = {
     .errors({ NOT_FOUND: { message: "Flag not found" } })
     .input(z.object({ key: z.string().min(1) })),
 
-  // ── Per-user overrides ────────────────────────────────────────────────────
   listOverrides: authedRoute
     .route({ method: "GET", path: `${FF}/overrides`, tags: [TAG] })
     .output(z.object({ overrides: z.array(overrideSchema) })),

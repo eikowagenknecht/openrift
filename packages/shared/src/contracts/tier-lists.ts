@@ -6,56 +6,23 @@ import { authedRoute } from "./_base.js";
 
 extendZodWithOpenApi(z);
 
-/** Rows a single tier list may hold. Enough for a granular ranking, far short
- * of anything that would make the board unreadable or the image untenable. */
 export const MAX_TIER_ROWS = 12;
-
-/** Cards a single row may hold. A full-set review row is dozens, not hundreds. */
 export const MAX_CARDS_PER_TIER = 400;
-
-/** Cards a whole list may rank. Bounds the render cost of the share image. */
 export const MAX_TIER_LIST_CARDS = 1000;
-
-/** The default board a new list starts from. */
 export const DEFAULT_TIER_LABELS = ["S", "A", "B", "C", "D"] as const;
 
-/**
- * One ranked entry. Ranking is per card — a card sits in exactly one tier
- * however many printings it has — but the creator picks which printing supplies
- * the tile art, so an alt art they dragged in is the one the board shows.
- * `printingId` null means "whatever the reader's default printing is", which is
- * what an entry ranked from the card view stays on.
- */
+/** `printingId` null means the reader's default printing for that card. */
 export const tierCardSchema = z.object({
   cardId: z.uuid(),
-  // Defaulted rather than optional so the parsed board is always storable as
-  // written: the route never has to fill a hole before it hits the jsonb column.
   printingId: z.uuid().nullable().default(null),
 });
 
 export const tierRowSchema = z.object({
-  // Trim before min(1): a whitespace-only label must fail validation here,
-  // not surface later as a DB constraint violation.
   label: z.string().trim().min(1).max(24),
   cards: z.array(tierCardSchema).max(MAX_CARDS_PER_TIER),
-  /**
-   * The "considered and cut" row: drawn grey, off the ranking ramp, and pinned
-   * to the bottom of the board.
-   *
-   * Optional rather than defaulted, unlike `printingId` above: a board has at
-   * most one of these and most have none, so stamping `false` onto every row
-   * would grow every stored board for a flag almost none of them use. An absent
-   * flag and a false one mean the same thing everywhere that reads it.
-   */
   unranked: z.boolean().optional(),
 });
 
-/**
- * The whole board. Validated as a unit (rather than per row) because the
- * cross-row rules — no card in two rows, a total card cap — only exist at this
- * level. A card appearing twice would render twice and rank ambiguously, so it
- * is rejected rather than silently deduplicated.
- */
 export const tiersSchema = z
   .array(tierRowSchema)
   .max(MAX_TIER_ROWS)
@@ -72,15 +39,13 @@ export const tiersSchema = z
     "A tier list can have at most one unranked row",
   )
   .refine(
-    // Enforced here rather than left to the builder: the board is drawn from
-    // this array in reading order, and an unranked row anywhere but the bottom
-    // would put "did not make the cut" above a real tier.
+    // The board is drawn from this array in reading order, so an unranked
+    // row anywhere but last would sort above a real tier.
     (rows) => rows.every((row, index) => !row.unranked || index === rows.length - 1),
     "The unranked row has to be the last one",
   );
 
 const tierListFieldRules = {
-  // Trim before min(1), same as the row label above.
   title: z.string().trim().min(1).max(120),
   description: z.string().max(2000),
 };
@@ -88,12 +53,11 @@ const tierListFieldRules = {
 export const createTierListSchema = z.object({
   title: tierListFieldRules.title,
   description: tierListFieldRules.description.nullish(),
-  /** Omitted on create, which starts the list on {@link DEFAULT_TIER_LABELS}. */
   tiers: tiersSchema.optional(),
 });
 
-// isPublic is deliberately absent, matching decks: public state is owned by the
-// /share sub-resource alone, so a PATCH can never desync it from the token.
+// isPublic is left out on purpose, matching decks: public state is owned by
+// the /share sub-resource alone, so a PATCH can never desync it from the token.
 export const updateTierListSchema = z.object({
   title: tierListFieldRules.title.optional(),
   description: tierListFieldRules.description.nullish(),
@@ -108,7 +72,6 @@ export const tierRowResponseSchema = z
   .object({
     label: z.string(),
     cards: z.array(tierCardResponseSchema),
-    /** True on the grey "considered and cut" row, which is always the last one. */
     unranked: z.boolean().optional(),
   })
   .openapi("TierRowResponse");
@@ -126,14 +89,8 @@ export const tierListResponseSchema = z
   })
   .openapi("TierListResponse");
 
-/**
- * One row of the index preview: a tier's label and the leading cards in it.
- *
- * `rowIndex` is the row's place on the real board, not its place in the
- * preview. Empty tiers are left out of the preview, and the tier colour is
- * derived from the board position, so without it a list whose S row is still
- * empty would draw its A row in S's colour.
- */
+/** `rowIndex` is the row's board position, not its position in the preview:
+ * empty tiers are skipped, and colour is derived from board position. */
 export const tierPreviewRowResponseSchema = z
   .object({
     rowIndex: z.number().int().nonnegative(),
@@ -143,11 +100,6 @@ export const tierPreviewRowResponseSchema = z
   })
   .openapi("TierPreviewRowResponse");
 
-/**
- * List-page projection. Carries the ranked-card count and the leading rows of
- * the board so the index can draw a preview of the ranking without shipping
- * every board in full.
- */
 export const tierListSummaryResponseSchema = z
   .object({
     id: z.string(),
@@ -155,7 +107,6 @@ export const tierListSummaryResponseSchema = z
     description: z.string().nullable(),
     tierCount: z.number().int().nonnegative(),
     cardCount: z.number().int().nonnegative(),
-    /** The board's leading non-empty rows, for the index preview. */
     previewRows: z.array(tierPreviewRowResponseSchema),
     isPublic: z.boolean(),
     shareToken: z.string().nullable(),
@@ -170,8 +121,6 @@ export const tierListListResponseSchema = z
 
 export const tierListShareResponseSchema = z
   .object({
-    // Nullable so GET .../share reports an owned-but-unshared list as
-    // { shareToken: null, isPublic: false } rather than 404ing.
     shareToken: z.string().nullable(),
     isPublic: z.boolean(),
   })
@@ -180,12 +129,8 @@ export const tierListShareResponseSchema = z
 const TAG = "Tier lists";
 const NOT_FOUND = { NOT_FOUND: { message: "Tier list not found" } };
 
-/**
- * oRPC contract for creator-authored tier lists (migration 237), mounted at
- * `/api/v1/tier-lists`. Every route is session-gated and user-scoped, so an id
- * belonging to someone else reads as NOT_FOUND rather than FORBIDDEN — the
- * caller learns nothing about lists that aren't theirs.
- */
+// Every route is session-gated and user-scoped: an id belonging to
+// someone else returns NOT_FOUND, not FORBIDDEN.
 export const tierListsContract = {
   list: authedRoute
     .route({ method: "GET", path: "/api/v1/tier-lists", tags: [TAG] })

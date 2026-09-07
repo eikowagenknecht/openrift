@@ -60,10 +60,8 @@ const jobSchedulesListResponseSchema = z.object({
 const kindInputSchema = z.object({ kind: scheduledJobKindSchema });
 
 /**
- * oRPC contract for the admin job-schedules page (mounted at
- * `/api/admin/v1/job-schedules`, admin-gated by the mount). A job is off unless
- * it has a stored schedule. Domain codes: `set` → BAD_REQUEST (invalid cron
- * expression or unavailable job); `enableSuggested` skips unavailable jobs.
+ * Admin job-schedules page, mounted at `/api/admin/v1/job-schedules`. A job
+ * is off unless it has a stored schedule.
  */
 export const adminJobSchedulesContract = {
   list: authedRoute

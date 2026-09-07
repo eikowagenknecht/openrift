@@ -6,10 +6,7 @@ import { tierRowResponseSchema } from "./tier-lists.js";
 
 extendZodWithOpenApi(z);
 
-/**
- * The board as a viewer sees it: no owner-only fields (share token, is_public),
- * because reaching this response already proves the token was known.
- */
+/** No owner-only fields (share token, is_public): reaching this proves the token was known. */
 export const publicTierListResponseSchema = z
   .object({
     id: z.string(),
@@ -28,15 +25,7 @@ export const publicTierListDetailResponseSchema = z
   })
   .openapi("PublicTierListDetailResponse");
 
-/**
- * oRPC contract for the public (share-token) tier list view.
- * `GET /api/v1/tier-lists/share/{token}` — anonymous, or a typed NOT_FOUND for
- * an unknown or no-longer-public token.
- *
- * Cards are returned as bare ids: the viewer's client already holds the whole
- * catalogue (the same source every card-browser surface reads), so denormalizing
- * names and art here would ship a second copy of data the page has anyway.
- */
+/** Cards are bare ids: the client already holds the full catalogue to resolve them. */
 export const publicTierListsContract = {
   share: oc
     .route({ method: "GET", path: "/api/v1/tier-lists/share/{token}", tags: ["Tier lists"] })

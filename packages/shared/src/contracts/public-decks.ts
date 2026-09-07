@@ -19,7 +19,6 @@ import { deckExportResponseSchema, deckOddsConfigSchema } from "./decks.js";
 
 extendZodWithOpenApi(z);
 
-/** Per-card input for the public deck-code encoder (no server deck row). */
 const encodeDeckCardSchema = z.object({
   cardId: z.string(),
   zone: deckZoneSchema,
@@ -68,7 +67,6 @@ export const publicDeckCardResponseSchema = z
     tags: z.array(z.string()),
     keywords: z.array(z.string()),
     maxCopiesOverride: z.number().nullable(),
-    /** True when the card is on the base banlist; drives the deck's CARD_BANNED violation. */
     banned: z.boolean(),
     energy: z.number().nullable(),
     might: z.number().nullable(),
@@ -87,13 +85,7 @@ export const deckPlanCardMetaResponseSchema = z.object({
   imageId: z.string().nullable(),
 });
 
-/**
- * The slice of the catalogue a deck page renders from: every printing of the
- * deck's cards plus the printings of the tokens they create, the cards behind
- * those printings, and the sets they belong to. Same shapes `/catalog` serves,
- * so a page hands them to the shared catalogue helpers unchanged and never
- * downloads the whole catalogue.
- */
+/** Same shapes `/catalog` serves, so a page hands this to the shared catalogue helpers unchanged. */
 export const deckCatalogSubsetSchema = z
   .object({
     sets: z.array(catalogSetResponseSchema),
@@ -114,11 +106,6 @@ export const publicDeckDetailResponseSchema = z
   })
   .openapi("PublicDeckDetailResponse");
 
-/**
- * oRPC contract for the public (share-token) deck view.
- * `GET /api/v1/decks/share/{token}` — anonymous, denormalized view of a shared
- * deck, or a typed NOT_FOUND for an unknown / non-public token.
- */
 export const publicDecksContract = {
   share: oc
     .route({ method: "GET", path: "/api/v1/decks/share/{token}", tags: ["Decks"] })
@@ -127,10 +114,7 @@ export const publicDecksContract = {
     .errors({ NOT_FOUND: { message: "Not found" } })
     .output(publicDeckDetailResponseSchema),
 
-  // Stateless deck-code encoder for logged-out (local) decks, which have no
-  // server row. Pure compute over public catalog data — no DB write — so it
-  // opens no anonymous write surface. Reuses the same codecs as the by-id
-  // authenticated `export`.
+  // Pure compute over public catalog data, no DB write, so this opens no anonymous write surface.
   encode: oc
     .route({ method: "POST", path: "/api/v1/decks/encode", tags: ["Decks"] })
     .meta({ auth: "public" })

@@ -1,7 +1,5 @@
-// Dedicated e2e port range, deliberately clear of the dev servers (web 5173,
-// api 3000) and the worktree dev web port (5174). Overridable
-// via env so a second checkout or CI shard can shift the whole pair without a
-// code change. Keep the two adjacent so the range stays easy to reason about.
+// Clear of the dev servers (web 5173, api 3000) and the worktree dev web port
+// (5174). Overridable via env so a second checkout or CI shard can shift both.
 export const API_PORT = Number(process.env.E2E_API_PORT ?? 4310);
 export const WEB_PORT = Number(process.env.E2E_WEB_PORT ?? 4311);
 export const API_BASE_URL = `http://localhost:${API_PORT}`;

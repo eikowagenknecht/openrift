@@ -10,9 +10,6 @@ import {
 } from "./firefox-distribution";
 
 describe("UPDATE_MANIFEST_URL", () => {
-  // Baked into every install, so a change here strands everyone already on the
-  // old URL. Pinned literally: this test failing means the migration in
-  // docs/extension.md is required, not that the constant should be re-copied.
   it("points at the fixed release tag, not the moving latest pointer", () => {
     expect(UPDATE_MANIFEST_URL).toBe(
       "https://github.com/openriftapp/openrift/releases/download/extension-updates/firefox-updates.json",
@@ -25,10 +22,6 @@ describe("UPDATE_MANIFEST_URL", () => {
 });
 
 describe("LATEST_XPI_URL", () => {
-  // The site links here, and the release workflow writes the asset under this
-  // exact name. Pinned literally so a rename has to be a deliberate edit in
-  // both places (plus SOCIAL_LINKS.extensionDownload in apps/web), not a
-  // silently 404ing install link.
   it("points at the fixed tag under the stable file name", () => {
     expect(LATEST_XPI_URL).toBe(
       "https://github.com/openriftapp/openrift/releases/download/extension-updates/openrift-deck-importer.xpi",
@@ -96,8 +89,6 @@ describe("buildUpdateManifest", () => {
   });
 
   it("serializes to the shape Firefox parses", () => {
-    // Round-tripped through JSON on purpose: the manifest is only ever consumed
-    // as a file on disk, so the serialized form is what has to be right.
     const serialized = JSON.stringify(manifest);
     expect(JSON.parse(serialized)).toEqual({
       addons: {

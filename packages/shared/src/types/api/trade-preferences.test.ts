@@ -78,7 +78,6 @@ describe("resolveEffectiveTradePreference", () => {
       priceAbsoluteCents: null,
       tradeType: null,
     };
-    // override switches to cm_lowest; the default's 400 cents must not leak.
     expect(resolveEffectiveTradePreference(override, listDefault, "EUR")).toEqual({
       pricePref: "cm_lowest",
       priceAbsoluteCents: null,

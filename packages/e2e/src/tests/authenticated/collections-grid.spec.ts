@@ -9,9 +9,8 @@ import { connectToDb } from "../../helpers/db.js";
 
 type Sql = ReturnType<typeof connectToDb>;
 
-// Seed printings (apps/api/src/test/fixtures/seed.sql).
-// Annie, Fiery has two printings (foil promo + normal) of the same card.
-// Garen, Rugged is a separate card we use as a "not-Annie" control.
+// Seed printings (apps/api/src/test/fixtures/seed.sql). Annie, Fiery has two
+// printings of the same card; Garen, Rugged is a "not-Annie" control.
 const ANNIE_FIERY_NORMAL = "019cfc3b-03d6-74cf-adec-1dce41f631eb";
 const ANNIE_FIERY_FOIL = "019d17a1-2723-733a-a21e-4630e4370046";
 const GAREN_RUGGED_NORMAL = "019cfc3b-03d6-752a-adc5-19033009d65d";
@@ -81,9 +80,8 @@ async function seedCopies(
 }
 
 async function resetUserData(sql: Sql, email: string) {
-  // Wipe owned copies and any non-inbox collections so each test starts clean.
-  // copies are owned via their collection (copies.collection_id →
-  // collections.user_id); the copies table no longer carries user_id directly.
+  // Copies are owned via their collection, not a user_id column directly, so
+  // wipe by joining through collections.
   await sql`
     DELETE FROM copies
     WHERE collection_id IN (
@@ -167,15 +165,10 @@ test.describe("collections grid", () => {
         const page = await context.newPage();
         await page.goto("/collections");
 
-        // An empty collection flips the whole-library view on during render
-        // (the auto-library one-shot in CollectionGrid), so the grid opens on
-        // the catalog rather than on the empty state.
         const hideLibrary = page.getByRole("button", { name: "Hide library" });
         await expect(hideLibrary).toBeVisible({ timeout: 15_000 });
         await expect(page.getByText("Welcome to your collection")).toBeVisible();
 
-        // Turning the library off leaves the collection's own grid, which is
-        // where the empty state lives.
         await hideLibrary.click();
         await expect(page.getByText("No cards yet")).toBeVisible();
         await expect(page.getByText(/Browse the card catalog and add cards to/u)).toBeVisible();
@@ -228,10 +221,6 @@ test.describe("collections grid", () => {
     test("empty collection shows 'No cards yet' even when a language filter is active", async ({
       browser,
     }) => {
-      // Regression: when the URL had any filter (e.g. auto-seeded language prefs),
-      // an empty collection fell through to the card grid and showed the misleading
-      // "Couldn't load cards / server unreachable" message instead of the neutral
-      // empty state.
       await withSignedInContext(state.user, browser, async (context) => {
         const empty = await createCollection(context, "Empty Box");
         const page = await context.newPage();
@@ -300,14 +289,11 @@ test.describe("collections grid", () => {
         const page = await context.newPage();
         await page.goto("/collections");
         await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 15_000 });
-        // Default view is "cards" (user-settable preference), so the initial
-        // label is "1 cards" — Annie's 2 printings collapse into one tile.
         await expect(page.getByText(/\b1 cards\b/u)).toBeVisible();
 
         const viewGroup = page.getByRole("group", { name: "View mode" });
-        // Click the non-default "Every printing" option so the URL actually
-        // updates; setView only writes a `view` param when the selected mode
-        // differs from the user's default (see setView in use-card-filters.ts).
+        // setView only writes a `view` param when it differs from the user's
+        // default, so pick the non-default option to see the URL update.
         await viewGroup.getByRole("button", { name: "Every printing" }).click();
 
         await expect(page).toHaveURL(/[?&]view=printings/u);
@@ -372,16 +358,13 @@ test.describe("collections grid", () => {
       });
     });
 
-    // Regression: the URL search filter narrows `catalogPrintingsByCardId` for
-    // the grid, but the QuickAddPalette must browse the full catalog. Before
-    // the fix in collection-grid.tsx the palette was fed the filtered map, so
-    // typing a non-matching card name returned zero results.
+    // The URL search filter narrows the grid, but the QuickAddPalette must
+    // browse the full catalog regardless.
     test("Ctrl+K palette finds cards outside the URL search filter", async ({ browser }) => {
       await withSignedInContext(state.user, browser, async (context) => {
         const page = await context.newPage();
         await page.goto(`/collections/${state.inboxId}?search=Garen`);
 
-        // The grid filter excludes Annie.
         await expect(page.getByText("Garen, Rugged")).toBeVisible({ timeout: 15_000 });
         await expect(page.getByText("Annie, Fiery")).toBeHidden();
 
@@ -464,8 +447,6 @@ test.describe("collections grid", () => {
         const page = await context.newPage();
         await page.goto("/collections");
 
-        // Top bar renders "All Cards" as the page heading, and the sidebar
-        // has an "All Cards" link entry.
         await expect(page.getByRole("heading", { name: "All Cards" })).toBeVisible({
           timeout: 15_000,
         });
@@ -478,7 +459,6 @@ test.describe("collections grid", () => {
         const page = await context.newPage();
         await page.goto(`/collections/${namedCollection.id}`);
 
-        // The collection name appears as the top bar heading and as a sidebar link.
         await expect(page.getByRole("heading", { name: "Vault of Champions" })).toBeVisible({
           timeout: 15_000,
         });
@@ -517,8 +497,7 @@ test.describe("collections grid", () => {
         const page = await context.newPage();
         await page.goto(`/collections/${state.inboxId}`);
 
-        // The old browse-to-add mode was replaced by a Quick Add palette. The
-        // first /collections/$id visit in a worker pays a big auth-gated
+        // The first /collections/$id visit in a worker pays a big auth-gated
         // dev-compile, so allow headroom.
         const quickAdd = page.getByRole("button", { name: "Quick add", exact: true });
         await expect(quickAdd).toBeVisible({ timeout: 45_000 });

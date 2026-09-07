@@ -50,13 +50,6 @@ export const adminStatusResponseSchema = z
 
 const TAG = "Admin";
 
-/**
- * oRPC contract for the admin status dashboard (mounted at
- * `/api/admin/v1/status`, admin-gated by the mount). Read-only: aggregates
- * server/runtime, database, app, and pricing stats. Reuses the shared
- * {@link adminStatusResponseSchema}. Session-gated (UNAUTHORIZED + FORBIDDEN
- * from `authedRoute`); no domain error codes are declared.
- */
 export const adminStatusContract = {
   get: authedRoute
     .route({ method: "GET", path: "/api/admin/v1/status", tags: [TAG] })

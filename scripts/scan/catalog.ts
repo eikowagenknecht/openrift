@@ -1,12 +1,7 @@
 /* oxlint-disable import/no-nodejs-modules -- standalone CLI tooling, never bundled */
 /**
- * Map reference image keys onto human-readable card identities.
- *
- * The bench needs this to tell a real failure from a near miss. The catalogue
- * carries the same artwork in several languages and finishes, so returning the
- * Simplified Chinese print of the card the user is holding is a very different
- * kind of wrong from returning an unrelated card, and the two need separate
- * numbers before any tuning decision can be trusted.
+ * Map reference image keys onto human-readable card identities, so the bench
+ * can tell a wrong-language print of the right card from a wrong card.
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -15,22 +10,14 @@ import path from "node:path";
 import { DATA_DIR } from "./lib";
 
 export interface CardIdentity {
-  /** image_files.id */
   key: string;
   name: string;
   setSlug: string;
   publicCode: string;
   language: string;
-  /** cards.type — selects the measured text band for printing disambiguation. */
   cardType: string;
-  /**
-   * Serialized marker set ("promo", "judge+promo", "" for none) — gates the
-   * stamp stage of printing disambiguation. Null when the printings sharing
-   * this image disagree on markers (one render serving stamped and unstamped
-   * printings carries no stamp evidence).
-   */
+  /** "promo", "judge+promo", "" for none; null when printings sharing this image disagree on markers. */
   markers: string | null;
-  /** Distinct artwork identity: same value means the images should look alike. */
   artKey: string;
 }
 
@@ -53,11 +40,6 @@ const QUERY = `
   where pi.face = 'front'
 `;
 
-/**
- * Load the key-to-identity map, querying the dev database once and caching it.
- *
- * @returns A map from image file id to card identity.
- */
 export function loadCatalog(refresh = false): Map<string, CardIdentity> {
   if (!refresh && fs.existsSync(CACHE_FILE)) {
     const cached = JSON.parse(fs.readFileSync(CACHE_FILE, "utf-8")) as CardIdentity[];
@@ -127,11 +109,6 @@ export function loadCatalog(refresh = false): Map<string, CardIdentity> {
   return new Map(identities.map((c) => [c.key, c]));
 }
 
-/**
- * Describe a key for bench output.
- *
- * @returns A short human-readable label.
- */
 export function describe(catalog: Map<string, CardIdentity>, key: string | null): string {
   if (!key) {
     return "none";

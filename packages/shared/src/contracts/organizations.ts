@@ -6,8 +6,6 @@ import { authedRoute } from "./_base.js";
 
 extendZodWithOpenApi(z);
 
-// ─── Shared shapes ─────────────────────────────────────────────────────────
-
 const orgSlugSchema = z
   .string()
   .regex(
@@ -62,13 +60,6 @@ const TAG = "Organizations";
 
 const orgIdParamSchema = z.object({ id: z.string().min(1) });
 
-/**
- * Admin oRPC contract for provisioning event organizations (ADR-033 decision 4,
- * ADR-032). Mounted under `/api/admin/v1`, admin-gated by the prefix. `create`
- * inserts the org and an owner membership in one transaction. Domain codes:
- * `create` → CONFLICT (slug taken) / NOT_FOUND (owner user); `update` →
- * NOT_FOUND / CONFLICT; `remove` → NOT_FOUND.
- */
 export const adminOrganizationsContract = {
   list: authedRoute
     .route({ method: "GET", path: ADMIN_BASE, tags: [ADMIN_TAG] })
@@ -110,13 +101,6 @@ export const adminOrganizationsContract = {
 
 export type AdminOrganizationsContract = typeof adminOrganizationsContract;
 
-/**
- * Authenticated oRPC contract for the organization surfaces a member touches:
- * the host picker (`list` — orgs the caller owns or manages), the org page
- * (`get` by id or slug, with members), and member management. Only an owner may
- * add or remove an `owner`; a manager may add/remove managers; the last owner
- * cannot be removed. Mounted at `/api/v1/organizations`.
- */
 export const organizationsContract = {
   list: authedRoute
     .route({ method: "GET", path: "/api/v1/organizations", tags: [TAG] })
@@ -134,7 +118,6 @@ export const organizationsContract = {
     })
     .input(
       withParams(orgIdParamSchema, {
-        // Members are added by their exact account email — no user search/enumeration.
         email: z.email().max(254),
         role: organizationRoleSchema,
       }),

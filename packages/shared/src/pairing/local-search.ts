@@ -16,9 +16,8 @@ import type {
 } from "./types.js";
 
 /**
- * Thrown when an active-player count cannot be decomposed for the mode: pods of
- * 3 and 4 cannot seat 1, 2, or 5; Swiss matches cannot seat an odd count (the
- * service normally prevents this by assigning a bye first).
+ * Thrown when a player count can't be decomposed: pods of 3/4 can't seat 1,
+ * 2, or 5; Swiss can't seat an odd count.
  */
 export class InvalidPlayerCountError extends Error {
   readonly playerCount: number;
@@ -33,10 +32,9 @@ export class InvalidPlayerCountError extends Error {
   }
 }
 
-/** Treat penalties within this tolerance as equal (float terms are fractional). */
 const EPSILON = 1e-9;
 
-// Fisher-Yates shuffle into a new array, driven by the injected rng.
+// Fisher-Yates shuffle.
 function shuffle<T>(items: readonly T[], rng: Random): T[] {
   const result = [...items];
   for (let i = result.length - 1; i > 0; i--) {
@@ -49,8 +47,7 @@ function shuffle<T>(items: readonly T[], rng: Random): T[] {
   return result;
 }
 
-// Order players by score (descending), shuffling within each equal-score band so
-// restarts differ. Grouping similar scores adjacently is the seed for chunking.
+// Shuffles within each equal-score band so restarts differ.
 function constructOrder(players: PairingPlayer[], rng: Random): PairingPlayer[] {
   const byScore = Map.groupBy(players, (player) => player.score);
   const scoresDescending = [...byScore.keys()].toSorted((a, b) => b - a);
@@ -61,12 +58,8 @@ function constructOrder(players: PairingPlayer[], rng: Random): PairingPlayer[] 
   return ordered;
 }
 
-// Fill the determined pod sizes top to bottom, shuffling which positions in the
-// score order become the 3-pods. A fixed fours-then-threes order would anchor
-// every restart's 3-pods to the bottom of the standings, and best-improvement
-// search cannot relocate a whole 3-pod across a penalty barrier one swap at a
-// time — so without this shuffle the same low-scoring players get 3-pod duty
-// round after round.
+// Shuffles which positions become 3-pods; a fixed order would anchor every
+// restart's 3-pods to the bottom of the standings.
 function chunkIntoPods(ordered: PairingPlayer[], sizes: PodSizes, rng: Random): Pod[] {
   const sequence: (2 | 3 | 4)[] = shuffle(
     [
@@ -99,10 +92,7 @@ interface Move {
   apply: (pods: Pod[]) => void;
 }
 
-// Find the single best improving whole-round move: scan every cross-pod 2-swap
-// first, and only if none improves, scan 3-cycles (the rarer, more expensive
-// neighborhood, reached only at a 2-swap local minimum). Returns null at a true
-// local minimum of both neighborhoods.
+// Scans 2-swaps first; only scans the pricier 3-cycles if no 2-swap improves.
 function findBestMove(
   pods: Pod[],
   totals: number[],
@@ -111,7 +101,6 @@ function findBestMove(
 ): Move | null {
   let best: Move | null = null;
 
-  // 2-swaps: exchange one player between two different pods.
   for (let a = 0; a < pods.length; a++) {
     for (let b = a + 1; b < pods.length; b++) {
       const podA = pods[a];
@@ -142,7 +131,6 @@ function findBestMove(
     return best;
   }
 
-  // 3-cycles: rotate one player across three different pods, both directions.
   for (let a = 0; a < pods.length; a++) {
     for (let b = a + 1; b < pods.length; b++) {
       for (let c = b + 1; c < pods.length; c++) {
@@ -156,7 +144,6 @@ function findBestMove(
               const x = podA.playerIds[posA];
               const y = podB.playerIds[posB];
               const z = podC.playerIds[posC];
-              // Two rotation directions: forward (X->B, Y->C, Z->A) and reverse.
               for (const [intoA, intoB, intoC] of [
                 [z, x, y],
                 [y, z, x],
@@ -189,7 +176,6 @@ function findBestMove(
   return best;
 }
 
-// One restart: construct a seed, then best-improvement until a local minimum or the step cap.
 function searchOnce(
   players: PairingPlayer[],
   sizes: PodSizes,
@@ -217,13 +203,8 @@ function searchOnce(
 }
 
 /**
- * The v1 engine: bounded local search. Construct from a score-sorted (shuffled
- * within bands, 3-pod positions shuffled) seed, improve with whole-round 2-swaps
- * and 3-cycles, restart a few dozen times, and keep the lowest-penalty result. Among equal-penalty
- * results the injected rng breaks the tie ("pick randomly among equal pairings").
- *
- * @param budget Restart and step caps; defaults to {@link DEFAULT_LOCAL_SEARCH_BUDGET}.
- * @returns A {@link PairingStrategy} closing over the budget.
+ * Bounded local search: restart a few dozen times and keep the lowest-penalty
+ * result, breaking ties among equal-penalty results with the injected rng.
  */
 export function makeLocalSearchStrategy(
   budget: LocalSearchBudget = DEFAULT_LOCAL_SEARCH_BUDGET,
@@ -253,7 +234,6 @@ export function makeLocalSearchStrategy(
   };
 }
 
-// A random valid partition that respects the pod sizes (no scores/history to optimize).
 function randomPairing(
   players: PairingPlayer[],
   sizes: PodSizes,
@@ -272,20 +252,8 @@ function randomPairing(
 }
 
 /**
- * Orchestrate a round's pairing. Pod mode: round 1 is a random valid partition
- * (no scores or history yet) unless any player carries a region, in which case
- * local search runs so same-region pods are avoided from the start; round 2+
- * always runs bounded local search. Swiss mode always runs local search for the
- * same reason (with no penalties active it degenerates to a random partition
- * anyway). The pod sizes are derived from the field per mode; an
- * unrepresentable count (1, 2, 5 for pods; odd for Swiss) throws
- * {@link InvalidPlayerCountError}.
- *
- * @param players The active players' flat snapshots.
- * @param roundNumber 1-based round number.
- * @param options Mode (default `pod`), penalty config, rng (inject a seeded one
- *   for determinism), and local-search budget.
- * @returns The scored pairing for the round.
+ * Pod mode round 1 uses a random partition unless a player carries a region;
+ * every other case runs bounded local search.
  */
 export function generatePairing(
   players: PairingPlayer[],

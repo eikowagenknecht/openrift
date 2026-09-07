@@ -13,24 +13,17 @@ import { labelMap } from "@openrift/shared";
 export type CatalogCard = CatalogResponseCardValue & { id: string };
 export type CatalogPrinting = CatalogResponsePrintingValue & { id: string };
 
-/**
- * Slug → display label maps for the enum groups the embeds use. Composed from
- * the shared groups so a printing's variant label and a card's stat line are
- * named exactly as the site names them.
- */
 export interface EnumLabels extends VariantLabelEnumLabels, CardStatLabels {
   deckZones: Record<string, string>;
 }
 
 export interface CatalogSnapshot {
   cards: CatalogCard[];
-  /** Printings per card, sorted by canonicalRank (the display order). */
   printingsByCardId: Map<string, CatalogPrinting[]>;
   setsById: Map<string, CatalogSetResponse>;
   prices: PricesResponse["prices"];
   currencies: PricesResponse["currencies"];
   labels: EnumLabels;
-  /** Deck zone slugs in display order (from the init enums). */
   zoneOrder: string[];
 }
 
@@ -40,12 +33,6 @@ interface CatalogFetchers {
   fetchPrices: () => Promise<PricesResponse>;
 }
 
-/**
- * Builds the bot's lookup structures from the raw catalog + prices payloads.
- * Pure so tests can feed fixture payloads without a cache instance.
- *
- * @returns The assembled snapshot.
- */
 export function buildSnapshot(
   catalog: CatalogResponse,
   prices: PricesResponse,
@@ -82,12 +69,6 @@ export function buildSnapshot(
   };
 }
 
-/**
- * Picks the printing whose image and prices represent a card: the first by
- * canonical rank that has a front image, falling back to the first outright.
- *
- * @returns The representative printing, or undefined for a card with none.
- */
 export function representativePrinting(
   snapshot: CatalogSnapshot,
   cardId: string,
@@ -99,10 +80,6 @@ export function representativePrinting(
   return printings.find((p) => p.images.some((image) => image.face === "front")) ?? printings[0];
 }
 
-/**
- * In-memory cache of the public catalog and price map. The bot is stateless:
- * everything here is rebuilt from the API on startup and on every refresh.
- */
 export class CatalogCache {
   readonly #fetchers: CatalogFetchers;
   #snapshot: CatalogSnapshot | null = null;
@@ -111,16 +88,11 @@ export class CatalogCache {
     this.#fetchers = fetchers;
   }
 
-  /** @returns The latest snapshot, or null before the first successful refresh. */
   get snapshot(): CatalogSnapshot | null {
     return this.#snapshot;
   }
 
-  /**
-   * Re-fetches catalog + prices and swaps the snapshot atomically. Throws on
-   * fetch failure and keeps the previous snapshot, so a flaky refresh never
-   * leaves the bot without data.
-   */
+  /** Swaps the snapshot atomically; keeps the previous one if the fetch fails. */
   async refresh(): Promise<void> {
     const [catalog, prices, init] = await Promise.all([
       this.#fetchers.fetchCatalog(),

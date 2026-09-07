@@ -6,12 +6,6 @@ import type { CatalogCard, CatalogPrinting, CatalogSnapshot } from "./catalog-ca
 import type { GlyphEmojis } from "./glyph-emoji.js";
 import { NO_GLYPH_EMOJIS } from "./glyph-emoji.js";
 
-/**
- * Prefix of the Details button's custom id. The rest is the card id and the
- * printing the reply was showing, so the ephemeral follow-up describes the
- * same printing the user was looking at. The bot keeps no state between the
- * reply and the click — the button carries everything it needs.
- */
 const DETAILS_PREFIX = "card-details";
 
 /** Discord's cap on a button label. */
@@ -21,26 +15,16 @@ export interface CardDetailsInput {
   card: CatalogCard;
   printing: CatalogPrinting | undefined;
   snapshot: CatalogSnapshot;
-  /** Glyph token → custom emoji mention; defaults to none, which renders glyphs as words. */
   emojis?: GlyphEmojis;
   siteUrl: string;
 }
 
-/**
- * The custom id of a card's Details button. Card and printing ids are UUIDs,
- * which keeps this inside Discord's 100-character limit.
- *
- * @returns The custom id to put on the button.
- */
+/** Card and printing ids are UUIDs, which keeps this inside Discord's 100-character custom-id limit. */
 export function detailsCustomId(cardId: string, printingId?: string): string {
   return `${DETAILS_PREFIX}:${cardId}:${printingId ?? ""}`;
 }
 
-/**
- * Reads back what {@link detailsCustomId} encoded.
- *
- * @returns The ids, or null when the custom id belongs to something else.
- */
+/** Reads back what {@link detailsCustomId} encoded; null when the custom id belongs to something else. */
 export function parseDetailsCustomId(
   customId: string,
 ): { cardId: string; printingId: string | null } | null {
@@ -51,24 +35,11 @@ export function parseDetailsCustomId(
   return { cardId, printingId: printingId || null };
 }
 
-/**
- * The Details button's label. A single-card reply just says "Details"; a
- * message answering several `[[card]]` mentions carries one button per card,
- * so those name the card they belong to.
- *
- * @returns The label, within Discord's length limit.
- */
 export function detailsLabel(cardName: string, multiple: boolean): string {
   return multiple ? truncateWithEllipsis(`Details: ${cardName}`, LABEL_LIMIT) : "Details";
 }
 
-/**
- * The ban field for the ephemeral details: one line per active ban, with the
- * reason where the catalogue has one. The card embed already says *that* the
- * card is banned; this says why.
- *
- * @returns The field, or null when the card is not banned.
- */
+/** The card embed already says a card is banned; this field says why. */
 function banField(card: CatalogCard): APIEmbedField | null {
   if (card.bans.length === 0) {
     return null;
@@ -82,14 +53,7 @@ function banField(card: CatalogCard): APIEmbedField | null {
   };
 }
 
-/**
- * Builds the ephemeral follow-up behind the Details button: the stat line and
- * the card's rules and effect text, i.e. everything the card embed leaves off
- * because it is legible on the artwork. Ephemeral, so reading the details
- * never adds a message to the channel.
- *
- * @returns A plain APIEmbed ready to send.
- */
+/** Stat line, rules, and effect text: everything the card embed leaves off because it's legible on the artwork. */
 export function buildCardDetailsEmbed(input: CardDetailsInput): APIEmbed {
   const { card, printing, snapshot, siteUrl } = input;
   const bans = banField(card);

@@ -1,17 +1,10 @@
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
-/**
- * Drag `source` onto `target` using mouse events that exceed dnd-kit's 8px
- * activation distance. A small intermediate move transitions the
- * PointerSensor from "pending" to "active" before the final move to the
- * target — a single long move sometimes misses the activation threshold.
- * @returns Nothing.
- */
+// A small intermediate move transitions dnd-kit's PointerSensor from
+// "pending" to "active" before the final move; a single long move sometimes
+// misses its 8px activation threshold.
 export async function dndDrag(page: Page, source: Locator, target: Locator) {
-  // Wait for both ends to be laid out before measuring — under parallel load the
-  // grid/zone can still be settling, and boundingBox() returns null for an
-  // unrendered element, which would abort the drag.
   await expect(source).toBeVisible({ timeout: 15_000 });
   await expect(target).toBeVisible({ timeout: 15_000 });
   const sourceBox = await source.boundingBox();
@@ -30,11 +23,6 @@ export async function dndDrag(page: Page, source: Locator, target: Locator) {
   await page.mouse.up();
 }
 
-/**
- * Drag `source` to an absolute viewport coordinate. Useful for testing
- * "drop outside any zone" behavior where there is no target locator.
- * @returns Nothing.
- */
 export async function dndDragToPoint(page: Page, source: Locator, endX: number, endY: number) {
   await expect(source).toBeVisible({ timeout: 15_000 });
   const sourceBox = await source.boundingBox();

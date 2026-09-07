@@ -29,20 +29,10 @@ export const podReportResponseSchema = z
     regionsEnabled: z.boolean(),
     standings: z.array(podStandingRowSchema),
     rounds: z.array(podRoundResponseSchema),
-    /** Whether this link may submit results (report token) or is follow-only. */
     canSubmit: z.boolean(),
   })
   .openapi("PodReportResponse");
 
-/**
- * oRPC contract for the public, token-gated pod-tournament participant surface
- * (ADR-022). `GET .../report/{token}` is a read-only follow-along; the PUTs
- * submit results — `submitResult` a whole pod at once, `submitPlayerResult` a
- * single player's own game points (the pod completes once every member has
- * points). A disabled/rotated token is a typed NOT_FOUND. The submit routes
- * additionally produce CONFLICT when the round is already finalized and
- * BAD_REQUEST when the submitted results are invalid.
- */
 export const publicPodTournamentsContract = {
   report: oc
     .route({

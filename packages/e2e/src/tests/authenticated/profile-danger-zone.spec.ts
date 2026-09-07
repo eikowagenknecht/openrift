@@ -60,18 +60,13 @@ async function setupUser(
 }
 
 async function openDialog(page: Page) {
-  // Scope to the danger-zone section so we don't accidentally match dialog-internal
-  // "Delete account" confirm buttons in later lookups, and wait for the profile
-  // page header (rendered only after `useSession` resolves) before interacting.
   await expect(page.getByRole("heading", { name: "Danger Zone", level: 2 })).toBeVisible({
     timeout: 15_000,
   });
-  // Retry the whole click+visibility check: the profile page suspends on
-  // `useSession()` and the component tree remounts right when it resolves,
-  // which detaches the trigger. Polling until the dialog appears is robust.
+  // The component tree remounts when useSession() resolves, detaching the
+  // trigger; poll the click+visibility check until it sticks.
   await expect(async () => {
-    // The danger-zone card no longer carries a data-section anchor; the "Delete
-    // account" trigger is unique on the profile page, so match it directly.
+    // The "Delete account" trigger is unique on the profile page.
     const trigger = page.getByRole("button", { name: "Delete account", exact: true });
     await trigger.scrollIntoViewIfNeeded();
     await trigger.click();
@@ -92,9 +87,8 @@ test.describe("profile danger zone", () => {
       const heading = page.getByRole("heading", { name: "Danger Zone", level: 2 });
       await expect(heading).toBeVisible({ timeout: 15_000 });
 
-      // Scope to the danger-zone card via the unique "Delete account" button it
-      // contains (the CardTitle is a div, so the "Danger Zone" h2 sits outside
-      // the card and can't anchor it).
+      // CardTitle is a div, so the "Danger Zone" h2 sits outside the card and
+      // can't anchor it; scope via the unique "Delete account" button instead.
       const section = page.locator('[data-slot="card"]').filter({
         has: page.getByRole("button", { name: "Delete account", exact: true }),
       });
@@ -113,9 +107,7 @@ test.describe("profile danger zone", () => {
       await expect(heading).toBeVisible({ timeout: 15_000 });
       await heading.scrollIntoViewIfNeeded();
 
-      // The card rendered inside the Danger Zone section carries the
-      // destructive border. Class tokens are the only user-visible signal for
-      // this styling cue today.
+      // Class tokens are the only user-visible signal for the destructive styling.
       const card = page.locator('[data-slot="card"]').filter({
         has: page.getByRole("button", { name: "Delete account", exact: true }),
       });
@@ -228,7 +220,6 @@ test.describe("profile danger zone", () => {
       const passwordInput = dialog.getByPlaceholder("Your password");
       await expect(passwordInput).toHaveAttribute("aria-invalid", "true", { timeout: 10_000 });
 
-      // The user row must still be present after a failed attempt.
       const sql = loadDb();
       try {
         const rows = await sql<{ count: string }[]>`
@@ -239,10 +230,8 @@ test.describe("profile danger zone", () => {
         await sql.end();
       }
 
-      // Dialog stays open so the user can retry.
       await expect(dialog).toBeVisible();
 
-      // URL did not change to /.
       expect(new URL(page.url()).pathname).toBe("/profile");
     });
   });
@@ -252,7 +241,6 @@ test.describe("profile danger zone", () => {
       const { email, password } = await setupUser(request, "happy");
       await loginViaForm(page, email, password);
 
-      // Capture the user id up front so we can verify cascades after deletion.
       const sql = loadDb();
       let userId: string | undefined;
       try {
@@ -276,19 +264,14 @@ test.describe("profile danger zone", () => {
       await dialog.getByRole("button", { name: "Delete account", exact: true }).click();
       await deleteRequest;
 
-      // Deleting navigates to "/", but the authenticated-home guard on "/" can
-      // still see the just-invalidated session and forward to /cards before the
-      // session clears — so accept either landing (both are logged-out-safe
-      // public pages). NOTE for review: post-delete users end up on /cards, not
-      // the marketing home; tighten the delete flow if that's not intended.
+      // The authenticated-home guard on "/" can still see the just-invalidated
+      // session and forward to /cards before it clears; accept either landing.
       await expect(page).toHaveURL(/^http:\/\/localhost:\d+\/(?:cards\b.*)?$/u, {
         timeout: 15_000,
       });
 
-      // Logged-out header: Sign in link is visible, no user menu entries.
       await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
 
-      // Database verification: user row and a couple of cascade tables.
       const verifySql = loadDb();
       try {
         const userRows = await verifySql<{ count: string }[]>`
@@ -301,8 +284,7 @@ test.describe("profile danger zone", () => {
         `;
         expect(collectionRows[0]?.count).toBe("0");
 
-        // copies are owned through their collection, so scope by the (now
-        // deleted) user's collections rather than a copies.user_id column.
+        // copies has no user_id column; scope by the deleted user's collections.
         const copyRows = await verifySql<{ count: string }[]>`
           SELECT COUNT(*)::text AS count FROM copies
           WHERE collection_id IN (SELECT id FROM collections WHERE user_id = ${userId})
@@ -312,11 +294,9 @@ test.describe("profile danger zone", () => {
         await verifySql.end();
       }
 
-      // Old credentials no longer work.
       await page.goto("/login");
       await page.locator("form").first().waitFor({ state: "attached" });
-      // Wait for hydration so the form accepts input (SSR renders the form
-      // before React attaches event handlers).
+      // SSR renders the form before React attaches event handlers.
       await page.waitForFunction(
         () => {
           const formEl = document.querySelector("form");
@@ -340,8 +320,7 @@ test.describe("profile danger zone", () => {
       await loginViaForm(page, email, password);
       await page.goto("/profile");
 
-      // Delay the delete-user response by ~1s so we can observe the pending
-      // UI. Route must be installed before the dialog fires the request.
+      // Route must be installed before the dialog fires the request.
       await page.route(`**${DELETE_USER_PATH}`, async (route) => {
         await new Promise((resolve) => setTimeout(resolve, 1000));
         await route.continue();
@@ -357,11 +336,8 @@ test.describe("profile danger zone", () => {
       await expect(confirmButton).toBeDisabled();
       await expect(dialog).toBeVisible();
 
-      // Deleting navigates to "/", but the authenticated-home guard on "/" can
-      // still see the just-invalidated session and forward to /cards before the
-      // session clears — so accept either landing (both are logged-out-safe
-      // public pages). NOTE for review: post-delete users end up on /cards, not
-      // the marketing home; tighten the delete flow if that's not intended.
+      // The authenticated-home guard on "/" can still see the just-invalidated
+      // session and forward to /cards before it clears; accept either landing.
       await expect(page).toHaveURL(/^http:\/\/localhost:\d+\/(?:cards\b.*)?$/u, {
         timeout: 15_000,
       });

@@ -1,22 +1,9 @@
 // oxlint-disable import/no-nodejs-modules -- build-time Node script, never bundled
-// Vendors the flag-icons flags into apps/web/public/images/flags/, rendered to
-// small WebP the way the domain runes are served rather than copied as SVG.
-//
-// The source SVGs are already svgo-optimized upstream, so there is nothing left
-// to strip: the detailed coats of arms stay huge (Serbia alone is 178KB) and a
-// list row would pull all of it to paint an 18px plate. Rasterizing to the size
-// the plate is actually drawn at takes the whole set from 2.4MB to ~260KB, with
-// the worst single flag under 5KB.
-//
-// 96x72 is 4x the default 24x18 plate and 6x the small one, so it stays crisp
-// at 3x device pixel ratio.
-//
+// Vendors flag-icons SVGs into apps/web/public/images/flags/ as small WebP.
 // Run under Node, never Bun: sharp 0.35.3 under Bun corrupts one-off WebP
 // encodes with row ghosting.
 //
 //   node scripts/vendor-flags.mjs
-//
-// Re-run after bumping the pinned flag-icons version in apps/web/package.json.
 
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -28,17 +15,11 @@ import sharp from "sharp";
 const WIDTH = 96;
 const HEIGHT = 72;
 
-// Two-letter files only. That drops the package's subdivision flags (gb-eng,
-// es-ct, sh-ac), which CountryFlag never requests because it renders nothing for
-// a code that is not two letters. Eight two-letter entries that are not ISO
-// countries do come along (cp, dg, eu, ic, pc, un, xk, xx); at ~1KB each they
-// are not worth a hand-maintained exclusion list, and they only ever render if a
-// source hands us that code.
 const ALPHA_2_SVG = /^[a-z]{2}\.svg$/u;
 
 const root = execFileSync("git", ["rev-parse", "--show-toplevel"]).toString().trim();
-// Resolved from apps/web, which is where flag-icons is pinned: bun's isolated
-// linker keeps it out of the root node_modules.
+// flag-icons is pinned in apps/web; bun's isolated linker keeps it out of
+// the root node_modules.
 const require = createRequire(join(root, "apps/web/package.json"));
 const source = join(dirname(require.resolve("flag-icons/package.json")), "flags/4x3");
 const dest = join(root, "apps/web/public/images/flags");
@@ -50,8 +31,8 @@ const files = readdirSync(source).filter((file) => ALPHA_2_SVG.test(file));
 const codes = [];
 for (const file of files) {
   const code = file.slice(0, -4);
-  // A high render density first, then a downscale: librsvg rasterizes at the
-  // SVG's own tiny viewBox otherwise and the coats of arms come out mushy.
+  // librsvg rasterizes at the SVG's own tiny viewBox without a high density
+  // set first, so a downscale-only pass comes out mushy.
   await sharp(join(source, file), { density: 600 })
     .resize(WIDTH, HEIGHT, { fit: "fill" })
     .webp({ quality: 90, effort: 6 })
@@ -59,9 +40,7 @@ for (const file of files) {
   codes.push(code);
 }
 
-// The codes are also emitted as source: a country the package ships no file for
-// must render its code badge instead of requesting a 404, and Intl.DisplayNames
-// is no proxy for that (it happily names UK, ZR and AN, none of which have one).
+// Emitted so a country with no vendored flag renders its code badge, never a 404.
 const list = codes
   .toSorted()
   .map((code) => `  "${code}",`)

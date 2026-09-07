@@ -4,7 +4,6 @@ import { mulberry32 } from "../pack-opener/rng";
 import { adjacentKey, arrangeSeating, foldSeatingHistory } from "./seating";
 import type { SeatingHistory } from "./seating";
 
-// One finalized pod's rows in the given seat order.
 function podRows(
   podId: string,
   seated: string[],
@@ -12,7 +11,6 @@ function podRows(
   return seated.map((playerId, seat) => ({ podId, playerId, seat }));
 }
 
-// The undirected neighbor pairs of a circular seating.
 function neighborPairs(seated: string[]): string[] {
   return seated.map((playerId, index) =>
     adjacentKey(playerId, seated[(index + 1) % seated.length]),
@@ -63,8 +61,6 @@ describe("arrangeSeating", () => {
   });
 
   it("breaks up last round's neighbor structure in a 4-pod", () => {
-    // Any two seatings of the same four players share exactly two neighbor
-    // pairs, so the best rearrangement repeats 2 of the 4 old pairs, never all.
     const previous = ["a", "b", "c", "d"];
     const history = foldSeatingHistory(podRows("pod-1", previous));
     const seated = arrangeSeating(previous, history, mulberry32(7));

@@ -10,10 +10,8 @@ import { z } from "zod";
 
 extendZodWithOpenApi(z);
 
-/** Product slugs are URL segments: kebab-ish, 3..80 chars (ADR-015). */
 export const productSlugRegex = /^[a-z0-9][a-z0-9-]{2,79}$/u;
 
-/** Slugs that would collide with current or future /products/* app routes. */
 export const RESERVED_PRODUCT_SLUGS = ["new", "create", "settings", "admin"] as const;
 
 export const productSlugSchema = z
@@ -24,16 +22,12 @@ export const productSlugSchema = z
     "This slug is reserved",
   );
 
-/** One representative printing for a product tile's card fan. */
 export const productCoverCardSchema = z.object({
   printingId: z.string(),
-  /** `image_files.id` of the active front image — resolve via `imageUrl()`. */
   imageId: z.string(),
-  /** Card name, for alt text. */
   name: z.string(),
 });
 
-/** The set a product released with, for grouping the /products index. */
 export const productSetSchema = z.object({
   id: z.string(),
   slug: z.string(),
@@ -45,21 +39,13 @@ export const productSummarySchema = z.object({
   slug: z.string(),
   name: z.string(),
   description: z.string().nullable(),
-  /** The set the product belongs to, or null for cross-set products. */
   set: productSetSchema.nullable(),
-  /** Distinct printings in the product. */
   printingCount: z.number(),
-  /** Total physical cards (sum of quantities). */
   cardTotal: z.number(),
-  /**
-   * Up to {@link PRODUCT_COVER_CARD_COUNT} representative printings with
-   * images (legends first, then highest rarity), for the catalog tiles.
-   */
   coverCards: z.array(productCoverCardSchema),
   updatedAt: isoDateTime,
 });
 
-/** How many cover cards a product summary carries at most. */
 export const PRODUCT_COVER_CARD_COUNT = 4;
 
 export const productContentSchema = z.object({
@@ -75,29 +61,12 @@ export const productDetailResponseSchema = z
   .object({
     product: productSummarySchema,
     contents: z.array(productContentSchema),
-    /**
-     * The cards behind `contents`, keyed by card id. Inlined (like the set
-     * detail payload) so the page renders server-side from its own response
-     * instead of waiting on the client-only catalog fetch.
-     */
     cards: z.record(z.string(), catalogCardResponseSchema),
-    /** The product's printings in canonical order. */
     printings: z.array(catalogPrintingResponseSchema),
-    /**
-     * Set metadata for the printings above. A product's contents can span sets
-     * (promo inserts, cross-set kits), so this is the catalogue's set list
-     * rather than the product's own set.
-     */
     sets: z.array(catalogSetResponseSchema),
   })
   .openapi("ProductDetailResponse");
 
-/**
- * oRPC contract for the public preconstructed-product catalog (ADR-015).
- * Products are catalog data: public the moment they exist, no drafts. The
- * detail payload inlines the cards and printings behind its contents, the same
- * shape the set detail read uses, so the page is server-renderable.
- */
 export const productsContract = {
   list: oc
     .route({ method: "GET", path: "/api/v1/products", tags: ["Products"] })

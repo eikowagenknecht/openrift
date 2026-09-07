@@ -23,15 +23,6 @@ const hexColorSchema = z
   .regex(/^#[0-9a-fA-F]{6}$/u)
   .nullable();
 
-/**
- * oRPC contract for the admin rarity taxonomy CRUD (mounted at
- * `/api/admin/v1/rarities`, admin-gated by the mount). Like the other enum
- * taxonomies but each row also carries an optional hex `color`. All procedures
- * are session-gated (UNAUTHORIZED + FORBIDDEN from `authedRoute`). Domain codes
- * per route: `reorder` → BAD_REQUEST (invalid reorder request); `create` →
- * CONFLICT (slug already in use); `update` → NOT_FOUND; `remove` → NOT_FOUND +
- * CONFLICT (well-known or in use).
- */
 export const adminRaritiesContract = {
   list: authedRoute
     .route({ method: "GET", path: BASE, tags: [TAG] })

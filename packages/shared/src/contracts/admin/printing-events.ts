@@ -29,14 +29,6 @@ const printingEventViewSchema = z.object({
   createdAt: isoDateTime,
 });
 
-/**
- * oRPC contract for the admin printing-events Discord queue (mounted under
- * `/api/admin/v1/printing-events`, admin-gated by the mount): start a flush job
- * (202 + run handle), list the pending/failed queue, and reset failed events to
- * pending for the next flush. The static `flush` / `retry` paths sit alongside
- * the bare list in one handler. All procedures are session-gated (UNAUTHORIZED +
- * FORBIDDEN from `authedRoute`); no domain error codes are declared.
- */
 export const adminPrintingEventsContract = {
   flush: authedRoute
     .route({ method: "POST", path: `${PE}/flush`, tags: [TAG], successStatus: 202 })

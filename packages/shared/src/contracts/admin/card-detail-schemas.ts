@@ -5,14 +5,7 @@ import { z } from "zod";
 
 extendZodWithOpenApi(z);
 
-// Response schemas for the admin card-detail surfaces (getCardDetail /
-// getUnmatchedDetail). These mirror the shapes the candidate-queries services
-// build; the routes still output `z.unknown()` until each is wired to its
-// schema and verified against real data (see the handoff). Deriving the
-// types/api/admin.ts interfaces from these makes the schema the single source.
-
 /**
- * The stored substitute-art vocabulary (migration 257, `chk_printings_fallback_art_mode`).
  * The public catalog wire carries only the two overriding modes, because
  * `"auto"` is the absent case there; the column keeps all three.
  */
@@ -43,7 +36,6 @@ export const adminCardResponseSchema = z
     keywords: z.array(z.string()),
     errata: cardErrataSchema.nullable(),
     tags: z.array(z.string()),
-    /** Deck copy-limit override: null = normal rules, 0 = unlimited, positive = cap. */
     maxCopiesOverride: z.number().nullable(),
     comment: z.string().nullable(),
   })
@@ -68,12 +60,8 @@ export const candidateCardResponseSchema = z
     tags: z.array(z.string()),
     extraData: z.unknown().nullable(),
     checkedAt: z.string().nullable(),
-    /** Set only for `usersubmission` candidates — who contributed this row. */
     submittedByUserId: z.string().nullable(),
-    /** The submitter's display name, resolved from the id. Null when the user
-     * never set one, or when the account has since been deleted. */
     submittedByName: z.string().nullable(),
-    /** Free-text note the contributor attached to the submission. */
     submissionNote: z.string().nullable(),
   })
   .openapi("CandidateCardResponse");
@@ -104,7 +92,6 @@ export const candidatePrintingResponseSchema = z
     extraData: z.unknown().nullable(),
     language: z.string().nullable(),
     printedName: z.string().nullable(),
-    /** Year stamped on the physical card; differs from set release for reprints. */
     printedYear: z.number().nullable(),
     checkedAt: z.string().nullable(),
   })
@@ -116,9 +103,6 @@ export const candidatePrintingGroupResponseSchema = z
     shortCodes: z.array(z.string()),
     expectedPrintingId: z.string(),
     language: z.string().nullable(),
-    /** Closest accepted printing (same code + language, markers/finish may
-     * differ) — the UI's fallback for the one-click link when no exact
-     * expected-id match exists. Null when nothing plausible exists. */
     suggestedPrintingId: z.string().nullable(),
   })
   .openapi("CandidatePrintingGroupResponse");
@@ -127,12 +111,6 @@ export const adminPrintingImageResponseSchema = z
   .object({
     id: z.string(),
     printingId: z.string(),
-    /**
-     * The underlying `image_files` row. Several printing images can share one
-     * (the same scan reused), and it is what the substitute-art picker pins —
-     * pinning the `printing_images` id would tie a printing's fallback to
-     * another printing's *listing* of the file rather than to the file.
-     */
     imageFileId: z.string(),
     face: cardFaceSchema,
     originalUrl: z.string().nullable(),
@@ -164,14 +142,10 @@ export const adminPrintingResponseSchema = z
     isSigned: z.boolean(),
     isOvernumbered: z.boolean(),
     markerSlugs: z.array(z.string()),
-    /** Flat list of channel slugs the printing is currently linked to. */
     distributionChannelSlugs: z.array(z.string()),
-    /** Optional: only populated by endpoints that need the channel admin UI. */
     markerIds: z.array(z.string()).optional(),
-    /** Optional: only populated by endpoints that need the channel admin UI. */
     distributionChannels: z.array(adminPrintingDistributionChannelResponseSchema).optional(),
     finish: z.string(),
-    /** Physical card size (`standard` / `oversized`); distinguishes same-art prints. */
     size: z.string(),
     artist: z.string(),
     publicCode: z.string(),
@@ -179,18 +153,11 @@ export const adminPrintingResponseSchema = z
     printedEffectText: z.string().nullable(),
     flavorText: z.string().nullable(),
     printedName: z.string().nullable(),
-    /** Year stamped on the physical card; differs from set release for reprints. */
     printedYear: z.number().nullable(),
     language: z.string(),
     comment: z.string().nullable(),
     expectedPrintingId: z.string(),
     canonicalRank: z.number(),
-    /**
-     * Substitute-art override (migration 257). Unlike the public catalog, the
-     * admin surface carries all three modes verbatim and the raw image-file id,
-     * because the editor has to show and change the current state — including
-     * a pin whose file is not rehosted yet, which the public wire hides.
-     */
     fallbackArtMode: fallbackArtModeSchema,
     fallbackImageFileId: z.string().nullable(),
   })

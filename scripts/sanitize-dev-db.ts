@@ -19,12 +19,6 @@ const SCRYPT = { N: 16_384, r: 16, p: 1, dkLen: 64 };
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
 
-/**
- * Hashes a password the way better-auth does, so the result can be written
- * straight into `accounts.password`.
- *
- * @returns The `salt:key` hex hash.
- */
 function hashPassword(password: string): string {
   const salt = randomBytes(16).toString("hex");
   const key = scryptSync(password.normalize("NFKC"), salt, SCRYPT.dkLen, {
@@ -36,12 +30,7 @@ function hashPassword(password: string): string {
   return `${salt}:${key.toString("hex")}`;
 }
 
-/**
- * Throws unless the connection string points at a local database. Restoring a
- * production dump and sanitizing it is a dev-only operation.
- *
- * @returns Nothing.
- */
+// Restoring a production dump and sanitizing it is a dev-only operation.
 function assertLocalDatabase(connectionString: string): void {
   const host = new URL(connectionString).hostname;
   if (!LOCAL_HOSTS.has(host)) {

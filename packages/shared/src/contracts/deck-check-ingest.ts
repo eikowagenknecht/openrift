@@ -18,23 +18,15 @@ const deckCheckIngestEntrySchema = z.object({
   playerName: z.string().min(1).max(120),
   riotId: z.string().max(120).nullish(),
   submittedAt: z.iso.datetime({ offset: true }).nullish(),
-  /** Consent for the organizer to publish the deck list publicly; omitted = keep stored (true on first insert). */
   allowDeckPublishing: z.boolean().optional(),
-  /** Consent to show the player's name on public platforms; omitted = keep stored (true on first insert). */
   allowNameSharing: z.boolean().optional(),
-  /** Consent to show the player's Riot ID on public platforms; omitted = keep stored (true on first insert). */
   allowRiotIdSharing: z.boolean().optional(),
-  /** Soft-withdraws the entry; a later push without the flag restores it. */
   withdrawn: z.boolean().optional(),
   cards: z.array(deckCheckIngestCardSchema).max(DECK_CHECK_MAX_CARD_LINES_PER_ENTRY).default([]),
 });
 
-/**
- * The provider push payload. Pushes never create tournaments: `tournamentId`
- * must be an existing deck-check tournament (created in OpenRift) hosted by the
- * key's host. Partial semantics: entries absent from a push are untouched;
- * withdrawal is the explicit per-entry flag, never an omission.
- */
+// Pushes never create tournaments: `tournamentId` must be an existing
+// deck-check tournament hosted by the key's host.
 export const deckCheckIngestSchema = z.object({
   tournamentId: z.uuid(),
   entries: z.array(deckCheckIngestEntrySchema).max(DECK_CHECK_MAX_ENTRIES_PER_PUSH).default([]),
@@ -44,8 +36,6 @@ export const deckCheckIngestEntryResultSchema = z
   .object({
     externalId: z.string(),
     entryId: z.string(),
-    // Null only in the defensive corner where the entry has no participant
-    // row to carry a claim token.
     claimUrl: z.string().nullable(),
   })
   .openapi("DeckCheckIngestEntryResult");
@@ -58,25 +48,14 @@ export const deckCheckIngestResultResponseSchema = z
     entriesUnchanged: z.number().int().nonnegative(),
     entriesWithdrawn: z.number().int().nonnegative(),
     checksInvalidated: z.number().int().nonnegative(),
-    // Deprecated: always 0 since ADR-027 removed edit-takeover; kept so
-    // existing provider integrations keep parsing.
+    // Deprecated: always 0, kept so existing provider integrations keep parsing.
     entriesIgnored: z.number().int().nonnegative(),
     entries: z.array(deckCheckIngestEntryResultSchema),
   })
   .openapi("DeckCheckIngestResultResponse");
 
-/**
- * oRPC contract for the deck-check provider push (ADR-025, re-parented to a host
- * in ADR-033). The handler (`apps/api/src/routes/public/deck-check-ingest.ts`)
- * is a `meta: "bearer"` procedure: it authenticates off the host's
- * `Authorization: Bearer <key>` header (read via `context.reqHeader`), not the
- * session cookie, so it skips session resolution and carries the `bearerAuth`
- * OpenAPI security marker. Its rate limit and 1 MB body limit stay as Hono
- * middleware on the path (`app.ts`). Domain codes for `push`: NOT_FOUND (unknown
- * tournament id, or one not hosted by the key's host), CONFLICT (tournament not
- * accepting submissions), VALIDATION_ERROR (reserved external id prefix or
- * unknown deck section).
- */
+// Rate limit and 1 MB body limit are applied as Hono middleware on the path
+// (`app.ts`), not visible in this contract.
 export const deckCheckIngestContract = {
   push: oc
     .route({

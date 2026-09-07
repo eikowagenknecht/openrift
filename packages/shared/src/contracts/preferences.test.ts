@@ -6,13 +6,7 @@ import {
 } from "../types/api/preferences.js";
 import { completionScopePreferenceSchema } from "./preferences.js";
 
-/**
- * The two tuples are what clients walk to fold a whole scope (into query
- * params, into an "is anything set?" test). A field the schema has but neither
- * tuple lists is invisible to all of them, so these assert the cover is exact
- * and that each key landed in the tuple matching its shape.
- */
-describe("completion scope key tuples", () => {
+describe("completion scope key tuples cover every schema field exactly once", () => {
   const schemaKeys = Object.keys(completionScopePreferenceSchema.shape);
   const listedKeys: readonly string[] = [
     ...COMPLETION_SCOPE_ARRAY_KEYS,

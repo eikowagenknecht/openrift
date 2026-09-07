@@ -1,99 +1,41 @@
-// Self-distribution wiring for the Firefox build. Mozilla signs the extension
-// through AMO's unlisted channel and hands the .xpi back for us to host, so
-// Firefox needs somewhere to poll for new versions. That is the update manifest
-// below, published to GitHub Releases by .github/workflows/release-extension.yml.
-//
-// See docs/extension.md for the release flow and the eventual migration to an
-// AMO-listed add-on.
+// Mozilla signs the extension through AMO's unlisted channel and hands the
+// .xpi back for us to host, so Firefox needs somewhere to poll for updates.
+// See docs/extension.md for the release flow.
 
-/** The add-on id AMO signs against. Changing it orphans every existing install. */
 export const ADDON_ID = "extension@openrift.app";
 
 const REPO = "openriftapp/openrift";
 
-/**
- * The release tag that always carries the current update manifest.
- *
- * A fixed tag rather than `releases/latest/download/...`: GitHub's "latest
- * release" is one pointer per repo, and semantic-release claims it on every app
- * release, which would 404 the manifest as soon as the next app version ships.
- * This tag holds only the manifest and is updated in place.
- */
+// A fixed tag, not `releases/latest/download/...`: semantic-release claims
+// GitHub's "latest release" pointer on every app release.
 const UPDATE_MANIFEST_TAG = "extension-updates";
 
-/**
- * File name of the update manifest, both as a release asset and on disk.
- *
- * Kept in step with `MANIFEST_TAG` and the file name in
- * .github/workflows/release-extension.yml, which cannot import from here.
- */
 const UPDATE_MANIFEST_FILE = "firefox-updates.json";
 
-/**
- * Where Firefox polls for updates. Baked into every installed copy, so it can
- * never change: an install only learns a new location by first updating through
- * the old one.
- */
 export const UPDATE_MANIFEST_URL = `https://github.com/${REPO}/releases/download/${UPDATE_MANIFEST_TAG}/${UPDATE_MANIFEST_FILE}`;
 
-/**
- * File name the newest signed build is re-uploaded under, on the same fixed
- * tag as the manifest. AMO names the signed file after the version, which would
- * make every install link version-specific; this copy carries a stable name so
- * {@link LATEST_XPI_URL} never has to change.
- *
- * Kept in step with .github/workflows/release-extension.yml, which cannot
- * import from here.
- */
 const LATEST_XPI_FILE = "openrift-deck-importer.xpi";
 
-/**
- * Permanent download link for the current signed build, for install
- * instructions and anywhere else the site points a user at the add-on.
- *
- * GitHub's own `releases/latest` pointer is claimed by the app's releases, so
- * this fixed tag is what stands in for it. `apps/web` duplicates the URL in
- * `src/lib/social-links.ts` rather than importing it, since the extension is
- * not one of the web app's dependencies.
- */
 export const LATEST_XPI_URL = `https://github.com/${REPO}/releases/download/${UPDATE_MANIFEST_TAG}/${LATEST_XPI_FILE}`;
 
-/**
- * Builds the release tag holding a given version's signed .xpi. Prefixed to
- * stay clear of semantic-release's `v${version}` tags for the app itself.
- * @returns The git tag name for that extension release.
- */
 export function extensionReleaseTag(version: string): string {
   return `ext-v${version}`;
 }
 
-/**
- * Builds the download URL for a version's signed .xpi.
- * @returns The absolute GitHub release asset URL.
- */
 export function xpiDownloadUrl(version: string, fileName: string): string {
   return `https://github.com/${REPO}/releases/download/${extensionReleaseTag(version)}/${fileName}`;
 }
 
-/** One entry in the update manifest's version list. */
 interface UpdateEntry {
   version: string;
   update_link: string;
   update_hash: string;
 }
 
-/** The Firefox update manifest shape, keyed by add-on id. */
 export interface UpdateManifest {
   addons: Record<string, { updates: UpdateEntry[] }>;
 }
 
-/**
- * Builds the Firefox update manifest for a signed build.
- *
- * Only the current version is listed. Firefox picks the highest version it can
- * install, so older entries earn nothing and go stale as their assets age out.
- * @returns The manifest object, ready to serialize as JSON.
- */
 export function buildUpdateManifest(options: {
   version: string;
   xpiUrl: string;

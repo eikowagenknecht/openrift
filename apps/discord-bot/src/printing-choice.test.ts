@@ -46,11 +46,6 @@ function defaultPrintings() {
   ];
 }
 
-/**
- * A card printed standard and foil in one set: same public code, same set.
- *
- * @returns The two printings, standard first.
- */
 function finishPrintings() {
   return [
     makePrinting({ id: "p1", cardId: "c1", canonicalRank: 1, finish: "normal" }),

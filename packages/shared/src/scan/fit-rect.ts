@@ -4,17 +4,11 @@ import type { CardCandidate, GrayImage, Point, Quad } from "./types";
 import { CARD_ASPECT } from "./types";
 
 export interface FitOptions {
-  /** Long side of the frame the search runs on. */
   workingSize: number;
-  /** Card long-side lengths to try, as a fraction of the frame's short side. */
   scales: readonly number[];
-  /** Rotations to try, in degrees. */
   rotations: readonly number[];
-  /** Centre offsets to try, as a fraction of the frame size. */
   offsets: readonly number[];
-  /** Samples taken along each of the four edges. */
   samplesPerEdge: number;
-  /** How many candidates to return after suppression. */
   maxCandidates: number;
 }
 
@@ -28,19 +22,8 @@ export const DEFAULT_FIT_OPTIONS: FitOptions = {
 };
 
 /**
- * Find the card the camera is aimed at by fitting a rectangle to the edges,
- * without segmenting anything.
- *
- * Contour finding needs a card to be separable from its surroundings, which is
- * exactly what a binder page denies: the cards are packed edge to edge behind
- * plastic, so their outlines merge into one blob and no threshold pulls them
- * apart. This takes the opposite approach. A card is a rectangle of known
- * proportions, so the search enumerates rectangles directly and scores each by
- * how much edge energy lies along its perimeter, oriented the right way. A
- * neighbouring card contributes nothing to that score unless it happens to sit
- * exactly where a card-shaped border would be.
- *
- * @returns Candidates in the input frame's coordinates, best first.
+ * Fits a rectangle to edges: on a binder page, packed cards behind
+ * plastic merge into one blob under any threshold.
  */
 export function fitCardRects(frame: GrayImage, options: Partial<FitOptions> = {}): CardCandidate[] {
   const opts = { ...DEFAULT_FIT_OPTIONS, ...options };
@@ -70,8 +53,6 @@ export function fitCardRects(frame: GrayImage, options: Partial<FitOptions> = {}
       for (const dx of opts.offsets) {
         for (const dy of opts.offsets) {
           const centre = { x: centreX + dx * width, y: centreY + dy * height };
-          // Portrait and landscape are the same physical card, so both go in
-          // the pool and the matcher decides which way round it is.
           for (const portrait of [true, false]) {
             const w = portrait ? cardShort : longSide;
             const h = portrait ? longSide : cardShort;
@@ -129,11 +110,6 @@ function withinFrame(quad: Quad, width: number, height: number): boolean {
   return quad.every((p) => p.x >= -2 && p.y >= -2 && p.x <= width + 2 && p.y <= height + 2);
 }
 
-/**
- * Separate horizontal and vertical Sobel responses, keeping their sign.
- *
- * @returns The two gradient components, one value per pixel.
- */
 function signedGradients(image: GrayImage): { gx: Float32Array; gy: Float32Array } {
   const { data, width: w, height: h } = image;
   const gx = new Float32Array(w * h);
@@ -165,15 +141,9 @@ function averageMagnitude(gx: Float32Array, gy: Float32Array): number {
 }
 
 /**
- * Average edge energy along a rectangle's perimeter, counting only the
- * gradient component perpendicular to each side.
- *
- * The projection is what makes this discriminating. Card art is full of strong
- * edges, and a plain magnitude sum would happily reward a rectangle laid over a
- * busy illustration. Only a real border produces gradients that run across the
- * line being tested.
- *
- * @returns Mean perpendicular gradient magnitude over all samples.
+ * Averages only the gradient component perpendicular to each side: a plain
+ * magnitude sum would reward a rectangle laid over busy card art, but only a
+ * real border produces gradients that run across the line being tested.
  */
 function perimeterSupport(
   quad: Quad,
@@ -195,7 +165,6 @@ function perimeterSupport(
     if (length < 1) {
       continue;
     }
-    // Unit normal of this edge; the gradient is projected onto it.
     const nx = -ey / length;
     const ny = ex / length;
 
@@ -208,8 +177,6 @@ function perimeterSupport(
       if (x < 1 || y < 1 || x >= width - 1 || y >= height - 1) {
         continue;
       }
-      // Take the strongest response within a pixel either side, so a border
-      // that sits slightly off the hypothesised line still counts.
       let best = 0;
       for (let offset = -1; offset <= 1; offset++) {
         const sx = Math.round(px + nx * offset);

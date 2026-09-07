@@ -67,7 +67,7 @@ function ownedCopy(overrides: Partial<OwnedCopyRow> & { copyId: string }): Owned
 describe("evaluateListRule — wish", () => {
   const catalog = [
     makePrinting("p1", "c1"),
-    makePrinting("p2", "c1"), // second printing of c1
+    makePrinting("p2", "c1"),
     makePrinting("p3", "c2", { type: "legend" }),
   ];
 
@@ -114,8 +114,8 @@ describe("evaluateListRule — wish", () => {
     };
     const out = evaluateListRule(rule, "card", { catalog });
     const byCard = new Map(out.map((e) => [e.cardId, e.quantity]));
-    expect(byCard.get("c1")).toBe(3); // unit
-    expect(byCard.get("c2")).toBe(1); // legend
+    expect(byCard.get("c1")).toBe(3);
+    expect(byCard.get("c2")).toBe(1);
   });
 
   it("playset multiplier scales the playset size", () => {
@@ -126,7 +126,7 @@ describe("evaluateListRule — wish", () => {
       excludeIds: [],
     };
     const out = evaluateListRule(rule, "card", { catalog: [makePrinting("p1", "c1")] });
-    expect(out[0]?.quantity).toBe(6); // 3 × 2
+    expect(out[0]?.quantity).toBe(6);
   });
 
   it("card kind honors excludeIds (card ids)", () => {
@@ -142,8 +142,8 @@ describe("evaluateListRule — wish", () => {
 
   it("respects the filter (isStandard:false drops standard printings)", () => {
     const mixed = [
-      makePrinting("p1", "c1", { rarity: "common", finish: "normal" }), // standard
-      makePrinting("p2", "c2", { rarity: "common", finish: "foil" }), // non-standard
+      makePrinting("p1", "c1", { rarity: "common", finish: "normal" }),
+      makePrinting("p2", "c2", { rarity: "common", finish: "foil" }),
     ];
     const rule: ListRule = {
       kind: "wish",
@@ -183,7 +183,6 @@ describe("evaluateListRule — wish", () => {
       excludeIds: [],
       netOwned: true,
     };
-    // c1 is a unit (playset 3); own 1 → want 2. c2 is a legend (playset 1); own 0 → want 1.
     const ownedCopies = [ownedCopy({ copyId: "x1", printingId: "p1", cardId: "c1" })];
     const out = evaluateListRule(rule, "card", { catalog, ownedCopies });
     const byCard = new Map(out.map((entry) => [entry.cardId, entry.quantity]));
@@ -199,7 +198,6 @@ describe("evaluateListRule — wish", () => {
       excludeIds: [],
       netOwned: true,
     };
-    // Own a full playset of c1 (3 of its unit) → complete → dropped. c2 legend still wanted.
     const ownedCopies = [1, 2, 3].map((index) =>
       ownedCopy({ copyId: `x${index}`, printingId: "p1", cardId: "c1" }),
     );
@@ -216,7 +214,6 @@ describe("evaluateListRule — wish", () => {
       excludeIds: [],
       netOwned: true,
     };
-    // Own 1 of p1 → p1 complete (want 1 − 1 = 0, dropped); p2 still wanted.
     const ownedCopies = [ownedCopy({ copyId: "x1", printingId: "p1", cardId: "c1" })];
     const out = evaluateListRule(rule, "printing", { catalog: twoPrintings, ownedCopies });
     expect(out.map((entry) => entry.printingId)).toEqual(["p2"]);
@@ -230,8 +227,6 @@ describe("evaluateListRule — wish", () => {
       excludeIds: [],
       netOwned: true,
     };
-    // The only copy of c1 is reserved (outgoing) → it no longer counts as owned,
-    // so the card is still wanted; c2 (legend, none owned) is wanted too.
     const ownedCopies = [
       ownedCopy({ copyId: "x1", printingId: "p1", cardId: "c1", reserved: true }),
     ];
@@ -246,10 +241,7 @@ describe("evaluateListRule — wish", () => {
       quantity: { mode: "fixed", n: 1 },
       excludeIds: [],
     };
-    // Without the assignment map, the custom-tag dimension reads no tags and
-    // matches nothing — the bug this guards against.
     expect(evaluateListRule(rule, "card", { catalog })).toEqual([]);
-    // With assignments, only the tagged card matches.
     const out = evaluateListRule(rule, "card", {
       catalog,
       customTagAssignments: { c1: ["staple"] },
@@ -292,19 +284,14 @@ describe("evaluateListRule — trade", () => {
       catalog,
       ownedCopies,
     });
-    // keep cp1 (sorted first), trade cp2 + cp3
     expect(out.map((e) => e.copyId)).toEqual(["cp2", "cp3"]);
   });
 
-  // Reference orders for niceness ranking: plain first, premium last.
   const enumOrders = {
     finishes: ["normal", "foil", "metal"],
     rarities: ["common", "uncommon", "rare"],
     artVariants: ["normal", "altart"],
   };
-  // Three printings of the same card. `foil` (common + foil) is the only
-  // non-standard one — a foil common is a premium treatment; `rare` + normal
-  // finish is that rarity's plain (standard) version.
   const nicenessCatalog = [
     makePrinting("plain", "c1", { rarity: "common", finish: "normal" }),
     makePrinting("foil", "c1", { rarity: "common", finish: "foil" }),
@@ -322,9 +309,6 @@ describe("evaluateListRule — trade", () => {
       ownedCopies,
       enumOrders,
     });
-    // Standard-vs-special is the top keep tier: the foil common (special) is
-    // kept even over the rare (standard); the standard copies are offered
-    // rarest-first.
     expect(out.map((entry) => entry.copyId)).toEqual(["cpRare", "cpPlain"]);
   });
 
@@ -363,10 +347,6 @@ describe("evaluateListRule — trade", () => {
   });
 
   it("keeps marked copies over unmarked ones of equal rarity and finish", () => {
-    // Regression: a promo (marked) foil and a plain foil tie on every ranked
-    // dimension, and the promo's later canonicalRank used to sort it into the
-    // offer pile. Markers now outrank the tiebreak: 2 foils + 3 promos with
-    // keep 3 must keep all promos and offer the foils.
     const markedCatalog = [
       makePrinting("foil", "c1", { rarity: "common", finish: "foil" }),
       makePrinting("promo", "c1", {
@@ -400,7 +380,6 @@ describe("evaluateListRule — trade", () => {
       catalog: nicenessCatalog,
       ownedCopies,
     });
-    // No niceness signal: keep the lower copy id, offer the rest — the prior behaviour.
     expect(out.map((entry) => entry.copyId)).toEqual(["cpRare"]);
   });
 
@@ -429,8 +408,6 @@ describe("evaluateListRule — trade", () => {
   });
 
   it("keeps reserved copies in the pool and annotates them", () => {
-    // Keep 0 means "offer everything I have", so the reserved copy is still
-    // offered from the tail of the keep ladder, annotated.
     const ownedCopies = [
       ownedCopy({ copyId: "cp1", printingId: "p1", cardId: "c1", reserved: true }),
       ownedCopy({ copyId: "cp2", printingId: "p1", cardId: "c1" }),
@@ -442,9 +419,6 @@ describe("evaluateListRule — trade", () => {
   });
 
   it("a reserved copy never fills a keep slot", () => {
-    // Three copies, one pinned to a live trade. Keeping 1 must keep a copy
-    // that stays (cp1), not the promised cp2 — the reserved copy falls into
-    // the offered tail, annotated, where matching drops it.
     const ownedCopies = [
       ownedCopy({ copyId: "cp1", printingId: "p1", cardId: "c1" }),
       ownedCopy({ copyId: "cp2", printingId: "p1", cardId: "c1", reserved: true }),
@@ -460,11 +434,6 @@ describe("evaluateListRule — trade", () => {
   });
 
   it("reserving the spare does not replenish the offer from kept copies", () => {
-    // The real-world regression: four copies, keep 3 (a playset), and the one
-    // spare already promised to a live trade. Only the reserved spare may sit
-    // in the offer (annotated — matching drops it); the three keepers must all
-    // stay kept, or accepting one trade would silently put a keeper up for
-    // grabs and drop the owner below their keep count.
     const ownedCopies = [
       ownedCopy({ copyId: "cp1", printingId: "p1", cardId: "c1" }),
       ownedCopy({ copyId: "cp2", printingId: "p1", cardId: "c1" }),
@@ -480,9 +449,6 @@ describe("evaluateListRule — trade", () => {
   });
 
   it("printing niceness decides the keeps; reserved sorts below it", () => {
-    // The reserved copy is the plain one and the free copy is the foil
-    // (special). The foil stays with the owner (nicest kept copy); the
-    // promised plain copy is the only offer, annotated as reserved.
     const ownedCopies = [
       ownedCopy({ copyId: "cpPlain", printingId: "plain", cardId: "c1", reserved: true }),
       ownedCopy({ copyId: "cpFoil", printingId: "foil", cardId: "c1" }),
@@ -497,9 +463,6 @@ describe("evaluateListRule — trade", () => {
   });
 
   it("only trades copies whose printing passes the filter", () => {
-    // p1 is a normal finish, p2 is foil; the filter excludes foil, so only the
-    // copy of p1 should be traded (proves the filter is applied selectively, not
-    // all-or-nothing).
     const mixedCatalog = [
       makePrinting("p1", "c1", { finish: "normal" }),
       makePrinting("p2", "c2", { finish: "foil" }),
@@ -517,9 +480,6 @@ describe("evaluateListRule — trade", () => {
   });
 
   it("keepPer printing keeps the count of each printing separately", () => {
-    // One card, two printings, keep a playset (3) per printing: 5 copies of pA
-    // offer 2, 2 copies of pB offer none. The default per-card grouping would
-    // pool all 7 and offer 4.
     const twoPrintings = [makePrinting("pA", "c1"), makePrinting("pB", "c1")];
     const ownedCopies = [
       ...Array.from({ length: 5 }, (_unused, index) =>
@@ -543,7 +503,6 @@ describe("evaluateListRule — trade", () => {
   });
 
   it("UC4: keep two playsets, trade the rest", () => {
-    // 8 copies of a unit (playset 3) → keep 6 (2 playsets), trade 2.
     const ownedCopies = Array.from({ length: 8 }, (_unused, index) =>
       ownedCopy({ copyId: `cp${index + 1}`, printingId: "p1", cardId: "c1" }),
     );
@@ -595,9 +554,6 @@ describe("expandList", () => {
   });
 
   it("card conflict sums the manual and rule parts (additive) and marks source both", () => {
-    // ADR-034 additive model: total = manual part + rule contribution. The rule
-    // part is reported separately via ruleQuantity so the manual part stays
-    // independently editable (manual = quantity - ruleQuantity).
     const out = expandList(
       "card",
       [manual({ id: "e1", cardId: "c1", quantity: 1 })],
@@ -656,9 +612,6 @@ describe("expandList", () => {
   });
 
   it("two rule entries for the same card stay source rule and take the max contribution", () => {
-    // Multiple wish rules can each match the same card (ADR-034). A rule∩rule
-    // overlap must NOT be relabelled "both" (that means a manual entry exists),
-    // and overlapping rules contribute their max — never the sum.
     const out = expandList(
       "card",
       [],
@@ -686,7 +639,6 @@ describe("expandList", () => {
         { kind: "card", cardId: "c1", quantity: 4 },
       ],
     );
-    // manual 1 + max(rule 2, rule 4) = 5.
     expect(out[0]).toMatchObject({ id: "e1", source: "both", quantity: 5, ruleQuantity: 4 });
   });
 });
@@ -714,8 +666,6 @@ describe("evaluateListRules — multiple", () => {
       },
     ];
     const out = evaluateListRules(rules, "card", { catalog });
-    // Rule 1 matches the legend c1; rule 2 matches the two units c2 and c3. The
-    // combined output is the concatenation of both rules' entries.
     expect(out.map((entry) => entry.cardId).sort()).toEqual(["c1", "c2", "c3"]);
   });
 
@@ -729,7 +679,6 @@ describe("evaluateListRules — multiple", () => {
       { kind: "wish", filter: filters(), quantity: { mode: "fixed", n: 4 }, excludeIds: [] },
     ];
     const out = evaluateListRules(rules, "card", { catalog });
-    // Entries arrive pre-combined: one per card, each wanted 2 + 4 = 6.
     expect(out).toHaveLength(3);
     expect(out.every((entry) => entry.quantity === 6)).toBe(true);
     const expanded = expandList("card", [], out);
@@ -754,13 +703,10 @@ describe("evaluateListRules — multiple", () => {
     const out = evaluateListRules(rules, "card", { catalog });
     const byCard = new Map(out.map((entry) => [entry.cardId, entry.quantity]));
     expect(byCard.get("c1")).toBe(6);
-    expect(byCard.get("c2")).toBe(4); // only rule 2 contributes
+    expect(byCard.get("c2")).toBe(4);
   });
 
   it("summed netOwned rules share one owned pool (no double-crediting)", () => {
-    // Rules A (want 3, net) + B (want 1, net) on the same card, owning 2:
-    // combined demand 4 − owned 2 = 2. Per-rule netting would wrongly give
-    // (3−2) + max(0, 1−2) = 1.
     const rules: ListRule[] = [
       {
         kind: "wish",
@@ -789,8 +735,6 @@ describe("evaluateListRules — multiple", () => {
   });
 
   it("owned copies only net the netOwned rules' share of a mixed sum", () => {
-    // A (want 3, net) + B (want 2, plain), owning 1: B's 2 stand as-is, A nets
-    // to 2 → total 4.
     const rules: ListRule[] = [
       {
         kind: "wish",
@@ -832,7 +776,6 @@ describe("evaluateListRules — multiple", () => {
       ownedCopy({ copyId: "x2", printingId: "p1", cardId: "c1" }),
     ];
     const out = evaluateListRules(rules, "card", { catalog: singleCard, ownedCopies }, "max");
-    // max(3, 1) − 2 owned = 1.
     expect(out).toEqual([
       { kind: "card", cardId: "c1", quantity: 1, acceptablePrintingIds: new Set(["p1"]) },
     ]);
@@ -840,7 +783,6 @@ describe("evaluateListRules — multiple", () => {
 });
 
 describe("evaluateListRules — acceptable printings and filter-aware netting (amendment 3)", () => {
-  // One card in two printings: p1 is the plain version, p2 the foil.
   const catalog = [
     makePrinting("p1", "c1", { finish: "normal" }),
     makePrinting("p2", "c1", { finish: "foil" }),
@@ -888,8 +830,6 @@ describe("evaluateListRules — acceptable printings and filter-aware netting (a
   });
 
   it("netOwned ignores owned copies whose printing the filter excludes", () => {
-    // Want 3 non-foil c1; owning two foil copies must not fill the want, while
-    // the one plain copy nets as before → shortfall 2.
     const ownedCopies = [
       ownedCopy({ copyId: "x1", printingId: "p2", cardId: "c1" }),
       ownedCopy({ copyId: "x2", printingId: "p2", cardId: "c1" }),
@@ -906,9 +846,6 @@ describe("evaluateListRules — acceptable printings and filter-aware netting (a
   });
 
   it("the netting pool comes from the netOwned rules only, not every rule", () => {
-    // Rule A (net, plain-only, want 2) + rule B (plain bucket, foil-only,
-    // want 1). The owned foil copy is acceptable to B but must not net A's
-    // bucket: total = 1 + max(0, 2 − 0) = 3.
     const rules = [
       wishRule({
         filter: filters({ finishes: ["normal"] }),
@@ -923,7 +860,6 @@ describe("evaluateListRules — acceptable printings and filter-aware netting (a
   });
 
   describe("countSpecialVersions (widened netting pool)", () => {
-    // c1 in a plain and an alt-art foil printing; c2 exists only as a special.
     const specialsCatalog = [
       makePrinting("plain", "c1"),
       makePrinting("alt", "c1", { artVariant: "altart", finish: "foil" }),
@@ -931,8 +867,6 @@ describe("evaluateListRules — acceptable printings and filter-aware netting (a
     ];
 
     it("owned special versions fill the shortfall while the acceptable set stays strict", () => {
-      // Want 3 standard c1, own 2 alt arts → shortfall 1, but only the plain
-      // printing may satisfy the want. Without the flag the alts are invisible.
       const ownedCopies = [
         ownedCopy({ copyId: "x1", printingId: "alt", cardId: "c1" }),
         ownedCopy({ copyId: "x2", printingId: "alt", cardId: "c1" }),
@@ -982,8 +916,6 @@ describe("evaluateListRules — acceptable printings and filter-aware netting (a
     });
 
     it("never adds wants for cards only the relaxed filter matches", () => {
-      // c2 has no standard printing, so it must stay off the list even though
-      // the relaxed pass matches its alt art.
       const out = evaluateListRules(
         [
           wishRule({
@@ -999,8 +931,6 @@ describe("evaluateListRules — acceptable printings and filter-aware netting (a
     });
 
     it("relaxes only the standard flag — other facets still gate the pool", () => {
-      // The alt art is excluded by its variant, so it must not net the want
-      // even with the flag on: only isStandard is cleared, nothing else.
       const ownedCopies = [ownedCopy({ copyId: "x1", printingId: "alt", cardId: "c1" })];
       const out = evaluateListRules(
         [
@@ -1017,8 +947,6 @@ describe("evaluateListRules — acceptable printings and filter-aware netting (a
     });
 
     it("is inert without a standard-printings restriction (never counts plain copies)", () => {
-      // A specials-only rule ("Standard printings: no") must not have the
-      // inverted effect: the owned plain copy stays outside the pool.
       const ownedCopies = [ownedCopy({ copyId: "x1", printingId: "plain", cardId: "c1" })];
       const out = evaluateListRules(
         [
@@ -1045,8 +973,6 @@ describe("evaluateListRules — acceptable printings and filter-aware netting (a
     });
 
     it("leaves printing-kind netting untouched", () => {
-      // Per-printing netting: the owned alt art nets only its own printing,
-      // flag or not — the plain printing's want survives.
       const ownedCopies = [ownedCopy({ copyId: "x1", printingId: "alt", cardId: "c1" })];
       const out = evaluateListRules(
         [
@@ -1078,8 +1004,6 @@ describe("evaluateListRules — acceptable printings and filter-aware netting (a
   });
 
   describe("price-blind netting (ADR-034 amendment 6)", () => {
-    // One card, three printings: the cheap standard one the rule shops for, a
-    // dearer special, and one the marketplace has no quote for at all.
     const pricedCatalog = [
       makePrinting("cheap", "c1"),
       makePrinting("dear", "c1", { artVariant: "altart", finish: "foil" }),
@@ -1088,7 +1012,7 @@ describe("evaluateListRules — acceptable printings and filter-aware netting (a
     const priceLookup = priceLookupFromMap({
       cheap: { cardtrader: 167 },
       dear: { cardtrader: 625 },
-      // "unpriced" has no quote — under a bound it used to fail outright.
+      // "unpriced" is deliberately absent: no price on any marketplace.
     });
     const underCap = (overrides: Partial<Extract<ListRule, { kind: "wish" }>> = {}): ListRule =>
       wishRule({
@@ -1099,9 +1023,6 @@ describe("evaluateListRules — acceptable printings and filter-aware netting (a
       });
 
     it("an owned special above the cap still fills the want", () => {
-      // Two standard copies plus a €6.25 alt art against a €1.75 cap. The alt
-      // art used to fall outside the pool, so the list asked for a third copy
-      // of a card the owner already had three of.
       const ownedCopies = [
         ownedCopy({ copyId: "x1", printingId: "cheap", cardId: "c1" }),
         ownedCopy({ copyId: "x2", printingId: "cheap", cardId: "c1" }),
@@ -1117,7 +1038,6 @@ describe("evaluateListRules — acceptable printings and filter-aware netting (a
     });
 
     it("an owned copy of an unpriced printing counts too", () => {
-      // A missing quote is not a reason to pretend the copies don't exist.
       const ownedCopies = [
         ownedCopy({ copyId: "x1", printingId: "cheap", cardId: "c1" }),
         ownedCopy({ copyId: "x2", printingId: "unpriced", cardId: "c1" }),
@@ -1133,8 +1053,6 @@ describe("evaluateListRules — acceptable printings and filter-aware netting (a
     });
 
     it("nets price-blind without countSpecialVersions", () => {
-      // Both printings are standard here, so the flag is irrelevant — only the
-      // cap kept the dearer one out of the pool.
       const bothStandard = [
         makePrinting("cheap", "c1"),
         makePrinting("dear", "c1", { finish: "foil", rarity: "rare" }),
@@ -1173,8 +1091,6 @@ describe("evaluateListRules — acceptable printings and filter-aware netting (a
     });
 
     it("the cap still gates the want and its acceptable printings", () => {
-      // Own nothing: the list asks for the cheap printing only, and matching
-      // may not satisfy it with the dear one. Only netting went price-blind.
       expect(
         evaluateListRules([underCap({ countSpecialVersions: true })], "card", {
           catalog: pricedCatalog,
@@ -1186,7 +1102,6 @@ describe("evaluateListRules — acceptable printings and filter-aware netting (a
     });
 
     it("relaxes only price — other facets still gate the pool", () => {
-      // The alt art is out on its variant, not its price, so it must not net.
       const ownedCopies = [
         ownedCopy({ copyId: "x1", printingId: "cheap", cardId: "c1" }),
         ownedCopy({ copyId: "x2", printingId: "dear", cardId: "c1" }),
@@ -1212,7 +1127,6 @@ describe("evaluateListRules — acceptable printings and filter-aware netting (a
     });
 
     it("leaves a plain (non-netting) rule's matches on the cap", () => {
-      // Without netOwned there is no pool to widen, so nothing changes.
       expect(
         evaluateListRules(
           [
@@ -1228,11 +1142,6 @@ describe("evaluateListRules — acceptable printings and filter-aware netting (a
     });
 
     it("two max-combined rules share one price-blind pool", () => {
-      // The reported shape: a cheap-playset rule and a dearer fixed-1 rule over
-      // the same cards, combined with `max`. A low-rarity foil at 2.37 sits
-      // above the first rule's cap and below the second's, and the second rule
-      // never fires (its strict pass needs a standard printing at 1+, and the
-      // standard one is 0.40) — so only price-blind netting can see the foil.
       const beamCatalog = [
         makePrinting("plain", "c1", { rarity: "uncommon" }),
         makePrinting("foil", "c1", { rarity: "uncommon", finish: "foil" }),
@@ -1269,8 +1178,6 @@ describe("evaluateListRules — acceptable printings and filter-aware netting (a
     });
 
     it("ownedCopyPrintingScope loads the copies the widened pool needs", () => {
-      // The scope must widen with the pool, or the copies that now net would
-      // never be read from the database and the fix would be invisible.
       expect(
         ownedCopyPrintingScope([underCap({ countSpecialVersions: true })], "card", {
           catalog: pricedCatalog,
@@ -1292,15 +1199,12 @@ describe("evaluateListRules — acceptable printings and filter-aware netting (a
     );
     const both = out.find((entry) => entry.cardId === "c1");
     const ruleOnly = out.find((entry) => entry.cardId === "c2");
-    // The manual part accepts any printing, so the merged entry is unrestricted.
     expect(both).toMatchObject({ source: "both", acceptablePrintingIds: undefined });
     expect(ruleOnly?.acceptablePrintingIds).toEqual(new Set(["p3"]));
   });
 });
 
 describe("evaluateListRules — trade combine (the Zeri matrix)", () => {
-  // One card, five owned copies, ranked keep-first:
-  //   Z1 foil+signed (special) > Z2 foil (special) > Z3 > Z4 > Z5 (plains).
   const enumOrders = {
     finishes: ["normal", "foil", "metal"],
     rarities: ["common", "uncommon", "rare"],
@@ -1318,8 +1222,6 @@ describe("evaluateListRules — trade combine (the Zeri matrix)", () => {
     ownedCopy({ copyId: "z4", printingId: "z-plain", cardId: "zeri" }),
     ownedCopy({ copyId: "z5", printingId: "z-plain", cardId: "zeri" }),
   ];
-  // Rule A: offer my extras across everything, keep 1 (keeps Z1).
-  // Rule B: hold back plains for a second deck, keep 2 (keeps Z3 + Z4).
   const rules: ListRule[] = [
     {
       kind: "trade",
@@ -1340,14 +1242,11 @@ describe("evaluateListRules — trade combine (the Zeri matrix)", () => {
 
   it("protect (default): a copy any rule kept is never offered", () => {
     const out = evaluateListRules(rules, "copy", ctx);
-    // Kept: Z1 (rule A) + Z3, Z4 (rule B). Offered: the spare foil + spare plain.
     expect(out.map((entry) => entry.copyId).sort()).toEqual(["z2", "z5"]);
   });
 
   it("count-sum: keep 1 + 2 = 3 nicest across the union", () => {
     const out = evaluateListRules(rules, "copy", ctx, "count-sum");
-    // Keeps Z1, Z2, Z3 (nicest three), offers Z4 + Z5 — including plains rule B
-    // guarded, which is the documented count-mode trade-off.
     expect(out.map((entry) => entry.copyId).sort()).toEqual(["z4", "z5"]);
   });
 
@@ -1364,7 +1263,6 @@ describe("evaluateListRules — trade combine (the Zeri matrix)", () => {
   });
 
   it("protect never leaks a copy excluded by the only rule matching it", () => {
-    // Rule B excludes Z5; rule A doesn't match plains here. Z5 must not appear.
     const scoped: ListRule[] = [
       {
         kind: "trade",
@@ -1382,15 +1280,10 @@ describe("evaluateListRules — trade combine (the Zeri matrix)", () => {
       },
     ];
     const out = evaluateListRules(scoped, "copy", ctx);
-    // Foil pool keeps Z1, offers Z2; plain pool (minus excluded Z5) keeps Z3,
-    // offers Z4.
     expect(out.map((entry) => entry.copyId).sort()).toEqual(["z2", "z4"]);
   });
 
   it("count modes combine within a grouping and union the keeps across them", () => {
-    // Rule A keeps 1 per card; rule C keeps 1 of each printing. Counts against
-    // different group sizes never add up — each grouping keeps its own nicest,
-    // and a copy kept by either stays kept (the protect invariant).
     const mixed: ListRule[] = [
       rules[0]!,
       {
@@ -1404,17 +1297,11 @@ describe("evaluateListRules — trade combine (the Zeri matrix)", () => {
     ];
     for (const mode of ["count-sum", "count-max"] as const) {
       const out = evaluateListRules(mixed, "copy", ctx, mode);
-      // Card layer keeps Z1; printing layer keeps the nicest of each printing:
-      // Z1 (foil-signed), Z2 (foil), Z3 (first plain). Offered: Z4 + Z5.
       expect(out.map((entry) => entry.copyId).sort()).toEqual(["z4", "z5"]);
     }
   });
 
   it("carries the reserved annotation through combination", () => {
-    // Two reserved copies against a keep of one per rule. Reserved copies sit
-    // at the tail of every pool, so the keeps go to copies that stay: rule A
-    // keeps Z1, the plains rule keeps Z3. Z4 and Z5 land in the offer with
-    // their annotation intact.
     const reservedCopies = ownedCopies.map((copy) =>
       copy.copyId === "z4" || copy.copyId === "z5" ? { ...copy, reserved: true } : copy,
     );
@@ -1435,9 +1322,6 @@ describe("evaluateListRules — trade combine (the Zeri matrix)", () => {
   });
 
   it("count modes keep a copy that stays, not the reserved one", () => {
-    // Z5 (a plain) is pinned to a live trade. It can't fill the keep slot —
-    // Z1 (the nicest free copy) is kept, and Z5 rides along in the offer,
-    // annotated, where matching drops it.
     const reservedCopies = ownedCopies.map((copy) =>
       copy.copyId === "z5" ? { ...copy, reserved: true } : copy,
     );
@@ -1451,8 +1335,6 @@ describe("evaluateListRules — trade combine (the Zeri matrix)", () => {
 });
 
 describe("listRulesSchema — rule count cap", () => {
-  // Each rule runs a full-catalog filter pass at read time (including the
-  // uncached anonymous public-share path), so the count is bounded.
   const wishRule: ListRule = {
     kind: "wish",
     filter: EMPTY_CARD_FILTERS,
@@ -1589,8 +1471,6 @@ describe("ownedCopyPrintingScope", () => {
     ]);
   });
 
-  // The property the narrowing rests on: dropping the out-of-scope copies must
-  // not change what the evaluator produces.
   it.each([["card" as const], ["printing" as const]])(
     "evaluating with only in-scope copies matches the full set (%s kind)",
     (listKind) => {
@@ -1614,7 +1494,6 @@ describe("ownedCopyPrintingScope", () => {
         ownedCopy({ copyId: "x1", printingId: "p1", cardId: "c1" }),
         ownedCopy({ copyId: "x2", printingId: "p2", cardId: "c1" }),
         ownedCopy({ copyId: "x3", printingId: "p3", cardId: "c2" }),
-        // Not reachable by either rule's filter — must be droppable.
         ownedCopy({ copyId: "x4", printingId: "p-unmatched", cardId: "c9" }),
       ];
       const scope = new Set(ownedCopyPrintingScope(rules, listKind, { catalog }));
@@ -1647,13 +1526,11 @@ describe("price-bounded rules (priceMarketplace + priceLookup)", () => {
 
   it("bounds against the rule's own marketplace, skipping price-less printings", () => {
     const out = evaluateListRule(wishUnder(5, "cardmarket"), "printing", { catalog, priceLookup });
-    // p1 (1.50) passes, p2 (7) exceeds the max, p3 has no price at all.
     expect(out.map((e) => e.printingId)).toEqual(["p1"]);
   });
 
   it("the same bound reads a different quote on a different marketplace", () => {
     const out = evaluateListRule(wishUnder(5, "tcgplayer"), "printing", { catalog, priceLookup });
-    // p1 is 9 on TCGplayer, so nothing passes.
     expect(out).toEqual([]);
   });
 
@@ -1676,7 +1553,6 @@ describe("price-bounded rules (priceMarketplace + priceLookup)", () => {
       ownedCopy({ copyId: "x3", printingId: "p3", cardId: "c2" }),
     ];
     const out = evaluateListRule(rule, "copy", { catalog, ownedCopies, priceLookup });
-    // Only p2 (7 ≥ 2) passes; p1 is below the min and p3 is price-less.
     expect(out.map((e) => e.copyId)).toEqual(["x2"]);
   });
 
@@ -1714,8 +1590,7 @@ describe("price-bounded rules (priceMarketplace + priceLookup)", () => {
       excludeCopyIds: [],
     };
     expect(ownedCopyPrintingScope([rule], "card", { catalog, priceLookup })).toEqual(["p1"]);
-    // Without prices the scope collapses like the evaluation does — the two
-    // must never drift, or copy loading would miss what the rules match.
+    // ownedCopyPrintingScope must apply the same price bound as evaluateListRules, or copy loading misses what rules match.
     expect(ownedCopyPrintingScope([rule], "card", { catalog })).toEqual([]);
   });
 });

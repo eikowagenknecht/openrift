@@ -19,12 +19,6 @@ export const adminUserSchema = z.object({
   lastActiveAt: isoDateTime.nullable(),
 });
 
-/**
- * oRPC contract for the admin users list (mounted at `/api/admin/v1/users`,
- * admin-gated by the mount). Read-only: every user with aggregate counts.
- * Session-gated (UNAUTHORIZED + FORBIDDEN from `authedRoute`); no domain error
- * codes are declared.
- */
 export const adminUsersContract = {
   list: authedRoute
     .route({ method: "GET", path: "/api/admin/v1/users", tags: [TAG] })

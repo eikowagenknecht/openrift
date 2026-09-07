@@ -18,7 +18,6 @@ await buildUnifiedMappingsResponse(
   false,
 );
 
-// Per-marketplace breakdown
 console.log("=== single-marketplace getMappingOverview timing ===");
 for (const cfg of [tcgplayer, cardmarket, cardtrader]) {
   const start = performance.now();

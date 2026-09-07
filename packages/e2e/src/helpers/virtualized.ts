@@ -1,16 +1,8 @@
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
-// Scroll the page (window-virtualized lists) until `locator` mounts, then
-// assert it is visible. Use this for any element rendered inside a
-// react-virtual window virtualizer where off-screen rows are absent from the
-// DOM. Uses `window.scrollBy` so each scroll is synchronous and the
-// virtualizer reacts before the next poll; wraps around to the opposite end
-// when we hit the bottom without finding the target.
-//
-// Uses `.first()` for the final visibility assertion because card-grid.tsx
-// renders group headers twice once scrolled into view (inline header + sticky
-// overlay), which would otherwise trip Playwright's strict-mode check.
+// .first() avoids a strict-mode violation: card-grid.tsx renders group
+// headers twice once scrolled into view (inline header + sticky overlay).
 export async function scrollUntilVisible(
   page: Page,
   locator: Locator,
@@ -36,9 +28,6 @@ export async function scrollUntilVisible(
       },
       { delta, dir: direction },
     );
-    // Give the virtualizer a frame to mount newly-visible rows before the
-    // next check. 100ms is enough for a raf + layout pass without wasting
-    // test budget on idle polls.
     await page.waitForTimeout(100);
   }
   throw new Error(`scrollUntilVisible: locator not found within ${timeout}ms`);

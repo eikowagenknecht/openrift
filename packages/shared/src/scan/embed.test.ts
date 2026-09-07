@@ -12,11 +12,6 @@ import {
 import { rotateRgbaCw } from "./image";
 import type { RgbaImage } from "./types";
 
-/**
- * Build a unit vector with one hot dimension.
- *
- * @returns The vector.
- */
 function axis(dimension: number): Float32Array {
   const vector = new Float32Array(EMBED_DIM);
   vector[dimension] = 1;
@@ -64,11 +59,6 @@ describe("rankCardEmbedding", () => {
     data: new Uint8ClampedArray(8 * 11 * 4),
   };
 
-  /**
-   * Fake encoder returning one canned response per call, recording batch sizes.
-   *
-   * @returns The embedder and its recorded per-call counts.
-   */
   function embedderOf(responses: Float32Array[][]): { embedder: CardEmbedder; calls: number[] } {
     const calls: number[] = [];
     const embedder: CardEmbedder = (_pixels, count) => {
@@ -96,8 +86,6 @@ describe("rankCardEmbedding", () => {
   });
 
   it("runs the remaining rotations when upright is not confident", async () => {
-    // Upright matches nothing in the bank; the second batch's middle slot is
-    // rotation 2 and must be reported as such.
     const { embedder, calls } = embedderOf([[axis(2)], [axis(3), axis(1), axis(4)]]);
     const ranked = await rankCardEmbedding(card, "card", embedder, bank, {
       topK: 2,
@@ -110,8 +98,6 @@ describe("rankCardEmbedding", () => {
   });
 
   it("skips the rotation fallback for a marginal but upright match", async () => {
-    // Cosine 0.72 against "a": distance 0.28, above the 0.2 confident gate but
-    // under the 0.35 fallback bound, so the upright shortlist stands.
     const marginal = new Float32Array(EMBED_DIM);
     marginal[0] = 0.72;
     marginal[2] = Math.sqrt(1 - 0.72 * 0.72);
@@ -150,8 +136,6 @@ describe("rankCardEmbedding", () => {
   });
 
   it("keeps rotation labels straight when falling back from a preferred rotation", async () => {
-    // Preferred rotation 1 misses; the fallback's first slot is rotation 0 and
-    // must be reported as such.
     const { embedder, calls } = embedderOf([[axis(2)], [axis(1), axis(3), axis(4)]]);
     const ranked = await rankCardEmbedding(card, "card", embedder, bank, {
       topK: 2,
@@ -164,7 +148,6 @@ describe("rankCardEmbedding", () => {
   });
 
   it("falls back to only the 180-degree partner in pair-only mode", async () => {
-    // Preferred rotation 1 misses; the single-slot fallback is rotation 3.
     const { embedder, calls } = embedderOf([[axis(2)], [axis(1)]]);
     const ranked = await rankCardEmbedding(card, "card", embedder, bank, {
       topK: 2,

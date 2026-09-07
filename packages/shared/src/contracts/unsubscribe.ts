@@ -16,13 +16,9 @@ const channelSchema = z.enum([
   "groupApprovals",
 ]);
 
-/**
- * One-click unsubscribe (ADR-030, RFC 8058). `preview` is a safe, read-only
- * GET the web confirmation page calls to render the right channel label and
- * state without mutating anything; `confirm` is the POST that actually flips
- * the channel off. The RFC 8058 mail-client one-click POST is handled by a
- * separate plain route (`/api/v1/unsubscribe/one-click`), not this contract.
- */
+// `preview` is a safe, read-only GET; `confirm` is the POST that flips the
+// channel off. The RFC 8058 mail-client one-click POST is a separate plain
+// route (`/api/v1/unsubscribe/one-click`), not this contract.
 export const unsubscribeContract = {
   preview: oc
     .route({ method: "GET", path: "/api/v1/unsubscribe/preview", tags: [TAG] })

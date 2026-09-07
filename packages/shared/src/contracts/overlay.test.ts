@@ -9,11 +9,6 @@ import {
 
 const CARD_ID = "c0000000-0001-4000-a000-000000000001";
 
-/**
- * A board with `count` distinct entries, split over two rows so the total-cards
- * rule is what a large board trips rather than the per-row one it inherits.
- * @returns The board.
- */
 function boardWithCards(count: number) {
   const entries = Array.from({ length: count }, (_unused, at) => ({
     cardId: `${CARD_ID.slice(0, -3)}${String(at).padStart(3, "0")}`,
@@ -49,8 +44,6 @@ describe("normalizeOverlayPayload", () => {
   });
 
   it("reads a channel stored before the curtain existed as showing", () => {
-    // The field arrived without a migration, so every row written until then
-    // lacks it. Defaulting the other way would blank live streams on deploy.
     expect(normalizeOverlayPayload({ printingId: "p-1" }).hidden).toBe(false);
   });
 

@@ -18,8 +18,6 @@ const allCardsItemSchema = z.object({
   type: z.string(),
   types: z.array(z.string()),
   setSlugs: z.array(z.string()),
-  // Lets the admin card pickers match a typed printing code, the same as the
-  // catalog-backed pickers. No images, so the rows stay text-only.
   shortCodes: z.array(z.string()),
 });
 
@@ -30,44 +28,29 @@ export const providerStatsItemSchema = z.object({
   lastUpdated: z.string(),
 });
 
-// Mirror of the API-side `candidateCardSummarySchema` (apps/api cards/schemas).
-// Duplicated here because contracts live in the shared package and cannot
-// import from apps/api; kept in sync with `CandidateCardSummaryResponse`.
+// Duplicated from the API-side `candidateCardSummarySchema`; contracts live in
+// the shared package and cannot import from apps/api.
 export const candidateCardSummarySchema = z.object({
   cardSlug: z.string().nullable(),
   name: z.string(),
   normalizedName: z.string(),
   shortCodes: z.array(z.string()),
   stagingShortCodes: z.array(z.string()),
-  // Distinct set slugs across the row's printings — accepted printings and
-  // pending candidate printings alike — so the admin set filter narrows both
-  // the Cards and Candidates tabs (a new-set candidate has no accepted printing
-  // yet, so accepted-only setSlugs would hide it).
   setSlugs: z.array(z.string()),
   candidateCount: z.number(),
   uncheckedCardCount: z.number(),
   uncheckedPrintingCount: z.number(),
-  // Candidate printings not yet linked to an accepted printing, across every
-  // provider and regardless of `checkedAt` — exactly the rows the card detail
-  // page shows as "New:" groups. Wider than `favoriteStagingShortCodes`, which
-  // is favorites-and-unchecked only, so the list page can filter on the same
-  // population the detail page highlights.
   unlinkedPrintingCount: z.number(),
   hasFavorite: z.boolean(),
   favoriteStagingShortCodes: z.array(z.string()),
   suggestedCardSlug: z.string().nullable(),
-  // ADR-036: true when any candidate in this group came from an in-app user
-  // submission (provider "usersubmission"). Drives the admin badge + filter.
   hasUserSubmission: z.boolean(),
 });
 
 /**
- * oRPC contract for the read-only admin card queries (mounted under
- * `/api/admin/v1/cards`, admin-gated by the mount). The two detail endpoints
- * and the export return loosely-typed payloads (`z.unknown()`) — the API maps
- * them to the rich hand-written response interfaces, which the web client
- * re-points to directly. No domain control-flow errors are declared; the only
- * `AppError` that can emerge (`MISSING_ALIAS`, a server fault) stays undefined.
+ * The two detail endpoints and the export return loosely-typed payloads
+ * (`z.unknown()`); the API maps them to the rich hand-written response
+ * interfaces the web client re-points to directly.
  */
 export const adminCardQueriesContract = {
   allCards: authedRoute

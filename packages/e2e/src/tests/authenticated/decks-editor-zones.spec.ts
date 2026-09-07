@@ -82,23 +82,18 @@ async function readDeckCards(
   }
 }
 
-// Locate the zone-section wrapper (the droppable <div>) by its header label.
-// Sections are frameless now, so there is no box class to climb to: the label
-// button sits in the header row, and the header's parent is the wrapper that
-// owns the drop ref and the ring highlight — hence ancestor::div[2].
+// Sections are frameless: the label button sits in the header row, and the
+// header's parent is the wrapper owning the drop ref and ring highlight.
 function zoneSection(page: Page, label: string): Locator {
   return zoneLabelButton(page, label).locator("xpath=ancestor::div[2]");
 }
 
-// The zone label itself is a Pressable labelled "Edit <zone>"; clicking it
-// opens that zone in the main area (and makes it the active zone).
 function zoneLabelButton(page: Page, label: string): Locator {
   return page.getByRole("button", { name: `Edit ${label}`, exact: true }).first();
 }
 
-// Card row inside a zone. The draggable outer <div> wraps an inner role=button
-// element; targeting the inner button's text works for both click activation
-// and pointer drag (events bubble to the outer draggable node).
+// Events bubble to the draggable outer <div>, so the inner role=button works
+// for both click activation and pointer drag.
 function deckCardRow(section: Locator, cardName: string): Locator {
   return section.getByRole("button").filter({ hasText: cardName }).first();
 }
@@ -107,8 +102,7 @@ function browserCardTile(page: Page, cardName: string): Locator {
   return page.getByRole("img", { name: cardName }).first();
 }
 
-// Ensure the store's activeZone is set to `label` before the browser can be
-// used (the browser renders a placeholder until a zone is active).
+// The card browser renders a placeholder until a zone is active.
 async function activateZone(page: Page, label: string) {
   await zoneLabelButton(page, label).click();
 }
@@ -120,9 +114,8 @@ async function searchBrowserFor(page: Page, cardName: string) {
   await expect(browserCardTile(page, cardName)).toBeVisible({ timeout: 10_000 });
 }
 
-// Drag with Shift held across the drop. dnd-kit only mounts the keydown
-// listener once a drag activates, so we press Shift after the activation move
-// and release it after mouseup.
+// dnd-kit only mounts the keydown listener once a drag activates, so Shift is
+// pressed after the activation move and released after mouseup.
 async function dndDragWithShift(page: Page, source: Locator, target: Locator) {
   // Both ends re-render while the deck settles after a previous edit, which
   // can hand back a null box; wait for each to be laid out before measuring.
@@ -178,11 +171,9 @@ test.describe("deck editor zones + drag-drop", () => {
       }
 
       const mainSection = zoneSection(page, "Main Deck");
-      // Seeded card is visible → Main Deck is expanded by default.
       await expect(mainSection.getByText(unit.name, { exact: false })).toBeVisible();
 
-      // The chevron is a separate control from the label, and its accessible
-      // name flips with the state it will move to.
+      // The chevron's accessible name flips with the state it will move to.
       const chevron = mainSection.getByRole("button", { name: /(?:Collapse|Expand) Main Deck/u });
       await chevron.click();
       await expect(mainSection.getByText(unit.name, { exact: false })).toBeHidden();
@@ -203,14 +194,11 @@ test.describe("deck editor zones + drag-drop", () => {
       await page.goto(`/decks/${deckId}`);
       await expect(page.getByText(/Constructed/u).first()).toBeVisible({ timeout: 15_000 });
 
-      // Activate Sideboard (not the default), search for the card, quick-add it.
       await activateZone(page, "Sideboard");
       await searchBrowserFor(page, unit.name);
 
-      // Climb to the card wrapper (the outer "group" div in CardThumbnail)
-      // and pick its "Add to deck" button. The immediate div ancestor of the
-      // <img> is only the inner tilt/image container, which doesn't include
-      // the DeckAddStrip's Add button.
+      // The img's immediate div ancestor is only the inner tilt/image
+      // container; climb to the outer "group" div to find the Add button.
       const tile = browserCardTile(page, unit.name);
       const addButton = tile
         .locator(
@@ -221,7 +209,6 @@ test.describe("deck editor zones + drag-drop", () => {
         .first();
       await addButton.click();
 
-      // Auto-save debounce is 1s.
       await expect
         .poll(
           async () => {
@@ -317,9 +304,8 @@ test.describe("deck editor zones + drag-drop", () => {
       const runesSection = zoneSection(page, "Runes");
       await dndDragWithShift(page, tile, runesSection);
 
-      // Without a Legend, rebalancing is a no-op; the Shift branch still adds
-      // runes one-by-one up to 12. freeform avoids the constructed-only
-      // "missing Legend" failure that blocks the test short of the target.
+      // freeform avoids the constructed-only "missing Legend" failure that
+      // would otherwise block the fill short of the 12-card target.
       await expect
         .poll(
           async () => {
@@ -341,7 +327,6 @@ test.describe("deck editor zones + drag-drop", () => {
       const page = authenticatedPage;
       const unit = await pickCardByType("unit");
 
-      // Run 1: no Shift → move one of two copies.
       const deckA = await createDeckViaApi(page.request, {
         name: `Drag Move One ${Date.now()}`,
         format: "freeform",
@@ -368,7 +353,6 @@ test.describe("deck editor zones + drag-drop", () => {
         )
         .toEqual({ main: 1, sideboard: 1 });
 
-      // Run 2: Shift held → move all copies to Overflow.
       const deckB = await createDeckViaApi(page.request, {
         name: `Drag Move All ${Date.now()}`,
         format: "freeform",
@@ -415,7 +399,7 @@ test.describe("deck editor zones + drag-drop", () => {
 
       await dndDrag(page, deckCardRow(main, unit.name), main);
 
-      // Give auto-save a chance to run if a mutation had fired (it shouldn't).
+      // Wait out the auto-save debounce so a wrongly-fired mutation would land.
       await page.waitForTimeout(1500);
       const rows = await readDeckCards(deckId);
       expect(rows.filter((row) => row.cardId === unit.id)).toEqual([
@@ -460,7 +444,6 @@ test.describe("deck editor zones + drag-drop", () => {
       const page = authenticatedPage;
       const unit = await pickCardByType("unit");
 
-      // Run 1: decrement by 1.
       const deckA = await createDeckViaApi(page.request, {
         name: `Drag Out Dec ${Date.now()}`,
         format: "freeform",
@@ -493,7 +476,6 @@ test.describe("deck editor zones + drag-drop", () => {
         )
         .toBe(1);
 
-      // Run 2: Shift held → set quantity to 0 (row removed).
       const deckB = await createDeckViaApi(page.request, {
         name: `Drag Out Zero ${Date.now()}`,
         format: "freeform",
@@ -588,9 +570,8 @@ test.describe("deck editor zones + drag-drop", () => {
 
       await page.goto(`/decks/${deckId}`);
 
-      // Open the mobile sidebar so zones render. Without an active zone the
-      // mobile <h1> renders the literal label "Zones"; tapping it opens the
-      // zones drawer.
+      // Without an active zone the mobile <h1> renders the literal "Zones";
+      // tapping it opens the zones drawer.
       const mobileTitle = page.getByRole("button", { name: /^Zones/u }).first();
       await expect(mobileTitle).toBeVisible({ timeout: 15_000 });
       await mobileTitle.click();
@@ -601,8 +582,8 @@ test.describe("deck editor zones + drag-drop", () => {
       const row = deckCardRow(main, unit.name);
       await expect(row).toBeVisible();
 
-      // DeckCardRow disables dnd-kit listeners on mobile — pointer events never
-      // activate a drag. Mirrors chunk 4 of collections-drag-drop.spec.ts.
+      // DeckCardRow disables dnd-kit listeners on mobile; pointer events never
+      // activate a drag.
       await dndDrag(page, row, sideboard);
       await page.waitForTimeout(1500);
 

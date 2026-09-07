@@ -92,21 +92,12 @@ function isServerFn(url: string, fnName: string): boolean {
   }
 }
 
-// Known seed printing used for the "owned" assertion — the normal-foiling
-// print of "Annie, Fiery" (OGS-001). See apps/api/src/test/fixtures/seed.sql.
+// Normal-foiling print of "Annie, Fiery" (OGS-001). See apps/api/src/test/fixtures/seed.sql.
 const ANNIE_FIERY_PRINTING_NORMAL = "019cfc3b-03d6-74cf-adec-1dce41f631eb";
 
-/**
- * Locates the tile wrapper for a card by its visible name. The tile wraps the
- * DeckAddStrip (+/- buttons) and the image/label — scope all strip/image
- * assertions through this locator.
- * @returns The card tile wrapper locator.
- */
+// A deck-zone row renders the same card image with no add-strip; the add
+// button distinguishes a browser tile from a zone row.
 function cardTile(page: Page, cardName: string): Locator {
-  // Scope via the card image's accessible name, then require the tile to carry
-  // an add button. Once the card is in the deck, its zone row renders the same
-  // image, and climbing from that one lands on a wrapper with no strip — the
-  // add button is what tells the browser's tile apart from a deck row.
   return page
     .getByRole("img", { name: cardName })
     .locator(
@@ -116,11 +107,6 @@ function cardTile(page: Page, cardName: string): Locator {
     .first();
 }
 
-/**
- * Locates the DeckAddStrip row inside a card tile (the h-5 flex row at the top
- * that holds owned/in-deck text plus the +/- buttons).
- * @returns The strip locator.
- */
 function strip(tile: Locator): Locator {
   return tile.locator("div.h-5.mb-1").first();
 }
@@ -137,19 +123,13 @@ async function waitForCardsLoaded(page: Page) {
   await expect(page.getByRole("img", { name: "Annie, Fiery" }).first()).toBeVisible({
     timeout: 15_000,
   });
-  // The deck browser toolbar/grid is useHydrated-gated; wait for the on-demand
-  // route chunks to settle so search/add/filter handlers are wired before we
-  // interact (otherwise an early click/keystroke is silently dropped).
+  // useHydrated-gated: wait for on-demand chunks, or an early click/keystroke is dropped.
   await page.waitForLoadState("networkidle");
 }
 
-// The deck browser mirrors /cards: its search debounces and syncs to the URL
-// (?search=), and Playwright's atomic fill() can be dropped before hydration.
-// Retry real keystrokes until the query commits to the URL.
+// Search debounces and syncs to the URL; Playwright's atomic fill() can be
+// dropped before hydration, so retry real keystrokes until the URL commits.
 async function searchFor(page: Page, query: string) {
-  // Some tests search right after activating a zone without a separate
-  // waitForCardsLoaded; settle the on-demand chunks first so the search input
-  // (and any later add buttons) are hydrated.
   await page.waitForLoadState("networkidle");
   const search = page.getByPlaceholder(/search/iu);
   await expect(async () => {
@@ -160,15 +140,12 @@ async function searchFor(page: Page, query: string) {
   }).toPass({ timeout: 15_000 });
 }
 
-// The zone label is a Pressable named "Edit <zone>"; its count is a sibling
-// span in the same header row, so the count is read off the section wrapper
-// (the header's parent) rather than out of the button's accessible name.
+// The zone's count is a sibling span, not part of the button's accessible name.
 function zoneLabelButton(page: Page, label: string): Locator {
   return page.getByRole("button", { name: `Edit ${label}`, exact: true }).first();
 }
 
-// The header's trailing count span: "N" on zones with no target, "N/target"
-// on the ones that have one (Main Deck 39, Runes 12, ...).
+// "N" on zones with no target, "N/target" on the ones that have one.
 function zoneCount(page: Page, label: string): Locator {
   return zoneLabelButton(page, label).locator("xpath=following-sibling::span[last()]");
 }
@@ -209,15 +186,12 @@ test.describe("deck editor card browser", () => {
       const deckId = await createDeckViaApi(page, `Browser Panel ${Date.now()}`);
       await page.goto(`/decks/${deckId}`);
 
-      // The zone sidebar is present — activate Main Deck so the browser renders.
       await activateZone(page, "Main Deck");
       await waitForCardsLoaded(page);
 
-      // SearchBar input is visible with its placeholder.
       const searchInput = page.getByPlaceholder(/search/iu);
       await expect(searchInput).toBeVisible();
 
-      // "N cards" label (unfiltered) shows a positive integer in the right of SearchBar.
       await expect(page.getByText(/\d+ \/ \d+ cards$/u)).toBeVisible();
     });
   });
@@ -230,8 +204,6 @@ test.describe("deck editor card browser", () => {
       await activateZone(page, "Main Deck");
       await waitForCardsLoaded(page);
 
-      // Before: multiple Units visible. After searching "Annie", non-Annie
-      // cards disappear; the "Garen" Units should no longer render.
       await expect(page.getByRole("img", { name: "Garen, Rugged" })).toBeVisible();
 
       await searchFor(page, "Annie");
@@ -240,47 +212,32 @@ test.describe("deck editor card browser", () => {
       });
       await expect(page.getByRole("img", { name: "Garen, Rugged" })).toBeHidden();
 
-      // The search is now shown as a "Search:" label in the active filters
-      // area — confirm it's visible (the earlier assertion that it was hidden
-      // no longer matches the UI).
-      // The "Search:" group label is responsively hidden in the narrow deck
-      // browser panel (hidden sm:inline), so assert the chip is present rather
-      // than visible — the grid narrowing above already proves the search took.
+      // The "Search:" label is responsively hidden (hidden sm:inline); check attached, not visible.
       await expect(page.getByText("Search:", { exact: true })).toBeAttached();
     });
 
     test("applying and clearing a type filter narrows then restores the grid", async ({ page }) => {
       userEmail = await createAndLogin(page);
       const deckId = await createDeckViaApi(page, `Browser Filter ${Date.now()}`);
-      // The active-filter chip strip renders as a compact single row on mobile
-      // (on desktop the chips live in a hidden left-pane variant); use a phone
-      // viewport so the removable chips are the visible ones.
+      // The removable active-filter chips only render in the mobile layout.
       await page.setViewportSize({ width: 390, height: 844 });
       await page.goto(`/decks/${deckId}`);
       await activateZoneMobile(page, "Main Deck");
 
-      // Activating Main Deck pre-seeds the type filter with the zone's allowed
-      // types (Unit/Spell/Gear), rendered as removable chips in the active-filter
-      // strip. Wait for that filter to apply (its Unit chip appearing) rather
-      // than for a specific card — the unfiltered grid is grouped and
-      // virtualized, so Annie can be off-screen until the filter narrows it.
+      // Wait for the zone's pre-seeded type filter to apply, not a specific card;
+      // the grid is virtualized, so Annie can be off-screen until it narrows.
       const unitChip = page.locator('[data-slot="badge"]:visible', { hasText: /^Unit/u }).first();
       await expect(unitChip).toBeVisible({ timeout: 15_000 });
       await page.waitForLoadState("networkidle");
-      // Annie is a Unit, Firestorm a Spell — both are in the default filter set.
-      // The grouped grid is virtualized, so scroll Annie into view to confirm it.
       await scrollUntilVisible(page, page.getByRole("img", { name: "Annie, Fiery" }));
 
       // The desktop "Show filters" collapsible isn't drivable in the dev harness
-      // (see public/cards-filters.spec.ts), but the active-filter chips are plain
-      // buttons. Removing the Unit chip leaves Spell+Gear, so Annie drops out
-      // while Firestorm remains.
+      // (see public/cards-filters.spec.ts); use the active-filter chip instead.
       await unitChip.getByRole("button").click();
       await expect(page).not.toHaveURL(/[?&]types=[^&]*unit/iu);
       await expect(page.getByRole("img", { name: "Annie, Fiery" })).toHaveCount(0);
       await scrollUntilVisible(page, page.getByRole("img", { name: "Firestorm" }));
 
-      // Clearing every filter drops the type constraint entirely; Annie returns.
       await page.getByRole("button", { name: "Clear all filters" }).click();
       await expect(page).not.toHaveURL(/[?&]types=/u);
       await scrollUntilVisible(page, page.getByRole("img", { name: "Annie, Fiery" }));
@@ -307,7 +264,6 @@ test.describe("deck editor card browser", () => {
     test("seeding owned copies updates the owned count on the strip", async ({ page }) => {
       userEmail = await createAndLogin(page);
       const deckId = await createDeckViaApi(page, `Strip Owned ${Date.now()}`);
-      // Seed 2 copies of a specific Annie, Fiery printing into the user's inbox.
       await addCopyViaApi(page, ANNIE_FIERY_PRINTING_NORMAL, 2);
 
       await page.goto(`/decks/${deckId}`);
@@ -338,7 +294,6 @@ test.describe("deck editor card browser", () => {
       const tile = cardTile(page, "Annie, Fiery");
       const row = strip(tile);
 
-      // Intercept the debounced save before the click that triggers it.
       const saveRequest = page.waitForRequest(
         (request) => request.method() === "POST" && isServerFn(request.url(), "saveDeckCardsFn"),
       );
@@ -346,12 +301,10 @@ test.describe("deck editor card browser", () => {
       await addCardButton(tile).click();
       await expect(row.getByTitle("1 in deck")).toBeVisible();
 
-      // Main Deck sidebar section reflects the new count (Main Deck shows "N/39").
       await expect(zoneCount(page, "Main Deck")).toHaveText("1/39");
 
-      // The bar's build-state indicator inside a zone is the completion chip
-      // (required cards across all zones), not the amber format badge — that
-      // badge belongs to the hero, which the zone view scrolls past.
+      // "1/56" is the completion chip (required cards across all zones), not
+      // the format badge, which belongs to the hero and is scrolled past here.
       await expect(page.getByText("1/56", { exact: true })).toBeVisible();
 
       await addCardButton(tile).click();
@@ -360,12 +313,9 @@ test.describe("deck editor card browser", () => {
       await removeCardButton(tile).click();
       await expect(row.getByTitle("1 in deck")).toBeVisible();
 
-      // Save fires after the 1s debounce — confirm it lands.
       const saveResponse = await saveRequest;
       expect(saveResponse.method()).toBe("POST");
 
-      // Saving doesn't complete the deck, so the chip still reports 1 of 56.
-      // (The "Unsaved" indicator was removed — saves are just silent now.)
       await expect(page.getByText("1/56", { exact: true })).toBeVisible();
     });
   });
@@ -385,11 +335,9 @@ test.describe("deck editor card browser", () => {
       const tile = cardTile(page, "Annie, Fiery");
       await addCardButton(tile).click();
 
-      // Sideboard count increments; Main Deck stays at 0.
       await expect(zoneCount(page, "Sideboard")).toHaveText("1");
       await expect(zoneCount(page, "Main Deck")).toHaveText("0/39");
 
-      // A second + still adds to Sideboard.
       await addCardButton(tile).click();
       await expect(zoneCount(page, "Sideboard")).toHaveText("2");
     });
@@ -401,7 +349,7 @@ test.describe("deck editor card browser", () => {
     }) => {
       userEmail = await createAndLogin(page);
 
-      // Constructed: cap at 3 across main/sideboard/overflow/champion.
+      // Constructed caps a card at 3 copies across main/sideboard/overflow/champion.
       const constructedId = await createDeckViaApi(page, `Max Cstr ${Date.now()}`);
       await page.goto(`/decks/${constructedId}`);
       await activateZone(page, "Main Deck");
@@ -419,11 +367,7 @@ test.describe("deck editor card browser", () => {
       await expect(row.getByTitle("3 in deck")).toBeVisible();
       await expect(addCardButton(tile)).toBeDisabled();
 
-      // Freeform waives the 3-copy cap. The store's add path skips
-      // COPY_LIMIT_ZONES for freeform decks (use-deck-builder.ts:
-      // `if (!freeform && COPY_LIMIT_ZONES.has(zone))`), and the browser's
-      // isMaxReached returns false for freeform — so the add button never
-      // disables and copies can climb past three.
+      // Freeform decks skip COPY_LIMIT_ZONES entirely, so the add button never disables.
       const freeformId = await createDeckViaApi(page, `Max Free ${Date.now()}`, "freeform");
       await page.goto(`/decks/${freeformId}`);
       await activateZone(page, "Main Deck");
@@ -437,7 +381,6 @@ test.describe("deck editor card browser", () => {
       await addCardButton(freeTile).click();
       await addCardButton(freeTile).click();
       await expect(strip(freeTile).getByTitle("3 in deck")).toBeVisible();
-      // No cap in freeform: the button stays enabled and a fourth copy lands.
       await expect(addCardButton(freeTile)).toBeEnabled();
       await addCardButton(freeTile).click();
       await expect(strip(freeTile).getByTitle("4 in deck")).toBeVisible();
@@ -462,10 +405,8 @@ test.describe("deck editor card browser", () => {
       await addCardButton(tile).click();
       await expect(row.getByTitle("1 in deck")).toBeVisible();
 
-      // Holding Shift swaps the + icon for a labeled "+2" button — a different
-      // element. Press Shift and wait for the swap before clicking: passing it
-      // as a click modifier replaces the element mid-click, and the actionability
-      // check then never settles.
+      // Shift swaps the + icon for a "+2" button, a different element; wait for
+      // the swap before clicking or the actionability check never settles.
       await page.keyboard.down("Shift");
       await expect(addCardButton(tile)).toHaveText("+2");
       await addCardButton(tile).click();
@@ -489,8 +430,7 @@ test.describe("deck editor card browser", () => {
       await addCardButton(tile).click();
       await expect(row.getByTitle("2 in deck")).toBeVisible();
 
-      // Same element swap as the bulk add above: Shift turns the − icon into a
-      // labeled "-2", so hold the key and let it land before clicking.
+      // Same element swap as the bulk add above.
       await page.keyboard.down("Shift");
       await expect(removeCardButton(tile)).toHaveText("-2");
       await removeCardButton(tile).click();
@@ -510,12 +450,9 @@ test.describe("deck editor card browser", () => {
         timeout: 5000,
       });
 
-      // The image area is .aspect-card inside the tile. Clicking there fires
-      // handleCardClick, which opens the shared selection detail.
       await cardTile(page, "Annie, Fiery").locator(".aspect-card").first().click();
 
-      // Docking the pane is an opt-in display preference (`paneDocked`, off by
-      // default), so the detail arrives as a dialog.
+      // paneDocked is off by default, so the detail arrives as a dialog.
       const detail = page.getByRole("dialog");
       await expect(detail).toBeVisible({ timeout: 5000 });
       await expect(detail.getByRole("heading", { name: /Annie, Fiery/u }).first()).toBeVisible();
@@ -535,9 +472,8 @@ test.describe("deck editor card browser", () => {
         timeout: 5000,
       });
 
-      // Wait for the save RESPONSE (not just the request), so the debounced
-      // save has committed server-side before we reload — otherwise the reload
-      // can abort the in-flight POST and the card never persists.
+      // Wait for the save response, not just the request: reloading before the
+      // debounced save commits can abort the in-flight POST.
       const saveResponse = page.waitForResponse(
         (response) =>
           response.request().method() === "POST" && isServerFn(response.url(), "saveDeckCardsFn"),
@@ -545,18 +481,13 @@ test.describe("deck editor card browser", () => {
 
       await addCardButton(cardTile(page, "Annie, Fiery")).click();
 
-      // Adding one card to Main Deck leaves the deck short (needs 56, has 1),
-      // which the bar's completion chip reports. This is not an "unsaved"
-      // indicator — the standalone unsaved marker was removed — so it reads the
-      // same before and after the save.
+      // The completion chip tracks completeness, not dirty state, so it reads
+      // the same (1/56) before and after the save.
       await expect(page.getByText("1/56", { exact: true })).toBeVisible();
 
-      // Confirm the debounced save completes. The chip tracks completeness,
-      // not dirty state, so it is unchanged.
       await saveResponse;
       await expect(page.getByText("1/56", { exact: true })).toBeVisible();
 
-      // Reload the page — the added card persists.
       await page.reload();
       await activateZone(page, "Main Deck");
       await searchFor(page, "Annie, Fiery");
@@ -565,8 +496,7 @@ test.describe("deck editor card browser", () => {
       });
 
       const rowAfter = strip(cardTile(page, "Annie, Fiery"));
-      // After reload the per-tile "in deck" count comes from a separate deck-cards
-      // query that resolves a beat after the grid image mounts; give it headroom.
+      // The in-deck count query resolves a beat after the grid image mounts.
       await expect(rowAfter.getByTitle("1 in deck")).toBeVisible({ timeout: 15_000 });
     });
   });

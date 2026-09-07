@@ -8,12 +8,10 @@ function player(id: string, overrides: Partial<PairingPlayer> = {}): PairingPlay
   return { id, score: 0, pods3: 0, pods4: 0, byes: 0, opponents: new Map(), ...overrides };
 }
 
-// All player ids across the pairing, for coverage/uniqueness checks.
 function allIds(pods: { playerIds: string[] }[]): string[] {
   return pods.flatMap((pod) => pod.playerIds);
 }
 
-// Find the pod that contains a given player.
 function podOf(pods: { playerIds: string[] }[], id: string): string[] {
   return pods.find((pod) => pod.playerIds.includes(id))?.playerIds ?? [];
 }
@@ -30,13 +28,11 @@ describe("generatePairing - validity", () => {
     const players = Array.from({ length: 11 }, (_, index) => player(`p${index}`));
     const result = generatePairing(players, 1, { rng: mulberry32(7) });
     expect(result.strategy).toBe("random");
-    // 11 -> 2 fours + 1 three
     expect(result.pods.map((pod) => pod.size).toSorted()).toEqual([3, 4, 4]);
     expect(allIds(result.pods).toSorted()).toEqual(players.map((entry) => entry.id).toSorted());
   });
 
   it("round 1 runs local search when pod players carry regions, avoiding mirrors", () => {
-    // Two players per region across three regions: two clean 3-pods exist.
     const regions = ["noxus", "demacia", "ionia"];
     const players = Array.from({ length: 6 }, (_, index) =>
       player(`p${index}`, { region: regions[index % 3] }),
@@ -48,8 +44,6 @@ describe("generatePairing - validity", () => {
   });
 
   it("prefers a fresh region opponent over a repeated one", () => {
-    // All regions distinct, so only the repeated-region term separates the
-    // pairings: a has already faced Demacia, so a vs b must be avoided.
     const players = [
       player("a", { region: "ionia", regionHistory: new Map([["demacia", 1]]) }),
       player("b", { region: "demacia" }),
@@ -87,8 +81,6 @@ describe("generatePairing - determinism", () => {
 
 describe("generatePairing - priority ordering", () => {
   it("prefers a wider score spread over a rematch", () => {
-    // a and b have met; the score-sorted seed would pod them together (both 3).
-    // The engine must split them even though that widens the spread.
     const players = [
       player("a", { score: 3, opponents: new Map([["b", 1]]) }),
       player("b", { score: 3, opponents: new Map([["a", 1]]) }),
@@ -100,20 +92,12 @@ describe("generatePairing - priority ordering", () => {
     const result = generatePairing(players, 2, { rng: mulberry32(5) });
     const aPod = podOf(result.pods, "a");
     expect(aPod).not.toContain("b");
-    // No rematch anywhere in the round.
     expect(result.perPod.reduce((sum, pod) => sum + pod.rematch, 0)).toBe(0);
   });
 });
 
 describe("generatePairing - three-pod duty rotation", () => {
   it("moves the 3-pod off the bottom band when its players already had one", () => {
-    // Four fresh leaders on 6 points, three bottom players on 0 who were all in
-    // a 3-pod before. Seating the bottom three together again costs 3 * 120;
-    // the optimum (penalty 155) puts three leaders in the 3-pod and floats the
-    // fourth down. No single 2-swap improves on the bottom-anchored seating
-    // (each intermediate is worse) and with only two pods there are no
-    // 3-cycles, so only a restart that seeds the 3-pod at the top finds it —
-    // this pins both the penalty weights and the seed-order shuffle.
     const players = [
       player("t1", { score: 6 }),
       player("t2", { score: 6 }),
@@ -132,8 +116,6 @@ describe("generatePairing - three-pod duty rotation", () => {
 
 describe("generatePairing - reaches the known optimum", () => {
   it("finds the unique rematch-free split on a hand-checked field", () => {
-    // K(3,3) "has met" graph: every {a,b,c} has met every {d,e,f}, none within a
-    // group. The only zero-penalty split keeps {a,b,c} and {d,e,f} intact.
     const left = ["a", "b", "c"];
     const right = ["d", "e", "f"];
     const players: PairingPlayer[] = [...left, ...right].map((id) => {
@@ -155,7 +137,7 @@ describe("generatePairing - budget and scale", () => {
       budget: { restarts: 1, maxSwapsPerRestart: 0 },
     });
     expect(allIds(result.pods).toSorted()).toEqual(players.map((entry) => entry.id).toSorted());
-    expect(result.pods.every((pod) => pod.size === 3)).toBe(true); // 9 -> 3 threes
+    expect(result.pods.every((pod) => pod.size === 3)).toBe(true);
   });
 
   it("pairs a large field (24 players) into valid pods in bounded time", () => {
@@ -167,7 +149,6 @@ describe("generatePairing - budget and scale", () => {
       }),
     );
     const result = generatePairing(players, 2, { rng: mulberry32(13) });
-    // 24 -> 6 fours
     expect(result.pods).toHaveLength(6);
     expect(result.pods.every((pod) => pod.size === 4)).toBe(true);
     expect(new Set(allIds(result.pods)).size).toBe(24);
@@ -194,8 +175,6 @@ describe("generatePairing - swiss mode", () => {
   });
 
   it("runs local search in round 1 and finds a region-clean perfect matching", () => {
-    // Three players per region; a same-region match is always avoidable here,
-    // so the round-1 search must find a zero-penalty pairing.
     const regions = ["noxus", "demacia", "ionia", "zaun"];
     const players = Array.from({ length: 12 }, (_, index) =>
       player(`p${index}`, { region: regions[index % 4] }),
@@ -221,9 +200,6 @@ describe("generatePairing - swiss mode", () => {
   });
 
   it("takes a same-region match over a rematch when forced to choose", () => {
-    // a1 has already met both opponents from other regions, so every
-    // region-clean matching contains a rematch (100). The engine must prefer
-    // the single noxus mirror (70) and keep the round rematch-free.
     const players = [
       player("a1", {
         region: "noxus",
@@ -243,9 +219,6 @@ describe("generatePairing - swiss mode", () => {
   });
 
   it("reaches across score groups to avoid a rematch", () => {
-    // The customer's old tool paired greedily inside score groups, so the two
-    // 3-point players (who already met) got rematched. Crossing groups costs
-    // spread (2 * 3 * 10 = 60) but beats a rematch (100).
     const players = [
       player("a", { score: 3, opponents: new Map([["b", 1]]) }),
       player("b", { score: 3, opponents: new Map([["a", 1]]) }),

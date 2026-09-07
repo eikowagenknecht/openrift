@@ -7,16 +7,7 @@ function formatOrdinal(value: number): string {
   return `${value}${suffixes[value % 10] ?? "th"}`;
 }
 
-/**
- * Renders a standings row's finish (ADR-014).
- *
- * A source that publishes exact standings sets `rankIsTier = false` and the
- * rank prints as an ordinal ("1st", "4th", "8th"). A source that only publishes
- * cut buckets sets the flag: 1 and 2 are still the podium, and 3 up print as
- * "T4", "T8", a bucket rather than a placing.
- *
- * @returns The finish as every archive surface prints it, the share image included.
- */
+// rankIsTier means the source only publishes cut buckets, not exact standings: 1 and 2 still print as podium, 3+ print as "T4", "T8".
 export function formatRank(rank: number, rankIsTier: boolean): string {
   if (!rankIsTier) {
     return formatOrdinal(rank);
@@ -25,15 +16,7 @@ export function formatRank(rank: number, rankIsTier: boolean): string {
   return podium[rank] ?? `T${rank}`;
 }
 
-/**
- * A player's match record, always as the full "14-1-0". A source that publishes
- * no draw column ran no draws to report, so the missing count prints as zero
- * rather than shortening the record: a column mixing "5-1" and "5-1-0" reads as
- * two different kinds of number.
- *
- * @returns The record, or null when the source published none, which the
- *   display leaves out rather than inventing a 0-0-0.
- */
+// Missing draws print as 0, not omitted: a column mixing "5-1" and "5-1-0" would read as two kinds of number.
 export function formatRecord(
   wins: number | null,
   losses: number | null,

@@ -14,69 +14,36 @@ import { z } from "zod";
 
 extendZodWithOpenApi(z);
 
-/**
- * A judge moving an entry through the lifecycle (ADR-027). The service
- * validates the transition matrix; `reviewOutcome` is required when targeting
- * `checked`, marks a rejection when targeting `editable`, and records an
- * in-place issue when "targeting" `submitted` from `submitted` (for unclaimed
- * entries). `withdrawn` pulls the entry from the event (mirroring the
- * provider's withdrawal flag); targeting `submitted` from `withdrawn`
- * restores it.
- */
+// The service validates the transition matrix; `withdrawn` pulls the entry
+// from the event, mirroring the provider's withdrawal flag.
 export const deckCheckEntryStateChangeSchema = z.object({
   state: z.enum(["editable", "submitted", "approved", "checked", "withdrawn"]),
   reviewOutcome: z.enum(["ok", "issue"]).nullish(),
   notes: z.string().max(4000).nullish(),
-  /** Optional player-facing message stored alongside the transition. */
   playerMessage: z.string().max(2000).nullish(),
 });
 
 export const updateDeckCheckEntrySchema = z.object({
   playerName: z.string().min(1).max(120).optional(),
   riotId: z.string().max(120).nullish(),
-  /** Judge-authored message shown to the linked player (ADR-026). */
   playerMessage: z.string().max(2000).nullish(),
-  /** Consent for the organizer to publish the deck list publicly. */
   allowDeckPublishing: z.boolean().optional(),
-  /** Consent to show the player's name on public platforms. */
   allowNameSharing: z.boolean().optional(),
-  /** Consent to show the player's Riot ID on public platforms. */
   allowRiotIdSharing: z.boolean().optional(),
 });
 
 export const updateDeckCheckCardSchema = z.object({
   name: z.string().min(1).max(300),
-  /**
-   * Optional zone correction. A provider's free-text section string, mapped to a
-   * deck zone server-side exactly like an added card; omitted leaves the zone as-is.
-   */
   section: z.string().min(1).max(50).optional(),
-  /**
-   * How many copies to move when `section` changes the zone. Omitted (or >= the
-   * line's quantity) moves the whole line; fewer splits it, leaving the rest in
-   * place. Ignored without a zone change.
-   */
   copies: z.number().int().min(1).max(99).optional(),
 });
 
-/**
- * A judge confirming which of the suggested zone corrections to apply. The
- * server re-derives the target zone for each id, so the body only names the
- * cards to move, never the destination — a deliberately mis-zoned card simply
- * gets left out of the list.
- */
+// The server re-derives the target zone for each id; the body names only the cards to move.
 export const applyDeckCheckZoneFixesSchema = z.object({
   cardIds: z.array(z.string()).min(1).max(DECK_CHECK_MAX_CARD_LINES_PER_ENTRY),
 });
 
-/**
- * A judge hand-creating an entrant when the organizer push isn't available.
- * The server stamps a `manual:`-prefixed external id and resolves the cards the
- * same way a push would.
- */
 export const createDeckCheckEntrySchema = z.object({
-  // A deck always belongs to an existing roster participant (ADR-033); add the
-  // person on the participants surface first, then attach their deck here.
   participantId: z.uuid(),
   cards: z.array(addDeckCheckCardSchema).max(DECK_CHECK_MAX_CARD_LINES_PER_ENTRY).default([]),
 });
@@ -125,9 +92,6 @@ export const deckCheckEntrySummaryResponseSchema = z.object({
   id: z.string(),
   externalId: z.string(),
   participantId: z.string().nullable(),
-  // The owning participant's tournament status, so the judge list can flag a deck
-  // whose player has dropped (ADR-033). Null for manual entries not tied to a
-  // participant. Mirrors `tournamentParticipantStatusSchema` in `tournaments.ts`.
   participantStatus: z.enum(["requested", "invited", "active", "dropped", "no_show"]).nullable(),
   source: deckCheckEntrySourceSchema,
   playerName: z.string(),

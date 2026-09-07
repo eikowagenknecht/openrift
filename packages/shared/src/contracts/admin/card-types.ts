@@ -17,13 +17,7 @@ const entitySchema = z.object({
 
 const slugParamSchema = z.object({ slug: z.string().min(1) });
 
-/**
- * oRPC contract for the admin card type taxonomy CRUD (mounted at
- * `/api/admin/v1/card-types`, admin-gated by the mount). Domain codes per
- * route: `reorder` → BAD_REQUEST (invalid slug list); `create` → CONFLICT
- * (slug taken); `update` → NOT_FOUND; `remove` → NOT_FOUND + CONFLICT
- * (well-known or in use). The static `reorder` path precedes `{slug}`.
- */
+/** The literal `reorder` path must precede `{slug}` in route registration order. */
 export const adminCardTypesContract = {
   list: authedRoute
     .route({ method: "GET", path: BASE, tags: [TAG] })
