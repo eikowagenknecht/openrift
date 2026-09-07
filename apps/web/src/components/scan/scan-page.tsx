@@ -1,3 +1,4 @@
+import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
 import type { Printing } from "@openrift/shared";
 import { getOrientation, legendDisplayName } from "@openrift/shared";
 import {
@@ -31,6 +32,15 @@ import { ScanSessionTray } from "@/components/scan/scan-session-tray";
 import { ScanSettingsMenu } from "@/components/scan/scan-settings-menu";
 import { ScanStage } from "@/components/scan/scan-stage";
 import { ScanStartPanel } from "@/components/scan/scan-start-panel";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -64,6 +74,8 @@ import { useScanSessionStore } from "@/stores/scan-session-store";
 const AIM_SUGGEST_SECONDS = 3;
 
 const RESUME_PROMPT_AFTER_MS = 24 * 60 * 60 * 1000;
+
+const CLEAR_CONFIRM_ABOVE = 10;
 
 const OVER_VIDEO = "border-white/20 bg-black/60 text-white hover:bg-black/70 hover:text-white";
 
@@ -492,7 +504,9 @@ export function ScanPage() {
     shownFailedCount = pendingAdd.jobs.length;
   }
 
-  function handleClear() {
+  const [clearConfirm, setClearConfirm] = useState<number | null>(null);
+
+  function clearNow() {
     const cleared = useScanSessionStore.getState().clear();
     setFailedCount(0);
     const count = cleared.reduce((sum, row) => sum + row.count, 0);
@@ -506,6 +520,15 @@ export function ScanPage() {
         onClick: () => useScanSessionStore.getState().putBack(cleared),
       },
     });
+  }
+  function handleClear() {
+    const rowsNow = [...useScanSessionStore.getState().rows.values()];
+    const count = rowsNow.reduce((sum, row) => sum + row.count, 0);
+    if (count > CLEAR_CONFIRM_ABOVE) {
+      setClearConfirm(count);
+      return;
+    }
+    clearNow();
   }
 
   const [wishFollowUps, setWishFollowUps] = useState<
@@ -897,6 +920,32 @@ export function ScanPage() {
         onPick={handleIdentifyPick}
         onDismiss={handleIdentifyDismiss}
       />
+      <AlertDialog
+        open={clearConfirm !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setClearConfirm(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Clear {clearConfirm ?? 0} scanned {cardWord(clearConfirm ?? 0)}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>They are not in a collection yet.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogPrimitive.Close
+              render={<Button variant="destructive" />}
+              onClick={clearNow}
+            >
+              Clear
+            </AlertDialogPrimitive.Close>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <TakeWishlistFollowUpDialog
         printing={wishFollowUps[0]?.printing ?? null}
         entries={wishFollowUps[0]?.entries ?? []}

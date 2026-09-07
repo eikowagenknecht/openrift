@@ -27,6 +27,7 @@ import { CountPill } from "@/components/ui/count-pill";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
@@ -158,63 +159,91 @@ export function ScanSessionTray({
     );
   }
 
+  const renderRow = (row: ScanSessionRow) => (
+    <TrayRow
+      key={row.printing.id}
+      row={row}
+      sequence={sequence}
+      siblings={index ? finishSiblingsOf(row.printing, index) : []}
+      rarityLabels={labels.rarities}
+      domainColors={domainColors}
+      open={openId === row.printing.id}
+      onToggle={toggle}
+      onAddOne={onAddOne}
+      onRemoveOne={onRemoveOne}
+      onChangePrinting={onChangePrinting}
+      price={prices?.get(row.printing.id, marketplace)}
+      formatValue={formatValue}
+      wishEntries={wish.entriesForPrinting(row.printing.cardId, row.printing.id)}
+      owned={ownedTotals ? (ownedTotals.get(row.printing.id) ?? 0) : null}
+    />
+  );
+
+  const head = (
+    <div className="flex items-baseline gap-2 pt-1">
+      <SummaryHead
+        summary={summary}
+        formatValue={prices ? formatValue : null}
+        prefix={headPrefix}
+        showNew={compact}
+      />
+      <Button variant="link-muted" size="sm" className="ml-auto shrink-0" onClick={onClear}>
+        Clear
+      </Button>
+    </div>
+  );
+
+  const facts = (
+    <SummaryFacts summary={summary} formatValue={prices ? formatValue : null} showNew={!compact} />
+  );
+
+  const alerts = (
+    <>
+      {notice}
+      {failedCount > 0 && (
+        <Callout className="border-warning mb-2 p-3">
+          <p className="flex items-center gap-2">
+            <TriangleAlertIcon className="text-warning size-4 shrink-0" />
+            Could not add {failedCount} {cardWord(failedCount)}. They stay in the list.
+          </p>
+        </Callout>
+      )}
+      <UnidentifiedList
+        cards={unidentified}
+        onIdentify={onIdentifyMissed}
+        onDismiss={onDismissMissed}
+      />
+    </>
+  );
+
+  // The drawer peek shows only the top of the sheet, so on the phone the
+  // footer sits above the older rows instead of at the sheet's bottom.
+  if (compact) {
+    const [newest, ...older] = newestFirst;
+    return (
+      <div className="flex min-h-0 flex-auto flex-col gap-2">
+        {head}
+        <ul className="-mx-2 flex flex-col">{newest && renderRow(newest)}</ul>
+        {footer}
+        <div className="-mx-2 min-h-0 flex-auto overflow-x-hidden overflow-y-auto overscroll-contain border-t px-2 pt-2">
+          {facts}
+          {alerts}
+          <ul className="-mx-2 flex flex-col">{older.map((row) => renderRow(row))}</ul>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-0 flex-auto flex-col gap-2">
-      <div className="flex shrink-0 flex-col gap-0.5 pt-1">
-        <div className="flex items-baseline gap-2">
-          <SummaryHead
-            summary={summary}
-            formatValue={prices ? formatValue : null}
-            prefix={headPrefix}
-            showNew={compact}
-          />
-          <Button variant="link-muted" size="sm" className="ml-auto shrink-0" onClick={onClear}>
-            Clear
-          </Button>
-        </div>
-        <SummaryFacts
-          summary={summary}
-          formatValue={prices ? formatValue : null}
-          showNew={!compact}
-        />
+      <div className="flex shrink-0 flex-col gap-0.5">
+        {head}
+        {facts}
       </div>
 
-      <div className="min-h-0 flex-auto overflow-y-auto overscroll-contain">
-        {notice}
-        {failedCount > 0 && (
-          <Callout className="border-warning mb-2 p-3">
-            <p className="flex items-center gap-2">
-              <TriangleAlertIcon className="text-warning size-4 shrink-0" />
-              Could not add {failedCount} {cardWord(failedCount)}. They stay in the list.
-            </p>
-          </Callout>
-        )}
-        <UnidentifiedList
-          cards={unidentified}
-          onIdentify={onIdentifyMissed}
-          onDismiss={onDismissMissed}
-        />
-        <ul className="flex flex-col">
-          {newestFirst.map((row) => (
-            <TrayRow
-              key={row.printing.id}
-              row={row}
-              sequence={sequence}
-              siblings={index ? finishSiblingsOf(row.printing, index) : []}
-              rarityLabels={labels.rarities}
-              domainColors={domainColors}
-              open={openId === row.printing.id}
-              onToggle={toggle}
-              onAddOne={onAddOne}
-              onRemoveOne={onRemoveOne}
-              onChangePrinting={onChangePrinting}
-              price={prices?.get(row.printing.id, marketplace)}
-              formatValue={formatValue}
-              wishEntries={wish.entriesForPrinting(row.printing.cardId, row.printing.id)}
-              owned={ownedTotals ? (ownedTotals.get(row.printing.id) ?? 0) : null}
-            />
-          ))}
-        </ul>
+      <div className="-mx-2 min-h-0 flex-auto overflow-x-hidden overflow-y-auto overscroll-contain px-2">
+        {alerts}
+        <ul className="-mx-2 flex flex-col">{newestFirst.map((row) => renderRow(row))}</ul>
       </div>
 
       {footer}
@@ -253,7 +282,7 @@ function TrayFooter({
   const disabled = adding || count === 0 || destination === null;
 
   return (
-    <div className="mt-auto flex shrink-0 flex-col gap-2 pt-2">
+    <div className={cn("flex shrink-0 flex-col gap-2 pt-2", !compact && "mt-auto")}>
       <ButtonGroup className="w-full">
         <Button
           variant={count === 0 ? "outline" : "default"}
@@ -278,23 +307,27 @@ function TrayFooter({
             <ChevronDownIcon />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>
-              Add the {count} {cardWord(count)} to
-            </DropdownMenuLabel>
-            {collections.map((collection) => (
-              <DropdownMenuItem key={collection.id} onClick={() => onAddAll(collection.id)}>
-                {collection.isInbox && <InboxIcon className="size-4" />}
-                <span className="truncate">{collection.name}</span>
-                {collection.id === destination?.id && <CheckIcon className="ml-auto size-4" />}
-              </DropdownMenuItem>
-            ))}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>
+                Add the {count} {cardWord(count)} to
+              </DropdownMenuLabel>
+              {collections.map((collection) => (
+                <DropdownMenuItem key={collection.id} onClick={() => onAddAll(collection.id)}>
+                  {collection.isInbox && <InboxIcon className="size-4" />}
+                  <span className="truncate">{collection.name}</span>
+                  {collection.id === destination?.id && <CheckIcon className="ml-auto size-4" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       </ButtonGroup>
-      <p className="text-muted-foreground text-sm">
-        Nothing is in your collection until you add it.
-        {!compact && " The list is kept on this device until you do."}
-      </p>
+      {!compact && (
+        <p className="text-muted-foreground text-sm">
+          Nothing is in your collection until you add it. The list is kept on this device until you
+          do.
+        </p>
+      )}
     </div>
   );
 }
@@ -340,7 +373,7 @@ function TrayRow({
   const count = row.count;
 
   return (
-    <li className={cn("relative -mx-2 rounded-md px-2 py-2", open && "bg-muted/50")}>
+    <li className={cn("relative rounded-md px-2 py-2", open && "bg-muted/50")}>
       {/* Nested buttons are invalid. */}
       <Pressable
         className="absolute inset-0 rounded-md"
