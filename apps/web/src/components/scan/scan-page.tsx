@@ -3,10 +3,9 @@ import { getOrientation, legendDisplayName } from "@openrift/shared";
 import {
   CameraIcon,
   CameraOffIcon,
-  LayersIcon,
   ScanSearchIcon,
-  Volume2Icon,
-  VolumeXIcon,
+  SlidersHorizontalIcon,
+  TriangleAlertIcon,
   XIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -17,11 +16,10 @@ import { TakeWishlistFollowUpDialog } from "@/components/collection/take-wishlis
 import {
   PageTopBar,
   PageTopBarActions,
-  PageTopBarIconButton,
+  PageTopBarButton,
   PageTopBarSticky,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
-import { ScanAddAllDialog } from "@/components/scan/scan-add-all-dialog";
 import type { ScanFlight } from "@/components/scan/scan-flight-layer";
 import { ScanFlightLayer } from "@/components/scan/scan-flight-layer";
 import { ScanGhostPreview } from "@/components/scan/scan-ghost-preview";
@@ -30,18 +28,12 @@ import { ScanIdentifySheet } from "@/components/scan/scan-identify-sheet";
 import type { PickerRequest } from "@/components/scan/scan-printing-picker";
 import { ScanPrintingPicker } from "@/components/scan/scan-printing-picker";
 import { ScanSessionTray } from "@/components/scan/scan-session-tray";
+import { ScanSettingsMenu } from "@/components/scan/scan-settings-menu";
 import { ScanStage } from "@/components/scan/scan-stage";
 import { ScanStartPanel } from "@/components/scan/scan-start-panel";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type { LockedCard, ScannerSettings } from "@/hooks/use-card-scanner";
 import { DEFAULT_SCANNER_SETTINGS, useCardScanner } from "@/hooks/use-card-scanner";
 import { useCards } from "@/hooks/use-cards";
@@ -56,14 +48,14 @@ import type { WishEntryFlat } from "@/hooks/use-wish-entries";
 import { useWishEntries } from "@/hooks/use-wish-entries";
 import type { LoadedScanBank } from "@/lib/scan-bank";
 import { describeKey, isLandscapeKey, loadScanBank } from "@/lib/scan-bank";
+import { addInChunks, addJobsFor, settleAdd } from "@/lib/scan-commit";
 import { ghostConfidence } from "@/lib/scan-confidence";
 import { playLockTick } from "@/lib/scan-feedback";
 import { guideRectIn, snapshotVideoRect } from "@/lib/scan-flight";
 import { buildScanPrintingIndex, resolveLock, sortForPicker } from "@/lib/scan-resolve";
 import type { ScannerMode } from "@/lib/scan-session";
-import { isTempCopyId } from "@/lib/temp-copy-id";
 import { cn } from "@/lib/utils";
-import { SCAN_IDENTIFY_ONLY, useScanPrefsStore } from "@/stores/scan-prefs-store";
+import { useScanPrefsStore } from "@/stores/scan-prefs-store";
 import type { ScanSessionRow } from "@/stores/scan-session-store";
 import { useScanSessionStore } from "@/stores/scan-session-store";
 
@@ -71,13 +63,15 @@ const AIM_SUGGEST_SECONDS = 3;
 
 const RESUME_PROMPT_AFTER_MS = 24 * 60 * 60 * 1000;
 
+const OVER_VIDEO = "border-white/20 bg-black/60 text-white hover:bg-black/70 hover:text-white";
+
 function shouldPromptResume(lastScanAt: number | null): boolean {
   return lastScanAt === null || Date.now() - lastScanAt >= RESUME_PROMPT_AFTER_MS;
 }
 
 function describeLastScan(lastScanAt: number | null): string {
   if (lastScanAt === null) {
-    return "an earlier session";
+    return "in an earlier session";
   }
   const days = Math.floor((Date.now() - lastScanAt) / (24 * 60 * 60 * 1000));
   if (days <= 0) {
@@ -89,6 +83,10 @@ function describeLastScan(lastScanAt: number | null): string {
   return `${days} days ago`;
 }
 
+function cardWord(count: number): string {
+  return count === 1 ? "card" : "cards";
+}
+
 const ANY_LANGUAGE = "any";
 
 export function ScanPage() {
@@ -97,26 +95,21 @@ export function ScanPage() {
 
   const muted = useScanPrefsStore((state) => state.muted);
   const setMuted = useScanPrefsStore((state) => state.setMuted);
-  const storedTargetId = useScanPrefsStore((state) => state.targetCollectionId);
-  const setStoredTargetId = useScanPrefsStore((state) => state.setTargetCollectionId);
+  const destinationId = useScanPrefsStore((state) => state.destinationCollectionId);
+  const setDestinationId = useScanPrefsStore((state) => state.setDestinationCollectionId);
   const cardLanguage = useScanPrefsStore((state) => state.cardLanguage);
   const setCardLanguage = useScanPrefsStore((state) => state.setCardLanguage);
   const autoScan = useScanPrefsStore((state) => state.autoScan);
   const setAutoScan = useScanPrefsStore((state) => state.setAutoScan);
+  const tapToScan = useScanPrefsStore((state) => state.tapToScan);
+  const setTapToScan = useScanPrefsStore((state) => state.setTapToScan);
   const languageLabels = useLanguageLabels();
 
-  const identifyOnly = storedTargetId === SCAN_IDENTIFY_ONLY || storedTargetId === null;
-  // storedTargetId may reference a deleted collection; fall back to the inbox.
-  const target = identifyOnly
-    ? undefined
-    : (collections.find((collection) => collection.id === storedTargetId) ??
-      collections.find((collection) => collection.isInbox) ??
-      collections[0]);
-  const targetId = target?.id ?? null;
-  const targetItems = [
-    { value: SCAN_IDENTIFY_ONLY, label: "Just identify" },
-    ...collections.map((collection) => ({ value: collection.id, label: collection.name })),
-  ];
+  const destination =
+    collections.find((collection) => collection.id === destinationId) ??
+    collections.find((collection) => collection.isInbox) ??
+    collections[0] ??
+    null;
 
   // Include cardLanguage even if no printing currently has it, so it stays selectable.
   const languageItems = [
@@ -139,11 +132,6 @@ export function ScanPage() {
     resumed !== null && shouldPromptResume(resumed.lastScanAt)
       ? { cards: resumed.cards, when: describeLastScan(resumed.lastScanAt) }
       : null;
-
-  function handleStartFresh() {
-    // Discards the log only; copies an old session added stay in the collection.
-    useScanSessionStore.getState().reset();
-  }
 
   const [loaded, setLoaded] = useState<LoadedScanBank | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -197,54 +185,6 @@ export function ScanPage() {
 
   const [detailOpen, setDetailOpen] = useState(false);
 
-  async function addPrinting(printing: Printing) {
-    if (identifyOnly) {
-      useScanSessionStore.getState().recordIdentified(printing);
-      return;
-    }
-    if (!targetId) {
-      return;
-    }
-    const { tempId, result } = batchedAdd.add(printing.id, targetId);
-    useScanSessionStore.getState().recordPending(printing, tempId);
-    try {
-      const real = await result;
-      useScanSessionStore.getState().confirmAdd(printing.id, tempId, real.id);
-    } catch {
-      // The global mutation onError already toasted; drop the optimistic row.
-      useScanSessionStore.getState().dropPending(printing.id, tempId);
-    }
-  }
-
-  function handleLock(lock: Pick<LockedCard, "key" | "artKey" | "label" | "resolved">) {
-    // With auto-scan, a card left in the guide would keep counting while the detail is open.
-    if (detailOpen) {
-      return;
-    }
-    if (!index) {
-      return;
-    }
-    const resolution = resolveLock(lock, index, cardLanguage ?? undefined);
-    if (resolution.kind === "unknown") {
-      toast.error(`${lock.label} is not in the catalog yet`);
-      return;
-    }
-    if (!muted) {
-      playLockTick();
-    }
-    if (resolution.kind === "picker") {
-      setPickerQueue((queue) => [
-        ...queue,
-        { artKey: lock.artKey, label: lock.label, candidates: resolution.candidates },
-      ]);
-      return;
-    }
-    // A picker lock doesn't reach the tray until answered, by which point the
-    // card has left the guide and a snapshot would show the next one.
-    launchFlight();
-    void addPrinting(resolution.printing);
-  }
-
   // Decoration only: a missing video, unmeasurable box, or tainted canvas
   // just means no flight, never a failed add.
   function launchFlight() {
@@ -272,6 +212,34 @@ export function ScanPage() {
     setFlights((current) => [...current, flight]);
   }
 
+  function handleLock(lock: Pick<LockedCard, "key" | "artKey" | "label" | "resolved">) {
+    // With auto-scan, a card left in the guide would keep counting while the detail is open.
+    if (detailOpen) {
+      return;
+    }
+    if (!index) {
+      return;
+    }
+    const resolution = resolveLock(lock, index, cardLanguage ?? undefined);
+    if (resolution.kind === "unknown") {
+      toast.error(`${lock.label} is not in the catalog yet`);
+      return;
+    }
+    if (!muted) {
+      playLockTick();
+    }
+    if (resolution.kind === "picker") {
+      setPickerQueue((queue) => [
+        ...queue,
+        { artKey: lock.artKey, label: lock.label, candidates: resolution.candidates },
+      ]);
+      return;
+    }
+    // Must run before the card leaves the guide.
+    launchFlight();
+    useScanSessionStore.getState().add(resolution.printing);
+  }
+
   function handleFlightEnd(id: string) {
     setFlights((current) => current.filter((flight) => flight.id !== id));
   }
@@ -296,7 +264,7 @@ export function ScanPage() {
     }
     setPickerQueue((queue) => queue.filter((queued) => queued !== entry));
     toast.success(`Recognised ${legendDisplayName(resolution.printing.card)}`);
-    void addPrinting(resolution.printing);
+    useScanSessionStore.getState().add(resolution.printing);
   }
 
   // Destructured before any JSX: member access on the hook's return object
@@ -326,7 +294,12 @@ export function ScanPage() {
 
   const aimHint = active ? readout.aimHint : null;
 
-  const mode: ScannerMode = deviceTooSlow ? "capture" : autoScan ? "auto" : "single";
+  let mode: ScannerMode = "single";
+  if (deviceTooSlow || tapToScan) {
+    mode = "capture";
+  } else if (autoScan) {
+    mode = "auto";
+  }
   if (settings.mode !== mode) {
     setSettings((previous) => ({ ...previous, mode }));
   }
@@ -471,140 +444,111 @@ export function ScanPage() {
     if (!muted) {
       playLockTick();
     }
-    void addPrinting(printing);
+    useScanSessionStore.getState().add(printing);
   }
 
   function handlePickerDismiss() {
     setPickerQueue((queue) => queue.slice(1));
   }
 
-  async function handleRemoveOne(row: ScanSessionRow) {
-    const copyId = row.copyIds.findLast((id) => !isTempCopyId(id));
-    if (!copyId) {
-      // Identify-only reading: no copy behind it, so undo is a plain count decrement.
-      if (row.identifiedCount > 0) {
-        useScanSessionStore.getState().removeIdentified(row.printing.id);
-        return;
-      }
-      toast.info("Still saving that card, try again in a moment");
-      return;
-    }
-    useScanSessionStore.getState().removeCopy(row.printing.id, copyId);
-    try {
-      await disposeCopies.mutateAsync({ copyIds: [copyId] });
-      toast.success(`Removed 1× ${legendDisplayName(row.printing.card)}`);
-    } catch {
-      // The global mutation onError already toasted; put the row back.
-      useScanSessionStore.getState().recordConfirmed(row.printing, copyId);
-    }
-  }
-
-  async function handleSwitchPrinting(row: ScanSessionRow, to: Printing) {
-    const copyId = row.copyIds.findLast((id) => !isTempCopyId(id));
-    if (!copyId) {
-      // Identify-only: moves between printings entirely in the store.
-      if (row.identifiedCount > 0) {
-        useScanSessionStore.getState().removeIdentified(row.printing.id);
-        void addPrinting(to);
-        return;
-      }
-      toast.info("Still saving that card, try again in a moment");
-      return;
-    }
-    useScanSessionStore.getState().removeCopy(row.printing.id, copyId);
-    void addPrinting(to);
-    try {
-      await disposeCopies.mutateAsync({ copyIds: [copyId] });
-    } catch {
-      useScanSessionStore.getState().recordConfirmed(row.printing, copyId);
-    }
-  }
-
   function handleAddOne(row: ScanSessionRow) {
-    void addPrinting(row.printing);
+    useScanSessionStore.getState().add(row.printing);
   }
 
-  async function handleRemoveAll() {
-    const rows = [...useScanSessionStore.getState().rows.values()];
-    const copyIds = rows.flatMap((row) => row.copyIds.filter((id) => !isTempCopyId(id)));
-    if (copyIds.length === 0) {
-      useScanSessionStore.getState().reset();
+  function handleRemoveOne(row: ScanSessionRow) {
+    useScanSessionStore.getState().remove(row.printing.id);
+  }
+
+  const [adding, setAdding] = useState(false);
+  const [failedCount, setFailedCount] = useState(0);
+
+  function handleClear() {
+    const cleared = useScanSessionStore.getState().clear();
+    setFailedCount(0);
+    const count = cleared.reduce((sum, row) => sum + row.count, 0);
+    if (count === 0) {
       return;
     }
-    // Built before the try: React Compiler can't lower a conditional inside one.
-    const removedLabel = `${copyIds.length} scanned ${copyIds.length === 1 ? "card" : "cards"}`;
-    try {
-      await disposeCopies.mutateAsync({ copyIds });
-      useScanSessionStore.getState().reset();
-      toast.success(`Removed ${removedLabel}`);
-    } catch {
-      // Rows stay: they're the only handle left on copies still in the collection.
-    }
+    toast.success(`Cleared ${count} ${cardWord(count)}`, {
+      action: {
+        label: "Undo",
+        onClick: () => useScanSessionStore.getState().putBack(cleared),
+      },
+    });
   }
 
-  const [addAllOpen, setAddAllOpen] = useState(false);
   const [wishFollowUps, setWishFollowUps] = useState<
     { printing: Printing; entries: WishEntryFlat[]; taken: number }[]
   >([]);
   const wish = useWishEntries(true);
-  const sessionRows = useScanSessionStore((state) => state.rows);
-  const identifiedCards = [...sessionRows.values()].reduce(
-    (sum, row) => sum + row.identifiedCount,
-    0,
-  );
+
+  async function handleUndoAdd(copyIds: string[], rows: ScanSessionRow[]) {
+    if (copyIds.length === 0) {
+      return;
+    }
+    try {
+      await disposeCopies.mutateAsync({ copyIds });
+      useScanSessionStore.getState().putBack(rows);
+    } catch {
+      // Reported by the global mutation error toast.
+    }
+  }
 
   async function handleAddAll(collectionId: string) {
     const rowsNow = [...useScanSessionStore.getState().rows.values()];
-    const jobs: { printing: Printing; tempId: string; result: Promise<{ id: string }> }[] = [];
-    for (const row of rowsNow) {
-      for (let i = 0; i < row.identifiedCount; i++) {
-        const { tempId, result } = batchedAdd.add(row.printing.id, collectionId);
-        useScanSessionStore.getState().convertIdentifiedToPending(row.printing.id, tempId);
-        jobs.push({ printing: row.printing, tempId, result });
-      }
-    }
+    const jobs = addJobsFor(rowsNow);
     if (jobs.length === 0) {
       return;
     }
-    const outcomes = await Promise.allSettled(jobs.map((job) => job.result));
-    let failed = 0;
-    const addedByPrinting = new Map<string, { printing: Printing; taken: number }>();
-    for (const [i, outcome] of outcomes.entries()) {
-      const job = jobs[i];
-      if (outcome.status === "fulfilled") {
-        useScanSessionStore.getState().confirmAdd(job.printing.id, job.tempId, outcome.value.id);
-        const counted = addedByPrinting.get(job.printing.id);
-        if (counted) {
-          counted.taken += 1;
-        } else {
-          addedByPrinting.set(job.printing.id, { printing: job.printing, taken: 1 });
-        }
-      } else {
-        failed += 1;
-        useScanSessionStore.getState().revertConvertToPending(job.printing.id, job.tempId);
-      }
+    setAdding(true);
+    setFailedCount(0);
+    const outcomes = await addInChunks(
+      jobs,
+      (printingId) => batchedAdd.add(printingId, collectionId).result,
+    );
+    setAdding(false);
+    const { confirmed, copyIds, failed } = settleAdd(jobs, outcomes);
+    useScanSessionStore.getState().take(confirmed);
+    setFailedCount(failed);
+    if (confirmed.size > 0) {
+      useScanSessionStore.getState().dismissResumed();
     }
+
+    const confirmedRows = rowsNow
+      .map((row) => ({ printing: row.printing, count: confirmed.get(row.printing.id) ?? 0 }))
+      .filter((row) => row.count > 0);
     const added = jobs.length - failed;
     const collectionName =
       collections.find((collection) => collection.id === collectionId)?.name ?? "your collection";
     if (added > 0) {
-      toast.success(`Added ${added} ${added === 1 ? "card" : "cards"} to ${collectionName}`);
+      toast.success(`Added ${added} ${cardWord(added)} to ${collectionName}`, {
+        action: {
+          label: "Undo",
+          onClick: () => void handleUndoAdd(copyIds, confirmedRows),
+        },
+      });
     }
-    if (failed > 0) {
-      toast.warning(
-        `${failed} ${failed === 1 ? "card" : "cards"} could not be added and stayed in the list`,
-      );
-    }
-    const followUps = [...addedByPrinting.values()]
-      .map(({ printing, taken }) => ({
-        printing,
-        taken,
-        entries: wish.entriesForPrinting(printing.cardId, printing.id),
+    const followUps = confirmedRows
+      .map((row) => ({
+        printing: row.printing,
+        taken: row.count,
+        entries: wish.entriesForPrinting(row.printing.cardId, row.printing.id),
       }))
       .filter((item) => item.entries.length > 0);
     if (followUps.length > 0) {
       setWishFollowUps(followUps);
     }
+  }
+
+  function handleAddAllToDestination() {
+    if (destination) {
+      void handleAddAll(destination.id);
+    }
+  }
+
+  function handlePickDestination(collectionId: string) {
+    setDestinationId(collectionId);
+    void handleAddAll(collectionId);
   }
 
   const [swapRow, setSwapRow] = useState<ScanSessionRow | null>(null);
@@ -625,7 +569,7 @@ export function ScanPage() {
     if (!row || printing.id === row.printing.id) {
       return;
     }
-    void handleSwitchPrinting(row, printing);
+    useScanSessionStore.getState().move(row.printing.id, printing);
   }
 
   function handleStart() {
@@ -640,6 +584,7 @@ export function ScanPage() {
 
   const layout = useScanLayout();
   const immersive = layout !== "boxed" && active;
+  const shutter = immersive && layout === "portrait";
   const coarsePointer = useCoarsePointer();
   const phoneHandoff = layout === "boxed" && !coarsePointer;
   const trayAnchorRef = useRef<HTMLDivElement>(null);
@@ -656,24 +601,21 @@ export function ScanPage() {
     };
   }, [immersive]);
 
-  const overVideo = immersive
-    ? "border-white/20 bg-black/60 text-white hover:bg-black/70 hover:text-white"
-    : "";
+  const settingsProps = {
+    languageItems,
+    language: cardLanguage ?? ANY_LANGUAGE,
+    onLanguageChange: (value: string) => setCardLanguage(value === ANY_LANGUAGE ? null : value),
+    autoScan,
+    onAutoScanChange: setAutoScan,
+    muted,
+    onMutedChange: setMuted,
+    tapToScan,
+    onTapToScanChange: setTapToScan,
+    deviceTooSlow,
+  };
 
   const notices = (
     <>
-      {deviceTooSlow && (
-        <Card className="border-warning mt-4">
-          <CardContent className="pt-6">
-            <p className="font-medium">This device is too slow for live scanning.</p>
-            <p className="text-muted-foreground mt-2">
-              Tap to scan instead: aim with the guide as usual, then tap <strong>Scan card</strong>{" "}
-              for each card.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
       {unavailableMessage && (
         <Card className="border-destructive mt-4">
           <CardContent className="pt-6">
@@ -704,31 +646,6 @@ export function ScanPage() {
         landscape={ghostLandscape}
         className={cn("absolute right-4", immersive ? "top-20" : "top-4")}
       />
-      {shownHint && (
-        <p
-          key={shownHint.kind}
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-sm text-white"
-        >
-          {shownHint.message}
-        </p>
-      )}
-      {suggestion !== null && suggestionLabel !== null && (
-        <div className="absolute bottom-4 left-1/2 flex max-w-[90%] -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/70 py-1 pr-1 pl-3 text-sm text-white">
-          <span className="truncate">Is it {suggestionLabel.split(" (")[0]}?</span>
-          <Button size="sm" onClick={handleSuggestionAdd}>
-            Add
-          </Button>
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            className="text-white hover:bg-white/20 hover:text-white"
-            onClick={handleSuggestionDismiss}
-            aria-label="Dismiss suggestion"
-          >
-            <XIcon className="size-4" />
-          </Button>
-        </div>
-      )}
       {!active && (
         <ScanStartPanel
           ready={ready}
@@ -744,152 +661,140 @@ export function ScanPage() {
     </>
   );
 
-  const targetSelect = (
-    // items must carry the full flat list: BaseUI's Select.Value resolves
-    // the trigger label from it, even though the list below renders grouped.
-    <Select
-      items={targetItems}
-      value={identifyOnly ? SCAN_IDENTIFY_ONLY : (targetId ?? "")}
-      onValueChange={(value) => {
-        if (value) {
-          setStoredTargetId(value);
-        }
-      }}
-    >
-      <SelectTrigger aria-label="Add scans to" className={cn("max-w-40 sm:max-w-56", overVideo)}>
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={SCAN_IDENTIFY_ONLY}>Just identify</SelectItem>
-        {collections.length > 0 && <SelectSeparator />}
-        {collections.map((collection) => (
-          <SelectItem key={collection.id} value={collection.id}>
-            {collection.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-
-  const muteButton = (
-    <Button
-      size="icon"
-      variant="ghost"
-      className={overVideo}
-      onClick={() => setMuted(!muted)}
-      aria-label={muted ? "Unmute scan sounds" : "Mute scan sounds"}
-    >
-      {muted ? <VolumeXIcon className="size-4" /> : <Volume2Icon className="size-4" />}
-    </Button>
-  );
-
-  const autoScanButton = !deviceTooSlow && (
-    <Button
-      size="icon"
-      variant="ghost"
-      aria-pressed={autoScan}
-      className={cn(overVideo, autoScan && "text-primary")}
-      onClick={() => setAutoScan(!autoScan)}
-      aria-label={
-        autoScan
-          ? "Auto-scan is on: turn it off to count each card once"
-          : "Auto-scan is off: turn it on to count copies dealt past the camera"
-      }
-    >
-      <LayersIcon className="size-4" />
-    </Button>
-  );
-
   const chrome = (
     <>
-      {targetSelect}
-      <div className="ml-auto flex items-center gap-1">
-        {autoScanButton}
-        {muteButton}
+      <Button
+        variant="ghost"
+        onClick={handleStop}
+        className={cn("h-11 rounded-full px-4", OVER_VIDEO)}
+      >
+        <CameraOffIcon />
+        Stop
+      </Button>
+      <div className="ml-auto">
+        <ScanSettingsMenu
+          {...settingsProps}
+          trigger={
+            <Button
+              size="icon"
+              variant="ghost"
+              className={cn("size-11 rounded-full", OVER_VIDEO)}
+              aria-label="Scan settings"
+            />
+          }
+          triggerContent={<SlidersHorizontalIcon className="size-4" />}
+        />
       </div>
     </>
   );
 
   const controls = (
     <>
-      {active && (
-        <>
-          {settings.mode === "capture" && (
-            <Button onClick={handleCapture} className={cn(!immersive && "flex-1 sm:flex-none")}>
+      {shownHint && (
+        <p key={shownHint.kind} className="rounded-full bg-black/60 px-3 py-1 text-sm text-white">
+          {shownHint.message}
+        </p>
+      )}
+      {suggestion !== null && suggestionLabel !== null && (
+        <div className="flex max-w-[90%] items-center gap-1.5 rounded-full bg-black/70 py-1 pr-1 pl-3 text-sm text-white">
+          <span className="truncate">Is it {suggestionLabel.split(" (")[0]}?</span>
+          <Button size="sm" onClick={handleSuggestionAdd}>
+            Add
+          </Button>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            className="text-white hover:bg-white/20 hover:text-white"
+            onClick={handleSuggestionDismiss}
+            aria-label="Dismiss suggestion"
+          >
+            <XIcon className="size-4" />
+          </Button>
+        </div>
+      )}
+      {active && shutter && (
+        <div className="flex flex-col items-center gap-1">
+          <Button
+            size="icon"
+            className="size-18 rounded-full [clip-path:none] [&_svg:not([class*='size-'])]:size-7"
+            onClick={settings.mode === "capture" ? handleCapture : () => void handleIdentifyNow()}
+            aria-label={settings.mode === "capture" ? "Scan card" : "Identify now"}
+          >
+            <ScanSearchIcon />
+          </Button>
+          <span className="text-sm text-white/80">
+            {settings.mode === "capture" ? "Scan card" : "Identify now"}
+          </span>
+        </div>
+      )}
+      {active && !shutter && (
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {settings.mode === "capture" ? (
+            <Button size="lg" onClick={handleCapture}>
               <CameraIcon />
               Scan card
             </Button>
+          ) : (
+            <Button size="lg" onClick={() => void handleIdentifyNow()}>
+              <ScanSearchIcon />
+              Identify now
+            </Button>
           )}
-          <Button size="lg" className="h-11 px-6" onClick={() => void handleIdentifyNow()}>
-            <ScanSearchIcon />
-            Identify now
-          </Button>
-          <Button onClick={handleStop} variant="secondary" className={overVideo}>
+          <Button variant="ghost" onClick={handleStop} className={OVER_VIDEO}>
             <CameraOffIcon />
             Stop
           </Button>
-        </>
+        </div>
       )}
-      <div className={cn("flex items-center gap-2", active && !immersive && "ml-auto")}>
-        {!immersive && <span className="text-muted-foreground text-sm">Card language</span>}
-        <Select
-          items={languageItems}
-          value={cardLanguage ?? ANY_LANGUAGE}
-          onValueChange={(value) => {
-            if (value) {
-              setCardLanguage(value === ANY_LANGUAGE ? null : value);
-            }
-          }}
-        >
-          <SelectTrigger aria-label="Card language" className={overVideo}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {languageItems.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
     </>
   );
 
   const tray = (
-    <>
-      {resumeNotice !== null && (
-        <div className="bg-muted/50 mb-2 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md px-3 py-2">
-          <span className="text-sm">
-            {resumeNotice.cards} {resumeNotice.cards === 1 ? "card" : "cards"} from{" "}
-            {resumeNotice.when}.
-          </span>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => useScanSessionStore.getState().dismissResumed()}
-            >
-              Keep going
-            </Button>
-            <Button size="sm" variant="ghost" onClick={handleStartFresh}>
-              Start fresh
-            </Button>
-          </div>
-        </div>
-      )}
-      <ScanSessionTray
-        index={index}
-        onAddOne={handleAddOne}
-        onRemoveOne={(row) => void handleRemoveOne(row)}
-        onChangePrinting={setSwapRow}
-        onRemoveAll={() => void handleRemoveAll()}
-        onAddAll={() => setAddAllOpen(true)}
-        unidentified={unidentified}
-        onIdentifyMissed={handleIdentifyMissed}
-        onDismissMissed={dismissUnidentified}
-      />
-    </>
+    <ScanSessionTray
+      index={index}
+      collections={collections}
+      destination={destination}
+      adding={adding}
+      failedCount={failedCount}
+      compact={layout === "portrait"}
+      resumed={resumeNotice !== null}
+      notice={
+        resumeNotice !== null && (
+          <Callout className="border-warning mb-2 p-3">
+            <div className="flex gap-2">
+              <TriangleAlertIcon className="text-warning mt-0.5 size-4 shrink-0" />
+              <div className="flex min-w-0 flex-col gap-2">
+                <p>
+                  These {resumeNotice.cards} {cardWord(resumeNotice.cards)} were scanned{" "}
+                  {resumeNotice.when} and never added to a collection.
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={adding}
+                    onClick={handleAddAllToDestination}
+                  >
+                    Add them to {destination?.name ?? "a collection"}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={handleClear}>
+                    Discard
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Callout>
+        )
+      }
+      onAddOne={handleAddOne}
+      onRemoveOne={handleRemoveOne}
+      onChangePrinting={setSwapRow}
+      onClear={handleClear}
+      onAddAll={handlePickDestination}
+      unidentified={unidentified}
+      onIdentifyMissed={handleIdentifyMissed}
+      onDismissMissed={dismissUnidentified}
+    />
   );
 
   return (
@@ -899,27 +804,16 @@ export function ScanPage() {
           <PageTopBar>
             <PageTopBarTitle>Scan cards</PageTopBarTitle>
             <PageTopBarActions>
-              {targetSelect}
-              {!deviceTooSlow && (
-                <PageTopBarIconButton
-                  aria-pressed={autoScan}
-                  className={cn(autoScan && "text-primary")}
-                  onClick={() => setAutoScan(!autoScan)}
-                  aria-label={
-                    autoScan
-                      ? "Auto-scan is on: turn it off to count each card once"
-                      : "Auto-scan is off: turn it on to count copies dealt past the camera"
-                  }
-                >
-                  <LayersIcon className="size-4" />
-                </PageTopBarIconButton>
-              )}
-              <PageTopBarIconButton
-                onClick={() => setMuted(!muted)}
-                aria-label={muted ? "Unmute scan sounds" : "Mute scan sounds"}
-              >
-                {muted ? <VolumeXIcon className="size-4" /> : <Volume2Icon className="size-4" />}
-              </PageTopBarIconButton>
+              <ScanSettingsMenu
+                {...settingsProps}
+                trigger={<PageTopBarButton />}
+                triggerContent={
+                  <>
+                    <SlidersHorizontalIcon className="size-4" />
+                    Settings
+                  </>
+                }
+              />
             </PageTopBarActions>
           </PageTopBar>
         </PageTopBarSticky>
@@ -961,14 +855,6 @@ export function ScanPage() {
         candidates={identify?.candidates ?? []}
         onPick={handleIdentifyPick}
         onDismiss={handleIdentifyDismiss}
-      />
-      <ScanAddAllDialog
-        open={addAllOpen}
-        onOpenChange={setAddAllOpen}
-        collections={collections}
-        count={identifiedCards}
-        targetId={targetId ?? undefined}
-        onConfirm={(collectionId) => void handleAddAll(collectionId)}
       />
       <TakeWishlistFollowUpDialog
         printing={wishFollowUps[0]?.printing ?? null}

@@ -50,7 +50,9 @@ export function ScanStartPanel({
         {ready ? (
           <>
             <p className="text-white/70">
-              Hold a card in the frame and it is added as soon as the scanner recognises it.
+              Hold a card in the frame. Recognised cards land in the list{" "}
+              <span className="md:hidden">below</span>
+              <span className="hidden md:inline">on the right</span>.
             </p>
             <Button onClick={onStart} disabled={cameraAvailable !== true}>
               <CameraIcon />
@@ -68,23 +70,23 @@ export function ScanStartPanel({
             />
           </div>
         )}
-
-        {/* The tray lives in this browser's local storage; the QR code does
-            not carry the scanning session to the phone. */}
-        {showPhoneHint && (
-          <div className="flex w-full flex-col items-center gap-2 border-t border-white/15 pt-4">
-            <p className="font-medium">Better on a phone</p>
-            <p className="text-xs text-white/60">Point it at the code to open this page there.</p>
-            <QrCode
-              value={`${getSiteUrl()}/scan`}
-              size={96}
-              label="QR code for the scanning page"
-            />
-          </div>
-        )}
       </div>
 
-      <ul className="absolute inset-x-0 bottom-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 px-3 text-xs text-white/60">
+      {/* The tray lives in this browser's local storage; the QR code does
+          not carry the scanning session to the phone. */}
+      {showPhoneHint && (
+        <div className="absolute bottom-3 left-3 flex max-w-64 items-center gap-3 rounded-lg bg-white/5 p-2 text-left">
+          <QrCode value={`${getSiteUrl()}/scan`} size={64} label="QR code for the scanning page" />
+          <span className="min-w-0">
+            <span className="block font-medium">Better on a phone</span>
+            <span className="block text-xs text-white/60">
+              Scan the code to open this page there.
+            </span>
+          </span>
+        </div>
+      )}
+
+      <ul className="absolute right-3 bottom-3 flex flex-wrap items-center justify-end gap-x-4 gap-y-1 pl-3 text-xs text-white/60">
         {TIPS.map((tip) => (
           <li key={tip.label} className="flex items-center gap-1.5">
             <tip.icon className="size-3.5" />

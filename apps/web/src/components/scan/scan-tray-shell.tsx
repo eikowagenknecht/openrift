@@ -4,7 +4,9 @@ import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import type { ScanLayout } from "@/hooks/use-scan-layout";
 import { cn } from "@/lib/utils";
 
-const PEEK_SNAP_POINT = "11.5rem";
+// Fits the handle, the header, one row and the pinned footer. The stage's
+// bottom control stack clears the same height.
+export const SCAN_TRAY_PEEK = "15rem";
 
 const LANDSCAPE_PANEL_WIDTH = "w-72";
 
@@ -17,7 +19,10 @@ interface ScanTrayShellProps {
 export function ScanTrayShell({ layout, anchorRef, children }: ScanTrayShellProps) {
   if (layout === "boxed") {
     return (
-      <div ref={anchorRef} className="mt-2">
+      <div
+        ref={anchorRef}
+        className="bg-card/40 flex min-h-0 flex-col rounded-lg px-3 pb-3 md:col-start-2 md:row-start-2 md:h-full md:border"
+      >
         {children}
       </div>
     );
@@ -28,7 +33,7 @@ export function ScanTrayShell({ layout, anchorRef, children }: ScanTrayShellProp
       <div
         ref={anchorRef}
         className={cn(
-          "bg-background/80 pr-safe fixed inset-y-0 right-0 z-50 overflow-y-auto overscroll-contain border-l px-3 py-3 backdrop-blur-lg",
+          "bg-background/80 pr-safe fixed inset-y-0 right-0 z-50 flex min-h-0 flex-col border-l px-3 pb-3 backdrop-blur-lg",
           LANDSCAPE_PANEL_WIDTH,
         )}
       >
@@ -46,13 +51,13 @@ export function ScanTrayShell({ layout, anchorRef, children }: ScanTrayShellProp
         details.cancel();
       }}
       modal={false}
-      snapPoints={[PEEK_SNAP_POINT, 1]}
-      defaultSnapPoint={PEEK_SNAP_POINT}
+      snapPoints={[SCAN_TRAY_PEEK, 1]}
+      defaultSnapPoint={SCAN_TRAY_PEEK}
       snapToSequentialPoints
       showSwipeHandle
     >
       <DrawerContent>
-        <div ref={anchorRef} className="px-safe overflow-y-auto overscroll-contain px-4 pt-1 pb-4">
+        <div ref={anchorRef} className="px-safe pb-safe flex min-h-0 flex-1 flex-col px-4">
           {children}
         </div>
       </DrawerContent>

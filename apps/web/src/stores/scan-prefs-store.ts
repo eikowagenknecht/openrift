@@ -3,17 +3,33 @@ import { persist } from "zustand/middleware";
 
 const DEFAULT_SCAN_LANGUAGE = "EN";
 
-export const SCAN_IDENTIFY_ONLY = "identify-only";
+const LEGACY_IDENTIFY_ONLY = "identify-only";
 
 interface ScanPrefsState {
   muted: boolean;
   setMuted: (value: boolean) => void;
-  targetCollectionId: string | null;
-  setTargetCollectionId: (value: string | null) => void;
+  destinationCollectionId: string | null;
+  setDestinationCollectionId: (value: string | null) => void;
   cardLanguage: string | null;
   setCardLanguage: (value: string | null) => void;
   autoScan: boolean;
   setAutoScan: (value: boolean) => void;
+  tapToScan: boolean;
+  setTapToScan: (value: boolean) => void;
+}
+
+function mergeDestination(raw: Record<string, unknown>, current: string | null): string | null {
+  if (typeof raw.destinationCollectionId === "string") {
+    return raw.destinationCollectionId;
+  }
+  if (raw.destinationCollectionId === null) {
+    return null;
+  }
+  const legacy = raw.targetCollectionId;
+  if (typeof legacy === "string" && legacy !== LEGACY_IDENTIFY_ONLY) {
+    return legacy;
+  }
+  return current;
 }
 
 export const useScanPrefsStore = create<ScanPrefsState>()(
@@ -21,20 +37,23 @@ export const useScanPrefsStore = create<ScanPrefsState>()(
     (set) => ({
       muted: false,
       setMuted: (value) => set({ muted: value }),
-      targetCollectionId: SCAN_IDENTIFY_ONLY,
-      setTargetCollectionId: (value) => set({ targetCollectionId: value }),
+      destinationCollectionId: null,
+      setDestinationCollectionId: (value) => set({ destinationCollectionId: value }),
       cardLanguage: DEFAULT_SCAN_LANGUAGE,
       setCardLanguage: (value) => set({ cardLanguage: value }),
       autoScan: false,
       setAutoScan: (value) => set({ autoScan: value }),
+      tapToScan: false,
+      setTapToScan: (value) => set({ tapToScan: value }),
     }),
     {
       name: "openrift-scan-prefs",
       partialize: (state) => ({
         muted: state.muted,
-        targetCollectionId: state.targetCollectionId,
+        destinationCollectionId: state.destinationCollectionId,
         cardLanguage: state.cardLanguage,
         autoScan: state.autoScan,
+        tapToScan: state.tapToScan,
       }),
       merge: (persisted, current) => {
         const raw = (persisted as Record<string, unknown>) ?? {};
@@ -46,12 +65,10 @@ export const useScanPrefsStore = create<ScanPrefsState>()(
         return {
           ...current,
           muted: typeof raw.muted === "boolean" ? raw.muted : current.muted,
-          targetCollectionId:
-            typeof raw.targetCollectionId === "string"
-              ? raw.targetCollectionId
-              : current.targetCollectionId,
+          destinationCollectionId: mergeDestination(raw, current.destinationCollectionId),
           cardLanguage: language,
           autoScan: typeof raw.autoScan === "boolean" ? raw.autoScan : current.autoScan,
+          tapToScan: typeof raw.tapToScan === "boolean" ? raw.tapToScan : current.tapToScan,
         };
       },
     },

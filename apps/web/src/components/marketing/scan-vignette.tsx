@@ -89,16 +89,13 @@ function TrayRow({
         </span>
       </span>
       {ownedBefore === 0 ? (
-        <span
-          className="text-success shrink-0 text-sm"
-          title="None in your collection before this session"
-        >
+        <span className="text-success shrink-0 text-sm" title="None in your collection">
           New
         </span>
       ) : (
         <span
           className="text-muted-foreground shrink-0 text-sm tabular-nums"
-          title="Copies in your collection before this session"
+          title="Copies already in your collection"
         >
           {ownedBefore} owned
         </span>
@@ -138,10 +135,7 @@ function TrayTotals({
       <span className="text-muted-foreground" aria-hidden="true">
         ·
       </span>
-      <span
-        className="text-success"
-        title="Cards with no copy in your collection before this session"
-      >
+      <span className="text-success" title="Cards you own no copy of">
         {newCount} new
       </span>
     </p>

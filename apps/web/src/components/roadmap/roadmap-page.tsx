@@ -90,7 +90,7 @@ const roadmapItems: RoadmapItem[] = [
   {
     title: "Card Scanner",
     description:
-      "Point your camera at a card and it is added to your collection, recognised on your own device.",
+      "Point your camera at a card, recognised on your own device, and it lands in a list you add to a collection in one step.",
     icon: <ScanLineIcon className="size-4" />,
     done: true,
     date: "Aug 2026",

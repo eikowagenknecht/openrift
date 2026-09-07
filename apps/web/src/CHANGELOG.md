@@ -2,6 +2,10 @@
 
 ## 2026-09-07
 
+### Highlights
+
+- feat(Collection): **One scan list, one add step** — the scanner now keeps a list on the device and adds it to a collection in one step, so a reload or a lost request can no longer drop scanned cards.
+
 ### Other
 
 - fix(Scan): **Clearer foil correction while scanning** — the scan tray no longer shows a normal card's finish button labeled as foil; switch a card's finish through the printing picker, which now marks the printing you're already on.

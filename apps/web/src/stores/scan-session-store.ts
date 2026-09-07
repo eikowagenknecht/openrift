@@ -2,27 +2,14 @@ import type { Printing } from "@openrift/shared";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-import { isTempCopyId } from "@/lib/temp-copy-id";
-
-/**
- * Copies behind a tray row are already committed to the collection; the tray
- * is a session log with handles, not a pending queue.
- */
 export interface ScanSessionRow {
   printing: Printing;
-  copyIds: string[];
-  pendingCount: number;
-  identifiedCount: number;
-}
-
-export function sessionCountOf(row: ScanSessionRow): number {
-  return row.copyIds.length + row.identifiedCount;
+  count: number;
 }
 
 interface PersistedScanRow {
   printingId: string;
-  copyIds: string[];
-  identifiedCount: number;
+  count: number;
 }
 
 interface PersistedScanSession {
@@ -41,33 +28,33 @@ interface ScanSessionState {
   scans: number;
   lastScanAt: number | null;
   restored: PersistedScanSession | null;
-  recordPending: (printing: Printing, tempCopyId: string) => void;
-  recordIdentified: (printing: Printing) => void;
-  confirmAdd: (printingId: string, tempCopyId: string, copyId: string) => void;
-  dropPending: (printingId: string, tempCopyId: string) => void;
-  removeIdentified: (printingId: string) => void;
-  convertIdentifiedToPending: (printingId: string, tempCopyId: string) => void;
-  revertConvertToPending: (printingId: string, tempCopyId: string) => void;
-  removeCopy: (printingId: string, copyId: string) => void;
-  recordConfirmed: (printing: Printing, copyId: string) => void;
   resumed: RestoredScanSession | null;
+  add: (printing: Printing) => void;
+  remove: (printingId: string) => void;
+  move: (fromPrintingId: string, to: Printing) => void;
+  take: (counts: ReadonlyMap<string, number>) => void;
+  putBack: (rows: readonly ScanSessionRow[]) => void;
+  clear: () => ScanSessionRow[];
   restore: (lookupPrinting: (printingId: string) => Printing | undefined) => void;
   dismissResumed: () => void;
   reset: () => void;
 }
 
-function isPersistedRow(value: unknown): value is PersistedScanRow {
+function readPersistedRow(value: unknown): PersistedScanRow | null {
   if (typeof value !== "object" || value === null) {
-    return false;
+    return null;
   }
   const row = value as Record<string, unknown>;
-  return (
-    typeof row.printingId === "string" &&
-    Array.isArray(row.copyIds) &&
-    row.copyIds.every((id) => typeof id === "string") &&
-    typeof row.identifiedCount === "number" &&
-    row.identifiedCount >= 0
-  );
+  if (typeof row.printingId !== "string") {
+    return null;
+  }
+  // A blob from the copy-per-scan shape counts only what it never wrote to a
+  // collection; the copies behind `copyIds` are already there.
+  const count = typeof row.count === "number" ? row.count : row.identifiedCount;
+  if (typeof count !== "number" || !Number.isFinite(count) || count <= 0) {
+    return null;
+  }
+  return { printingId: row.printingId, count: Math.floor(count) };
 }
 
 /**
@@ -80,11 +67,10 @@ function toPersisted(state: ScanSessionState): PersistedScanSession {
   }
   const rows: PersistedScanRow[] = [];
   for (const row of state.rows.values()) {
-    const copyIds = row.copyIds.filter((id) => !isTempCopyId(id));
-    if (copyIds.length === 0 && row.identifiedCount === 0) {
+    if (row.count <= 0) {
       continue;
     }
-    rows.push({ printingId: row.printing.id, copyIds, identifiedCount: row.identifiedCount });
+    rows.push({ printingId: row.printing.id, count: row.count });
   }
   return { rows, scans: state.scans, lastScanAt: state.lastScanAt };
 }
@@ -96,169 +82,95 @@ export const useScanSessionStore = create<ScanSessionState>()(
       scans: 0,
       lastScanAt: null,
       restored: null,
+      resumed: null,
 
-      recordPending: (printing, tempCopyId) =>
+      add: (printing) =>
         set((state) => {
           const next = new Map(state.rows);
           const existing = state.rows.get(printing.id);
-          // delete + set keeps insertion order = most recently touched last.
+          // delete + set keeps insertion order = most recently scanned last.
           next.delete(printing.id);
-          next.set(printing.id, {
-            printing,
-            copyIds: [...(existing?.copyIds ?? []), tempCopyId],
-            pendingCount: (existing?.pendingCount ?? 0) + 1,
-            identifiedCount: existing?.identifiedCount ?? 0,
-          });
-          return { rows: next, scans: state.scans + 1, lastScanAt: Date.now() };
+          next.set(printing.id, { printing, count: (existing?.count ?? 0) + 1 });
+          return { rows: next, scans: state.scans + 1, lastScanAt: Date.now(), resumed: null };
         }),
 
-      recordIdentified: (printing) =>
-        set((state) => {
-          const next = new Map(state.rows);
-          const existing = state.rows.get(printing.id);
-          next.delete(printing.id);
-          next.set(printing.id, {
-            printing,
-            copyIds: existing?.copyIds ?? [],
-            pendingCount: existing?.pendingCount ?? 0,
-            identifiedCount: (existing?.identifiedCount ?? 0) + 1,
-          });
-          return { rows: next, scans: state.scans + 1, lastScanAt: Date.now() };
-        }),
-
-      confirmAdd: (printingId, tempCopyId, copyId) =>
+      remove: (printingId) =>
         set((state) => {
           const existing = state.rows.get(printingId);
           if (!existing) {
             return state;
           }
-          // Duplicate keys keep their first position in the Map constructor, so
-          // confirming does not move the row.
-          const next = new Map<string, ScanSessionRow>([
-            ...state.rows,
-            [
-              printingId,
-              {
-                ...existing,
-                copyIds: existing.copyIds.map((id) => (id === tempCopyId ? copyId : id)),
-                pendingCount: Math.max(0, existing.pendingCount - 1),
-              },
-            ],
-          ]);
+          const count = existing.count - 1;
+          if (count <= 0) {
+            const next = new Map(state.rows);
+            next.delete(printingId);
+            return { rows: next };
+          }
+          const next = new Map<string, ScanSessionRow>();
+          for (const [key, row] of state.rows) {
+            next.set(key, key === printingId ? { ...row, count } : row);
+          }
           return { rows: next };
         }),
 
-      dropPending: (printingId, tempCopyId) =>
+      move: (fromPrintingId, to) =>
         set((state) => {
-          const existing = state.rows.get(printingId);
-          if (!existing) {
+          const from = state.rows.get(fromPrintingId);
+          if (!from || from.count <= 0 || fromPrintingId === to.id) {
             return state;
           }
+          const fromCount = from.count - 1;
+          const next = new Map<string, ScanSessionRow>();
+          for (const [key, row] of state.rows) {
+            if (key === fromPrintingId) {
+              if (fromCount > 0) {
+                next.set(key, { ...row, count: fromCount });
+              } else if (!state.rows.has(to.id)) {
+                next.set(to.id, { printing: to, count: 1 });
+              }
+              continue;
+            }
+            next.set(key, key === to.id ? { printing: to, count: row.count + 1 } : row);
+          }
+          if (!next.has(to.id)) {
+            next.set(to.id, { printing: to, count: 1 });
+          }
+          return { rows: next };
+        }),
+
+      take: (counts) =>
+        set((state) => {
+          const next = new Map<string, ScanSessionRow>();
+          for (const [key, row] of state.rows) {
+            const count = row.count - (counts.get(key) ?? 0);
+            if (count > 0) {
+              next.set(key, { ...row, count });
+            }
+          }
+          return { rows: next };
+        }),
+
+      putBack: (rows) =>
+        set((state) => {
           const next = new Map(state.rows);
-          const copyIds = existing.copyIds.filter((id) => id !== tempCopyId);
-          if (copyIds.length === 0 && existing.identifiedCount === 0) {
-            next.delete(printingId);
-          } else {
-            next.set(printingId, {
-              ...existing,
-              copyIds,
-              pendingCount: Math.max(0, existing.pendingCount - 1),
+          for (const row of rows) {
+            if (row.count <= 0) {
+              continue;
+            }
+            const existing = next.get(row.printing.id);
+            next.set(row.printing.id, {
+              printing: existing?.printing ?? row.printing,
+              count: (existing?.count ?? 0) + row.count,
             });
           }
           return { rows: next };
         }),
 
-      convertIdentifiedToPending: (printingId, tempCopyId) =>
-        set((state) => {
-          const existing = state.rows.get(printingId);
-          if (!existing || existing.identifiedCount === 0) {
-            return state;
-          }
-          // Duplicate keys keep their first position in the Map constructor, so
-          // converting does not move the row.
-          const next = new Map<string, ScanSessionRow>([
-            ...state.rows,
-            [
-              printingId,
-              {
-                ...existing,
-                copyIds: [...existing.copyIds, tempCopyId],
-                pendingCount: existing.pendingCount + 1,
-                identifiedCount: existing.identifiedCount - 1,
-              },
-            ],
-          ]);
-          return { rows: next };
-        }),
-
-      revertConvertToPending: (printingId, tempCopyId) =>
-        set((state) => {
-          const existing = state.rows.get(printingId);
-          if (!existing || !existing.copyIds.includes(tempCopyId)) {
-            return state;
-          }
-          const next = new Map<string, ScanSessionRow>([
-            ...state.rows,
-            [
-              printingId,
-              {
-                ...existing,
-                copyIds: existing.copyIds.filter((id) => id !== tempCopyId),
-                pendingCount: Math.max(0, existing.pendingCount - 1),
-                identifiedCount: existing.identifiedCount + 1,
-              },
-            ],
-          ]);
-          return { rows: next };
-        }),
-
-      removeIdentified: (printingId) =>
-        set((state) => {
-          const existing = state.rows.get(printingId);
-          if (!existing || existing.identifiedCount === 0) {
-            return state;
-          }
-          const next = new Map(state.rows);
-          const identifiedCount = existing.identifiedCount - 1;
-          if (identifiedCount === 0 && existing.copyIds.length === 0) {
-            next.delete(printingId);
-          } else {
-            next.set(printingId, { ...existing, identifiedCount });
-          }
-          return { rows: next };
-        }),
-
-      removeCopy: (printingId, copyId) =>
-        set((state) => {
-          const existing = state.rows.get(printingId);
-          if (!existing || !existing.copyIds.includes(copyId)) {
-            return state;
-          }
-          const next = new Map(state.rows);
-          const copyIds = existing.copyIds.filter((id) => id !== copyId);
-          if (copyIds.length === 0 && existing.identifiedCount === 0) {
-            next.delete(printingId);
-          } else {
-            next.set(printingId, { ...existing, copyIds });
-          }
-          return { rows: next };
-        }),
-
-      recordConfirmed: (printing, copyId) =>
-        set((state) => {
-          const existing = state.rows.get(printing.id);
-          const next = new Map(state.rows);
-          next.delete(printing.id);
-          next.set(printing.id, {
-            printing,
-            copyIds: [...(existing?.copyIds ?? []), copyId],
-            pendingCount: existing?.pendingCount ?? 0,
-            identifiedCount: existing?.identifiedCount ?? 0,
-          });
-          return { rows: next };
-        }),
-
-      resumed: null,
+      clear: () => {
+        const cleared = [...get().rows.values()];
+        set({ rows: new Map(), resumed: null });
+        return cleared;
+      },
 
       restore: (lookupPrinting) => {
         const payload = get().restored;
@@ -270,38 +182,18 @@ export const useScanSessionStore = create<ScanSessionState>()(
           const next = new Map<string, ScanSessionRow>();
           for (const persistedRow of payload.rows) {
             const printing = lookupPrinting(persistedRow.printingId);
-            if (!printing) {
+            if (!printing || persistedRow.count <= 0) {
               continue;
             }
-            // Temp ids should never have been stored, but a payload written by
-            // an older bundle gets the same defence as the write path.
-            const copyIds = persistedRow.copyIds.filter((id) => !isTempCopyId(id));
-            if (copyIds.length === 0 && persistedRow.identifiedCount === 0) {
-              continue;
-            }
-            cards += copyIds.length + persistedRow.identifiedCount;
-            next.set(printing.id, {
-              printing,
-              copyIds,
-              pendingCount: 0,
-              identifiedCount: persistedRow.identifiedCount,
-            });
+            cards += persistedRow.count;
+            next.set(printing.id, { printing, count: persistedRow.count });
           }
           // Cards scanned before the restore ran are newer than anything in the
           // payload, so they re-append behind the restored rows.
           for (const [printingId, row] of state.rows) {
             const earlier = next.get(printingId);
             next.delete(printingId);
-            next.set(
-              printingId,
-              earlier
-                ? {
-                    ...row,
-                    copyIds: [...earlier.copyIds, ...row.copyIds],
-                    identifiedCount: earlier.identifiedCount + row.identifiedCount,
-                  }
-                : row,
-            );
+            next.set(printingId, earlier ? { ...row, count: earlier.count + row.count } : row);
           }
           return {
             rows: next,
@@ -323,7 +215,15 @@ export const useScanSessionStore = create<ScanSessionState>()(
       partialize: toPersisted,
       merge: (persisted, current) => {
         const raw = (persisted as Record<string, unknown>) ?? {};
-        const rows = Array.isArray(raw.rows) ? raw.rows.filter(isPersistedRow) : [];
+        const rows: PersistedScanRow[] = [];
+        if (Array.isArray(raw.rows)) {
+          for (const value of raw.rows) {
+            const row = readPersistedRow(value);
+            if (row) {
+              rows.push(row);
+            }
+          }
+        }
         if (rows.length === 0) {
           return current;
         }

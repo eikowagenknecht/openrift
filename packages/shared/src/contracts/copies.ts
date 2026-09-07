@@ -33,6 +33,8 @@ const metadataConsistent = (value: {
 const METADATA_CONSISTENCY_MESSAGE =
   "grader and grade must be set together, and a graded copy cannot also carry a condition";
 
+export const MAX_COPIES_PER_ADD = 500;
+
 export const addCopiesSchema = z.object({
   copies: z
     .array(
@@ -45,7 +47,7 @@ export const addCopiesSchema = z.object({
         .refine(metadataConsistent, METADATA_CONSISTENCY_MESSAGE),
     )
     .min(1)
-    .max(500),
+    .max(MAX_COPIES_PER_ADD),
 });
 
 // Absent keys stay untouched; explicit nulls clear.
