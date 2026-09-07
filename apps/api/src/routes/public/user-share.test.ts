@@ -6,10 +6,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { publicUserShareRouter } from "./user-share";
 
-// ---------------------------------------------------------------------------
-// Mock repos
-// ---------------------------------------------------------------------------
-
 const mockUserSharesRepo = {
   findOwnerByShareToken: vi.fn(),
   listsForOwner: vi.fn(),
@@ -21,15 +17,9 @@ const mockFriendGroupsRepo = {
 };
 
 const mockListsRepo = {
-  // The list-detail route still enriches; only the bundle's counts are batched.
   entriesWithDetailsAnon: vi.fn(),
   expandedCounts: vi.fn(),
 };
-
-// ---------------------------------------------------------------------------
-// Test app — mount the oRPC router directly. `viewerUserId` is null (anonymous)
-// unless a test sets `c.get("user")` via the override below.
-// ---------------------------------------------------------------------------
 
 let currentUser: { id: string } | null = null;
 
@@ -46,10 +36,6 @@ app.use("*", async (c, next) => {
   await next();
 });
 registerRouterForTest(app, publicUserShareRouter);
-
-// ---------------------------------------------------------------------------
-// Fixtures
-// ---------------------------------------------------------------------------
 
 const OWNER_ID = "a0000000-0001-4000-a000-000000000001";
 const LIST_ID = "a0000000-0001-4000-a000-000000000010";
@@ -89,10 +75,6 @@ const dbEntry = {
   tradeOverride: { pricePref: null, priceAbsoluteCents: null, tradeType: null },
 };
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe("GET /api/v1/users/share/:token", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -122,7 +104,6 @@ describe("GET /api/v1/users/share/:token", () => {
       createdAt: NOW.toISOString(),
       updatedAt: NOW.toISOString(),
     });
-    // Anonymous viewer: collections are never fetched.
     expect(json.collections).toEqual([]);
     expect(mockFriendGroupsRepo.collectionsBundleForViewer).not.toHaveBeenCalled();
   });
@@ -132,9 +113,6 @@ describe("GET /api/v1/users/share/:token", () => {
       ...dbList,
       id: "a0000000-0001-4000-a000-000000000011",
       name: "Smart Trades",
-      // A dynamic list keeps its contents in `rules`, so it materializes 0 rows
-      // — the bug this covers. Only `.filter` is read on normalize, so a minimal
-      // rule is enough to flag it as rule-based.
       rules: [{ kind: "trade", filter: {} }],
     };
     mockUserSharesRepo.findOwnerByShareToken.mockResolvedValue(dbOwner);
@@ -150,14 +128,10 @@ describe("GET /api/v1/users/share/:token", () => {
     const byId = new Map(
       (json.lists as { id: string; entryCount: number }[]).map((l) => [l.id, l.entryCount]),
     );
-    // Manual list keeps its cheap materialized count and is never expanded.
     expect(byId.get(dbList.id)).toBe(3);
-    // Rule-based list reports the expanded size, not the materialized 0.
     expect(byId.get(ruledList.id)).toBe(4);
-    // One batched call, carrying only the rule-based list.
     expect(mockListsRepo.expandedCounts).toHaveBeenCalledTimes(1);
     expect(mockListsRepo.expandedCounts).toHaveBeenCalledWith([ruledList.id]);
-    // The bundle never falls back to the enriching detail path for a count.
     expect(mockListsRepo.entriesWithDetailsAnon).not.toHaveBeenCalled();
   });
 

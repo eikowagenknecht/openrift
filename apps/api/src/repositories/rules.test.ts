@@ -21,9 +21,6 @@ describe("rulesRepo", () => {
     });
 
     it("sums numInsertedOrUpdatedRows rather than counting InsertResults", async () => {
-      // Regression: a multi-row insert is one statement, so `execute()` resolves
-      // to a single InsertResult no matter how many rows landed. Reading
-      // `result.length` therefore reported 1 for every non-empty call.
       const db = createMockDb([{ numInsertedOrUpdatedRows: 3n }]);
       expect(await rulesRepo(db).insertRules([rule, rule, rule])).toBe(3);
     });

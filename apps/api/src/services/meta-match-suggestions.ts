@@ -1,20 +1,6 @@
 /**
- * "Which live row is this candidate probably about?" for the meta archive's
- * multi-source review.
- *
- * Two sources describing one tournament have to be linked by hand, and doing
- * that every week is the friction that would kill the workflow. So ingest
- * proposes and the admin confirms: everything here ranks, nothing here writes,
- * and no suggestion is ever applied on its own. A wrong auto-link would fan two
- * unrelated events into one page, and unpicking that is worse than the click it
- * saved.
- *
- * The signals: for an event, the same format, a close date, and a similar
- * name; for a player inside an already-linked event, the same normalized player
- * name, else the same finish. Name comparison reuses
- * `normalizeNameForIdentity`, the same normalization the card matcher and the
- * deck ingest run on, so "Summoner Skirmish #4" and "summoner skirmish 4" are
- * one name here exactly as they are there.
+ * Ranks candidate live events/players against a meta archive overlay for
+ * manual linking. Ranks only; never applies a suggestion.
  */
 import type { MetaOverlayRowMatch } from "@openrift/shared";
 import { normalizeNameForIdentity } from "@openrift/shared/utils";
@@ -29,11 +15,9 @@ export interface MetaEventMatchSuggestion {
   eventDate: string;
   format: string;
   playerRowCount: number;
-  /** Higher is a better match. Comparable only within one call. */
+  /** Comparable only within one call. */
   score: number;
-  /** Why it ranked, in the order the signals were weighed. */
   reasons: string[];
-  /** Same name, same date, same format: nothing is left for the reviewer to weigh. */
   isExact: boolean;
 }
 
@@ -43,11 +27,9 @@ export interface MetaPlayerMatchSuggestion {
   playerName: string;
   rank: number;
   rankIsTier: boolean;
-  /** The row's deck, when it already has one. */
   deckId: string | null;
   score: number;
   reasons: string[];
-  /** The same player name, normalized: this is the row the overlay describes. */
   isExact: boolean;
 }
 
@@ -63,40 +45,19 @@ export interface MetaPlayerMatchInput {
   rank: number;
 }
 
-/** How many event suggestions a review screen is offered. Beyond this it is a search box, not a hint. */
 const MAX_SUGGESTIONS = 5;
 
-/**
- * Below this a "match" inside the date window is noise. The window alone scores
- * 2 or 3, so this is what stops "some other event happened that weekend" being
- * offered as a match on its own.
- */
+/** Must exceed the date-window-only score (2 or 3), or an unrelated same-weekend event qualifies. */
 const MIN_EVENT_SCORE = 4;
 
-/**
- * How far apart two dates may be and still be the same tournament.
- *
- * Wider than one day because a multi-day event stores its start
- * (`meta_events.event_date`) and sources disagree about which day that is —
- * uvsgames files a weekend tournament under the Friday, playriftbound files
- * its top 8 under the Sunday. That is exactly the pair a maintainer needs to
- * link, and a one-day window rejects it. Three days covers a Friday-to-Monday
- * spread without reaching the next weekend's events, which are the near-misses
- * the gate is there to stop.
- */
+/** uvsgames files a multi-day event under the Friday, playriftbound under the Sunday; must stay wide enough to bridge that gap. */
 export const MAX_EVENT_MATCH_DAY_DELTA = 3;
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-/**
- * How many events inside the window the ranking will look at. The cap cuts by
- * the listing's own newest-first order, not by score, so a window that overflows
- * it can hide the right event: the number is a guard against an unbounded read,
- * and the week-wide window is what keeps it out of reach.
- */
+/** Cuts by the listing's newest-first order, not score; too small a cap can silently drop the correct event. */
 const MAX_WINDOW_EVENTS = 500;
 
-/** The ISO day `days` away from `day`. */
 function shiftDay(day: string, days: number): string {
   return new Date(Date.parse(`${day}T00:00:00Z`) + days * MS_PER_DAY).toISOString().slice(0, 10);
 }
@@ -110,15 +71,7 @@ function dayDelta(a: string, b: string): number | null {
   return Math.abs(left - right) / MS_PER_DAY;
 }
 
-/**
- * Bigram Dice coefficient over the two normalized names, 0 (nothing shared)
- * to 1 (identical).
- *
- * Bigrams rather than whole-token equality because sources disagree in the
- * middle of a name as often as at its edges ("Summoner Skirmish #4" against
- * "Summoner Skirmish 4 - Berlin"), and a coefficient degrades where an
- * all-or-nothing token match would report zero.
- */
+/** Bigram Dice coefficient over the two normalized names, 0 (nothing shared) to 1 (identical). */
 export function nameSimilarity(a: string, b: string): number {
   const left = normalizeNameForIdentity(a);
   const right = normalizeNameForIdentity(b);
@@ -150,13 +103,7 @@ export function nameSimilarity(a: string, b: string): number {
   return (2 * shared) / (left.length - 1 + (right.length - 1));
 }
 
-/**
- * The date window ({@link MAX_EVENT_MATCH_DAY_DELTA}) is a gate rather than a
- * signal to be outvoted: a recurring series repeats its name and its format
- * every season, so a name match a year out is a near-certain wrong link, and a
- * wrong link fans two unrelated tournaments into one page. Within the window
- * the three signals only decide the order.
- */
+/** Outside the date window ({@link MAX_EVENT_MATCH_DAY_DELTA}), no combination of format/name match qualifies. */
 export function scoreEventMatch(
   candidate: MetaEventMatchInput,
   live: { name: string; eventDate: string; format: string },
@@ -172,9 +119,6 @@ export function scoreEventMatch(
   const delta = dayDelta(candidate.eventDate, live.eventDate);
   const withinWindow = delta !== null && delta <= MAX_EVENT_MATCH_DAY_DELTA;
   if (withinWindow) {
-    // The exact same day is the stronger signal; anywhere else inside the
-    // window is the multi-day spread and scores flat, since a Friday-to-Sunday
-    // gap says no less about a weekend event than a Friday-to-Saturday one.
     score += delta === 0 ? 3 : 2;
     reasons.push(delta === 0 ? "same date" : `${delta} day${delta === 1 ? "" : "s"} apart`);
   }
@@ -189,11 +133,6 @@ export function scoreEventMatch(
   return { score, reasons, withinWindow, isExact };
 }
 
-/**
- * A shared finish also qualifies a row, scored below any name overlap and
- * never exact: a top 8 shares four tiers between eight rows. Exact requires
- * the finish too — a handle is not unique inside one event.
- */
 export function scorePlayerMatch(
   candidate: MetaPlayerMatchInput,
   live: { playerName: string; rank: number },
@@ -212,7 +151,6 @@ export function scorePlayerMatch(
     score += 10;
     reasons.push("same player");
   } else if (similarity > 0) {
-    // The flat +2 keeps even a faint name match above a finish-only row.
     score += 2 + similarity * 6;
     reasons.push("similar player name");
   }
@@ -240,13 +178,9 @@ export async function suggestMetaEventMatches(
   if (candidate === undefined) {
     return [];
   }
-  // A proposal that names neither a date nor a format cannot be scored: both
-  // are hard gates, so there is nothing to rank against.
   if (candidate.eventDate === null || candidate.format === null || candidate.name === null) {
     return [];
   }
-  // Only an event inside the date window can score at all, so the ranking reads
-  // that slice rather than the whole archive.
   const { rows } = await repos.meta.listEvents(
     {
       dateFrom: shiftDay(candidate.eventDate, -MAX_EVENT_MATCH_DAY_DELTA),

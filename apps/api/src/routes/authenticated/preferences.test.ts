@@ -13,11 +13,6 @@ const mockRepo = {
   upsert: vi.fn(() => Promise.resolve({})),
 };
 
-// Mounts the router the way production does (catch-all). A pre-set `user`
-// satisfies the `requireAuthedUser` gate (resolveSession is idempotent). The
-// local onError is a belt-and-suspenders for the unexercised 401 path;
-// AppErrors are mapped to the envelope by the handler's interceptor.
-
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
 const app = new Hono<{ Variables: Variables }>();
@@ -72,8 +67,6 @@ describe("GET /api/v1/preferences", () => {
     expect(json).toEqual({});
   });
 
-  // Guards against languages and completionScope being dropped by the
-  // response projection, which breaks the web's cross-device preference sync.
   it("returns languages and completionScope when stored", async () => {
     const storedPrefs = {
       languages: ["en", "de"],
@@ -87,10 +80,6 @@ describe("GET /api/v1/preferences", () => {
     expect(json.completionScope).toEqual({ sets: ["set-a"], promos: "exclude", signed: true });
   });
 
-  // A stored value the response schema rejects (written before an enum
-  // narrowed, say) must be dropped rather than reaching oRPC's output
-  // validation, which would 500 the whole response; the web loads preferences
-  // on every page, so that would brick the app for the affected user.
   it("drops a stored value the response schema rejects and keeps the rest", async () => {
     mockRepo.getByUserId.mockResolvedValue({
       userId: USER_ID,
@@ -226,9 +215,6 @@ describe("PATCH /api/v1/preferences", () => {
     expect(res.status).toBe(200);
   });
 
-  // Guards against completionScope being absent from updatePreferencesSchema
-  // (z.object silently drops unknown keys, so the web's PATCH would never
-  // persist) and against languages being accepted but never read back.
   it("persists languages and completionScope instead of stripping them", async () => {
     const completionScope = {
       sets: ["set-a"],
@@ -258,25 +244,14 @@ describe("PATCH /api/v1/preferences", () => {
   });
 });
 
-// A preference accepted on PATCH but missing from the read DTO round-trips on
-// write yet is silently dropped on read: the response schema is not
-// runtime-validated and every read field is optional, so neither zod nor tsc
-// flags the gap. The example-based tests above only cover the fields they
-// name; this invariant catches a new write field added without wiring the
-// read side, for any field, automatically.
 describe("preferences read/write schema parity", () => {
   it("declares every PATCH (write) field in the GET response (read) schema", async () => {
-    // Imported dynamically: the preferences contract calls `.openapi()` at
-    // module load, which only exists after @hono/zod-openapi (pulled in by the
-    // statically imported route above) has extended Zod. A static top-level
-    // import here would evaluate the contract before that extension runs and throw.
+    // Dynamic import: the contract's .openapi() call needs @hono/zod-openapi's Zod
+    // extension, which only runs after the statically imported route above loads it.
     const { updatePreferencesSchema, userPreferencesResponseSchema } =
       await import("@openrift/shared/contracts/preferences");
 
-    // Retired preferences that stay writable only so clients can send `null`
-    // to clear the stored value; they carry no live state, so they're
-    // deliberately absent from the read schema. Anything else that's writable
-    // must round-trip.
+    // Retired preferences stay writable so clients can still send `null` to clear them.
     const retiredWriteOnlyKeys = new Set(["hiddenFilterSections", "compactFilterView"]);
 
     const writeKeys = Object.keys(updatePreferencesSchema.shape).filter(
@@ -286,9 +261,6 @@ describe("preferences read/write schema parity", () => {
 
     const missingFromRead = writeKeys.filter((key) => !readKeys.has(key));
 
-    // Every settable preference must be readable back, or it silently fails to
-    // sync. (Read-only fields in the response schema are allowed — the check is
-    // one-directional: write ⊆ read.)
     expect(missingFromRead).toEqual([]);
   });
 });

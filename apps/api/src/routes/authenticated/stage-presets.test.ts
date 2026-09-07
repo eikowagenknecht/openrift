@@ -24,7 +24,6 @@ function stubPreset(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** @returns A postgres.js unique-violation error as the driver reports it. */
 function uniqueViolation(constraint: string): Error {
   return Object.assign(new Error("duplicate key"), {
     code: "23505",
@@ -72,7 +71,6 @@ describe("GET /api/v1/stage-presets", () => {
 });
 
 describe("POST /api/v1/stage-presets", () => {
-  /** @returns The response for a create with the given body. */
   async function post(body: unknown): Promise<Response> {
     return await app.request("/api/v1/stage-presets", {
       method: "POST",
@@ -127,7 +125,6 @@ describe("POST /api/v1/stage-presets", () => {
 });
 
 describe("PATCH /api/v1/stage-presets/{id}", () => {
-  /** @returns The response for a patch with the given body. */
   async function patch(body: unknown): Promise<Response> {
     return await app.request(`/api/v1/stage-presets/${PRESET_ID}`, {
       method: "PATCH",

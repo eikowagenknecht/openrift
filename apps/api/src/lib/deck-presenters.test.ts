@@ -11,10 +11,6 @@ import {
 const NOW = new Date("2025-06-15T12:00:00.000Z");
 const LATER = new Date("2025-06-16T08:30:00.000Z");
 
-// ---------------------------------------------------------------------------
-// toDeck
-// ---------------------------------------------------------------------------
-
 describe("toDeck", () => {
   it("maps a deck row, serializing dates and exposing owner-visible fields", () => {
     const result = toDeck({
@@ -95,10 +91,6 @@ describe("toDeck", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// toPublicDeck
-// ---------------------------------------------------------------------------
-
 describe("toPublicDeck", () => {
   it("strips owner-only fields (shareToken, isPublic, userId, collectionId)", () => {
     const result = toPublicDeck({
@@ -117,9 +109,7 @@ describe("toPublicDeck", () => {
       coverPrintingId: null,
       coverPosition: null,
       links: [],
-      // Where the owner stores the deck must never reach a public viewer.
       collectionId: "collection-7",
-      // Variant bookkeeping is the owner's business too.
       familyId: "family-1",
       predecessorDeckId: "deck-0",
       isPrimary: true,
@@ -151,10 +141,6 @@ describe("toPublicDeck", () => {
     expect("isDraft" in result).toBe(false);
   });
 });
-
-// ---------------------------------------------------------------------------
-// toDeckSummary
-// ---------------------------------------------------------------------------
 
 describe("toDeckSummary", () => {
   it("maps the summary fields, reducing the description to its snippet", () => {
@@ -233,10 +219,6 @@ describe("toDeckSummary", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// toDeckCard
-// ---------------------------------------------------------------------------
-
 describe("toDeckCard", () => {
   it("maps a deck card row to slim response", () => {
     const result = toDeckCard({
@@ -300,5 +282,3 @@ describe("toPublicDeckCard", () => {
     expect(toPublicDeckCard(deckCard, cardMeta, printingMeta, true).banned).toBe(true);
   });
 });
-
-// ---------------------------------------------------------------------------

@@ -47,10 +47,6 @@ function emptyIgnoredKeys(): LoadedIgnoredKeys {
   return { productIds: new Set<number>(), variantKeys: new Set<string>() };
 }
 
-/**
- * `upsertProductsForMarketplace` returns a product id per SKU by generating a
- * stable key so tests can assert the same id appears in price rows keyed on it.
- */
 function makeMockRepo(opts: { ignoredKeys?: LoadedIgnoredKeys; countResult?: number }) {
   const ignoredKeys = opts.ignoredKeys ?? emptyIgnoredKeys();
   const countResult = opts.countResult ?? 0;
@@ -180,8 +176,6 @@ describe("upsertPriceData", () => {
 
   it("collapses multiple staging rows for the same SKU into one price row per recorded_at", async () => {
     const { repo, upsertedPrices } = makeMockRepo({});
-    // The price-row dedup key is `(product_id, recorded_at)`, so two staging
-    // rows for the same SKU + recorded_at become one row.
     const row1 = makeStagingRow(2001, "normal", { marketCents: 100 });
     const row2 = makeStagingRow(2001, "normal", { marketCents: 200 });
 

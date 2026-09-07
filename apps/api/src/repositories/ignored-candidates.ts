@@ -7,16 +7,8 @@ import type {
   IgnoredCandidatePrintingsTable,
 } from "../db/index.js";
 
-/**
- * Queries for permanently ignored candidate cards/printings.
- *
- * @returns An object with ignored-candidate query methods bound to the given `db`.
- */
 export function ignoredCandidatesRepo(db: Kysely<Database>) {
   return {
-    // ── Candidate cards ──────────────────────────────────────────────────────────
-
-    /** @returns All ignored candidate cards, newest first. */
     listIgnoredCards(): Promise<Selectable<IgnoredCandidateCardsTable>[]> {
       return db
         .selectFrom("ignoredCandidateCards")
@@ -25,7 +17,6 @@ export function ignoredCandidatesRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Insert ignored candidate card (no-op on conflict). */
     async ignoreCard(values: { provider: string; externalId: string }): Promise<void> {
       await db
         .insertInto("ignoredCandidateCards")
@@ -34,7 +25,6 @@ export function ignoredCandidatesRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Delete result — check `numDeletedRows` to verify the row existed. */
     unignoreCard(provider: string, externalId: string): Promise<DeleteResult> {
       return db
         .deleteFrom("ignoredCandidateCards")
@@ -43,9 +33,6 @@ export function ignoredCandidatesRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    // ── Candidate printings ──────────────────────────────────────────────────────
-
-    /** @returns All ignored candidate printings, newest first. */
     listIgnoredPrintings(): Promise<Selectable<IgnoredCandidatePrintingsTable>[]> {
       return db
         .selectFrom("ignoredCandidatePrintings")
@@ -54,7 +41,6 @@ export function ignoredCandidatesRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Insert ignored candidate printing (no-op on conflict). */
     async ignorePrinting(values: {
       provider: string;
       externalId: string;
@@ -69,7 +55,6 @@ export function ignoredCandidatesRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Delete result — check `numDeletedRows` to verify the row existed. */
     unignorePrinting(
       provider: string,
       externalId: string,

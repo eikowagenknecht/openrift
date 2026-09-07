@@ -22,10 +22,6 @@ const RUN_TEST = "019d4999-4219-72f6-b7bb-640000000001";
 const EARLIER_RUN = "019d4999-4219-72f6-b7bb-640000000002";
 const RUN_X = "019d4999-4219-72f6-b7bb-640000000003";
 
-// ---------------------------------------------------------------------------
-// Mock service module — vitest hoists vi.mock() automatically
-// ---------------------------------------------------------------------------
-
 vi.mock("../../services/images/index.js", async (importActual) => {
   const actual = (await importActual()) as Record<string, unknown>;
   return {
@@ -50,10 +46,6 @@ const mockFindBrokenImages = vi.mocked(findBrokenImages);
 const mockFindLowResImages = vi.mocked(findLowResImages);
 const mockUnrehostImages = vi.mocked(unrehostImages);
 
-// ---------------------------------------------------------------------------
-// Mock repos
-// ---------------------------------------------------------------------------
-
 const mockPrintingImages = {};
 
 const mockCandidateCards = {
@@ -75,15 +67,9 @@ const mockJobRuns = {
   purgeOlderThan: vi.fn(),
 };
 
-// ---------------------------------------------------------------------------
-// Test app
-// ---------------------------------------------------------------------------
-
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const mockIo = { fetch: vi.fn() };
 
-// Mount the oRPC router directly (without the requireAdmin gate). AppErrors
-// thrown by handlers are bridged to ORPCErrors inside the router.
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
@@ -96,10 +82,6 @@ app.use("*", async (c, next) => {
   await next();
 });
 registerRouterForTest(app, adminImagesRouter);
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("POST /api/admin/v1/rehost-images", () => {
   beforeEach(() => {

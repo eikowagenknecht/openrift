@@ -46,7 +46,6 @@ interface IngestResult {
   updatedPrintings: UpdatedCardDetail[];
 }
 
-/** Maps camelCase DB column names to snake_case IngestCard field names. */
 const CARD_FIELD_MAP: Record<string, string> = {
   name: "name",
   types: "types",
@@ -95,14 +94,8 @@ function normalize(value: unknown): unknown {
 const isDiffScalar = (v: unknown): v is string | number | boolean | null =>
   v === null || typeof v === "string" || typeof v === "number" || typeof v === "boolean";
 
-/**
- * Coerces a normalized field value into the serializable {@link DiffValue} the
- * response contract exposes (scalar or scalar[]). Non-scalar values — notably
- * `extra_data`, an arbitrary JSON object — are JSON-stringified so the diff stays
- * human-readable without widening `diffValueSchema` to a recursive JSON type
- * (which breaks openapi/hc/tanstack — see response-schemas.ts). Change detection
- * still runs on the raw normalized values, so this only affects display.
- */
+/** Non-scalar values are JSON-stringified: widening `diffValueSchema` to a recursive JSON
+ * type breaks openapi/hc/tanstack (see response-schemas.ts). */
 function toDiffValue(value: unknown): DiffValue {
   if (isDiffScalar(value)) {
     return value;
@@ -134,18 +127,7 @@ function getChangedFields(
   return diffs;
 }
 
-/**
- * Ingest card data from a named provider into candidate_cards / candidate_printings.
- *
- * Card matching is done dynamically via card name / card_name_aliases — there
- * is no stored card_id on candidate_cards.
- *
- * The entire import runs in a single transaction so that a failure in any card
- * rolls back the whole batch (all-or-nothing).
- *
- * Performance: bulk-fetches all existing data before the loop so the hot path
- * only does writes (~5 bulk SELECTs up front instead of ~7 queries per card).
- */
+/** Card matching is by name / card_name_aliases; candidate_cards stores no card_id. */
 export async function ingestCandidates(
   transact: Transact,
   provider: string,
@@ -171,12 +153,8 @@ export async function ingestCandidates(
   const removedPrintingDetails: ItemDetail[] = [];
   const updatedPrintings: UpdatedCardDetail[] = [];
 
-  // Defense-in-depth: a provider payload must never carry two cards or two
-  // printings that share an external_id. If it does, the per-external_id upsert
-  // below resolves the same DB row twice and the stored values depend on which
-  // duplicate happened to be processed — or fetched — last: a silent,
-  // order-dependent flip on every re-upload. Drop later duplicates
-  // deterministically (first occurrence wins) and surface each dropped id.
+  // Two cards or printings sharing an external_id would upsert the same row twice,
+  // flipping non-deterministically on re-upload; drop later duplicates, first wins.
   const seenCardExternalIds = new Set<string>();
   const seenPrintingExternalIds = new Set<string>();
   const dedupedCards: IngestCard[] = [];
@@ -213,7 +191,6 @@ export async function ingestCandidates(
       ccByExternalId.set(row.externalId, row);
     }
 
-    // Shared index behind card and printing link resolution (see candidate-links.ts).
     const linkIndex = await loadCandidateLinkIndex(repo);
 
     const existingCCIds = new Set(existingCCRows.map((r) => r.id));
@@ -233,7 +210,6 @@ export async function ingestCandidates(
     const ignoredCards = new Set(ignoredCardRows.map((r) => r.externalId));
 
     const ignoredPrintingRows = await repo.ignoredCandidatePrintings(provider);
-    // Key: "entityId" for all-finish ignores, "entityId:finish" for specific finish
     const ignoredPrintings = new Set<string>();
     for (const r of ignoredPrintingRows) {
       if (r.finish === null) {
@@ -277,9 +253,7 @@ export async function ingestCandidates(
             shortCode: card.short_code ?? null,
             fields: changedFields,
           });
-          // Same column mapping as the insert branch below (buildCandidateCardFields),
-          // plus checkedAt: an update means the upload disagreed with what a
-          // human already reviewed, so it goes back into the review queue.
+          // checkedAt reset: an update means the upload disagreed with an already-reviewed row.
           const cardUpdate: Updateable<CandidateCardsTable> = {
             ...buildCandidateCardFields(card),
             checkedAt: null,
@@ -302,8 +276,6 @@ export async function ingestCandidates(
         newCards++;
       }
 
-      // Whether this candidate's card resolves to a live one — the gate on
-      // printing link resolution below.
       const cardLinked = resolveCardIdByName(linkIndex, card.name) !== null;
 
       for (const p of card.printings) {

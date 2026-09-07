@@ -93,7 +93,6 @@ describe("renderTierListImage", () => {
     const PAD = 24;
     const HEADER_QR = 104;
 
-    /** @returns How many near-white pixels sit in the mark's box. */
     const whiteInMarkBox = async (png: Buffer): Promise<number> => {
       const { data, info } = await defaultIo
         .sharp(png)
@@ -225,7 +224,6 @@ describe("measureWrappedBoard", () => {
   const LABEL_W = 88;
   const ROW_GAP = 8;
 
-  /** @returns The board's total height at the measured geometry. */
   function totalHeight(rowHeights: readonly number[]): number {
     return (
       rowHeights.reduce((sum, height) => sum + height, 0) +
@@ -258,9 +256,6 @@ describe("measureWrappedBoard", () => {
   it("makes tiles bigger than dividing the height evenly would", () => {
     const counts = [4, 7, 11, 6, 2];
     const wrapped = measureWrappedBoard(counts, AREA_W, AREA_H, LABEL_W, 3);
-    // This is the whole reason the vertical board has its own measurement: the
-    // flat one caps each tile at the fullest row's width share, so the extra
-    // height goes to empty space inside the rows instead of to the cards.
     const flat = measureBoard(counts.length, 11, AREA_W, AREA_H, LABEL_W);
     expect(wrapped.tileH).toBeGreaterThan(flat.tileH);
   });
@@ -273,8 +268,6 @@ describe("measureWrappedBoard", () => {
   });
 
   it("spends the wrap allowance down when the rows cannot all fit", () => {
-    // Twelve crowded rows cannot each take three lines in this area, so the
-    // measurement drops to fewer lines rather than overflowing.
     const metrics = measureWrappedBoard(
       Array.from({ length: 12 }, () => 30),
       1024,

@@ -3,16 +3,9 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";
 
-/**
- * Account-level contact methods (the channels a user reveals per friend group to
- * arrange out-of-band trades, ADR-013). All writes are scoped by `userId` so a
- * caller can only touch their own rows.
- *
- * @returns An object with contact-method query methods bound to the given `db`.
- */
+/** All writes are scoped by `userId` so a caller can only touch their own rows. */
 export function userContactMethodsRepo(db: Kysely<Database>) {
   return {
-    /** @returns The user's contact methods, ordered for display. */
     listForUser(userId: string): Promise<ContactMethod[]> {
       return db
         .selectFrom("userContactMethods")
@@ -23,10 +16,7 @@ export function userContactMethodsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Appends a method after the user's existing ones.
-     * @returns The created row.
-     */
+    /** Appends a method after the user's existing ones. */
     async create(userId: string, type: ContactMethodType, value: string): Promise<ContactMethod> {
       const next = await db
         .selectFrom("userContactMethods")
@@ -41,7 +31,7 @@ export function userContactMethodsRepo(db: Kysely<Database>) {
         .executeTakeFirstOrThrow();
     },
 
-    /** @returns The updated row, or `undefined` if the user owns no such method. */
+    /** Returns `undefined` if the user owns no such method. */
     update(
       id: string,
       userId: string,
@@ -57,7 +47,7 @@ export function userContactMethodsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns `true` if a row was deleted. The reveal rows cascade away with it. */
+    /** The reveal rows cascade away with the deleted method. */
     async delete(id: string, userId: string): Promise<boolean> {
       const result = await db
         .deleteFrom("userContactMethods")

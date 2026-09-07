@@ -23,12 +23,6 @@ type PrintingImageRow = Awaited<
   ReturnType<Repos["catalog"]["printingImagesByPrintingIds"]>
 >[number];
 
-/**
- * Loads marker metadata, per-printing distribution channel links, and source
- * citations, and indexes them so route handlers can decorate raw printing rows
- * with the resolved `markers[]`, `distributionChannels[]`, and `citations`
- * fields expected on the wire.
- */
 export async function loadPrintingDecorations(
   repos: Repos,
   printingIds: readonly string[],
@@ -42,8 +36,6 @@ export async function loadPrintingDecorations(
 
   const markerBySlug = new Map<string, Marker>(markerRows.map((m) => [m.slug, m]));
 
-  // Resolve each channel's ancestor label chain (root → direct parent). The
-  // full channel list is small, so an in-memory walk beats a recursive query.
   const channelById = new Map(allChannels.map((c) => [c.id, c]));
   function ancestorLabelsFor(startId: string | null): string[] {
     const labels: string[] = [];
@@ -84,7 +76,7 @@ export async function loadPrintingDecorations(
     }
   }
 
-  // The repo already returns these in display order, so grouping preserves it.
+  // The repo returns these in display order; grouping preserves it.
   const citationsByPrinting = new Map<string, PrintingCitation[]>();
   for (const row of citationRows) {
     const citation: PrintingCitation = {
@@ -103,17 +95,7 @@ export async function loadPrintingDecorations(
   return { markerBySlug, channelsByPrinting, citationsByPrinting };
 }
 
-/**
- * Narrows a printing row's substitute-art override to what the wire carries.
- *
- * Two shapes never reach a client. `auto` is the default nearly every printing
- * holds, so it is omitted rather than repeated across the whole catalog — an
- * absent field already means "derive it". And a pin whose file has no rehosted
- * copy has no servable id to send, so it is emitted as `auto` too: the client
- * derives a substitute while the rehost is pending, instead of falling back to
- * a placeholder for art we actually have. That leaves one invariant on the
- * wire — `fallbackArtMode: "pinned"` always arrives with a `fallbackImageId`.
- */
+/** Wire invariant: `fallbackArtMode: "pinned"` always arrives with a `fallbackImageId`. */
 export function resolveFallbackArt(row: {
   fallbackArtMode: string;
   fallbackImageId: string | null;
@@ -127,21 +109,13 @@ export function resolveFallbackArt(row: {
   return {};
 }
 
-/**
- * Narrows the foil-twin flag to what the wire carries: present only when true,
- * so the catalog read spends nothing on the printings that have no twin.
- * @returns The wire fragment to spread into a printing response.
- */
 export function resolveFoilTwin(row: {
   hasFoilTwin: boolean;
 }): Pick<CatalogPrintingResponse, "hasFoilTwin"> {
   return row.hasFoilTwin ? { hasFoilTwin: true } : {};
 }
 
-/**
- * Resolves a printing's marker slug array against a slug→Marker map.
- * Skips slugs missing from the map (defensive for stale denormalized data).
- */
+/** Skips slugs missing from the map (defensive for stale denormalized data). */
 export function resolveMarkers(
   markerSlugs: readonly string[],
   markerBySlug: ReadonlyMap<string, Marker>,
@@ -151,10 +125,6 @@ export function resolveMarkers(
     .filter((m): m is Marker => m !== undefined);
 }
 
-/**
- * Builds the `cards` lookup shared by the public catalog reads: raw card
- * rows decorated with their resolved errata and ban list, keyed by card id.
- */
 export function buildCardsResponse(
   cardRows: readonly CardRow[],
   banRows: readonly CardBanRow[],
@@ -191,11 +161,6 @@ export function buildCardsResponse(
   );
 }
 
-/**
- * Builds the `printings` list shared by every public catalog read (`/cards`,
- * `/sets`, `/promos`): raw printing rows decorated with resolved markers,
- * distribution channels, citations, and images.
- */
 export function buildPrintingsResponse(
   printingRows: readonly PrintingRow[],
   imageRows: readonly PrintingImageRow[],
@@ -213,8 +178,6 @@ export function buildPrintingsResponse(
         ...resolveFoilTwin({ hasFoilTwin }),
         markers: resolveMarkers(markerSlugs, markerBySlug),
         distributionChannels: channelsByPrinting.get(rest.id) ?? [],
-        // Omitted rather than empty: `citations` is optional on the wire
-        // precisely so an uncited printing adds no bytes to the catalog read.
         ...(citations === undefined ? {} : { citations }),
         images: (imagesByPrinting.get(rest.id) ?? []).map((i) => ({
           face: i.face,

@@ -10,8 +10,6 @@ describe.skipIf(!ctx)("rulesRepo (integration)", () => {
   const { db } = ctx!;
   const repo = rulesRepo(db);
 
-  // Use a unique version string per kind so we don't collide with real data
-  // and can verify kind isolation when both kinds use the same version.
   const sharedVersion = "test-kind-0044-shared";
 
   afterAll(async () => {
@@ -86,7 +84,6 @@ describe.skipIf(!ctx)("rulesRepo (integration)", () => {
     expect(
       tournamentVersions.some((v) => v.version === sharedVersion && v.kind === "tournament"),
     ).toBe(true);
-    // No cross-kind leak
     expect(coreVersions.every((v) => v.kind === "core")).toBe(true);
     expect(tournamentVersions.every((v) => v.kind === "tournament")).toBe(true);
   });

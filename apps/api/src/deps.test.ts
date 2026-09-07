@@ -2,10 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createRepos, createTransact, services } from "./deps.js";
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe("createRepos", () => {
   it("returns an object with all expected repo keys", () => {
     const mockDb = {} as any;
@@ -55,7 +51,6 @@ describe("createTransact", () => {
 
     const transact = createTransact(mockDb);
     const result = await transact(async (repos) => {
-      // repos should be created from the transaction connection
       expect(repos).toBeDefined();
       return "transaction-result";
     });

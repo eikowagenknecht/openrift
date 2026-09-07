@@ -489,10 +489,8 @@ export function tournamentsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Matching is by linked account only (never by name); without a userId a
-     * fresh walk-in is created. This is how a self-submitted list attaches to
-     * an already-claimed entrant instead of spawning a duplicate. Manual entry
-     * passes a participant id directly and never goes through here.
+     * Matches by linked account only, never by name; without a userId a fresh walk-in is created.
+     * Manual entry passes a participant id directly and never goes through here.
      */
     async resolveOrCreateParticipant(input: {
       tournamentId: string;
@@ -501,13 +499,7 @@ export function tournamentsRepo(db: Kysely<Database>) {
       displayName: string;
       claimSource?: TournamentClaimSource | null;
       claimedAt?: Date | null;
-      /**
-       * Status for a *newly created* participant. Defaults to `active` for
-       * trusted callers (provider push via API key). The open self-submission
-       * link passes `requested` so a stranger lands in the approval queue
-       * instead of straight onto the roster. Ignored when an existing
-       * participant is matched by linked account.
-       */
+      /** Status for a newly created participant only; ignored on a match by linked account. */
       status?: TournamentParticipantStatus;
     }): Promise<TournamentParticipant> {
       if (input.userId) {

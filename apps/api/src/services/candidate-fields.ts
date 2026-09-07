@@ -1,11 +1,7 @@
 /**
- * How an `IngestCard` / `IngestPrinting` becomes a validator payload and a
- * candidate DB row.
- *
- * Both ingest entry points — the batch provider upload (`ingest-candidates.ts`)
- * and the in-app user submission (`ingest-user-submission.ts`, ADR-036) — map
- * the same payload to the same columns, so the mapping lives here once rather
- * than being spelled out per service.
+ * Maps `IngestCard` / `IngestPrinting` to validator payloads and candidate DB
+ * rows. Both ingest entry points map the same payload to the same columns, so
+ * the mapping lives here once.
  */
 import { emptyToNull } from "@openrift/shared/utils";
 import type { Insertable } from "kysely";
@@ -14,10 +10,6 @@ import { z } from "zod";
 import type { CandidateCardsTable, CandidatePrintingsTable } from "../db/index.js";
 import { candidateCardFieldRules, candidatePrintingFieldRules } from "../db/schemas.js";
 import type { IngestCard, IngestPrinting } from "../routes/admin/cards/schemas.js";
-
-// Built from the DB field rules, so they validate values exactly as they'll be
-// written. Both ingest paths validate against these; only the way they report
-// the issues differs (an admin batch report vs. a per-field user error list).
 
 export const candidateCardValidator = z.object({
   name: candidateCardFieldRules.name,
@@ -49,10 +41,7 @@ export const candidatePrintingValidator = z.object({
   external_id: candidatePrintingFieldRules.externalId,
 });
 
-/**
- * The subset of an ingest card {@link candidateCardValidator} checks, with the
- * same empty-to-null coercion the insert applies.
- */
+/** Applies the same empty-to-null coercion as {@link buildCandidateCardFields}. */
 export function candidateCardValidatorInput(card: IngestCard): Record<string, unknown> {
   return {
     name: card.name,
@@ -68,10 +57,7 @@ export function candidateCardValidatorInput(card: IngestCard): Record<string, un
   };
 }
 
-/**
- * The subset of an ingest printing {@link candidatePrintingValidator} checks,
- * with the same empty-to-null coercion the insert applies.
- */
+/** Applies the same empty-to-null coercion as {@link buildCandidatePrintingFields}. */
 export function candidatePrintingValidatorInput(printing: IngestPrinting): Record<string, unknown> {
   return {
     short_code: printing.short_code,
@@ -91,10 +77,7 @@ export function candidatePrintingValidatorInput(printing: IngestPrinting): Recor
   };
 }
 
-/**
- * Normalizes a jsonb payload to null when it carries nothing, matching the
- * `<> '{}' AND <> 'null'::jsonb` CHECK on both candidate tables.
- */
+/** Matches the `<> '{}' AND <> 'null'::jsonb` CHECK on both candidate tables. */
 function jsonOrNull(value: unknown): unknown {
   if (value === null || value === undefined) {
     return null;
@@ -112,10 +95,7 @@ export type CandidatePrintingFields = Omit<
   "candidateCardId" | "printingId"
 >;
 
-/**
- * Map an ingest card onto its candidate_cards columns. Callers add `provider`
- * and, for user submissions, the submitter attribution.
- */
+/** Callers add `provider` and, for user submissions, the submitter attribution. */
 export function buildCandidateCardFields(card: IngestCard): CandidateCardFields {
   return {
     name: card.name,
@@ -135,10 +115,7 @@ export function buildCandidateCardFields(card: IngestCard): CandidateCardFields 
   };
 }
 
-/**
- * Map an ingest printing onto its candidate_printings columns. Marker slugs are
- * sorted here so the stored order matches the one the link key is built from.
- */
+/** Marker slugs are sorted here so the stored order matches the one the link key is built from. */
 export function buildCandidatePrintingFields(printing: IngestPrinting): CandidatePrintingFields {
   return {
     shortCode: printing.short_code,

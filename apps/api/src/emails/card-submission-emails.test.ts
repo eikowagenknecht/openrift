@@ -21,7 +21,6 @@ describe("buildCardSubmissionAlertEmail", () => {
     expect(html).toContain("Garen");
     expect(html).toContain("Azir, Emperor of the Sands");
     expect(html).toContain(BASE.submitterEmail);
-    // The `&` in the review URL is escaped inside the href, as it must be.
     expect(html).toContain(
       "https://openrift.app/admin/cards?tab=candidates&amp;source=usersubmission",
     );

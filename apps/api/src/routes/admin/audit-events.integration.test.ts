@@ -8,15 +8,8 @@ import {
 } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: /api/admin/v1/audit-events (migration 201)
-//
-// End to end: an admin mutation writes an audit row, the list endpoint
-// returns it, and a card-review grant holder cannot reach the audit surface
-// (fail-closed section matchers). Uses the shared integration database;
-// requires INTEGRATION_DB_URL. Prefix AER- for entities this file creates.
-// ---------------------------------------------------------------------------
-
+// Uses the shared integration database; requires INTEGRATION_DB_URL.
+// Prefix AER- for entities this file creates.
 const ADMIN_ID = crypto.randomUUID();
 const GRANT_HOLDER_ID = crypto.randomUUID();
 

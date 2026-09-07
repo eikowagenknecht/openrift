@@ -2,20 +2,6 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createDbContext, seedTestUser } from "../test/integration-context.js";
 
-// Deleting a user account must rebalance the organizations they own to the
-// best surviving member instead of cascading the org away. Only a memberless
-// org dies with its owner.
-//
-// Ownership is the `role = 'owner'` membership rows alone (there is no
-// `owner_user_id` pointer), several owners are fine, and a deferred
-// constraint trigger keeps every org at one owner or more. The rebalance
-// trigger keys on the deleted user's owner *role*: when another owner
-// survives, nothing changes at all; when none does, the best surviving member
-// (manager before judge, oldest first) is promoted; when nobody survives, the
-// org is deleted.
-//
-// Random per-file users (seeded via seedTestUser in beforeAll) so this file
-// cannot collide with pre-seeded registry users or other files' fixtures.
 const OWNER_ID = crypto.randomUUID();
 const CO_OWNER_ID = crypto.randomUUID();
 const MANAGER_ID = crypto.randomUUID();

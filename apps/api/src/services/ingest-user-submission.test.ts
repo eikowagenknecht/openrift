@@ -105,8 +105,6 @@ describe("inferSubmissionKind", () => {
   });
 
   it("calls a matched submission carrying card data a correction", () => {
-    // The correction form prefills every card field from the live card, which
-    // is what separates it from an image suggestion.
     const card = buildUserSubmissionCard(submission(), USER_ID, STAMP);
     expect(inferSubmissionKind(card, true)).toBe("correction");
   });

@@ -3,8 +3,6 @@ import { describe, expect, it } from "vitest";
 import { adminReq, createTestContext, req } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// Uses prefix ffl- for flag keys to avoid collisions.
-
 const USER_ID = "a0000000-0016-4000-a000-000000000001";
 
 const ctx = createTestContext(USER_ID);
@@ -13,9 +11,8 @@ describe.skipIf(!ctx)("Feature flags routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app, db } = ctx!;
 
-  // Access control is tested first, before the user is admin: the isAdmin
-  // cache only caches positive results, so a user who has never been admin
-  // always misses the cache and hits the DB.
+  // Must run before the user becomes admin: the isAdmin cache only caches
+  // positive results, so a never-admin user always misses it and hits the DB.
   describe("admin-only access control (non-admin)", () => {
     it("GET /admin/feature-flags returns 403 for non-admin", async () => {
       const res = await app.fetch(adminReq("GET", "/feature-flags"));

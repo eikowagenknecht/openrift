@@ -23,13 +23,7 @@ interface SkippedGroup {
   reason: string;
 }
 
-/**
- * Accept all unlinked candidate printings from favorite providers for an existing card.
- * Creates new printings only — skips groups where the printing identity already exists.
- * Fails early on missing required fields instead of falling back to defaults.
- *
- * @returns Summary of created and skipped printing groups.
- */
+/** Skips groups where the printing identity already exists or required fields are missing. */
 export async function acceptFavoritePrintingsForCard(
   transact: Transact,
   io: Io,
@@ -46,13 +40,11 @@ export async function acceptFavoritePrintingsForCard(
 ): Promise<{ printingsCreated: number; skipped: SkippedGroup[] }> {
   const mut = repos.catalogMutations;
 
-  // 1. Resolve card by slug
   const card = await mut.getCardBySlug(cardSlug);
   if (!card) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, `Card not found: ${cardSlug}`);
   }
 
-  // 2. Find all candidate cards for this card (via name aliases)
   const aliases = await mut.getCardAliases(card.id);
   if (aliases.length === 0) {
     throw new AppError(500, ERROR_CODES.MISSING_ALIAS, `Card "${cardSlug}" has no name aliases`);
@@ -60,13 +52,11 @@ export async function acceptFavoritePrintingsForCard(
   const normNames = aliases.map((a) => a.normName);
   const allCandidates = await repos.candidateCards.candidateCardsForDetail(normNames);
 
-  // 3. Filter to favorite providers only
   const favoriteCandidates = allCandidates.filter((cc) => favoriteProviders.has(cc.provider));
   if (favoriteCandidates.length === 0) {
     return { printingsCreated: 0, skipped: [] };
   }
 
-  // 4. Get their candidate printings, filter to unlinked only
   const favCandidateIds = favoriteCandidates.map((cc) => cc.id);
   const allCandidatePrintings =
     await repos.candidateCards.allCandidatePrintingsForCandidateCards(favCandidateIds);
@@ -76,7 +66,6 @@ export async function acceptFavoritePrintingsForCard(
     return { printingsCreated: 0, skipped: [] };
   }
 
-  // 5. Group by shortCode|finish|markerSlugs|language
   const groupMap = new Map<string, typeof unlinkedPrintings>();
   for (const cp of unlinkedPrintings) {
     const slugKey = [...(cp.markerSlugs ?? [])].sort().join(",");
@@ -89,7 +78,6 @@ export async function acceptFavoritePrintingsForCard(
     arr.push(cp);
   }
 
-  // 6. Process each group
   let printingsCreated = 0;
   const skipped: SkippedGroup[] = [];
 
@@ -97,7 +85,6 @@ export async function acceptFavoritePrintingsForCard(
     const first = group[0];
     const label = first.shortCode || "(unknown)";
 
-    // Validate required fields — fail early instead of defaulting to wrong values
     const { shortCode, setId, rarity, finish } = first;
     const missingFields: string[] = [];
     if (!shortCode) {
@@ -118,7 +105,6 @@ export async function acceptFavoritePrintingsForCard(
       continue;
     }
 
-    // Check if printing with this identity already exists
     const existing = await mut.getPrintingCardIdByComposite(
       shortCode,
       finish,
@@ -167,7 +153,6 @@ export async function acceptFavoritePrintingsForCard(
     }
   }
 
-  // 7. Mark favorite candidate cards as checked
   for (const cc of favoriteCandidates) {
     await repos.candidateCards.checkCandidateCard(cc.id);
   }

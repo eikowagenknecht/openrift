@@ -163,9 +163,7 @@ function mergeMarketplaceIntoMap(
       for (const p of existing.printings) {
         p[idField] = byPrinting.get(p.printingId) ?? null;
       }
-      // Add printings that only have this marketplace's variants — otherwise
-      // they vanish from the unified view and any assignment referencing
-      // them loses its context.
+      // Also add printings unique to this marketplace, or their assignments drop out of the unified view.
       const existingIds = new Set(existing.printings.map((p) => p.printingId));
       for (const p of printings) {
         if (!existingIds.has(p.printingId)) {
@@ -222,15 +220,9 @@ export async function buildUnifiedMappingsResponse(
   cardtraderConfig: MarketplaceConfig,
   getMappingOverview: GetMappingOverview,
 ): Promise<UnifiedMappingsResponse> {
-  // Fetch the heavy cards × printings × images join once for all three marketplaces
-  // and project per-marketplace in JS, instead of running it 3× from the DB.
   const unifiedRows = await repos.marketplaceMapping.allCardsWithPrintingsUnified();
-  // Every card's (cardId, cardName) for the longest-match tiebreak. Without
-  // this, each marketplace's matcher only sees cards in its own `matchedCards`
-  // subset — so a card like "Blastcone Fae" that has TCG/CT variants but no
-  // CM variant is dropped from CM's name index, and a CM staging row named
-  // "Blastcone Fae" falls through to the shorter "Blast Cone" prefix and gets
-  // routed to the wrong card.
+  // Every card's (cardId, cardName), not just this marketplace's matched set, or a card
+  // absent from one marketplace loses its alias and staging rows get routed to a shorter-prefix match.
   const allCardsForMatching: { cardId: string; cardName: string }[] = [];
   const seenCardIds = new Set<string>();
   for (const row of unifiedRows) {
@@ -309,9 +301,7 @@ export async function buildUnifiedMappingsCardResponse(
 
   const thisCardId = unifiedRows[0].cardId;
 
-  // Longest-first alias index across all cards. For each name-matched row
-  // (non-override), we find its longest matching alias; if that alias belongs
-  // to another card, the row really belongs there, not here.
+  // Aliases are checked longest-first so a shorter alias can't shadow a longer one belonging to another card.
   const aliasesByLength = allAliases.toSorted((a, b) => b.normName.length - a.normName.length);
   const stagedForThisCard = stagedRaw.filter((row) => {
     if (row.isOverride) {
@@ -326,8 +316,7 @@ export async function buildUnifiedMappingsCardResponse(
         return cardId === thisCardId;
       }
     }
-    // SQL returned this row via our alias, so we should have found a match.
-    // Fall through as a safety net — keep it on our side rather than drop it.
+    // No alias matched: default to keeping the row since SQL already selected it via our alias.
     return true;
   });
 
@@ -365,9 +354,8 @@ export async function buildUnifiedMappingsCardResponse(
       const groupNameMap = new Map<number, string>();
       const groupKindMap = new Map<number, MarketplaceGroupKind>();
       const groupSetSlugMap = new Map<number, string | null>();
-      // Seed from mapped printings so assigned products resolve their group
-      // name and kind even when the card has no current staging rows for that
-      // group (staging rows get deleted on assignment).
+      // Seeds from mapped printings: staging rows are deleted on assignment, so this is
+      // the only place assigned products can still resolve their group name and kind.
       for (const u of unifiedRows) {
         if (u.variantMarketplace !== config.marketplace || u.sourceGroupId === null) {
           continue;
@@ -420,9 +408,6 @@ export async function buildUnifiedMappingsCardResponse(
         mapStagedRow,
       );
 
-      // Shape a MappingOverviewResult just for mergeOverviewsByCard — the
-      // merge function only looks at `.groups`, so the other fields can be
-      // empty placeholders.
       return { groups, unmatchedProducts: [], allCards: [] } satisfies MappingOverviewResult;
     }),
   );

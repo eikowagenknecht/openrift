@@ -10,7 +10,6 @@ describe.skipIf(!ctx)("printingImagesRepo (integration)", () => {
   const { db } = ctx!;
   const repo = printingImagesRepo(db);
 
-  // Seed data: first printing from OGS set
   const seedPrintingId = PRINTING_1.id;
   const createdImageIds: string[] = [];
 
@@ -22,7 +21,6 @@ describe.skipIf(!ctx)("printingImagesRepo (integration)", () => {
       await db.deleteFrom("printingImages").where("id", "in", createdImageIds).execute();
     }
     await db.deleteFrom("imageFiles").where("originalUrl", "in", [DEDUPE_URL, RACE_URL]).execute();
-    // Re-activate any deactivated images
     await db
       .updateTable("printingImages")
       .set({ isActive: true })
@@ -62,7 +60,6 @@ describe.skipIf(!ctx)("printingImagesRepo (integration)", () => {
     expect(imageFileId).toBeDefined();
     await repo.updateRehostedUrl(imageFileId!, "https://cdn.example.com/rehosted.jpg");
 
-    // Verify via listAllRehosted
     const rehosted = await repo.listAllRehosted();
     const found = rehosted.find((r) => r.imageId === imageFileId);
     expect(found).toBeDefined();
@@ -132,11 +129,6 @@ describe.skipIf(!ctx)("printingImagesRepo (integration)", () => {
   });
 
   it("concurrent insertImage calls for one new URL dedupe instead of throwing", async () => {
-    // Regression: findOrCreateImageFile used to select then insert, so two
-    // callers racing on a URL neither had seen both found nothing and both
-    // inserted. idx_image_files_original_url is UNIQUE, so the loser threw
-    // rather than deduping. The insert now leads with ON CONFLICT DO NOTHING
-    // and falls back to a select, which resolves to one row either way.
     const [first, second] = await Promise.all([
       repo.insertImage(seedPrintingId, RACE_URL, "additional"),
       repo.insertImage(seedPrintingId, RACE_URL, "additional"),
@@ -156,9 +148,8 @@ describe.skipIf(!ctx)("printingImagesRepo (integration)", () => {
   });
 
   it("deleteOrphanedImageFiles removes image_files no printing_images row points at", async () => {
-    // The delete is table-wide and every integration file shares one database,
-    // so it runs inside a transaction that is rolled back. Committing it would
-    // take other files' fixtures with it.
+    // Table-wide delete; runs in a rolled-back transaction so it doesn't
+    // touch other integration files' fixtures in the shared database.
     await expect(
       db.transaction().execute(async (trx) => {
         const orphan = await trx

@@ -513,14 +513,7 @@ export function deckCheckRepo(db: Kysely<Database>) {
       return row ? materializeEntry(row) : undefined;
     },
 
-    /**
-     * Loads one entry for a judge state transition, taking a `FOR UPDATE` lock
-     * on its row first: two near-simultaneous judge requests against the same
-     * entry serialize on that lock instead of both reading the same
-     * pre-transition state and the later commit silently overwriting the
-     * earlier one. Callers must run this inside a transaction so the lock is
-     * actually held.
-     */
+    /** Takes a `FOR UPDATE` lock on the row; callers must run this inside a transaction or the lock isn't held. */
     async getEntryForUpdate(
       tournamentId: string,
       entryId: string,
@@ -922,10 +915,8 @@ export function deckCheckRepo(db: Kysely<Database>) {
         copies?: number;
       },
     ): Promise<boolean> {
-      // Wrapped in a transaction with a FOR UPDATE lock on the source line so a
-      // concurrent split of the same line (two judges, or a double-click)
-      // serializes instead of both reading the same quantity and issuing
-      // conflicting shrink writes. Every read/write below uses trx.
+      // FOR UPDATE lock on the source line serializes concurrent splits of the same line.
+      // Every read/write below must use trx.
       return db.transaction().execute(async (trx) => {
         const source = await trx
           .selectFrom("deckCheckEntryCards")
@@ -1092,11 +1083,8 @@ export function deckCheckRepo(db: Kysely<Database>) {
      * Removes one physical copy of a card line; removing the last copy deletes
      * the line.
      *
-     * Wrapped in a transaction with a FOR UPDATE lock on the line, for the same
-     * reason as {@link moveCardCopies}: two judges removing copies of a
-     * quantity-2 line would otherwise both read 2 and take the decrement
-     * branch, and the second write would drive quantity to 0 and trip the
-     * `quantity > 0` CHECK as a 500 instead of deleting the line.
+     * FOR UPDATE lock on the line, for the same reason as {@link moveCardCopies}:
+     * without it, a concurrent decrement can drive quantity to 0 and trip the `quantity > 0` CHECK.
      */
     deleteEntryCardCopy(entryId: string, cardId: string, copyIndex: number): Promise<boolean> {
       const position = copyIndex + 1;

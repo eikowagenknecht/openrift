@@ -8,8 +8,6 @@ import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";
 import { clearCollection, deleteCollection, resetCollections } from "./collections.js";
 
-// ── Helpers ─────────────────────────────────────────────────────────────
-
 function mockTransact(trxRepos: unknown): Transact {
   return (fn) => fn(trxRepos as any) as any;
 }
@@ -42,8 +40,6 @@ function createMockRepos(
     deleteByIdForUser,
   };
 }
-
-// ── Tests ───────────────────────────────────────────────────────────────
 
 describe("deleteCollection", () => {
   beforeEach(() => {
@@ -128,8 +124,6 @@ describe("deleteCollection", () => {
   });
 });
 
-// ── clearCollection ─────────────────────────────────────────────────────
-
 function createClearMockRepos(
   overrides: {
     copies?: { id: string; printingId: string }[];
@@ -144,8 +138,6 @@ function createClearMockRepos(
   const repos = {
     collections: {
       listCopiesInCollection: vi.fn(async () => copies),
-      // disposeCopiesInTransaction re-checks write access on the source
-      // collections; every source is writable in these unit tests.
       filterWritableByViewer: vi.fn(async (ids: string[]) => ids),
     },
     copies: {
@@ -159,8 +151,6 @@ function createClearMockRepos(
     },
     cardTrades: {
       filterReservedCopyIds: vi.fn(async () => overrides.reservedIds ?? []),
-      // The unfillable-trade sweep runs after every dispose; these fixtures
-      // leave the actor with no pending trades, so it stops right here.
       listPendingForGiverPrinting: vi.fn(async () => []),
     },
     loans: {
@@ -250,8 +240,6 @@ describe("clearCollection", () => {
     expect(insert).not.toHaveBeenCalled();
   });
 });
-
-// ── resetCollections ────────────────────────────────────────────────────
 
 interface ResetCopy {
   id: string;
@@ -361,7 +349,6 @@ describe("resetCollections", () => {
       fromCollectionId: "col-1",
       fromCollectionName: "Binder",
     });
-    // Events must be inserted while the copy FK still resolves.
     expect(mocks.insertEvents.mock.invocationCallOrder[0]!).toBeLessThan(
       mocks.deleteAllInPersonalCollections.mock.invocationCallOrder[0]!,
     );
@@ -389,7 +376,6 @@ describe("resetCollections", () => {
 
     expect(mocks.listIdsWithEntries).toHaveBeenCalledWith("user-1");
     expect(mocks.deleteEmptyWithoutRules).toHaveBeenCalledWith("user-1", ["list-1", "list-2"]);
-    // The snapshot must be taken before the copies are deleted.
     expect(mocks.listIdsWithEntries.mock.invocationCallOrder[0]!).toBeLessThan(
       mocks.deleteAllInPersonalCollections.mock.invocationCallOrder[0]!,
     );
@@ -430,7 +416,6 @@ describe("resetCollections", () => {
 
     await resetCollections(transact, "user-1");
 
-    // 2500 copies at a batch size of 1000 → 3 batches everywhere.
     expect(mocks.filterReservedCopyIds).toHaveBeenCalledTimes(3);
     expect(mocks.filterLoanedCopyIds).toHaveBeenCalledTimes(3);
     expect(mocks.insertEvents).toHaveBeenCalledTimes(3);

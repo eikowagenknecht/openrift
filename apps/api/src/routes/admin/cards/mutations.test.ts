@@ -45,10 +45,6 @@ const mockRelinkCandidatePrintings = vi.mocked(relinkCandidatePrintings);
 const mockFixTypography = vi.mocked(fixTypography);
 const mockAppendSetTotal = vi.mocked(appendSetTotal);
 
-// ---------------------------------------------------------------------------
-// Mock repos
-// ---------------------------------------------------------------------------
-
 const mockMut = {
   getCardById: vi.fn(),
   getCardAliases: vi.fn(),
@@ -74,7 +70,6 @@ const mockKeywords = { recomputeForPrintingCard: vi.fn() };
 
 const mockCatalogDeleteGuards = { countForCard: vi.fn(), countForPrinting: vi.fn() };
 
-// Audit event sink (record-admin-event.ts); handlers write here best-effort.
 const mockAdminEvents = { insert: vi.fn() };
 
 const mockTrxMut = {
@@ -115,8 +110,8 @@ const mockCandidateCards = {
   proposalForCandidate: vi.fn(async () => null),
 };
 
-// The check verbs settle any user submission on the candidates they touched
-// (ADR-036). No pending rows here, so resolution no-ops for these tests.
+// The check verbs settle any user submission on the candidates they touched.
+// No pending rows here, so resolution no-ops for these tests.
 const mockCardSubmissions = {
   pendingByCandidateCardIds: vi.fn(async () => []),
   pendingByProvider: vi.fn(async () => []),
@@ -128,18 +123,11 @@ const mockCardSubmissions = {
   resolve: vi.fn(),
 };
 
-// ---------------------------------------------------------------------------
-// Test app — mount the oRPC router directly (without the requireAdmin gate).
-// AppErrors are bridged to ORPCErrors, so the error body is `{ message, code }`.
-// ---------------------------------------------------------------------------
-
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
-  // requireAdmin isn't mounted here; emulate the access it would resolve for
-  // a full admin (handlers read it for card-review provider scoping).
   c.set("adminAccess", { isAdmin: true, sections: [] });
   c.set("io", mockIo as never);
   c.set("transact", mockTransact as never);
@@ -279,8 +267,6 @@ describe("POST /cards/candidate-printings/:id/check", () => {
   });
 
   it("returns 204 on success", async () => {
-    // Returns the parent candidate id now, so submission resolution knows
-    // which submission this printing belongs to.
     mockCandidateCards.checkCandidatePrinting.mockResolvedValue({ candidateCardId: "cc-1" });
 
     const res = await app.request(`/api/admin/v1/cards/candidate-printings/${CP_ID}/check`, {
@@ -1131,7 +1117,7 @@ describe("POST /cards/:cardId/accept-printing", () => {
     vi.resetAllMocks();
   });
 
-  it("returns 200 with printingId", async () => {
+  it("returns 200 with printingId and re-resolves other providers' candidates", async () => {
     mockAcceptPrinting.mockResolvedValue("printing-uuid");
 
     const res = await app.request(`/api/admin/v1/cards/${CARD_ID2}/accept-printing`, {
@@ -1153,8 +1139,6 @@ describe("POST /cards/:cardId/accept-printing", () => {
       ["cp-1", "cp-2"],
       mockIo,
     );
-    // Other providers' candidates keyed before this printing existed get
-    // re-resolved right away.
     expect(mockRelinkCandidatePrintings).toHaveBeenCalled();
   });
 });
@@ -1337,10 +1321,6 @@ describe("POST /cards/upload", () => {
     expect(res.status).toBe(400);
   });
 });
-
-// ---------------------------------------------------------------------------
-// Audit events (record-admin-event wiring)
-// ---------------------------------------------------------------------------
 
 describe("audit events", () => {
   beforeEach(() => {

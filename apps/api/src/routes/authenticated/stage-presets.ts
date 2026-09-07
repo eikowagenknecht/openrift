@@ -13,11 +13,6 @@ import type { ApiContext } from "../../orpc/context.js";
 const NOT_FOUND = "Preset not found";
 const NAME_TAKEN = "You already have a preset with that name";
 
-/**
- * Turns the (user, name) collision into a 409. Any other error is rethrown
- * untouched.
- * @returns Never — always throws.
- */
 function rethrowPresetError(error: unknown): never {
   if (isUniqueViolationOn(error, "uq_stage_presets_user_name")) {
     throw new AppError(409, ERROR_CODES.CONFLICT, NAME_TAKEN);
@@ -27,16 +22,7 @@ function rethrowPresetError(error: unknown): never {
 
 const os = implement(stagePresetsContract).$context<ApiContext>().use(requireAuthedUser);
 
-/**
- * A creator's saved stage dressing (migration 242), mounted at
- * `/api/v1/stage-presets`.
- *
- * Every read and write is user-scoped in the repository, so a preset belonging
- * to someone else resolves to nothing and surfaces as NOT_FOUND — the caller
- * never learns whether the id exists. Duplicate names are caught by the unique
- * index rather than a preceding lookup, so two concurrent creates of the same
- * name give one preset and one 409 instead of two rows.
- */
+/** Every read and write is user-scoped in the repository; a preset belonging to someone else resolves to NOT_FOUND. */
 export const stagePresetsRouter = {
   list: os.list.handler(async ({ context }): Promise<StagePresetListResponse> => {
     const rows = await context.repos.stagePresets.listForUser(context.userId);
@@ -44,9 +30,7 @@ export const stagePresetsRouter = {
   }),
 
   create: os.create.handler(async ({ input, context }): Promise<StagePreset> => {
-    // The cap is a check-then-act, unlike the name: there is no index that can
-    // express "at most twenty", and a race that lands a twenty-first preset is
-    // a cosmetic overrun rather than something the reader has to handle.
+    // Check-then-act: a race landing a twenty-first preset is a cosmetic overrun.
     const count = await context.repos.stagePresets.countForUser(context.userId);
     if (count >= MAX_STAGE_PRESETS) {
       throw new AppError(
@@ -72,8 +56,7 @@ export const stagePresetsRouter = {
   update: os.update.handler(async ({ input, context }): Promise<StagePreset> => {
     const { id, name, config } = input;
     if (name === undefined && config === undefined) {
-      // Nothing to write, but the caller still expects the current state — and
-      // an empty SET is not valid SQL.
+      // An empty SQL SET is invalid: nothing is written, and the current row is returned.
       const current = await context.repos.stagePresets.findByIdForUser(id, context.userId);
       assertFound(current, NOT_FOUND);
       return toStagePreset(current);

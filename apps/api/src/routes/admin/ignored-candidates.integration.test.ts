@@ -3,30 +3,17 @@ import { describe, expect, it } from "vitest";
 import { adminReq, createTestContext } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Admin ignored-candidates (cards + printings)
-//
-// Uses the shared integration database. Requires INTEGRATION_DB_URL.
-// Uses provider prefix "iic-" for external IDs to avoid collisions.
-// ---------------------------------------------------------------------------
-
 const ADMIN_ID = "a0000000-0048-4000-a000-000000000001";
 const NON_ADMIN_ID = "a0000000-0049-4000-a000-000000000001";
 
 const adminCtx = createTestContext(ADMIN_ID);
 const nonAdminCtx = createTestContext(NON_ADMIN_ID);
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app } = adminCtx!;
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app: nonAdminApp } = nonAdminCtx!;
-
-  // ── Non-admin access control ──────────────────────────────────────────────
 
   describe("admin-only access control (non-admin)", () => {
     it("GET /admin/ignored-candidates returns 403 for non-admin", async () => {
@@ -44,8 +31,6 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
       expect(res.status).toBe(403);
     });
   });
-
-  // ── GET /admin/ignored-candidates (initial) ──────────────────────────────
 
   describe("GET /admin/ignored-candidates (initial)", () => {
     it("returns 200 with cards and printings arrays (no iic- entries)", async () => {
@@ -66,8 +51,6 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
       expect(iicPrintings).toHaveLength(0);
     });
   });
-
-  // ── POST /admin/ignored-candidates/cards ──────────────────────────────────
 
   describe("POST /admin/ignored-candidates/cards", () => {
     it("ignores a card", async () => {
@@ -97,7 +80,6 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
           externalId: "iic-card-001",
         }),
       );
-      // The route does an upsert, so it should still return 204
       expect(res.status).toBe(204);
     });
 
@@ -115,8 +97,6 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
       expect(res.status).toBe(400);
     });
   });
-
-  // ── POST /admin/ignored-candidates/printings ──────────────────────────────
 
   describe("POST /admin/ignored-candidates/printings", () => {
     it("ignores a printing with finish", async () => {
@@ -162,8 +142,6 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
     });
   });
 
-  // ── GET /admin/ignored-candidates (after ignoring) ────────────────────────
-
   describe("GET /admin/ignored-candidates (after ignoring)", () => {
     it("returns the ignored iic- cards and printings", async () => {
       const res = await app.fetch(adminReq("GET", "/ignored-candidates"));
@@ -171,7 +149,6 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
 
       const json = await readJson(res);
 
-      // Check cards
       const iicCards = json.cards.filter((c: { externalId: string }) =>
         c.externalId.startsWith("iic-"),
       );
@@ -187,7 +164,6 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
       expect(card2).toBeDefined();
       expect(card2.provider).toBe("cardmarket");
 
-      // Check printings
       const iicPrintings = json.printings.filter((p: { externalId: string }) =>
         p.externalId.startsWith("iic-"),
       );
@@ -214,8 +190,6 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
       expect(print3.finish).toBeNull();
     });
   });
-
-  // ── DELETE /admin/ignored-candidates/cards ────────────────────────────────
 
   describe("DELETE /admin/ignored-candidates/cards", () => {
     it("unignores a card", async () => {
@@ -248,8 +222,6 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
       expect(res.status).toBe(204);
     });
   });
-
-  // ── DELETE /admin/ignored-candidates/printings ────────────────────────────
 
   describe("DELETE /admin/ignored-candidates/printings", () => {
     it("unignores a printing with finish", async () => {
@@ -285,8 +257,6 @@ describe.skipIf(!adminCtx)("Admin ignored-candidates routes (integration)", () =
       expect(res.status).toBe(204);
     });
   });
-
-  // ── GET /admin/ignored-candidates (after cleanup) ─────────────────────────
 
   describe("GET /admin/ignored-candidates (after cleanup)", () => {
     it("has no iic- entries remaining", async () => {

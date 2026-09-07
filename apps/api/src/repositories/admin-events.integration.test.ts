@@ -4,13 +4,8 @@ import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import { adminEventsRepo } from "./admin-events.js";
 import { buildKeysetCursor } from "./query-helpers.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: admin_events repository (migration 201)
-//
-// Uses the shared integration database. Requires INTEGRATION_DB_URL.
 // Seeds its own users (per-file random IDs) and prefixes entity labels with
 // AEV- so filters can target only this file's rows.
-// ---------------------------------------------------------------------------
 
 const ACTOR_A = crypto.randomUUID();
 const ACTOR_B = crypto.randomUUID();
@@ -28,9 +23,7 @@ if (ctx) {
 
   const repo = adminEventsRepo(db);
 
-  // Seed events with deterministic ordering (insert order = id order via
-  // uuidv7; createdAt defaults to now() and may collide at ms precision,
-  // which is exactly what the keyset cursor must handle).
+  // uuidv7 keeps insert order = id order even when createdAt collides at ms precision.
   await repo.insert({
     actorUserId: ACTOR_A,
     action: "card.accept-new",
@@ -68,7 +61,6 @@ describe.skipIf(!ctx)("adminEventsRepo (integration)", () => {
     const rows = await repo.list({ search: "AEV" }, 50);
     expect(rows.length).toBe(3);
 
-    // newest first: printing.delete was inserted last
     expect(rows[0].action).toBe("printing.delete");
     expect(rows[2].action).toBe("card.accept-new");
 
@@ -114,7 +106,7 @@ describe.skipIf(!ctx)("adminEventsRepo (integration)", () => {
 
   it("paginates with the keyset cursor across same-millisecond rows", async () => {
     const firstPage = await repo.list({ search: "AEV" }, 2);
-    // limit + 1 probe row
+    // list() returns limit + 1 rows as a has-next-page probe.
     expect(firstPage).toHaveLength(3);
 
     const pageRows = firstPage.slice(0, 2);
@@ -125,7 +117,6 @@ describe.skipIf(!ctx)("adminEventsRepo (integration)", () => {
     const secondPage = await repo.list({ search: "AEV" }, 2, cursor);
     expect(secondPage).toHaveLength(1);
     expect(secondPage[0].action).toBe("card.accept-new");
-    // no overlap with the first page
     expect(pageRows.map((r) => r.id)).not.toContain(secondPage[0].id);
   });
 
@@ -138,7 +129,6 @@ describe.skipIf(!ctx)("adminEventsRepo (integration)", () => {
 
     const deleted = actors.find((a) => a.userId === ACTOR_DELETED);
     expect(deleted?.email).toBeNull();
-    // each actor appears exactly once
     expect(new Set(ids).size).toBe(ids.length);
   });
 
@@ -147,7 +137,6 @@ describe.skipIf(!ctx)("adminEventsRepo (integration)", () => {
     expect(actions).toContain("card.accept-new");
     expect(actions).toContain("card.accept-field");
     expect(actions).toContain("printing.delete");
-    // each action appears exactly once, ordered alphabetically
     expect(new Set(actions).size).toBe(actions.length);
     expect(actions).toEqual([...actions].toSorted());
   });

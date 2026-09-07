@@ -5,19 +5,6 @@ import { afterAll, describe, expect, it } from "vitest";
 import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import { overlayChannelsRepo } from "./overlay-channels.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: overlay_channels repository (migration 238).
-//
-// Uses the shared integration database. Requires INTEGRATION_DB_URL. Seeds its
-// own users with per-file random ids and deletes only those in afterAll — the
-// channel rows go with them via the ON DELETE CASCADE, which is itself worth
-// exercising.
-//
-// The point of these is the pair the OBS poll depends on: the jsonb payload
-// surviving a round trip as an object rather than a re-encoded string, and
-// `version` advancing on every write.
-// ---------------------------------------------------------------------------
-
 const OWNER = crypto.randomUUID();
 const OTHER = crypto.randomUUID();
 
@@ -76,9 +63,6 @@ describe.skipIf(!ctx)("overlayChannelsRepo (integration)", () => {
   });
 
   it("fills a row written before the plate switches existed out to the current shape", async () => {
-    // Regression: the payload grows display switches without a migration, so a
-    // row stored earlier is missing whichever came later. Read back raw, the
-    // source would get `undefined` where it expects a boolean and paint nothing.
     await db
       .updateTable("overlayChannels")
       .set({
@@ -100,7 +84,6 @@ describe.skipIf(!ctx)("overlayChannelsRepo (integration)", () => {
       printingId: "printing-1",
       corner: "top-left",
       scale: 45,
-      // The link set before the field was generalised carries over.
       qrUrl: "https://openrift.app/decks/share/legacy",
     });
     expect("deckShareUrl" in (read?.payload ?? {})).toBe(false);

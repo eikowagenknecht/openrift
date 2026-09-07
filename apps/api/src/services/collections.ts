@@ -45,11 +45,7 @@ export async function deleteCollection(
       );
     }
 
-    // Existing events keep both the id and the name snapshot: the FKs were
-    // dropped, so deleting a collection no longer reaches back and erases
-    // them. History stays readable as "moved from <deleted collection>", and
-    // the value-over-time replay can still tell whether an event crossed the
-    // boundary of the collection being charted.
+    // Events snapshot id and name, not an FK: deleting the collection must not erase history that references it.
     await trxRepos.collections.deleteByIdForUser(collectionId, userId);
   });
 }
@@ -65,12 +61,8 @@ interface ClearCollectionResult {
 }
 
 /**
- * Removes every copy from a collection without deleting the collection itself
- * (the inbox can never be deleted, so "clear" is its delete-equivalent).
- * Copies reserved by a live trade or out on a loan are physically pinned;
- * instead of failing the whole clear they are kept and reported back.
- * Disposal runs through {@link disposeCopiesInTransaction}, so `removed`
- * events are logged like any other dispose.
+ * Copies reserved by a live trade or out on a loan are kept, not cleared,
+ * and reported back.
  */
 export function clearCollection(
   transact: Transact,
@@ -85,9 +77,8 @@ export function clearCollection(
     }
 
     const copyIds = copies.map((copy) => copy.id);
-    // Lock before reading the pins: without the lock a concurrent
-    // trade-accept or loan could pin a copy in the gap between the filter
-    // and the delete, and the delete would cascade the fresh pin away.
+    // Lock before reading the pins, or a concurrent trade-accept/loan could
+    // pin a copy in the gap and have the delete cascade the pin away.
     await trxRepos.copies.lockByIds(copyIds);
     const reserved = await trxRepos.cardTrades.filterReservedCopyIds(copyIds);
     const loaned = await trxRepos.loans.filterLoanedCopyIds(copyIds);
@@ -119,11 +110,8 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
 }
 
 /**
- * Danger-zone reset: deletes every copy in the user's personal collections,
- * deletes every personal collection except the inbox, and prunes lists the
- * wipe emptied (no remaining entries, no dynamic rules). Group collections
- * and their copies are untouched. Refuses (409) while any of the user's
- * copies are reserved in an active trade or out on a loan.
+ * Group collections and their copies are untouched. Refuses (409) while any
+ * of the user's copies are reserved in an active trade or out on a loan.
  */
 export function resetCollections(
   transact: Transact,
@@ -136,11 +124,8 @@ export function resetCollections(
       RESET_BATCH_SIZE,
     );
 
-    // Same guards as disposeCopies: a reserved copy is physically promised to
-    // a trade, a loaned copy is out of the house — refuse to destroy either.
     // Each batch is locked before its pin reads, so a concurrent
-    // trade-accept or loan can't pin a copy between the guard and the delete
-    // below and have the delete cascade the fresh pin away.
+    // trade-accept/loan can't pin a copy between the guard and the delete.
     for (const batch of copyIdBatches) {
       await trxRepos.copies.lockByIds(batch);
       const reserved = await trxRepos.cardTrades.filterReservedCopyIds(batch);
@@ -182,8 +167,6 @@ export function resetCollections(
     }
 
     // Copies first — a DB trigger blocks deleting a non-empty collection.
-    // Deleting copies also cascades away the copy-kind list entries, which is
-    // what turns lists into prune candidates below.
     const removedCopies = await trxRepos.copies.deleteAllInPersonalCollections(userId);
     const removedCollections = await trxRepos.collections.deleteAllPersonalExceptInbox(userId);
     await trxRepos.collections.ensureInbox(userId);

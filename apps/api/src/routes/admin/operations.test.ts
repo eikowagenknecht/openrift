@@ -12,10 +12,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminOperationsRouter } from "./operations";
 
-// ---------------------------------------------------------------------------
-// Mock service modules — vitest hoists vi.mock() automatically
-// ---------------------------------------------------------------------------
-
 vi.mock("../../services/price-refresh/index.js", () => ({
   refreshTcgplayerPrices: vi.fn(),
   refreshCardmarketPrices: vi.fn(),
@@ -25,10 +21,6 @@ vi.mock("../../services/price-refresh/index.js", () => ({
 const mockRefreshTcgplayer = vi.mocked(refreshTcgplayerPrices);
 const mockRefreshCardmarket = vi.mocked(refreshCardmarketPrices);
 const mockRefreshCardtrader = vi.mocked(refreshCardtraderPrices);
-
-// ---------------------------------------------------------------------------
-// Mock repos
-// ---------------------------------------------------------------------------
 
 const mockMktAdmin = {
   clearPriceData: vi.fn(),
@@ -51,10 +43,6 @@ const mockJobRuns = {
   purgeOlderThan: vi.fn(),
 };
 
-// ---------------------------------------------------------------------------
-// Test app
-// ---------------------------------------------------------------------------
-
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const mockIo = { fetch: vi.fn() };
 const mockConfig = { cardtraderApiToken: "test-token-123" };
@@ -75,20 +63,12 @@ app.use("*", async (c, next) => {
 });
 registerRouterForTest(app, adminOperationsRouter);
 
-// ---------------------------------------------------------------------------
-// Test data
-// ---------------------------------------------------------------------------
-
 const priceRefreshResult = {
   transformed: { groups: 5, products: 100, prices: 300 },
   upserted: {
     prices: { total: 100, new: 50, updated: 30, unchanged: 20 },
   },
 };
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("POST /api/admin/v1/clear-prices", () => {
   beforeEach(() => {
@@ -232,16 +212,13 @@ describe("POST /api/admin/v1/refresh-cardmarket-prices", () => {
   });
 });
 
-// Regression: this endpoint used to await the refresh inline and answer 204.
-// In prod the refresh outlives Bun.serve's idle timeout, so the socket was cut
-// before the response ("The socket connection was closed unexpectedly").
 describe("POST /api/admin/v1/refresh-materialized-views", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     resetJobRunMocks();
   });
 
-  it("returns 202 with runId and refreshes the views in the background", async () => {
+  it("returns 202 with runId and refreshes the views in the background, without waiting on the caller's socket", async () => {
     mockMarketplace.refreshLatestPrices.mockResolvedValue(undefined);
     mockCatalog.refreshCatalogViews.mockResolvedValue(undefined);
 
@@ -328,8 +305,6 @@ describe("POST /api/admin/v1/recompute-card-tokens", () => {
         expect.objectContaining({ result: { totalCards: 500, withTokens: 42 } }),
       );
     });
-    // The aggregates view reads card_tokens, so it must refresh after the
-    // re-derivation, never before.
     const recomputeOrder = mockCardTokens.recomputeAll.mock.invocationCallOrder[0];
     const refreshOrder = mockCatalog.refreshCardAggregates.mock.invocationCallOrder[0];
     expect(recomputeOrder).toBeLessThan(refreshOrder ?? 0);

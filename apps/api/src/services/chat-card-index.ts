@@ -12,15 +12,8 @@ export interface ChatCardIndex {
 }
 
 /**
- * The chat lookup: the shared server-side card index plus the enum labels the
- * one-line answer renders.
- *
- * The index itself is {@link createCardLookupIndexLoader}'s, so a name that
- * resolves in deck-check resolves here too. Only the labels are chat's own,
- * which is why this keeps its own memo: they turn over on a different probe
- * (a renamed type label changes no card).
- *
- * @returns A zero-arg loader serving the memoized index and labels.
+ * Labels get their own memo because they invalidate on a different probe
+ * than the shared card index (a renamed type label changes no card).
  */
 export function createChatCardIndexLoader(repos: Repos): () => Promise<ChatCardIndex> {
   const loadIndex = createCardLookupIndexLoader(repos);

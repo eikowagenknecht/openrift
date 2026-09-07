@@ -13,14 +13,12 @@ import { friendGroupsRepo } from "./friend-groups.js";
 const VIEWER_ID = crypto.randomUUID();
 const MEMBER_ID = crypto.randomUUID();
 
-/** Another EN printing of CARD_FURY_UNIT (foil promo), for card-want spread. */
 const ALT_PRINTING_OF_FURY_UNIT = "019d17a1-2723-733a-a21e-4630e4370046";
 
 const ctx = createDbContext(VIEWER_ID);
 
-// `boxWantsForViewer` reads *every* wish list the viewer owns, not just the ones
-// shared with the group, so this file keeps its own users — a wishlist left
-// behind by another file's fixtures would otherwise leak into these counts.
+// boxWantsForViewer reads every wishlist the viewer owns, not just ones
+// shared with the group, so this file keeps its own users to avoid cross-file leakage.
 describe.skipIf(!ctx)("friendGroupMatchesRepo.boxWantsForViewer (integration)", () => {
   const { db } = ctx!;
   const repo = friendGroupsRepo(db);
@@ -39,9 +37,6 @@ describe.skipIf(!ctx)("friendGroupMatchesRepo.boxWantsForViewer (integration)", 
     }
   });
 
-  // Wish lists and trade promises are read across the whole account, not per
-  // group, so every test starts from a clean demand side. Entries and copy pins
-  // cascade away with their parent row.
   afterEach(async () => {
     if (createdListIds.length > 0) {
       await db.deleteFrom("lists").where("id", "in", createdListIds).execute();
@@ -80,10 +75,6 @@ describe.skipIf(!ctx)("friendGroupMatchesRepo.boxWantsForViewer (integration)", 
     return group;
   }
 
-  /**
-   * A group-owned bulk box — `group_id` set, `user_id` null.
-   * @returns The inserted collection row.
-   */
   async function createBox(groupId: string, name = "Bulk Box") {
     const created = await db
       .insertInto("collections")
@@ -206,11 +197,10 @@ describe.skipIf(!ctx)("friendGroupMatchesRepo.boxWantsForViewer (integration)", 
   it("ignores cards nobody wants, and boxes holding nothing wanted", async () => {
     const group = await createGroup();
     const box = await createBox(group.id);
-    await addCopy(box.id, PRINTING_2.id); // CARD_FURY_SPELL — unwanted
+    await addCopy(box.id, PRINTING_2.id);
     await wantCard(VIEWER_ID, CARD_FURY_UNIT.id, 1);
 
     expect(await boxWants(group.id)).toEqual([]);
-    // Sanity: the seeded copy really is the other card.
     expect(PRINTING_2.cardId).toBe(CARD_FURY_SPELL.id);
   });
 
@@ -222,7 +212,6 @@ describe.skipIf(!ctx)("friendGroupMatchesRepo.boxWantsForViewer (integration)", 
     const takeable = await addCopy(box.id, PRINTING_1.id);
     await wantCard(VIEWER_ID, CARD_FURY_UNIT.id, 3);
 
-    // All three copies exist, but only one is actually takeable.
     await loanOut(MEMBER_ID, loaned.id, PRINTING_1.id, CARD_FURY_UNIT.id);
     expect(takeable.id).not.toBe(loaned.id);
 
@@ -255,15 +244,12 @@ describe.skipIf(!ctx)("friendGroupMatchesRepo.boxWantsForViewer (integration)", 
         cardId: CARD_FURY_SPELL.id,
         quantity: 1,
         status: "reserved",
-        // Every writer stamps accepted_at with the reservation, and the shape
-        // CHECK (migration 246) enforces the pair.
+        // A CHECK constraint requires acceptedAt whenever status is "reserved".
         acceptedAt: new Date(),
       })
       .returningAll()
       .executeTakeFirstOrThrow();
     createdTradeIds.push(trade.id);
-    // A different card, so only the copy pin (not the demand netting) can
-    // explain the copy dropping out.
     await db
       .insertInto("cardTradeCopies")
       .values({ tradeId: trade.id, copyId: reserved.id })
@@ -281,7 +267,6 @@ describe.skipIf(!ctx)("friendGroupMatchesRepo.boxWantsForViewer (integration)", 
 
     expect(await boxWants(group.id)).toMatchObject([{ fulfillableQuantity: 2 }]);
 
-    // Reserved, receiver sync unapplied: one of the two is already on its way.
     const trade = await db
       .insertInto("cardTrades")
       .values({
@@ -308,8 +293,8 @@ describe.skipIf(!ctx)("friendGroupMatchesRepo.boxWantsForViewer (integration)", 
       },
     ]);
 
-    // Once the receiver records their half, the promise stops netting: the
-    // want is now covered by owned copies instead (ADR-019 live ladder).
+    // Once the receiver syncs, the trade stops netting the want; it's
+    // covered by owned copies again.
     await db
       .updateTable("cardTrades")
       .set({ receiverSyncAppliedAt: new Date() })

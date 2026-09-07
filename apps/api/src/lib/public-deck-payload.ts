@@ -16,14 +16,6 @@ import {
   loadPrintingDecorations,
 } from "./printing-presenters.js";
 
-/**
- * Every catalogue row the page can ask for: the deck's own cards, plus the
- * tokens they create, which the overview lists with artwork of their own. The
- * whole set list rides along so a printing's set keeps the position the
- * catalogue gives it.
- *
- * @returns The subset, in the same shapes `/catalog` serves.
- */
 async function catalogSubsetForCards(
   repos: Repos,
   cardIds: readonly string[],
@@ -55,19 +47,7 @@ export interface SharedDeckRow {
   ownerEmail: string;
 }
 
-/**
- * Builds the anonymous share-deck payload for an already-resolved deck.
- *
- * Everything the share page needs is denormalized here — card names, types,
- * domains, resolved printings, artwork, base-list bans, and the plan's
- * out-of-deck card references — so the page SSRs without pulling the global
- * catalog.
- *
- * Split out of the `/decks/share/{token}` handler because the meta archive's
- * deck page returns the same payload plus an event panel; the token lookup
- * and the archive-membership check stay with the callers, since only they
- * know which decks they are allowed to resolve.
- */
+/** Caller must already have resolved the token and checked archive membership. */
 export async function buildPublicDeckDetail(
   repos: Repos,
   found: SharedDeckRow,

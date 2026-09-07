@@ -18,7 +18,6 @@ interface IgnoredVariantRow {
   marketplace: Marketplace;
   externalId: number;
   finish: string;
-  /** NULL for CM/TCG (language is not a SKU dimension there). */
   language: string | null;
   productName: string;
   createdAt: Date;
@@ -171,9 +170,8 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Each row targets a marketplace SKU `(marketplace, externalId, finish,
-     * language)`, which uniquely identifies one product row in the per-SKU
-     * product model. Creates the product row first if missing, so the FK is satisfied.
+     * Rows key on (marketplace, externalId, finish, language); creates the
+     * product row first if missing so the FK is satisfied.
      */
     async insertIgnoredVariants(
       values: {

@@ -277,23 +277,11 @@ export interface Services {
 }
 
 export function createRepos(db: Kysely<Database>): Repos {
-  // ADR-034: one process-wide, content-addressed memo of the assembled catalog,
-  // shared by every rule-expansion consumer below (`lists`, `friendGroupMatches`).
-  // The app builds `repos` once (app.ts), so this memo lives for the process. It
-  // is keyed on a cheap content-version probe, so repeated inline assemblies —
-  // including the uncached anonymous public-share read — collapse onto a single
-  // DB build that is reused until an admin edit rolls the version, then rebuilt
-  // immediately. Reads stay both cheap and always fresh.
   const assembleCatalog = createContentAddressedCache(
     () => assembleRuleCatalog(createRepos(db)),
     () => catalogRepo(db).catalogContentVersion(),
   );
 
-  // The thirteen reference tables hold ~71 rows between them and change only on
-  // an admin edit, but `all()` spent thirteen round trips re-reading them on
-  // every /init and deck read. Memoized on the same content-addressed helper, so
-  // an edit still shows up on the next read. One shared instance — a fresh
-  // `enumsRepo(db)` per call site would each get their own empty memo.
   const enums = enumsRepo(db);
   const loadEnums = createContentAddressedCache(
     () => enums.all(),
@@ -302,8 +290,6 @@ export function createRepos(db: Kysely<Database>): Repos {
   const cachedEnums = {
     ...enums,
     all: loadEnums,
-    // Derived from the same memo rather than three more slug-only reads: `all()`
-    // already orders each of these by sortOrder, which is what this returns.
     keepPriorityOrders: async () => {
       const rows = await loadEnums();
       return {
@@ -314,13 +300,6 @@ export function createRepos(db: Kysely<Database>): Repos {
     },
   };
 
-  // Latest prices for dynamic list rules that bound on price (ADR-034), on the
-  // same content-addressed memo pattern as the catalog: rule expansion runs
-  // inline on every read of such a list (including the uncached anonymous
-  // public-share path), and this keeps those reads from re-loading the full
-  // price map. The token rolls when `refreshLatestPrices` publishes new data
-  // (see `latestPricesContentVersion`), so filters follow the price crons with
-  // no staleness window.
   const rulePriceLookup = createContentAddressedCache(
     async () => {
       const rows = await marketplaceRepo(db).latestPrices();
@@ -333,9 +312,6 @@ export function createRepos(db: Kysely<Database>): Repos {
     () => marketplaceRepo(db).latestPricesContentVersion(),
   );
 
-  // Each repo is wrapped via instrumentRepo so every method opens an OTel
-  // span named `repo.<name>.<method>`, parenting the Kysely `db.query`
-  // spans for clean repo-method attribution in traces.
   const raw = {
     collectionEvents: collectionEventsRepo(db),
     admins: adminsRepo(db),
@@ -372,7 +348,6 @@ export function createRepos(db: Kysely<Database>): Repos {
     finishes: finishesRepo(db),
     friendGroups: friendGroupsRepo(db),
     friendGroupDiscordLinks: friendGroupDiscordLinksRepo(db),
-    // ADR-034: dynamic lists participate in matching — same providers as `lists`.
     friendGroupMatches: friendGroupMatchesRepo(db, {
       assembleCatalog,
       ownedCopies: (ownerId, printingIds) => copiesRepo(db).ownedRowsForUser(ownerId, printingIds),
@@ -391,10 +366,6 @@ export function createRepos(db: Kysely<Database>): Repos {
     keywords: keywordsRepo(db),
     languages: languagesRepo(db),
     ignoredCandidates: ignoredCandidatesRepo(db),
-    // ADR-034: dynamic list rules need the full catalog + the owner's copies to
-    // evaluate. Both providers are lazy — only paid when a list carries a rule.
-    // `assembleCatalog` is the shared TTL memo above; `ownedCopies` stays per
-    // call (owner-specific, not cacheable across users).
     lists: listsRepo(db, {
       assembleCatalog,
       ownedCopies: (ownerId, printingIds) => copiesRepo(db).ownedRowsForUser(ownerId, printingIds),
@@ -501,15 +472,6 @@ export const services: Services = {
   deleteLoan,
 };
 
-/**
- * Builds the services object, binding the transactional-email deps into the
- * services that send from the request path — `createTrade` (ADR-030),
- * `notifyAdminsOfCardSubmission` (ADR-036) and the two group notifications —
- * so route handlers keep their plain `(repos, input)` calls. When `emailDeps`
- * is absent (e.g. SMTP unconfigured, or in tests that don't assert mail) they
- * simply skip their best-effort email.
- * @returns A {@link Services} object wired with the given email deps.
- */
 export function createServices(emailDeps?: TradeEmailDeps): Services {
   if (emailDeps === undefined) {
     return services;

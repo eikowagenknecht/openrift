@@ -1,12 +1,5 @@
 import { BRAND, emailButton, escapeHtml, renderEmailLayout } from "./layout.js";
 
-/*
- * Builder for the group join-request alert. Pure, like the trade and
- * card-submission builders: it takes already-resolved data plus a pre-computed
- * link and returns `{ subject, html }`. Recipient selection, the opt-out gate
- * and the send live in the `group-join-notifications` service.
- */
-
 const FOOTER_NOTE = "You're receiving this because you run a group on OpenRift.";
 
 export interface GroupJoinRequestEmailInput {
@@ -17,11 +10,7 @@ export interface GroupJoinRequestEmailInput {
   unsubscribeUrl: string;
 }
 
-/**
- * Builds the "someone asked to join your group" alert sent to its owners and
- * admins. Carries no more about the requester than the in-app request band
- * does — a name, never their email address.
- */
+/** Never includes the requester's email, only their name, matching the in-app request band. */
 export function buildGroupJoinRequestEmail(input: GroupJoinRequestEmailInput): {
   subject: string;
   html: string;
@@ -57,12 +46,6 @@ export interface GroupApprovedEmailInput {
   unsubscribeUrl: string;
 }
 
-/**
- * Builds the welcome sent to a member the moment an admin approves their join
- * request. It carries the one thing the group page cannot tell them before they
- * arrive: nothing of their collection is shared until they choose what to
- * share, so the manage page is linked alongside the group itself.
- */
 export function buildGroupApprovedEmail(input: GroupApprovedEmailInput): {
   subject: string;
   html: string;

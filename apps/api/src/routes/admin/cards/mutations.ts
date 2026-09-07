@@ -162,9 +162,7 @@ export const adminCardMutationsRouter = {
       const scope = await reviewableProviderScope(context.adminAccess, providerSettings);
       await assertCandidatePrintingsInScope(candidateCards, [id], scope);
 
-      // The contract body IS the writable-column allowlist (zod drops anything
-      // else), so pass it through typed rather than re-listing the columns in a
-      // loop the compiler cannot check against `candidate_printings`.
+      // Zod already restricts `body` to the writable-column allowlist for candidate_printings.
       const updates: Updateable<CandidatePrintingsTable> = { ...body };
 
       if (Object.keys(updates).length === 0) {
@@ -354,9 +352,7 @@ export const adminCardMutationsRouter = {
     const now = new Date();
     const result = await candidateCards.checkByProvider(provider.trim(), now);
 
-    // Bulk-checking a provider is still a review decision, so submissions under
-    // it settle too. Resolved from the ledger rather than from the update's
-    // return set, because this verb reports counts, not ids.
+    // checkByProvider returns a count, not ids; fetch affected submissions from the ledger.
     const pending = await context.repos.cardSubmissions.pendingByProvider(provider.trim());
     await resolveCheckedSubmissions(context.repos, {
       candidateCardIds: pending
@@ -993,9 +989,7 @@ export const adminCardMutationsRouter = {
       context.repos;
     const { cardId, ...printingFields } = input;
 
-    // Explicit admin create (including the duplicate-a-printing flow), so an
-    // identity collision is a mistake, not a re-run: reject it instead of
-    // letting the shared upsert silently overwrite the existing printing.
+    // An identity collision here is rejected; the shared upsert never overwrites it.
     const printingId = await acceptPrinting(
       context.transact,
       { catalogMutations, printingImages, markers, distributionChannels, printingEvents },

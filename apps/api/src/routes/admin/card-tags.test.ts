@@ -55,7 +55,6 @@ const catRow = {
   updatedAt: now,
 };
 
-// ── Categories ──────────────────────────────────────────────────────────────
 describe("GET /tag-categories", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -185,7 +184,6 @@ describe("DELETE /tag-categories/:id", () => {
   });
 });
 
-// ── Tag classification ──────────────────────────────────────────────────────
 describe("GET /card-tags", () => {
   beforeEach(() => {
     vi.resetAllMocks();

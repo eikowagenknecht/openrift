@@ -28,9 +28,8 @@ function escapeLike(value: string): string {
 export function jobRunsRepo(db: Kysely<Database>) {
   return {
     /**
-     * Insert a new run row in 'running' state. The partial unique index on
-     * running rows allows at most one per kind, so two concurrent triggers
-     * can't both claim a run; the loser gets null instead of a row.
+     * The partial unique index on running rows allows at most one per kind;
+     * a losing concurrent insert returns null and does not throw.
      */
     async start(params: { kind: string; trigger: JobTrigger }): Promise<{ id: string } | null> {
       try {
@@ -260,11 +259,6 @@ export function jobRunsRepo(db: Kysely<Database>) {
       return { rows, total: Number(countRow.total) };
     },
 
-    /**
-     * Recent runs across a family of kinds, for a status panel that owns
-     * several jobs (the meta sync's six). One query rather than one per kind,
-     * so the panel reads a single interleaved history.
-     */
     listRecentByKinds(kinds: string[], limit: number): Promise<JobRun[]> {
       if (kinds.length === 0) {
         return Promise.resolve([]);

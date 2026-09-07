@@ -7,11 +7,6 @@ import { discoverKeywordTranslations } from "../../services/keyword-translation-
 
 const os = implement(adminKeywordsContract).$context<ApiContext>().use(requireAuthedUser);
 
-/**
- * Admin keyword tooling: usage stats, per-keyword display styles, a recompute
- * job, and keyword translation discovery/upsert. Any thrown `AppError` is
- * mapped by the handler's {@link appErrorInterceptor}.
- */
 export const adminKeywordsRouter = {
   stats: os.stats.handler(async ({ context }) => {
     const { keywords } = context.repos;

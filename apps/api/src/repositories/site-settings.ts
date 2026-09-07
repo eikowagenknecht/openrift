@@ -4,14 +4,8 @@ import type { Database, SiteSettingsTable } from "../db/index.js";
 
 type Scope = "web" | "api";
 
-/**
- * Queries for site settings.
- *
- * @returns An object with site setting query methods bound to the given `db`.
- */
 export function siteSettingsRepo(db: Kysely<Database>) {
   return {
-    /** @returns Settings matching the given scope. */
     listByScope(scope: Scope): Promise<Pick<Selectable<SiteSettingsTable>, "key" | "value">[]> {
       return db
         .selectFrom("siteSettings")
@@ -20,22 +14,13 @@ export function siteSettingsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns All settings with full details, ordered by key (for admin). */
     listAll(): Promise<Selectable<SiteSettingsTable>[]> {
       return db.selectFrom("siteSettings").selectAll().orderBy("key").execute();
     },
 
     /**
-     * Reads a boolean setting. Values are stored as the strings `"true"` /
-     * `"false"` (written by the Switch on the admin page); anything else counts
-     * as `true`, so a hand-typed value can never silently disable a feature.
-     *
-     * The `undefined` case is load-bearing for default-on switches: callers
-     * write `=== false` so a setting that was never created keeps the feature
-     * running.
-     *
-     * @returns `false` only for an explicit `"false"`, `true` for any other
-     *   stored value, `undefined` when the key does not exist.
+     * Callers compare `=== false`, so `undefined` (key never created) and any
+     * value other than the stored string `"false"` both keep a feature on.
      */
     async getBool(key: string): Promise<boolean | undefined> {
       const row = await db
@@ -49,7 +34,6 @@ export function siteSettingsRepo(db: Kysely<Database>) {
       return row.value !== "false";
     },
 
-    /** @returns The newly created setting row, or `undefined` if the key already exists. */
     create(values: {
       key: string;
       value: string;
@@ -63,7 +47,6 @@ export function siteSettingsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns The updated setting row, or `undefined` if not found. */
     update(
       key: string,
       updates: { value?: string; scope?: Scope },
@@ -76,7 +59,6 @@ export function siteSettingsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns Delete result — check `numDeletedRows` to verify the row existed. */
     deleteByKey(key: string): Promise<DeleteResult> {
       return db.deleteFrom("siteSettings").where("key", "=", key).executeTakeFirst();
     },

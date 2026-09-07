@@ -4,19 +4,6 @@ import { createAuth } from "./auth.js";
 import { createDb } from "./db/connect.js";
 import { createEmailSender } from "./email.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: API key authentication
-//
-// The @better-auth/api-key plugin (auth.ts) lets scripts call the API with an
-// `x-api-key` header instead of a session cookie. With
-// `enableSessionForAPIKeys`, a valid key makes `auth.api.getSession` resolve a
-// session for the key's owner, which is what requireAuth/requireAdmin consume.
-// These tests exercise the real better-auth instance against the shared
-// integration DB (the app-level harness mocks auth entirely, so it can't
-// cover this).
-// ---------------------------------------------------------------------------
-
-// Registered in integration-setup TEST_USERS.
 const USER_ID = "a0000000-0200-4000-a000-000000000001";
 const USER_EMAIL = "key-0200@test.com";
 

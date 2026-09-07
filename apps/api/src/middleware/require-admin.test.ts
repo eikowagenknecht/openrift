@@ -7,10 +7,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppError } from "../errors.js";
 import { requireAdmin } from "./require-admin.js";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 const mockIsAdmin = vi.fn<(userId: string) => Promise<boolean>>();
 const mockSectionsForUser = vi.fn<(userId: string) => Promise<string[]>>();
 
@@ -45,13 +41,8 @@ function createMockContext(options: {
   } as any;
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-//
-// getAdminAccess caches positive results (any access) per user id for 30s at
-// module level, so every test uses a distinct user id.
-// ---------------------------------------------------------------------------
-
+// getAdminAccess caches positive results per user id for 30s at module level,
+// so every test below uses a distinct user id.
 describe("require-admin middleware", () => {
   beforeEach(() => {
     mockIsAdmin.mockReset();
@@ -103,11 +94,9 @@ describe("require-admin middleware", () => {
       const ctx = createMockContext({ user: { id: "cached-admin" } });
       const next = vi.fn(() => Promise.resolve());
 
-      // First call — hits repo
       await requireAdmin(ctx, next);
       expect(mockIsAdmin).toHaveBeenCalledTimes(1);
 
-      // Second call — should use cache (no additional repo query)
       await requireAdmin(ctx, next);
       expect(mockIsAdmin).toHaveBeenCalledTimes(1);
     });

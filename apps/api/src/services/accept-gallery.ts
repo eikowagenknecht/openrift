@@ -18,14 +18,6 @@ type PrintingImagesRepo = ReturnType<typeof printingImagesRepo>;
 type MarkersRepo = ReturnType<typeof markersRepo>;
 type DistributionChannelsRepo = ReturnType<typeof distributionChannelsRepo>;
 
-/**
- * Accept a new card from favorite-provider candidate data: create the card,
- * create all printings from favorite providers, set images, and rehost them.
- *
- * @param normalizedName — the card's normalized name (used to find candidates)
- * @param favoriteProviders — set of provider slugs marked as favorites
- * @returns The new card slug and number of printings created.
- */
 export async function acceptFavoriteNewCard(
   transact: Transact,
   io: Io,
@@ -46,7 +38,6 @@ export async function acceptFavoriteNewCard(
 }> {
   const mut = repos.catalogMutations;
 
-  // 1. Find candidate cards for this name, filtered to favorite providers
   const allCandidates = await repos.candidateCards.candidateCardsByNormName(normalizedName);
   const favoriteCandidates = allCandidates.filter((cc) => favoriteProviders.has(cc.provider));
 
@@ -56,14 +47,11 @@ export async function acceptFavoriteNewCard(
 
   const primaryCandidate = favoriteCandidates[0];
 
-  // 2. Derive card slug from the display name for SEO-friendly URLs
   const cardSlug = slugifyName(primaryCandidate.name);
 
-  // Check for existing card with this slug (shouldn't exist for "new" rows, but be safe)
   const existing = await mut.getCardIdBySlug(cardSlug);
   // oxlint-disable-next-line unicorn/prefer-ternary -- both branches are async with different logic
   if (existing) {
-    // Link the name alias to the existing card instead of creating a new one
     await transact(async (trxRepos) => {
       await trxRepos.catalogMutations.createNameAliases(normalizedName, existing.id);
     });
@@ -87,12 +75,10 @@ export async function acceptFavoriteNewCard(
     });
   }
 
-  // 3. Find all candidate printings for favorite candidates
   const favCandidateIds = favoriteCandidates.map((cc) => cc.id);
   const candidatePrintings =
     await repos.candidateCards.allCandidatePrintingsForCandidateCards(favCandidateIds);
 
-  // 4. Group by shortCode + finish + markerSlugs + language and create each printing
   const groupMap = new Map<string, typeof candidatePrintings>();
   for (const cp of candidatePrintings) {
     const slugKey = [...(cp.markerSlugs ?? [])].sort().join(",");
@@ -113,7 +99,7 @@ export async function acceptFavoriteNewCard(
 
     if (!first.setId) {
       skipped.push({ shortCode: first.shortCode, reason: "missing setId" });
-      continue; // setId is required for printing creation
+      continue;
     }
 
     try {
@@ -148,8 +134,7 @@ export async function acceptFavoriteNewCard(
       );
       printingsCreated++;
     } catch (error) {
-      // Partial success is acceptable, but a skipped group must leave a trace
-      // or a systematically failing provider drains the queue invisibly.
+      // A skipped group is recorded, not dropped, so a failing provider is visible.
       skipped.push({
         shortCode: first.shortCode,
         reason: error instanceof Error ? error.message : String(error),
@@ -157,12 +142,10 @@ export async function acceptFavoriteNewCard(
     }
   }
 
-  // 5. Mark favorite candidates as checked
   for (const cc of favoriteCandidates) {
     await repos.candidateCards.checkCandidateCard(cc.id);
   }
 
-  // Each acceptPrinting above fire-and-forget rehosts the image it inserted, so
-  // there is no separate batch rehost step here.
+  // acceptPrinting above fire-and-forget rehosts each inserted image; no separate batch rehost step.
   return { cardSlug, printingsCreated, skipped };
 }

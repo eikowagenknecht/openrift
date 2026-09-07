@@ -150,11 +150,8 @@ export function loansRepo(db: Kysely<Database>) {
     },
 
     /**
-     * The lender's copies of a printing that no live claim holds: personal
-     * collections only (group-owned copies are not the lender's to lend), and
-     * pinned by neither a trade reservation nor another loan. Ordered so the
-     * collection the lend action was triggered in is drawn from first,
-     * topping up from other collections oldest-first.
+     * Personal-collection copies only, unpinned by any trade or loan. Drawn
+     * from the triggering collection first, then other collections oldest-first.
      */
     async listUnclaimedCopyIds(
       lenderUserId: string,
@@ -176,11 +173,7 @@ export function loansRepo(db: Kysely<Database>) {
       return rows.map((row) => row.id);
     },
 
-    /**
-     * Pins the given copies to a loan. Throws a 23505 unique violation if any
-     * copy is already pinned by another loan (the caller selects unclaimed
-     * copies in the same transaction, so this only fires on a race).
-     */
+    /** Throws a 23505 unique violation if any copy is already pinned by another loan. */
     async pinCopies(loanId: string, copyIds: readonly string[]): Promise<void> {
       if (copyIds.length === 0) {
         return;

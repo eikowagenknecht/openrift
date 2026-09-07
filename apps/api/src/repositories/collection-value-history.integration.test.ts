@@ -6,32 +6,17 @@ import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import { friendGroupsRepo } from "./friend-groups.js";
 import { marketplaceRepo } from "./marketplace.js";
 
-// Random per-file so nothing couples to a fixed id (see seedTestUser).
 const userId = crypto.randomUUID();
 const normalPrintingId = crypto.randomUUID();
 const ctPrintingId = crypto.randomUUID();
 
 const ctx = createDbContext(userId);
 
-/**
- * The chart on /collections/stats and the "Estimated Value" figure next to it
- * must agree. They diverged for months because the chart re-implemented the
- * headline price rule with its own ordering, and because a printing can have
- * several SKUs bound on one marketplace with nothing saying which is the price.
- *
- * Both read `mv_daily_printing_prices`, so the agreement is
- * structural rather than two expressions kept in sync by hand. These tests pin
- * that down, plus the two rules the view encodes: cheapest bound SKU wins, and
- * CardTrader's Zero price carries forward across days.
- */
 describe.skipIf(!ctx)("collection value history (integration)", () => {
   const { db } = ctx!;
   const repo = marketplaceRepo(db);
 
   const friendGroups = friendGroupsRepo(db);
-  // A real marketplace (the CHECK constraint allows nothing else). All queries
-  // and cleanup stay keyed on this file's own printings / group ids / external
-  // ids, so rows other files leave under tcgplayer never leak into assertions.
   const mpTcg = "tcgplayer" as const;
   const tcgGroupId = 80_101;
   const ctGroupId = 80_102;
@@ -98,11 +83,6 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
       .onConflict((oc) => oc.columns(["marketplace", "groupId"]).doNothing())
       .execute();
 
-    // Two SKUs of the same external product bound to one printing. This is the
-    // shape the admin UI creates on purpose: computeWeakProductSuggestions
-    // mirrors a "bogus" listing whose finish matches no printing on the card
-    // onto its sibling SKU's printings. The foil row is the bogus one and is
-    // 100x the real price.
     const skuRows = await db
       .insertInto("marketplaceProducts")
       .values([
@@ -147,8 +127,6 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
       ])
       .execute();
 
-    // TCGPlayer falls into the ELSE branch of the headline CASE, so
-    // market_cents is the headline. Cheap SKU 100, bogus SKU 10000.
     await db
       .insertInto("marketplaceProductPrices")
       .values([
@@ -156,8 +134,6 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
         { marketplaceProductId: cheapSku.id, recordedAt: dayOffset(0), marketCents: 100 },
         { marketplaceProductId: bogusSku.id, recordedAt: dayOffset(3), marketCents: 10_000 },
         { marketplaceProductId: bogusSku.id, recordedAt: dayOffset(0), marketCents: 10_000 },
-        // CardTrader: Zero price three days ago, none since. The carry-forward
-        // must keep 250 rather than dropping to today's low_cents of 900.
         {
           marketplaceProductId: ctSku.id,
           recordedAt: dayOffset(3),
@@ -193,10 +169,6 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
       )
       .execute();
 
-    // An orphan `removed` with no matching `added`, for a printing the user
-    // still holds. These exist in production because their copies predate
-    // event logging and could never be backfilled. A forward replay lets
-    // this cancel one of the two live copies above.
     await db
       .insertInto("collectionEvents")
       .values({
@@ -210,9 +182,6 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
       })
       .execute();
 
-    // A group collection the user contributes to. The Stats card's
-    // all-collections figure leaves group copies out (buildStacks skips
-    // copy.groupId !== null), so the chart's all-collections mode must too.
     const group = await friendGroups.createWithOwner(
       {
         slug: `vh-${userId.slice(0, 8)}`,
@@ -319,8 +288,6 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
       scope: {},
     });
 
-    // Three copies, despite the orphan `removed` event with no matching
-    // `added`. A forward replay would report two.
     expect(series.at(-1)!.copyCount).toBe(3);
   });
 
@@ -333,8 +300,6 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
       scope: {},
     });
 
-    // Three personal copies. The fourth lives in a group collection, which
-    // the Stats card's all-collections figure also excludes.
     expect(series.at(-1)!.copyCount).toBe(3);
   });
 
@@ -353,7 +318,6 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
   });
 
   it("spans the whole requested range even with no events inside it", async () => {
-    // Every event in this fixture is at least two days old.
     const series = await repo.collectionValueTimeSeries({
       userId,
       marketplace: mpTcg,
@@ -403,8 +367,6 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
       .where("marketplace", "=", mpTcg)
       .executeTakeFirstOrThrow();
 
-    // 100 (real listing), not 10000 (the bogus foil SKU bound to the same
-    // printing) and not whatever the plan happened to emit first.
     expect(row.headlineCents).toBe(100);
   });
 
@@ -433,8 +395,6 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
       .where("marketplace", "=", "cardtrader")
       .executeTakeFirstOrThrow();
 
-    // The newest snapshot has no Zero price, only lowCents 900. Zero excludes
-    // the per-seller shipping a raw low listing adds, so the older 250 stays.
     expect(row.headlineCents).toBe(250);
   });
 

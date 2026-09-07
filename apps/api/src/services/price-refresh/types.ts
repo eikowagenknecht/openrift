@@ -1,18 +1,12 @@
 import type { Marketplace, PriceRefreshUpsertCounts } from "@openrift/shared";
 
-// ── Row-count types ─────────────────────────────────────────────────────
-
 export interface UpsertCounts {
   prices: PriceRefreshUpsertCounts;
 }
 
-// ── Price upsert config ─────────────────────────────────────────────────
-
 export interface PriceUpsertConfig {
   marketplace: Marketplace;
 }
-
-// ── Generic row types ───────────────────────────────────────────────────
 
 export interface GroupRow {
   groupId: number;
@@ -20,11 +14,9 @@ export interface GroupRow {
   abbreviation?: string;
 }
 
-/** All 9 price columns on `marketplace_product_prices`. */
 export interface PriceColumns {
   marketCents: number | null;
   lowCents: number | null;
-  /** Lowest asking price among CardTrader Zero (hub-eligible) sellers. Null for other marketplaces. */
   zeroLowCents: number | null;
   midCents: number | null;
   highCents: number | null;
@@ -35,17 +27,14 @@ export interface PriceColumns {
 }
 
 /**
- * A fetched-price row for a marketplace SKU. Used as the input row shape for
- * the price-refresh upsert pipeline — fetchers emit one row per
- * (externalId, finish, language, recorded_at), and `upsertPriceData` collapses
- * them into per-product price rows.
+ * A fetched-price row for a marketplace SKU; `upsertPriceData` collapses one
+ * row per (externalId, finish, language, recorded_at) into per-product rows.
  */
 export interface StagingRow extends PriceColumns {
   externalId: number;
   groupId: number;
   productName: string;
   finish: string;
-  /** NULL for marketplaces that don't expose language as a SKU dimension (CM/TCG). */
   language: string | null;
   recordedAt: Date;
 }

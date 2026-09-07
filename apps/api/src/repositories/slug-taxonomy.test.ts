@@ -8,9 +8,7 @@ const { db } = captured;
 
 const isInUse = vi.fn(() => Promise.resolve(undefined));
 
-/** @returns A repo over a color-less taxonomy (finishes). */
 const plainRepo = () => slugTaxonomyRepo(db, { table: "finishes", isInUse });
-/** @returns A repo over a taxonomy that carries an extra `color` column. */
 const coloredRepo = () => slugTaxonomyRepo(db, { table: "rarities", isInUse });
 
 describe("slugTaxonomyRepo", () => {

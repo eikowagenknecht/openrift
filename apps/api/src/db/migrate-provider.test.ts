@@ -1,7 +1,6 @@
 import type { Logger } from "@openrift/shared/logger";
 import { describe, expect, it, vi } from "vitest";
 
-// Capture the provider passed to the Migrator constructor
 let capturedProvider: { getMigrations: () => Promise<Record<string, unknown>> } | undefined;
 
 vi.mock("kysely/migration", async (importOriginal) => {
@@ -34,9 +33,8 @@ function makeLog(): Logger {
   return { info: noop, warn: noop, error: noop, debug: noop } as unknown as Logger;
 }
 
-// migrate() runs normalizeMigrationTimestamps, which issues a raw `sql` query
-// through the db's executor. An executor returning no rows makes it treat the
-// migration table as absent and no-op.
+// migrate() runs normalizeMigrationTimestamps against the executor; empty
+// rows make it treat the migration table as absent and no-op.
 const fakeExecutor = {
   transformQuery: (node: unknown) => node,
   compileQuery: () => ({ sql: "", parameters: [] }),

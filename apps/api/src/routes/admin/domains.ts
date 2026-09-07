@@ -15,10 +15,6 @@ const handlers = createSlugTaxonomyHandlers({
   hasColor: true,
 });
 
-/**
- * Admin domain taxonomy CRUD. Conflict / not-found / bad-request states are
- * thrown as `AppError` and mapped by the handler's appErrorInterceptor.
- */
 export const adminDomainsRouter = {
   list: os.list.handler(handlers.list),
   reorder: os.reorder.handler(handlers.reorder),

@@ -82,7 +82,6 @@ describe("marketplaceAdminRepo", () => {
       { marketplace: "tcgplayer", externalId: 1, productName: "Card", createdAt: now },
     ]);
     const result = await marketplaceAdminRepo(db).listIgnoredProducts();
-    // Each row is returned once for each of the two internal queries, so expect 2.
     expect(result.length).toBeGreaterThanOrEqual(1);
     expect(result[0].marketplace).toBe("tcgplayer");
   });

@@ -7,10 +7,6 @@ import type { Repos, Transact } from "../deps.js";
 import type { UploadErrataEntry } from "../routes/admin/cards/schemas.js";
 import { importErrata } from "./import-errata.js";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function mockTransact(trxRepos: Repos): Transact {
   return (fn) => fn(trxRepos) as any;
 }
@@ -66,16 +62,10 @@ function makeEntry(overrides: Partial<UploadErrataEntry> = {}): UploadErrataEntr
   } as UploadErrataEntry;
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe("importErrata", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
-
-  // ── Empty input ─────────────────────────────────────────────────────────
 
   it("returns zero counts and no writes when entries are empty", async () => {
     const mut = createMockMut({});
@@ -92,8 +82,6 @@ describe("importErrata", () => {
     expect(mut.upsert).not.toHaveBeenCalled();
   });
 
-  // ── Unknown slug ────────────────────────────────────────────────────────
-
   it("records an error for an unknown slug and does not write", async () => {
     const mut = createMockMut({ cards: [] });
     const transact = mockTransact(createMockRepos(mut));
@@ -108,8 +96,6 @@ describe("importErrata", () => {
     expect(mut.upsert).not.toHaveBeenCalled();
     expect(mut.updateCardById).not.toHaveBeenCalled();
   });
-
-  // ── New entry ───────────────────────────────────────────────────────────
 
   it("classifies a never-before-seen entry as new and upserts it on apply", async () => {
     const mut = createMockMut({
@@ -136,8 +122,6 @@ describe("importErrata", () => {
     });
     expect(mut.updateCardById).toHaveBeenCalledTimes(1);
   });
-
-  // ── Updated entry ───────────────────────────────────────────────────────
 
   it("classifies a changed entry as updated and reports a diff", async () => {
     const mut = createMockMut({
@@ -168,11 +152,8 @@ describe("importErrata", () => {
     expect(mut.upsert).toHaveBeenCalledTimes(1);
   });
 
-  // ── Unchanged entry ─────────────────────────────────────────────────────
-
   it("classifies an identical entry as unchanged and still writes on apply (idempotent)", async () => {
-    // A `date` column: the driver returns the day string, so that is what a
-    // stored errata row looks like to the diff.
+    // date columns come back from the driver as the plain day string
     const existingDate = "2025-10-21";
     const mut = createMockMut({
       cards: [{ id: "card-1", slug: "jinx-rebel", name: "Jinx, Rebel" }],
@@ -197,11 +178,8 @@ describe("importErrata", () => {
     expect(result.unchangedCount).toBe(1);
     expect(result.newCount).toBe(0);
     expect(result.updatedCount).toBe(0);
-    // Unchanged entries are skipped — no write.
     expect(mut.upsert).not.toHaveBeenCalled();
   });
-
-  // ── Matches printed text ────────────────────────────────────────────────
 
   it("flags entries whose corrected text matches every printing, and skips them on apply", async () => {
     const mut = createMockMut({
@@ -241,8 +219,6 @@ describe("importErrata", () => {
     expect(result.newCount).toBe(1);
     expect(mut.upsert).toHaveBeenCalledTimes(1);
   });
-
-  // ── Dry run ─────────────────────────────────────────────────────────────
 
   it("does not write anything when dryRun is true", async () => {
     const mut = createMockMut({
@@ -298,8 +274,6 @@ describe("importErrata", () => {
     expect(result.updatedCount).toBe(1);
     expect(result.errors).toEqual(['Unknown card slug: "unknown-card"']);
   });
-
-  // ── Keyword recomputation ───────────────────────────────────────────────
 
   it("recomputes keywords from errata + printed texts when applying", async () => {
     const mut = createMockMut({

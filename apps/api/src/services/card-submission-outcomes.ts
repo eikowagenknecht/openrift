@@ -1,21 +1,6 @@
 /**
- * Stamping outcomes on in-app card submissions.
- *
- * The admin's review loop has exactly two terminal actions: check ("done with
- * this one", the Check all & next button) and ignore ("reject"). Everything
- * here hangs off those, so a contributor gets a status without the admin doing
- * anything extra.
- *
- * Field accepts deliberately do not trigger anything. `acceptField` and
- * `acceptPrintingField` receive only a card/printing id plus a field and value,
- * so they cannot say which source column a value came from, and a correction
- * usually spans several fields — the first accepted one is not the submission's
- * outcome. Resolution instead re-runs the submit-time comparison and asks how
- * much of the original proposal the catalog now agrees with.
- *
- * Every entry point is idempotent: only `pending` rows are touched, so a check
- * that runs twice (or a crash between the check and the resolve) settles the
- * same way.
+ * Every entry point here only touches `pending` rows, so a check that runs
+ * twice (or crashes between check and resolve) settles the same way.
  */
 import { normalizeNameForIdentity } from "@openrift/shared/utils";
 
@@ -23,13 +8,6 @@ import type { CardSubmissionStatus } from "../db/index.js";
 import type { Repos } from "../deps.js";
 import { adoptedFields, computeProposedDiff } from "../lib/card-submission-diff.js";
 
-/**
- * Decide a checked submission's outcome.
- *
- * An empty proposed diff means the catalog already matched everything sent.
- * That is a real outcome and not a rejection, so it gets its own status rather
- * than being folded into `not_applied`.
- */
 export function outcomeForCheckedSubmission(
   proposedDiffSize: number,
   adoptedCount: number,
@@ -40,14 +18,6 @@ export function outcomeForCheckedSubmission(
   return adoptedCount > 0 ? "accepted" : "not_applied";
 }
 
-/**
- * Resolve every pending submission among the given staging rows that is now
- * fully reviewed.
- *
- * "Fully reviewed" means the candidate card is checked and none of its
- * printings are still unchecked. Without that gate, checking a single printing
- * on a multi-printing submission would settle the whole thing early.
- */
 export async function resolveCheckedSubmissions(
   repos: Repos,
   args: { candidateCardIds: string[]; adminUserId: string; now: Date },
@@ -84,9 +54,8 @@ export async function resolveCheckedSubmissions(
       continue;
     }
 
-    // Re-resolve the live card by name rather than trusting the slug stored at
-    // submission time: a new-card submission had no card then and does now,
-    // which is exactly the case that should read as accepted.
+    // A new-card submission had no card at submission time, so the stored
+    // slug can't be used; look up the live card by name instead.
     const liveCard = await repos.cardSubmissions.liveCardByNormName(
       normalizeNameForIdentity(proposal.card.name),
     );
@@ -111,14 +80,7 @@ export async function resolveCheckedSubmissions(
   return resolved;
 }
 
-/**
- * Mark the submission behind an ignored candidate as rejected.
- *
- * The ignore path only carries `(provider, external_id)`, which is enough:
- * submissions mint a per-submission external_id, so the key identifies exactly
- * one submission. Candidates from scraped providers have no ledger row and
- * this no-ops for them.
- */
+/** No-ops for candidates from scraped providers, which have no ledger row. */
 export async function rejectIgnoredSubmission(
   repos: Repos,
   args: { provider: string; externalId: string; adminUserId: string; now: Date },
@@ -134,11 +96,6 @@ export async function rejectIgnoredSubmission(
   });
 }
 
-/**
- * Return a rejected submission to the queue when its candidate is unignored, so
- * a misclick is recoverable and the contributor's page follows. Any note the
- * admin wrote is kept, on the assumption they will reuse or edit it.
- */
 export async function reopenUnignoredSubmission(
   repos: Repos,
   args: { provider: string; externalId: string },

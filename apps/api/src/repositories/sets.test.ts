@@ -154,10 +154,6 @@ describe("setsRepo", () => {
     await expect(setsRepo(db).upsert("NEW", "New Set")).resolves.toBeUndefined();
   });
 
-  // Regression: upsert used to SELECT the slug, then SELECT max(sort_order),
-  // then INSERT. Two ingests naming the same new set both saw it missing and
-  // the loser threw on sets_slug_key. One INSERT ... ON CONFLICT DO NOTHING,
-  // with sort_order computed inline, can't lose that race.
   it("upsert issues a single conflict-tolerant insert", async () => {
     const { db, queries } = createRecordingDb();
 

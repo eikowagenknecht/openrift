@@ -10,16 +10,8 @@ type IngestRepo = ReturnType<typeof ingestRepo>;
 type CandidateCardsRepo = ReturnType<typeof candidateCardsRepo>;
 
 /**
- * Re-run the ingest-time key resolution for every unlinked candidate printing.
- *
  * Ingest only links candidates at upload time, so a printing accepted after a
- * provider's last upload leaves that provider's matching candidates unlinked
- * until the next re-upload. This pass closes the gap: it runs the shared
- * `resolvePrintingLink` (see candidate-links.ts) over every unlinked row and
- * bulk-links whatever now matches, so it can never fall behind what ingest
- * itself would have resolved.
- *
- * @returns How many unlinked rows were examined and how many got linked.
+ * provider's last upload leaves matching candidates unlinked until re-upload.
  */
 export async function relinkCandidatePrintings(repos: {
   ingest: IngestRepo;
@@ -30,7 +22,6 @@ export async function relinkCandidatePrintings(repos: {
     loadCandidateLinkIndex(repos.ingest),
   ]);
 
-  // Collect target printing → candidate printing ids, then bulk-update per target.
   const idsByPrinting = new Map<string, string[]>();
   for (const cp of unlinked) {
     const resolvedId = resolvePrintingLink(linkIndex, {

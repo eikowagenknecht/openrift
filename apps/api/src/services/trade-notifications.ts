@@ -59,9 +59,7 @@ export function isRequestGroupDue(
 
 export interface TradeEmailDeps {
   sendEmail: SendEmail;
-  /** Web origin for deep links + the unsubscribe route (BETTER_AUTH_URL). */
   appBaseUrl: string;
-  /** App secret used to sign the stateless unsubscribe token. */
   unsubscribeSecret: string;
   log: Logger;
 }
@@ -126,9 +124,7 @@ export async function sendTradeRequestEmail(
     const cards = await repos.catalog.cardsByIds([trade.cardId]);
     const cardName = cards[0]?.name ?? "a card";
 
-    // The email is about this one trade, so it lands on the sheet with the
-    // person who started it — where the trade sits alongside everything else
-    // between the two of them, pooled across every shared group.
+    // One trade, so it links to the counterparty's person-level sheet.
     if (dto.counterparty.userId === null) {
       // The initiator closed their account between the request and this send.
       return;
@@ -163,32 +159,20 @@ export interface CoalescedRequestFlushDeps {
   repos: Repos;
   log: Logger;
   sendEmail: SendEmail;
-  /** Web origin for deep links + the unsubscribe route (BETTER_AUTH_URL). */
   appBaseUrl: string;
-  /** App secret used to sign the stateless unsubscribe token. */
   unsubscribeSecret: string;
 }
 
 export interface CoalescedRequestFlushResult {
-  /** Distinct (sender, recipient) pairs whose burst was due. */
   pairs: number;
-  /** Coalesced emails actually sent (gated + send didn't throw). */
   emailsSent: number;
-  /** Queued requests folded into sent emails. */
   requests: number;
-  /** Pair sends that threw. Without this a run where every send failed records
-   *  the same all-zero summary as a run with nothing to send. */
   failed: number;
-  /** Requests claimed for a send that then threw. Claims are never released
-   *  (at-most-once), so these are dropped rather than retried. */
   requestsDropped: number;
 }
 
-/** A trade-request flush did nothing when no pair was due (flag off, or no
- *  pending requests), so no email was sent and no queued request was folded in. */
 export function isTradeRequestFlushNoop(result: CoalescedRequestFlushResult): boolean {
-  // `failed` needs no clause: only a due pair can fail, so any failure is
-  // already counted in `pairs`.
+  // `failed` is already implied by `pairs`: only a due pair can fail.
   return result.pairs === 0 && result.emailsSent === 0 && result.requests === 0;
 }
 
@@ -245,14 +229,12 @@ export async function flushCoalescedTradeRequests(
       !context.emailVerified ||
       !isTradeRequestEmailEnabled(context.emailNotifications)
     ) {
-      // Suppressed: claim the queued rows so they stay marked and we don't
-      // retry this pair every tick, then move on without emailing.
+      // Suppressed: claim so this pair isn't retried every tick.
       await repos.cardTrades.claimRequestEmails(rows.map((row) => row.id));
       continue;
     }
 
-    // Apply the recipient's cadence. A still-settling burst stays queued
-    // (unclaimed) for a later tick rather than being sent early.
+    // A still-settling burst stays queued, unclaimed, for a later tick.
     const cadence = getTradeRequestEmailCadence(context.emailNotifications);
     if (
       !isRequestGroupDue(
@@ -295,10 +277,7 @@ export async function flushCoalescedTradeRequests(
     const cards = await repos.catalog.cardsByIds([...cardIds]);
     const nameByCard = new Map(cards.map((card) => [card.id, card.name]));
 
-    // One section per group (a pair can share more than one group). Unlike the
-    // instant email above, this one is not about a single trade: each section is
-    // a friend group, headed and buttoned by its name, so it stays on the group
-    // deep link rather than the person-level sheet.
+    // One section per group: a pair can share more than one group.
     const sections: CoalescedRequestGroup[] = [];
     const sectionByGroup = new Map<string, CoalescedRequestGroup>();
     for (const row of claimedRows) {

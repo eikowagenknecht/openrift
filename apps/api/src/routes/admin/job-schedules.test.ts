@@ -18,8 +18,6 @@ const mockScheduler = {
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-// Mount the oRPC router directly (without the requireAdmin gate). AppErrors are
-// bridged to ORPCErrors inside the router, so 4xx responses carry `{ message }`.
 function buildApp(scheduler: unknown) {
   const app = new Hono<{ Variables: Variables }>();
   app.use("*", async (c, next) => {

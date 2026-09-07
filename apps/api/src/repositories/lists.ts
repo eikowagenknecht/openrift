@@ -226,9 +226,8 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
     },
 
     /**
-     * Inserts at the end of the (user, intent) bucket so the new list appears
-     * after the user's existing lists rather than landing at position 0 and
-     * re-ordering on every create.
+     * Inserts at the end of the (user, intent) bucket; position 0 would force
+     * re-ordering every other row on each create.
      */
     create(values: NewListValues): Promise<Selectable<ListsTable>> {
       const { rules, ...rest } = values;
@@ -372,8 +371,7 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
         .select(["l.id as listId", "l.name as listName", "le.copyId as copyId"])
         .execute();
 
-      // A copy can appear on several lists, so count distinct copies per list
-      // (and overall) rather than summing rows.
+      // A copy can appear on several lists; count distinct copies, not rows.
       const perList = new Map<string, { id: string; name: string; copies: Set<string> }>();
       const copiesOnAnyList = new Set<string>();
       for (const row of rows) {
@@ -443,23 +441,8 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
     },
 
     /**
-     * Rule-expanded entry *counts* for several lists at once. The materialized
-     * `entryCount` on a summary row counts manual `list_entries` only, so a
-     * rule-based list reports 0 until its rules run. Stops at `expandList` and
-     * returns sizes — a caller that wants a number should not pay for a fully
-     * enriched list page.
-     *
-     * Batched rather than looped per list: one query for the lists, one for
-     * every list's manual entries, and one owned-copy load per distinct
-     * *owner* (several of a user's lists share one inventory).
-     *
-     * Owned copies load unscoped here, unlike the per-list path's
-     * `ownedCopyPrintingScope` narrowing: the scope is a per-rule filter pass
-     * and so cannot be shared between lists, and one whole-collection read beats
-     * N narrowed ones at the collection sizes this runs on.
-     *
-     * Lists that carry no rules (or don't exist) are absent from the result,
-     * so callers keep their materialized count for those.
+     * Rule-expanded entry counts for several lists. Omits lists with no rules
+     * (or that don't exist); callers keep their materialized count for those.
      */
     async expandedCounts(listIds: readonly string[]): Promise<Map<string, number>> {
       const counts = new Map<string, number>();
@@ -548,20 +531,10 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
     },
 
     /**
-     * For card- and printing-kind lists, ON CONFLICT bumps the existing row's
-     * `quantity` by the new row's — drag-readd accumulates count instead of
-     * silently dropping. The `(xmax = 0)` marker distinguishes freshly-inserted
-     * rows from rows that took the DO UPDATE branch in a single roundtrip
-     * (xmax is the deleting/updating txid, 0 for inserts).
-     *
-     * For copy-kind lists, ON CONFLICT does nothing — an entry with a
-     * `copy_id` points to a specific physical copy, so a duplicate drop is a
-     * no-op, not a quantity bump; `updated` is always 0 there.
-     *
-     * `kind` selects which partial unique index ON CONFLICT targets; Postgres
-     * needs the matching WHERE predicate to disambiguate which partial index
-     * to use, or it raises "no unique or exclusion constraint matching the
-     * ON CONFLICT specification".
+     * `kind` must select the WHERE predicate matching the target partial
+     * unique index, or Postgres raises "no unique or exclusion constraint
+     * matching the ON CONFLICT specification". Copy-kind lists never bump
+     * quantity on conflict, so `updated` is always 0 there.
      */
     async bulkCreateEntries(kind: ListKind, values: NewEntryValues[]): Promise<BulkUpsertResult> {
       if (values.length === 0) {
@@ -599,6 +572,7 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
                 quantity: sql<number>`list_entries.quantity + excluded.quantity`,
               });
         })
+        // xmax is the deleting/updating txid; 0 means the row was inserted, not updated.
         .returning(sql<boolean>`(xmax = 0)`.as("inserted"))
         .execute();
       let inserted = 0;
@@ -709,10 +683,7 @@ export function listsRepo(db: Kysely<Database>, providers?: ListRuleProviders) {
       }
 
       const result = await this.bulkCreateEntries(kind, values);
-      // Copy-kind dupes go through DO NOTHING so they don't return a row;
-      // recover them here so they surface as `skipped` rather than vanishing.
-      // For card/printing kinds, every row either inserts or updates, so
-      // `droppedDupes` is 0.
+      // Copy-kind dupes hit DO NOTHING and return no row; recovered here as skipped.
       const droppedDupes = values.length - result.inserted - result.updated;
       return {
         added: result.inserted,
@@ -1366,13 +1337,9 @@ async function copyEntryQuery(
       .innerJoin("cards as card", "card.id", "p.cardId")
       .leftJoin("mvCardAggregates as mca", "mca.cardId", "card.id"),
   )
-    // Deliberately a join rather than the `notReservedByTrade` /
-    // `notPinnedToLoan` predicates in query-helpers: this query *reports* both
-    // states as flags on the entry instead of filtering the copies out. A copy
-    // is pinned to at most one live trade (UNIQUE copy_id), so the join can't
-    // multiply rows; its presence means the copy is reserved.
+    // UNIQUE copy_id: at most one live trade per copy, so this join can't multiply rows.
     .leftJoin("cardTradeCopies as ctc", "ctc.copyId", "cp.id")
-    // Same shape for loans: at most one live loan per copy.
+    // Same UNIQUE copy_id guarantee for loans.
     .leftJoin("loanCopies as lc", "lc.copyId", "cp.id")
     .where("le.listId", "=", scope.listId);
   if (scope.userId !== undefined) {

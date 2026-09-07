@@ -10,9 +10,7 @@ import { errorText } from "./meta-sync/deps.js";
  */
 
 export interface MetaRepromoteResult {
-  /** Events promotion ran over. */
   events: number;
-  /** Events that reported a problem, e.g. a format the archive cannot map. */
   failed: number;
   errors: string[];
 }
@@ -25,11 +23,7 @@ export async function repromoteMetaEvents(repos: Repos): Promise<MetaRepromoteRe
   );
 }
 
-/**
- * Promotes a list of events, sharing one rule context across the whole pass.
- *
- * @returns How many events ran and what any of them reported.
- */
+/** Promotes a list of events, sharing one rule context across the whole pass. */
 export async function promoteEach(
   repos: Repos,
   eventIds: readonly string[],

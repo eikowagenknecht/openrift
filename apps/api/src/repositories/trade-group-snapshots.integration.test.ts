@@ -6,15 +6,9 @@ import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import { cardTradesRepo } from "./card-trades.js";
 import { friendGroupsRepo } from "./friend-groups.js";
 
-// Migration 252: deleting a friend group must not delete the trades that
-// happened inside it. `trg_snapshot_deleted_group_names` releases the pins of
-// the group's live trades, cancels them, then swaps every trade's group
-// reference for the name the group had — so both members keep a readable record
-// of what they exchanged, on a sheet that pools history across groups.
-//
-// The sibling file `trade-loan-name-snapshots.integration.test.ts` covers the
-// account-deletion half of the same shape.
-//
+// `trg_snapshot_deleted_group_names` releases pins, cancels live trades, and
+// swaps each trade's group reference for the group's name, so members keep a
+// readable record after the group is gone.
 // One deletion in `beforeAll`; each test reads a different part of the result.
 const MEMBER_A_ID = crypto.randomUUID();
 const MEMBER_B_ID = crypto.randomUUID();
@@ -52,8 +46,8 @@ describe.skipIf(!ctx)("deleted-group name snapshots (integration)", () => {
     groupId = group.id;
     await groupsRepo.addMember(groupId, MEMBER_B_ID, "member");
 
-    // Survives the deletion below, so the "names both" case has a live group id
-    // to push at a trade that already carries a snapshot.
+    // Survives the deletion below, so a later test can push a live group at
+    // a trade that already carries a snapshot.
     const surviving = await groupsRepo.createWithOwner(
       {
         slug: `snapshot-252-live-${MEMBER_A_ID.slice(0, 8)}`,
@@ -85,8 +79,7 @@ describe.skipIf(!ctx)("deleted-group name snapshots (integration)", () => {
       .executeTakeFirstOrThrow();
     completedTradeId = completed.id;
 
-    // A reserved trade holds pins, which is the part of the teardown the
-    // trigger has to do explicitly now that the trades themselves survive.
+    // A reserved trade holds pins; the trigger releases them explicitly and does not delete the trade.
     const collection = await db
       .insertInto("collections")
       .values({ userId: MEMBER_A_ID, name: "Snapshot 252 binder" })
@@ -153,8 +146,6 @@ describe.skipIf(!ctx)("deleted-group name snapshots (integration)", () => {
     expect(trade?.status).toBe("cancelled");
     expect(trade?.closedAt).not.toBeNull();
     expect(trade?.expiresAt).toBeNull();
-    // Cancelling and snapshotting are separate statements, so this is also the
-    // check that the cancelled row did not stop at "no group, no name".
     expect(trade?.groupId).toBeNull();
     expect(trade?.groupName).toBe(GROUP_NAME);
   });
@@ -166,7 +157,6 @@ describe.skipIf(!ctx)("deleted-group name snapshots (integration)", () => {
       .where("tradeId", "=", reservedTradeId)
       .execute();
     expect(pins).toEqual([]);
-    // The copy itself is untouched — it was never the group's to delete.
     const copy = await db
       .selectFrom("copies")
       .select(["id"])
@@ -192,8 +182,6 @@ describe.skipIf(!ctx)("deleted-group name snapshots (integration)", () => {
   });
 
   it("refuses a trade that names both a group and a snapshot", async () => {
-    // The row already carries the snapshot, so handing it a live group as well
-    // is the "both" case.
     await expect(
       db
         .updateTable("cardTrades")

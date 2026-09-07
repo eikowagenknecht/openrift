@@ -1,24 +1,12 @@
 /**
- * Splitting a write that binds more parameters than one statement can carry.
- *
  * postgres.js refuses a statement binding more than 65534 parameters, so any
- * write whose row count comes from outside the request (a crawl page, a whole
- * event's field, an uncapped admin body) has to be split. The failure is
- * silent until the day the input is big enough, and then it is total: the
- * statement never reaches postgres.
+ * write whose row count comes from outside the request has to be split.
  */
 
-/** What postgres.js binds before it throws `MAX_PARAMETERS_EXCEEDED`. */
 export const MAX_BIND_PARAMETERS = 65_534;
 
-/**
- * The share of the ceiling one statement's rows may use. The rest covers what
- * a statement binds outside them: `where` predicates, `on conflict` literals,
- * and the values a `returning` clause has no part in.
- */
 const ROW_PARAMETER_BUDGET = 60_000;
 
-/** Rows per batch for a list bound one parameter each, as an `in` list is. */
 const KEY_BATCH_SIZE = 1000;
 
 function batchesOf<T>(items: readonly T[], size: number): T[][] {
@@ -30,10 +18,8 @@ function batchesOf<T>(items: readonly T[], size: number): T[][] {
 }
 
 /**
- * How many parameters one row of this insert binds. Kysely builds the column
- * list from the union of the rows' keys and binds every column for every row,
- * skipping only a key whose value is `undefined` everywhere (that column is
- * never named at all).
+ * Kysely builds the column list from the union of the rows' keys and binds
+ * every column for every row, skipping only a key `undefined` everywhere.
  */
 function boundColumns(rows: readonly object[]): number {
   const columns = new Set<string>();
@@ -48,13 +34,8 @@ function boundColumns(rows: readonly object[]): number {
 }
 
 /**
- * Insert rows split into batches no statement can overrun, sized from the
- * columns the rows themselves bind. An empty list yields no batches, so a
- * caller's loop is its own "nothing to write" guard.
- *
  * Batching costs the write its single-statement atomicity unless the caller
- * runs the batches inside a transaction, which is where a wholesale replace
- * belongs anyway.
+ * runs the batches inside a transaction.
  */
 export function rowBatches<T extends object>(rows: readonly T[]): T[][] {
   const columns = boundColumns(rows);
@@ -64,11 +45,7 @@ export function rowBatches<T extends object>(rows: readonly T[]): T[][] {
   return batchesOf(rows, Math.max(1, Math.floor(ROW_PARAMETER_BUDGET / columns)));
 }
 
-/**
- * A key list split into batches, for a query that binds one parameter per key.
- * The caller concatenates the results: batching a read means one query per
- * batch, and the rows come back per batch with them.
- */
+/** Batching a read means one query per batch; the caller concatenates the results. */
 export function keyBatches<T>(keys: readonly T[]): T[][] {
   return batchesOf(keys, KEY_BATCH_SIZE);
 }

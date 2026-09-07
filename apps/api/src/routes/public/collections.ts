@@ -13,10 +13,6 @@ import { keysetPage } from "../../repositories/query-helpers.js";
 
 const os = implement(publicCollectionsContract).$context<ApiContext>().use(requireUser);
 
-/**
- * The public shared-collection view. An unknown token returns a typed NOT_FOUND.
- * Value is computed using the owner's favorite marketplace.
- */
 export const publicCollectionsRouter = {
   share: os.share.handler(
     async ({ input, context, errors }): Promise<PublicCollectionDetailResponse> => {

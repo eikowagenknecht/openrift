@@ -2,10 +2,7 @@ import type { LoanCounterparty, LoanResponse, LoanRole, LoanStatus } from "@open
 
 import { gravatarHashForEmail } from "./gravatar.js";
 
-/**
- * A loan as the DTO query reads it. Loans are personal records (no group), so
- * unlike trades there is no group column and no contact methods.
- */
+/** Loans are personal records: no group column, no contact methods, unlike trades. */
 export interface LoanDtoRow {
   id: string;
   lenderUserId: string;
@@ -33,11 +30,7 @@ function isoOrNull(value: Date | null): string | null {
   return value === null ? null : value.toISOString();
 }
 
-/**
- * Orients a loan row to the viewer. The lender sees the borrower (a user, a
- * free-text name, or neither after the borrower deleted their account); a
- * member borrower always sees the lender.
- */
+/** The lender sees the borrower (user, free-text name, or neither if deleted); a borrower always sees the lender. */
 export function toLoanResponse(row: LoanDtoRow, userId: string): LoanResponse {
   const role: LoanRole = row.lenderUserId === userId ? "lender" : "borrower";
 

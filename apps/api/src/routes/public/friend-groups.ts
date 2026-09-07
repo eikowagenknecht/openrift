@@ -21,8 +21,6 @@ export const publicFriendGroupsRouter = {
         throw errors.NOT_FOUND({ message: "Group not found" });
       }
 
-      // The route is public, so the session is resolved lazily: an anonymous
-      // visitor is simply someone with no membership and no request yet.
       const viewer = await context.loadUser();
       const [members, existingMembership, existingInvite] = await Promise.all([
         friendGroups.listMembers(group.id),

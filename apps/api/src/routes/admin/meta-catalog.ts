@@ -73,13 +73,11 @@ const os = implement(adminMetaCatalogContract).$context<ApiContext>().use(requir
 
 const DEFAULT_LIMIT = 50;
 
-/** The kinds each source's backfill resume point and cancel flag live under. */
 const BACKFILL_KIND = "meta.uvsgames_backfill";
 const PLAYLOLTCG_BACKFILL_KIND = "meta.playloltcg_backfill";
 const TOPDECK_BACKFILL_KIND = "meta.topdeck_backfill";
 const ID_SWEEP_KIND = "meta.uvsgames_id_sweep";
 
-/** The run kind each Stop targets. Not every source/job pair exists as a job. */
 const CANCELLABLE_KINDS: Partial<
   Record<`${MetaSource}:${MetaCancellableJob}`, (typeof META_JOB_KINDS)[number]>
 > = {
@@ -102,9 +100,8 @@ function playloltcgDeps(context: ApiContext): PlayloltcgSyncDeps {
 }
 
 /**
- * The only source that authenticates. An unset key reaches the client as an
- * empty Authorization header and the source answers 401, which is what the run
- * reports; the scheduled job skips itself instead.
+ * The only source that authenticates. An unset key sends an empty
+ * Authorization header, so the source 401s and the scheduled job skips itself.
  */
 function topdeckDeps(context: ApiContext): TopdeckSyncDeps {
   return createTopdeckSyncDeps({
@@ -117,10 +114,8 @@ function topdeckDeps(context: ApiContext): TopdeckSyncDeps {
   });
 }
 
-/** How many of the selected source's runs the sync panel shows. */
 const STATUS_RUN_LIMIT = 25;
 
-/** The `meta_event_sources.provider` each catalogued source cites itself under. */
 const SOURCE_PROVIDER: Record<MetaSource, string> = {
   uvsgames: UVSGAMES_PROVIDER,
   playloltcg: PLAYLOLTCG_PROVIDER,
@@ -129,14 +124,12 @@ const SOURCE_PROVIDER: Record<MetaSource, string> = {
 
 /**
  * Both sources' crons write into the same `job_runs` table, so an unfiltered
- * newest-25 buries one source's backfill within a couple of hours of the
- * other's syncs, and with it the resume state the panel reads off that run.
+ * newest-25 buries one source's backfill and the resume state the panel reads off it.
  */
 function jobKindsForSource(source: MetaSource): string[] {
   return META_JOB_KINDS.filter((kind) => kind.startsWith(`meta.${source}_`));
 }
 
-/** The passes that re-derive live rows, which belong to the archive and to no source. */
 const ARCHIVE_JOB_KINDS = ["meta.retier", "meta.repromote"];
 
 function toMetaSyncRun(run: JobRun) {
@@ -153,7 +146,6 @@ function toMetaSyncRun(run: JobRun) {
   };
 }
 
-/** A sweep that accepted nothing and hit no failure did no work. */
 function isAutoAcceptNoop(
   summary: MetaAutoAcceptSummary | PlayloltcgAcceptSummary | TopdeckAcceptSummary,
 ): boolean {
@@ -179,9 +171,8 @@ async function requireRow(context: ApiContext, externalId: string): Promise<Uvsg
 }
 
 /**
- * The crawls answer with a run handle rather than their result: a full backfill
- * walks a thousand pages at one request per second, which outlives every
- * gateway in front of this. The caller polls `job_runs`.
+ * A full backfill walks a thousand pages at one request per second, which
+ * outlives every gateway in front of this; the caller polls `job_runs`.
  */
 async function startJob<TDeps, TResult>(
   context: ApiContext,
@@ -202,13 +193,9 @@ async function startJob<TDeps, TResult>(
 }
 
 /**
- * The catalogue triage list and the sync controls (ADR-014), mounted under the
- * admin-gated `/api/admin/v1/meta` prefix.
- *
  * Accept and dismiss are the only two writes against a catalogue row, and
  * neither edits the mirror: accept mints the live event and promotes it,
- * dismiss writes the ignore key the ingest already honours. Everything else
- * here is either a read or a manual run of a job the crons own.
+ * dismiss writes the ignore key the ingest already honours.
  */
 export const adminMetaCatalogRouter = {
   list: os.list.handler(async ({ input, context }) => {
@@ -416,9 +403,8 @@ export const adminMetaCatalogRouter = {
   ),
 
   runBackfill: os.runBackfill.handler(async ({ context }) => {
-    // A full pass takes hours, so a run that stopped early (cancelled, out of
-    // request budget, or killed with the process) leaves a resume point behind
-    // and this picks it up. `restartBackfill` is the way to ignore it.
+    // A run that stopped early leaves a resume point behind and this picks it
+    // up. `restartBackfill` is the way to ignore it.
     const previous = await context.repos.jobRuns.findLatestForResume(BACKFILL_KIND);
     const prior = previous?.result;
     const resumeFrom = isResumableCheckpoint(prior) ? new Date(prior.coveredThrough) : undefined;
@@ -474,9 +460,8 @@ export const adminMetaCatalogRouter = {
     if (job !== "recheck") {
       const current = await context.repos.jobRuns.getResult(running.id);
       if (!isCatalogCheckpoint(current)) {
-        // The crawl has not written its first heartbeat yet, so there is
-        // nothing for it to read the flag out of. A retry in a few seconds
-        // lands.
+        // The crawl has not written its first heartbeat yet to read the flag
+        // out of. A retry in a few seconds lands.
         throw new AppError(
           409,
           ERROR_CODES.CONFLICT,
@@ -765,10 +750,8 @@ export const adminMetaCatalogRouter = {
     });
   }),
 
-  // Five upstream requests at a 30s timeout each, so waiting for it outlives
-  // the proxy's read timeout: the gateway gives up, turns the dead POST into a
-  // 405, and the run keeps going anyway. It reports its runId instead and the
-  // panel's run list tracks it.
+  // Five upstream requests at 30s each outlive the proxy's read timeout: the
+  // gateway 405s the dead POST, but the run keeps going and reports its runId.
   fetchEvent: os.fetchEvent.handler(async ({ input, context }) => {
     const row = await requireRow(context, input.externalId);
     if (row.metaEventId === null) {

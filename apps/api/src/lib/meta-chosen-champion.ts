@@ -1,36 +1,13 @@
 import { copyLimitFor, WellKnown } from "@openrift/shared";
 
-/**
- * The catalog facts the Chosen Champion rules turn on, per card id.
- *
- * `tags` is the champion-identifier vocabulary a Legend and its Champion share
- * ("Rengar", "Darius"); a Legend carries exactly the one naming its champion.
- */
+/** `tags` is the champion-identifier vocabulary a Legend and its Champion share ("Rengar", "Darius"). */
 export interface ChampionFacts {
   tags: readonly string[];
   isChampion: boolean;
   maxCopiesOverride: number | null;
 }
 
-/**
- * The Chosen Champion a main deck implies, for a source that publishes the 39
- * main cards and no champion of its own.
- *
- * Three rules decide it between them, and a card has to satisfy all three:
- * `championExactlyOne` requires the Champion supertype,
- * `championSharesTagWithLegend` requires a tag in common with the Legend, and
- * `championCopyLimitAcrossZones` bars a card already at its copy limit in the
- * main deck, since the chosen copy is a further one. Where exactly one card
- * survives, no legal deck could have chosen anything else, and the archive
- * knows a card the source never published.
- *
- * Two or more survivors is a deck running two champions of the same Legend, and
- * none is a player who ran no copy of their champion in the main deck — four
- * lists in five. Both are answered with null: a wrong champion would set the
- * deck's identity, and an unknown one is already rendered as unknown.
- *
- * @returns The champion's card id, or null when the list does not settle it.
- */
+/** Returns null unless exactly one main-deck card shares a tag with the Legend and has room under its copy limit. */
 export function inferChosenChampion(
   cards: readonly { cardId: string | null; zone: string; quantity: number }[],
   legendCardId: string | null,

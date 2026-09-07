@@ -1,9 +1,6 @@
 /*
- * Shared HTML shell for transactional emails. Plain inline-styled HTML, no
- * template engine: a header band, a content card, and a footer that
- * optionally carries a one-click unsubscribe link for the email's channel.
- * Both the trade-request and match-digest emails render through this so they
- * stay on-brand and consistent.
+ * Shared HTML shell for transactional emails: a header band, a content card,
+ * and a footer with an optional one-click unsubscribe link.
  */
 
 export const BRAND = "#24705f";
@@ -30,14 +27,8 @@ const DEFAULT_FOOTER_NOTE = "You're receiving this because of your trading activ
 
 interface EmailLayoutParams {
   heading: string;
-  /** Already-escaped inner HTML for the content card. */
   bodyHtml: string;
   unsubscribe?: { url: string; label: string };
-  /**
-   * Why the recipient is getting this mail, shown above the unsubscribe line.
-   * Defaults to the trading-activity wording; non-trade emails (the admin
-   * card-submission alert) pass their own.
-   */
   footerNote?: string;
 }
 

@@ -12,13 +12,10 @@ import type { ApiContext } from "../../orpc/context.js";
 
 const os = implement(cardsContract).$context<ApiContext>().use(requireUser);
 
-// Enough for a two-row strip on desktop without turning the section into a
-// second card browser.
 const RELATED_CARDS_LIMIT = 8;
 
 /**
- * The public card-detail contract. An unknown slug returns a typed NOT_FOUND.
- * Prices are NOT inlined — they are served separately by `/prices` (CACHE-1).
+ * Prices are not inlined; they are served separately by `/prices`.
  */
 export const cardsRouter = {
   detail: os.detail.handler(async ({ input, context, errors }): Promise<CardDetailResponse> => {

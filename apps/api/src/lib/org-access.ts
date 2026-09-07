@@ -8,9 +8,8 @@ import type { Organization, OrganizationMember } from "../repositories/organizat
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 
 /**
- * Loads an organization by id or slug; 404 if missing. The `id` column is a
- * uuid, so a non-uuid value (a slug) must never be passed to `findById` — that
- * throws Postgres `22P02` and 500s. We branch on the value's shape instead.
+ * Loads an organization by id or slug; 404 if missing. A non-uuid `id` passed
+ * to `findById` throws Postgres `22P02`, so branch on the value's shape.
  */
 export async function loadOrg(
   repos: Repos,
@@ -26,12 +25,6 @@ export async function loadOrg(
   return org;
 }
 
-/**
- * Higher rank = more power; a check passes when the member's rank meets the
- * minimum. Owner and manager both carry org authority (they inherit organizer
- * authority on every tournament the org hosts) while a judge carries none,
- * which is what every "owner or manager" gate is testing.
- */
 export const ORG_ROLE_RANK: Record<OrganizationRole, number> = {
   judge: 0,
   manager: 1,
@@ -44,16 +37,13 @@ const ORG_ROLE_MINIMUM_MESSAGE: Record<OrganizationRole, string> = {
   owner: "Owner only",
 };
 
-/** Rank comparison for the linear org hierarchy (owner > manager > judge). */
 export function hasOrgRole(role: OrganizationRole, minimum: OrganizationRole): boolean {
   return ORG_ROLE_RANK[role] >= ORG_ROLE_RANK[minimum];
 }
 
 /**
  * Loads the caller's membership and asserts it meets the minimum role; throws
- * 403 for a non-member as well as for an under-ranked one. Loading the org and
- * gating on it stay separate calls ({@link loadOrg} first) because the org page
- * deliberately 404s a non-member where the mutations 403 them.
+ * 403 for a non-member as well as for an under-ranked one.
  */
 export async function requireOrgRole(
   repos: Repos,
@@ -69,10 +59,8 @@ export async function requireOrgRole(
 }
 
 /**
- * Locks the org row and throws 400 when it has only one owner left, so a
- * demotion or removal can't leave it ownerless. Must run inside a transaction:
- * the lock is what stops two concurrent demotions both passing the count guard
- * and racing the org down to zero owners (TOCTOU).
+ * Must run inside a transaction: the row lock stops two concurrent demotions
+ * both passing the count guard and racing the org down to zero owners.
  */
 export async function assertNotLastOwner(trxRepos: Repos, orgId: string): Promise<void> {
   await trxRepos.organizations.lockForUpdate(orgId);

@@ -8,8 +8,6 @@ const CARD_WITH_SETS = { ...CARD, setSlugs: ["ogs"] };
 const CC = { id: "cc-1", provider: "test", name: "Annie", normName: "annie" };
 
 describe("candidateCardsRepo", () => {
-  // ── Simple list endpoints ──────────────────────────────────────────────────
-
   it("listAllCards returns cards with setSlugs", async () => {
     const db = createMockDb([CARD_WITH_SETS]);
     expect(await candidateCardsRepo(db).listAllCards()).toEqual([CARD_WITH_SETS]);
@@ -70,10 +68,6 @@ describe("candidateCardsRepo", () => {
     expect(result).toEqual(["tcgplayer"]);
   });
 
-  // Regression: `max(greatest(...updated_at...))` is a timestamptz, which the
-  // driver hands back as a native Date. The repo used to declare it
-  // `sql<string>` and pass it straight through, so the returned `lastUpdated`
-  // was a Date wearing a string type and every caller had to re-coerce it.
   it("providerStats returns lastUpdated as an ISO string", async () => {
     const db = createMockDb([
       {
@@ -93,8 +87,6 @@ describe("candidateCardsRepo", () => {
       },
     ]);
   });
-
-  // ── Detail sub-queries ─────────────────────────────────────────────────────
 
   it("cardBySlug returns a card", async () => {
     const db = createMockDb([CARD]);
@@ -163,8 +155,6 @@ describe("candidateCardsRepo", () => {
     expect(await candidateCardsRepo(createMockDb([])).setPrintedTotalBySlugs([])).toEqual([]);
   });
 
-  // ── Unmatched detail sub-queries ───────────────────────────────────────────
-
   it("allCandidatePrintingsForCandidateCards returns printings", async () => {
     const db = createMockDb([{ id: "cp-1" }]);
     expect(
@@ -193,8 +183,6 @@ describe("candidateCardsRepo", () => {
     expect(await candidateCardsRepo(db).candidateCardsForDetail(["annie"])).toHaveLength(1);
   });
 
-  // ── Export ─────────────────────────────────────────────────────────────────
-
   it("exportCards returns all cards", async () => {
     const db = createMockDb([CARD]);
     expect(await candidateCardsRepo(db).exportCards()).toEqual([CARD]);
@@ -214,8 +202,6 @@ describe("candidateCardsRepo", () => {
     expect(await candidateCardsRepo(db).exportPrintings()).toHaveLength(1);
   });
 
-  // ── Candidate mutations ───────────────────────────────────────────────
-
   it("checkCandidateCard updates checked_at", async () => {
     const db = createMockDb([{ numUpdatedRows: 1n }]);
     const result = await candidateCardsRepo(db).checkCandidateCard("cc-1");
@@ -229,16 +215,10 @@ describe("candidateCardsRepo", () => {
   });
 
   it("checkAllCandidateCards counts the rows it flipped but returns every match", async () => {
-    // The count is what this call changed; the ids cover every matching
-    // candidate, including ones already checked. A submission checked entry by
-    // entry before its printings were done would otherwise stay pending, since
-    // a later "check all" updates nothing and so would resolve nothing.
     const db = createMockDb([{ id: "cc-1" }, { id: "cc-2" }, { id: "cc-3" }]);
     const result = await candidateCardsRepo(db).checkAllCandidateCards(["annie"], "c-1");
     expect(result).toEqual({ updated: 3, candidateCardIds: ["cc-1", "cc-2", "cc-3"] });
   });
-
-  // ── Candidate printing checks ─────────────────────────────────────────────
 
   it("checkCandidatePrinting updates checked_at", async () => {
     const db = createMockDb([{ numUpdatedRows: 1n }]);
@@ -275,7 +255,6 @@ describe("candidateCardsRepo", () => {
   });
 
   it("checkAllCandidatePrintings dedupes parents from the same candidate card", async () => {
-    // Two printings of one submission must resolve it once, not twice.
     const db = createMockDb([
       { candidateCardId: "cc-1" },
       { candidateCardId: "cc-1" },
@@ -285,8 +264,6 @@ describe("candidateCardsRepo", () => {
       await candidateCardsRepo(db).checkAllCandidatePrintings("p-1", ["cp-1", "cp-2"]),
     ).toEqual({ updated: 3, candidateCardIds: ["cc-1", "cc-2"] });
   });
-
-  // ── Candidate printing mutations ──────────────────────────────────────────
 
   it("patchCandidatePrinting updates fields", async () => {
     const db = createMockDb([{ numUpdatedRows: 1n }]);
@@ -346,8 +323,6 @@ describe("candidateCardsRepo", () => {
     await expect(candidateCardsRepo(db).copyCandidatePrinting(ps, target)).resolves.toBeUndefined();
   });
 
-  // ── Linking ───────────────────────────────────────────────────────────────
-
   it("linkCandidatePrintings links printings", async () => {
     const db = createMockDb([]);
     await expect(
@@ -396,8 +371,6 @@ describe("candidateCardsRepo", () => {
       candidateCardsRepo(db).removePrintingLinkOverrides(["cp-1"]),
     ).resolves.toBeUndefined();
   });
-
-  // ── Card mutations ────────────────────────────────────────────────────────
 
   it("unlinkCandidatePrintingsByPrintingId unlinks", async () => {
     const db = createMockDb([]);

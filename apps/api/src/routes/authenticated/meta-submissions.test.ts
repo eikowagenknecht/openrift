@@ -7,10 +7,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { metaSubmissionsRouter, mountMetaSubmissionsMiddleware } from "./meta-submissions";
 
-// ---------------------------------------------------------------------------
-// Mock repos and services
-// ---------------------------------------------------------------------------
-
 const mockSubmissions = { listByUser: vi.fn(), shareTokensForDecks: vi.fn() };
 const mockMeta = { creditVisibility: vi.fn(), setCreditVisibility: vi.fn() };
 const mockSubmitMetaDeck = vi.fn();
@@ -32,7 +28,6 @@ app.use("*", async (c, next) => {
 });
 registerRouterForTest(app, metaSubmissionsRouter);
 
-/** @returns A valid submission body against an existing event. */
 function submissionBody(overrides: Record<string, unknown> = {}) {
   return {
     metaEventId: EVENT_ID,
@@ -50,7 +45,6 @@ function submissionBody(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** @returns The response to a submission POST. */
 function submit(body: unknown) {
   return app.request("/api/v1/meta/submissions", {
     method: "POST",
@@ -59,7 +53,6 @@ function submit(body: unknown) {
   });
 }
 
-/** @returns A stored ledger row. */
 function ledgerRow(overrides: Record<string, unknown> = {}) {
   return {
     id: "c0000000-0001-4000-a000-000000000001",
@@ -137,8 +130,6 @@ describe("POST /meta/submissions", () => {
   });
 
   it("rejects a submission claiming it carries no list", async () => {
-    // A submission is a decklist; standings-only rows come from the archive's
-    // own sources.
     const res = await submit(submissionBody({ listStatus: "none" }));
 
     expect(res.status).toBe(400);
@@ -241,7 +232,6 @@ describe("GET /meta/submissions", () => {
     expect(json.items[0].status).toBe("pending");
     expect(json.items[0].createdAt).toBe("2026-08-18T10:00:00.000Z");
     expect(json.nextCursor).toBeNull();
-    // Always scoped to the session user; the client never supplies an id.
     expect(mockSubmissions.listByUser).toHaveBeenCalledWith(USER_ID, {
       cursor: null,
       limit: 25,
@@ -362,14 +352,11 @@ describe("credit visibility", () => {
 });
 
 describe("meta-submissions body limit", () => {
-  // The limit is path middleware registered ahead of the oRPC catch-all
-  // (app.ts), so it is mounted here on a bare app — an over-cap request never
-  // reaches a router.
+  // Path middleware registered ahead of the oRPC catch-all; mounted here on a bare app.
   const limited = new Hono<{ Variables: Variables }>();
   mountMetaSubmissionsMiddleware(limited);
   limited.post("/api/v1/meta/submissions", (c) => c.json({ ok: true }));
 
-  /** @returns The response to a POST carrying a note of `noteLength` characters. */
   function post(noteLength: number) {
     return limited.request("/api/v1/meta/submissions", {
       method: "POST",
@@ -398,7 +385,6 @@ describe("meta-submissions body limit", () => {
 });
 
 describe("POST /meta/submissions/event-corrections", () => {
-  /** @returns The response to a correction POST. */
   function correct(body: unknown) {
     return app.request("/api/v1/meta/submissions/event-corrections", {
       method: "POST",

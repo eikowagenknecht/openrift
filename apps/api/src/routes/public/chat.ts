@@ -13,35 +13,19 @@ import { createChatCardIndexLoader } from "../../services/chat-card-index.js";
 import type { Variables } from "../../types.js";
 
 /**
- * Chat-bot card lookup. `GET /api/v1/chat/card?q=` answers with one line of
- * plain text for a Twitch/Discord bot's url-fetch command (Nightbot,
- * StreamElements, Fossabot) to paste into chat verbatim.
- *
- * Those bots paste the response body whatever the status is, so this route
- * *always* answers 200 text/plain: a miss, a blank query and even an internal
- * failure are friendly sentences, never a JSON error envelope. Failures are
- * still reported to Sentry — the viewer just doesn't get a stack trace in chat.
- *
- * The response is anonymous and depends only on the catalogue, so it carries a
- * short shared cache: a popular `!card` command is the same URL for everyone
- * and does not need to reach the origin for every viewer.
+ * `GET /api/v1/chat/card?q=` always answers 200 text/plain, since a chat
+ * bot's url-fetch command pastes the response body verbatim regardless of
+ * status; a miss or an internal failure is a friendly sentence, not a JSON
+ * error envelope. Failures are still reported to Sentry.
  */
 
-/** Short shared cache — see the module comment. */
 const CHAT_CACHE_CONTROL = "public, max-age=300";
 
-/**
- * Cap on the query before it reaches the ranking. A chat lookup is a card name
- * or a printing code; anything longer is noise, and the ranking scans every
- * card in the catalogue against it, so the length is worth bounding at the
- * door rather than at the presenter.
- */
 const MAX_QUERY_LENGTH = 100;
 
 /**
- * Cacheable answers (hit, miss, usage) carry the shared cache; a failure line
- * must not be pinned for five minutes, so it is served `no-store` and the
- * next call retries.
+ * A failure line must not be pinned for five minutes, so it is served
+ * `no-store` while hit/miss/usage lines carry the shared cache.
  */
 function chatResponse(line: string, cacheable = true): Response {
   return new Response(line, {
@@ -54,21 +38,17 @@ function chatResponse(line: string, cacheable = true): Response {
 }
 
 /**
- * Builds the route. It is a factory rather than a module-level app because it
- * owns the lookup index memo, which is scoped to one app's `repos` — a shared
- * module-level memo would leak one app's catalogue into another's in tests.
+ * The lookup index memo is scoped to one app's `repos`; a module-level memo
+ * would leak one app's catalogue into another's in tests.
  */
 export function createPublicChatRoute() {
-  // Built on the first request rather than here: `repos` only exists on the
-  // context. `repos` is fixed for the life of an app (app.ts builds it once),
-  // so the memo stays valid for every later request.
+  // `repos` isn't available until the first request; it's fixed for the
+  // life of an app, so the memo stays valid after that.
   let loadIndex: (() => Promise<ChatCardIndex>) | null = null;
 
   return new Hono<{ Variables: Variables }>().get("/chat/card", async (c) => {
     const config = c.get("config");
-    // `CORS_ORIGIN` is a comma-separated allow-list whose first entry is the
-    // deployment's own site origin, so preview and production each link to
-    // themselves (see cors.ts).
+    // CORS_ORIGIN's first entry is the deployment's own site origin (see cors.ts).
     const firstOrigin = config.corsOrigin?.split(",")[0]?.trim();
     const siteUrl = firstOrigin || undefined;
     const query = (c.req.query("q") ?? "").slice(0, MAX_QUERY_LENGTH);

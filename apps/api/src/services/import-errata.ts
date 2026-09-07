@@ -53,16 +53,8 @@ function matchesAllPrinted(
 }
 
 /**
- * Bulk-import card errata from a JSON payload. Resolves slugs → card ids,
- * classifies each entry (new, updated, unchanged, matches-printed-text,
- * unknown-slug), and either previews or applies the writes.
- *
- * Entries whose corrected text would already match every printing's printed
- * text are flagged and skipped on apply — the existing errata display logic
- * already hides those rows per-printing, so writing them would just add dead
- * rows.
- *
- * @returns Summary counts plus diffs and unresolved errors.
+ * Entries whose corrected text already matches every printing's printed text
+ * are flagged and skipped on apply; the errata display already hides those.
  */
 export async function importErrata(
   transact: Transact,
@@ -90,7 +82,6 @@ export async function importErrata(
     const mut = trxRepos.catalogMutations;
     const errata = trxRepos.cardErrata;
 
-    // ── Phase 1: Bulk-fetch all referenced cards and their existing state ──
     const uniqueSlugs = [...new Set(entries.map((entry) => entry.cardSlug))];
     const cards = await mut.getCardsBySlugs(uniqueSlugs);
     const cardBySlug = new Map(cards.map((card) => [card.slug, card]));
@@ -115,7 +106,6 @@ export async function importErrata(
       printingsByCardId.set(row.cardId, list);
     }
 
-    // ── Phase 2: Classify each entry ───────────────────────────────────────
     for (const entry of entries) {
       const card = cardBySlug.get(entry.cardSlug);
       if (!card) {
@@ -161,7 +151,6 @@ export async function importErrata(
         result.newEntries.push(ref);
       }
 
-      // ── Phase 3 (apply only): upsert + recompute keywords ───────────────
       if (dryRun) {
         continue;
       }

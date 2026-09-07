@@ -7,13 +7,8 @@ import { createTransact } from "../deps.js";
 import { createTestContext } from "../test/integration-context.js";
 import { buildUserSubmissionCard, ingestUserSubmission } from "./ingest-user-submission.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: ingestUserSubmission service (ADR-036).
-//
-// The point of the dedicated service is that, unlike ingestCandidates, it never
-// full-replaces the provider — two users (or one user twice) must coexist under
-// the shared "usersubmission" provider. These tests guard that property.
-// ---------------------------------------------------------------------------
+// Unlike ingestCandidates, this never full-replaces the provider: two users (or one
+// user twice) must coexist under the shared "usersubmission" provider.
 
 const USER_ID = "a0000000-0022-4000-a000-000000000001";
 const ctx = createTestContext(USER_ID);
@@ -122,12 +117,8 @@ describe.skipIf(!ctx)("ingestUserSubmission integration", () => {
   });
 
   it("enforces the daily cap under concurrent submissions (advisory lock)", async () => {
-    // Discover the cap from the rate_limited payload instead of importing the
-    // (deliberately unexported) constant: flood past any plausible limit, read
-    // `limit` back, then reset to exactly one below it.
-    //
-    // The cap counts the append-only submission ledger rather than staging, so
-    // the ledger is what the flood seeds.
+    // The cap is a deliberately unexported constant: flood past any plausible
+    // limit and read it back from the rate_limited payload instead.
     const seedRows = (count: number, offset: number) =>
       db
         .insertInto("cardSubmissions")
@@ -151,9 +142,8 @@ describe.skipIf(!ctx)("ingestUserSubmission integration", () => {
     await db.deleteFrom("cardSubmissions").where("userId", "=", USER_ID).execute();
     await seedRows(limit - 1, 1000);
 
-    // One slot left. Five concurrent submissions race for it: without the
-    // pg_advisory_xact_lock they all read the same count and all pass; with
-    // it they serialize and exactly one lands.
+    // Without the pg_advisory_xact_lock, all 5 concurrent submissions read the same
+    // count and pass; with it they serialize and exactly one lands.
     const results = await Promise.all(
       Array.from({ length: 5 }, (_, index) =>
         submit(transact, submission(`race-${index}`, null), new Date()),
@@ -164,7 +154,6 @@ describe.skipIf(!ctx)("ingestUserSubmission integration", () => {
     expect(okCount).toBe(1);
     expect(rateLimitedCount).toBe(4);
 
-    // The one winner fills the last slot and the ledger sits exactly at the cap.
     const remaining = await db
       .selectFrom("cardSubmissions")
       .select("id")

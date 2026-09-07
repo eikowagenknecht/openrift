@@ -43,7 +43,6 @@ const SET = {
   releases: { EN: { releasedAt: "2025-10-31", precision: "day" } },
 };
 
-/** @returns A card row as `catalog.cardsByIds` returns it. */
 function cardRow(id: string, tokenCardIds: string[] = []) {
   return {
     id,
@@ -64,7 +63,6 @@ function cardRow(id: string, tokenCardIds: string[] = []) {
   };
 }
 
-/** @returns A printing row as `catalog.printingsByCardIds` returns it. */
 function printingRow(id: string, cardId: string) {
   return {
     id,
@@ -93,11 +91,7 @@ function printingRow(id: string, cardId: string) {
   };
 }
 
-/**
- * @param printings Printing rows the catalogue holds, keyed by nothing — the
- *   repo mock returns them all and the assertion checks which ids were asked for.
- * @returns A repos double holding only what the payload builder reads.
- */
+/** The `printings` mock returns them all regardless of ids asked for; assert via `printingsByCardIds` call args. */
 function repos(options: {
   cards: ReturnType<typeof cardRow>[];
   printings: ReturnType<typeof printingRow>[];

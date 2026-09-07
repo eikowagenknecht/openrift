@@ -24,12 +24,11 @@ import type {
 
 /**
  * Pure row → response mappers for the tournaments umbrella and its
- * organizations (ADR-033). Everything here is a total function of its
- * argument; anything that has to read the repos to assemble a payload lives in
- * the sibling `*-builders.ts` modules instead.
+ * organizations. Everything here is a total function of its argument;
+ * anything that has to read the repos to assemble a payload lives in the
+ * sibling `*-builders.ts` modules instead.
  */
 
-/** @returns The organization row mapped to its API response shape. */
 export function toOrganizationResponse(org: Organization): OrganizationResponse {
   return {
     id: org.id,
@@ -41,7 +40,6 @@ export function toOrganizationResponse(org: Organization): OrganizationResponse 
   };
 }
 
-/** @returns The admin-list summary (org + owner name + member count). */
 export function toOrganizationSummary(row: OrganizationSummary): OrganizationSummaryResponse {
   return {
     ...toOrganizationResponse(row),
@@ -50,7 +48,6 @@ export function toOrganizationSummary(row: OrganizationSummary): OrganizationSum
   };
 }
 
-/** @returns A member row joined to its display name. */
 export function toOrganizationMember(row: OrganizationMemberWithName): OrganizationMemberResponse {
   return {
     userId: row.userId,
@@ -60,7 +57,6 @@ export function toOrganizationMember(row: OrganizationMemberWithName): Organizat
   };
 }
 
-/** @returns A staff grant joined to its display name. */
 export function toStaffMember(row: TournamentStaffWithName): TournamentStaffMemberResponse {
   return {
     userId: row.userId,
@@ -72,7 +68,6 @@ export function toStaffMember(row: TournamentStaffWithName): TournamentStaffMemb
   };
 }
 
-/** @returns A participant joined to its linked account name. */
 export function toParticipant(row: TournamentParticipantWithUser): TournamentParticipantResponse {
   return {
     id: row.id,
@@ -86,9 +81,8 @@ export function toParticipant(row: TournamentParticipantWithUser): TournamentPar
     region: row.region,
     fixedTable: row.fixedTable,
     droppedAfterRound: row.droppedAfterRound,
-    // Only an unclaimed, unblocked spot has a live claim link. An already-linked
-    // participant (userId set) or a blocked spot's token is dead (the claim flow
-    // refuses it), so don't surface it as a copyable link.
+    // Null once the spot is linked (userId set) or judge-blocked; the claim
+    // flow refuses the token in both cases.
     claimToken: row.userId === null && row.claimBlockedAt === null ? row.claimToken : null,
     claimBlocked: row.claimBlockedAt !== null,
     createdAt: row.createdAt.toISOString(),
@@ -96,7 +90,6 @@ export function toParticipant(row: TournamentParticipantWithUser): TournamentPar
   };
 }
 
-/** @returns The capability-module flags derived from a tournament's columns. */
 export function moduleFlags(tournament: Tournament): TournamentModuleFlags {
   return {
     pairing: tournament.pairingStyle !== "none",
@@ -104,7 +97,6 @@ export function moduleFlags(tournament: Tournament): TournamentModuleFlags {
   };
 }
 
-/** @returns The pod-engine view of the tournament row. */
 export function toPodTournament(row: Tournament): PodTournamentResponse {
   return {
     id: row.id,
@@ -125,7 +117,6 @@ export function toPodTournament(row: Tournament): PodTournamentResponse {
   };
 }
 
-/** @returns The pod-engine view of a participant row. */
 export function toPodPlayer(row: PodRosterPlayer): PodPlayerResponse {
   return {
     id: row.id,

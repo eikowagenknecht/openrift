@@ -19,7 +19,7 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
     }
   });
 
-  const seedCardId = CARD_FURY_UNIT.id; // Annie, Fiery
+  const seedCardId = CARD_FURY_UNIT.id;
 
   it("creates a deck and returns it with all fields", async () => {
     const deck = await repo.create({
@@ -163,9 +163,7 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
   });
 
   it("returns the odds config parsed after an update", async () => {
-    // jsonb reads back as a string under Bun's postgres.js, and update() only
-    // parsed formatConfig — the string oddsConfig then failed
-    // deckResponseSchema output validation on every odds-config save.
+    // jsonb reads back as a string under Bun's postgres.js; update() must parse oddsConfig too.
     const deckId = createdDeckIds[0];
     const oddsConfig = {
       customGroups: [{ key: "custom-1", label: "1", types: ["unit"], energyMin: 1, energyMax: 1 }],

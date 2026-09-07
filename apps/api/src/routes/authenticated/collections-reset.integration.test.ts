@@ -6,14 +6,7 @@ import { CARD_FURY_UNIT, PRINTING_1, PRINTING_2 } from "../../test/fixtures/cons
 import { createTestContext, req, seedTestUser } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: POST /collections/reset (danger-zone reset)
-//
-// Uses the shared integration database. The reset wipes every personal
-// collection of its user, so this file owns a throwaway random-UUID user
-// instead of a fixed registry one — no other file can depend on its data.
-// ---------------------------------------------------------------------------
-
+// Uses a throwaway random-UUID user, not a fixed registry one: reset wipes all of that user's collections.
 const USER_ID = crypto.randomUUID();
 
 const ctx = createTestContext(USER_ID);
@@ -80,14 +73,12 @@ describe.skipIf(!ctx)("POST /collections/reset (integration)", () => {
       .returningAll()
       .execute();
 
-    // A wishlist keeps its card-kind entries through the wipe → survives.
     wishListId = await createList("Reset wish", "wish", "card");
     const wishEntry = await app.fetch(
       req("POST", `/lists/${wishListId}/entries`, { cardId: CARD_FURY_UNIT.id }),
     );
     expect(wishEntry.status).toBe(201);
 
-    // A copy-kind tradelist whose only entries are wiped copies → pruned.
     copyListId = await createList("Reset trade", "trade", "copy");
     for (const copy of copies.slice(0, 2)) {
       const entry = await app.fetch(
@@ -96,7 +87,6 @@ describe.skipIf(!ctx)("POST /collections/reset (integration)", () => {
       expect(entry.status).toBe(201);
     }
 
-    // Same situation but with dynamic rules → kept even when emptied.
     ruledListId = await createList("Reset ruled trade", "trade", "copy");
     const ruledEntry = await app.fetch(
       req("POST", `/lists/${ruledListId}/entries`, { copyId: copies[2]!.id }),
@@ -110,7 +100,6 @@ describe.skipIf(!ctx)("POST /collections/reset (integration)", () => {
       .where("id", "=", ruledListId)
       .execute();
 
-    // Already empty before the reset → not a prune candidate, stays.
     untouchedListId = await createList("Reset untouched", "wish", "card");
   });
 

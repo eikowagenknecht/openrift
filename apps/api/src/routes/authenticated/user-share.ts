@@ -8,10 +8,6 @@ import type { ApiContext } from "../../orpc/context.js";
 
 const os = implement(userShareContract).$context<ApiContext>().use(requireAuthedUser);
 
-/**
- * The signed-in user's bundle-share management (ADR-018). The "user not found"
- * cases are typed NOT_FOUND errors declared on the contract.
- */
 export const userShareRouter = {
   get: os.get.handler(async ({ context }): Promise<UserShareStateResponse> => {
     const { userShares } = context.repos;
@@ -19,7 +15,6 @@ export const userShareRouter = {
     return { shareToken: row?.shareToken ?? null, isPublic: Boolean(row?.shareToken) };
   }),
 
-  // Idempotent enable: return the existing token if present, else mint one.
   enable: os.enable.handler(async ({ context, errors }): Promise<UserShareStateResponse> => {
     const { userShares } = context.repos;
     const userId = context.userId;
@@ -42,7 +37,6 @@ export const userShareRouter = {
     }
   }),
 
-  // Overwrites the existing token; the previous URL stops resolving at once.
   rotate: os.rotate.handler(async ({ context, errors }): Promise<UserShareStateResponse> => {
     const { userShares } = context.repos;
     const updated = await withUniqueShareToken((token) =>

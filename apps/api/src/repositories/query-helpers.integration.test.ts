@@ -5,20 +5,14 @@ import { createDbContext } from "../test/integration-context.js";
 import { adminEventsRepo } from "./admin-events.js";
 import { buildKeysetCursor } from "./query-helpers.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: keyset cursor pagination against real microsecond
-// timestamps (query-helpers.ts).
-//
-// Uses the shared integration database. Requires INTEGRATION_DB_URL. Rows are
-// seeded into admin_events (no FK on the actor, so no user seeding needed) with
-// explicit sub-millisecond createdAt values, labelled QHC- and owned by a
-// random actor id so no other file's filters can see them.
-// ---------------------------------------------------------------------------
+// Keyset cursor pagination against real microsecond timestamps. Requires
+// INTEGRATION_DB_URL. Rows seed into admin_events under a random actor id
+// so no other file's filters can see them.
 
 const ACTOR = crypto.randomUUID();
 
-// Fixed, ordered ids so "createdAt desc, id desc" is deterministic — the same
-// alignment uuidv7 gives in production, where later rows carry higher ids.
+// Fixed, ordered ids so "createdAt desc, id desc" is deterministic, matching
+// the alignment uuidv7 gives in production (later rows carry higher ids).
 const ID_EARLIER = "0f9c0000-0000-7000-b000-000000000000";
 const ID_MICRO_LOW = "0f9c0000-0000-7000-b000-000000000001";
 const ID_MICRO_MID = "0f9c0000-0000-7000-b000-000000000002";
@@ -28,8 +22,8 @@ const ctx = createDbContext(ACTOR);
 
 if (ctx) {
   const { db } = ctx;
-  // Three rows inside one millisecond (µs precision the JS Date in a cursor
-  // cannot carry) plus one a full millisecond earlier.
+  // Three rows inside one millisecond (µs precision a JS Date cursor can't
+  // carry) plus one a full millisecond earlier.
   const seed = [
     { id: ID_EARLIER, at: "2026-03-01 10:00:00.999000+00", label: "QHC earlier" },
     { id: ID_MICRO_LOW, at: "2026-03-01 10:00:01.000100+00", label: "QHC micro low" },
@@ -75,10 +69,9 @@ describe.skipIf(!ctx)("keysetCursorPredicate (integration)", () => {
     ]);
   });
 
-  // Regression: the predicate gained a bare-column `createdAt < cursor + 1ms`
-  // bound so an index can seek it. A bound at the cursor time itself (or a
-  // truncating one) would drop every row sharing the cursor's millisecond —
-  // here the two µs siblings below the cursor row.
+  // The predicate needs a bare-column `createdAt < cursor + 1ms` bound so an
+  // index can seek it; a bound at the cursor time itself would drop rows
+  // sharing the cursor's millisecond.
   it("keeps rows sharing the cursor's millisecond on the next page", async () => {
     const first = await repo.list({ actorUserId: ACTOR }, 1);
     // limit + 1 probe row

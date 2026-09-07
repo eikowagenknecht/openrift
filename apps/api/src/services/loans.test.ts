@@ -8,10 +8,6 @@ function mockTransact(trxRepos: Repos): Transact {
   return (fn) => fn(trxRepos) as any;
 }
 
-/**
- * Minimal loans repo whose `pinCopies` fails, exercising the race branch.
- * @returns A repos stub with just the methods createLoan touches.
- */
 function reposWithPinError(error: unknown): Repos {
   return {
     copies: {
@@ -63,14 +59,11 @@ describe("createLoan cross-claim with a concurrent trade accept", () => {
       },
       loans: {
         printingCardId: vi.fn(async () => "card-1"),
-        // Pre-check reports the copy as unclaimed...
         listUnclaimedCopyIds: vi.fn(async () => ["copy-1"]),
         create,
         pinCopies,
       },
       cardTrades: {
-        // ...but by the time the row is locked, a concurrent acceptTrade has
-        // already reserved it.
         filterReservedCopyIds: vi.fn(async () => ["copy-1"]),
       },
     } as unknown as Repos;

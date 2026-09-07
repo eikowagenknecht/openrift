@@ -535,8 +535,7 @@ export const decksRouter = {
     return toDeck(updated);
   }),
 
-  // An owned-but-unshared deck returns { shareToken: null, isPublic: false }
-  // rather than 404ing; only a missing or foreign deck 404s.
+  // An owned-but-unshared deck returns { shareToken: null, isPublic: false }; only a missing or foreign deck 404s.
   getShare: os.getShare.handler(async ({ input, context }): Promise<DeckShareResponse> => {
     const { decks } = context.repos;
     const userId = context.userId;

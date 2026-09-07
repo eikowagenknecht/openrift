@@ -7,7 +7,7 @@ import { PLAYLOLTCG_PROVIDER, PLAYLOLTCG_STATUS_FINISHED } from "../lib/playlolt
 
 type PlayloltcgEventRow = Selectable<PlayloltcgEventsTable>;
 
-/** The projection one listing row upserts, minus the crawl bookkeeping. `shopId` is not here — the listing never links the shop; the deep fetch sets it. */
+/** `shopId` is not here: the listing never links the shop, the deep fetch sets it. */
 export interface PlayloltcgUpsertInput {
   activityShopId: number;
   shopName: string | null;
@@ -37,7 +37,6 @@ export interface PlayloltcgUpsertResult {
   unchanged: number[];
 }
 
-/** A shop as the registry gives it, for the directory upsert. */
 export interface PlayloltcgShopInput {
   id: number;
   name: string;
@@ -51,7 +50,6 @@ export interface PlayloltcgShopInput {
 
 export type PlayloltcgTriage = "new" | "accepted" | "dismissed";
 
-/** See the uvsgames counterpart. */
 export interface PlayloltcgTierInputRow {
   metaEventId: string;
   activityShopId: number;
@@ -62,17 +60,12 @@ export interface PlayloltcgListRow extends PlayloltcgEventRow {
   triage: PlayloltcgTriage;
   metaEventId: string | null;
   metaEventSlug: string | null;
-  /** The linked shop's current name over the row's own fallback. */
   shopDisplayName: string | null;
   nextCheckAt: Date | null;
   checkStage: number;
-  /** When the deep fetch last landed; null before the first fetch. */
   fetchedAt: Date | null;
-  /** Standings rows this source's mirror holds; zero before the first fetch. */
   stagedPlayerCount: number;
-  /** The mirrored rows whose legend is known. */
   stagedLegendCount: number;
-  /** The staged decks the fetch actually got back. */
   stagedDeckCount: number;
 }
 
@@ -87,16 +80,13 @@ export interface PlayloltcgListFilters {
   status?: number;
   triage?: PlayloltcgTriage;
   minPlayers?: number;
-  /** Inclusive `YYYY-MM-DD` bounds on `start_at`, which is a date column. */
   dateFrom?: string;
   dateTo?: string;
-  /** True keeps only rows a covering crawl stopped returning. */
   missing?: boolean;
-  /** True keeps only accepted rows whose results were never fetched. */
   awaitingResults?: boolean;
 }
 
-/** How one page of the catalogue is ordered. Defaults to newest events first. */
+/** Defaults to newest events first. */
 export interface PlayloltcgListOrder {
   sort?: "startAt" | "name" | "playerCount";
   direction?: "asc" | "desc";
@@ -110,22 +100,14 @@ const CATALOG_ORDER_COLUMNS = {
   playerCount: sql`c.player_count`,
 };
 
-/**
- * How one page of the list is ordered. Nulls sort last whichever way the column
- * runs: an event the source gave no player count is not the answer to "biggest
- * first", and it is not the answer to "smallest first" either.
- */
+/** Nulls sort last whichever way the column runs. */
 function catalogOrderBy(order: PlayloltcgListOrder) {
   const column = CATALOG_ORDER_COLUMNS[order.sort ?? "startAt"];
   return order.direction === "asc" ? sql`${column} asc nulls last` : sql`${column} desc nulls last`;
 }
 
 export function playloltcgEventsRepo(db: Kysely<Database>) {
-  /**
-   * Joined once and reused by the reads, so they can never disagree about what
-   * "accepted" means. The citation side is provider-keyed on the event id as
-   * text (`meta_event_sources.external_id` is text).
-   */
+  /** Joined once and reused by the reads, so they can never disagree about what "accepted" means. */
   function triagedQuery() {
     return db
       .selectFrom("playloltcgEvents as c")
@@ -165,8 +147,6 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
      where st.activity_shop_id = c.activity_shop_id
   )`;
 
-  // Correlated against the mirror, so each one is an index lookup on the page's
-  // rows rather than an aggregate over every event the archive has fetched.
   const stagedPlayerCount = sql<number>`(
     select count(*)::int from playloltcg_event_standings st
      where st.activity_shop_id = c.activity_shop_id
@@ -216,7 +196,6 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
   }
 
   return {
-    /** Upserts the registry rows the store directory is built from. */
     async upsertShops(shops: readonly PlayloltcgShopInput[]): Promise<number> {
       if (shops.length === 0) {
         return 0;
@@ -244,9 +223,8 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Hash-gated batch upsert. An unchanged row costs one `last_seen_at` write.
-     * `shop_id` is never written here — the listing does not carry it, and the
-     * deep fetch owns it — so a re-catalogued row keeps the link it already has.
+     * `shop_id` is never written here: the listing does not carry it, so a
+     * re-catalogued row keeps the link it already has.
      */
     async upsertBatch(
       rows: readonly PlayloltcgUpsertInput[],
@@ -313,9 +291,7 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
       return { inserted, changed, unchanged };
     },
 
-    /** Flags rows a covering crawl no longer returned, over a start-date range. */
     async markMissing(params: {
-      /** `YYYY-MM-DD` bounds, inclusive, against the `start_at` date column. */
       from: string;
       to: string;
       seenBefore: Date;
@@ -332,11 +308,7 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
       return Number(result.numUpdatedRows ?? 0n);
     },
 
-    /**
-     * Links an event to its shop from the `activityShop/info` detail, the only
-     * place the source exposes the id. The shop row is upserted first so the FK
-     * always holds, even for a store the registry sweep has not caught yet.
-     */
+    /** The shop row is upserted first so the FK always holds, even for a store the registry sweep has not caught yet. */
     async linkShopFromDetail(
       activityShopId: number,
       shop: { id: number; name: string },
@@ -359,7 +331,7 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
       return await listSelect().where("c.activityShopId", "=", activityShopId).executeTakeFirst();
     },
 
-    /** See the uvsgames counterpart. This source maps no template, so field size is the whole rule. */
+    /** This source maps no template, so field size is the whole rule. */
     tierInputsForLiveEvents(): Promise<PlayloltcgTierInputRow[]> {
       return db
         .selectFrom("playloltcgEvents as e")
@@ -372,7 +344,6 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** The catalogue triage list: filtered, triaged, ordered, paginated. */
     async list(
       filters: PlayloltcgListFilters,
       pagination: { limit: number; offset: number },
@@ -430,7 +401,6 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
       return { rows, total: Number(countRow.total) };
     },
 
-    /** Accepted events whose next visit is due, oldest first. */
     async dueForRecheck(now: Date, limit: number): Promise<PlayloltcgListRow[]> {
       return await listSelect()
         .where("ck.nextCheckAt", "is not", null)
@@ -440,7 +410,6 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Arms or advances one event's place in the recheck queue. */
     async setRecheck(
       activityShopId: number,
       values: { nextCheckAt: Date | null; checkStage: number },
@@ -452,10 +421,6 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Every key still awaiting triage, newest event first, for the backlog
-     * sweep. Keys rather than rows, so the sweep can page through them.
-     */
     async newKeys(): Promise<number[]> {
       const rows = await triagedQuery()
         .select("c.activityShopId")
@@ -465,7 +430,6 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
       return rows.map((row) => row.activityShopId);
     },
 
-    /** The keys a crawl touched that are neither accepted nor dismissed. */
     async unacceptedByKeys(activityShopIds: readonly number[]): Promise<PlayloltcgListRow[]> {
       const rows: PlayloltcgListRow[] = [];
       for (const batch of keyBatches(activityShopIds)) {
@@ -476,12 +440,7 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
       return rows;
     },
 
-    /**
-     * The card bridge: the source's normalized `cardNo` (`short_code`) to our
-     * Simplified-Chinese card identity. The deep fetch resolves decks through
-     * this — deterministic, unlike matching Chinese names — and passes the
-     * canonical card name on to the shared ingest.
-     */
+    /** Bridges the source's `short_code` to our card identity; deterministic, unlike matching Chinese names. */
     async cardsByShortCode(
       shortCodes: readonly string[],
     ): Promise<Map<string, { cardId: string; name: string; type: string }>> {
@@ -506,7 +465,6 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
       return map;
     },
 
-    /** The mirror + queue overview, parallel to uvsgames `syncOverview`. */
     async syncOverview(): Promise<{
       total: number;
       completed: number;
@@ -532,10 +490,8 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
         )
         .select((eb) => [
           eb.fn.countAll<string>().as("total"),
-          // The source has no decklist_status column. A finished event (status 5)
-          // is the closest "results could exist" signal, and because the source
-          // publishes standings and decks in one act, an event whose deep fetch
-          // landed is one whose decklists are published as far as we can know.
+          // The source has no decklist_status column, so a finished event
+          // (status 5) is the closest "results could exist" signal.
           sql<string>`count(*) filter (where c.status = ${PLAYLOLTCG_STATUS_FINISHED})`.as(
             "completed",
           ),

@@ -21,7 +21,6 @@ import {
   selectCopyWithCard,
 } from "./query-helpers.js";
 
-/** Compiles SQL without a database, through the same CamelCasePlugin production uses. */
 const compileDb = new Kysely<Database>({
   dialect: {
     createAdapter: () => new PostgresAdapter(),
@@ -32,7 +31,6 @@ const compileDb = new Kysely<Database>({
   plugins: [new CamelCasePlugin()],
 });
 
-/** @returns The compiled `where` clause of a copies query using `predicate`. */
 function compileWhere(predicate: Expression<SqlBool>) {
   const compiled = compileDb.selectFrom("copies as cp").select("cp.id").where(predicate).compile();
   return {
@@ -137,8 +135,6 @@ describe("buildKeysetCursor", () => {
 
 describe("keysetCursorPredicate", () => {
   const TIME = new Date("2026-01-15T12:30:00.000Z");
-  // The redundant sargable bound is exclusive at the cursor's millisecond + 1,
-  // which is what keeps the µs rows of the cursor's own millisecond eligible.
   const BOUND = new Date("2026-01-15T12:30:00.001Z");
   const OPTIONS = { timeColumn: "cp.createdAt", idColumn: "cp.id" } as const;
 
@@ -166,9 +162,8 @@ describe("keysetCursorPredicate", () => {
     expect(parameters).toEqual([BOUND, TIME, TIME, "cp-9"]);
   });
 
-  // Regression: the truncated comparison alone is unsargable (date_trunc is
-  // STABLE, so no index can serve it) and every keyset list degraded into a
-  // full scan. The bare-column bound must be present in both branches.
+  // date_trunc is STABLE: the truncated comparison alone is unsargable, so
+  // the bare-column bound must be present in both branches.
   it("adds a bare-column upper bound an index can seek on", () => {
     const withId = compileWhere(
       keysetCursorPredicate(buildKeysetCursor(TIME, "cp-9"), { ...OPTIONS, idDirection: "asc" }),
@@ -182,9 +177,8 @@ describe("keysetCursorPredicate", () => {
     }
   });
 
-  // The bound must never exclude a row the truncated half accepts: a row one
-  // microsecond past the cursor still truncates back onto it, so it is still a
-  // tie the id comparator decides. One millisecond above is the exact width.
+  // A row one microsecond past the cursor still truncates back onto it, so
+  // one millisecond above is the exact width that keeps it a tie.
   it("keeps the bound one millisecond above the cursor so ties survive", () => {
     const { parameters } = compileWhere(
       keysetCursorPredicate(buildKeysetCursor(TIME, "cp-9"), { ...OPTIONS, idDirection: "asc" }),
@@ -211,8 +205,6 @@ describe("keysetCursorPredicate", () => {
     expect(parameters).toEqual([BOUND, TIME, TIME, "a_b"]);
   });
 
-  // Regression (fixed once per repo before this helper existed): an unparseable
-  // cursor used to reach the query as an Invalid Date and surface as a 500.
   it("rejects an unparseable cursor with a 400", () => {
     const parse = () => keysetCursorPredicate("not-a-date", { ...OPTIONS, idDirection: "asc" });
     expect(parse).toThrow(AppError);

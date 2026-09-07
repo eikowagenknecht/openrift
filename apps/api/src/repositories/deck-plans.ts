@@ -8,18 +8,15 @@ import type {
   DeckPlansTable,
 } from "../db/index.js";
 
-/** A matchup row plus its in/out swaps, in display order. */
 type MatchupWithSwaps = Selectable<DeckMatchupPlansTable> & {
   swaps: Selectable<DeckMatchupSwapsTable>[];
 };
 
-/** The full plan for a deck: the optional deck-level row plus ordered matchups. */
 export interface DeckPlanData {
   plan: Selectable<DeckPlansTable> | undefined;
   matchups: MatchupWithSwaps[];
 }
 
-/** Input for {@link deckPlansRepo}.`replaceForDeck` — the whole plan, saved as a unit. */
 export interface DeckPlanInput {
   generalStrategy: string;
   mulliganSplit: boolean;
@@ -39,18 +36,9 @@ export interface DeckPlanInput {
   }[];
 }
 
-/**
- * Reads and writes deck plans (ADR-029). Plans hang off the deck and never
- * touch deck_cards.
- *
- * @returns Plan query methods bound to the given `db`.
- */
+// Plans hang off the deck and never touch deck_cards.
 export function deckPlansRepo(db: Kysely<Database>) {
   return {
-    /**
-     * @returns The deck-level plan row (or undefined) and the deck's matchups
-     * with their swaps, ordered by sort order then creation.
-     */
     async getForDeck(deckId: string): Promise<DeckPlanData> {
       const [plan, matchupRows] = await Promise.all([
         db.selectFrom("deckPlans").selectAll().where("deckId", "=", deckId).executeTakeFirst(),
@@ -82,17 +70,11 @@ export function deckPlansRepo(db: Kysely<Database>) {
       return { plan, matchups };
     },
 
-    /**
-     * Replaces the entire plan for a deck in one transaction: upserts the
-     * deck-level row, then deletes and re-inserts all matchups and swaps.
-     * Touches the deck's updated_at. Assumes the caller has already verified
-     * ownership and validated card references.
-     */
+    // Assumes the caller has already verified ownership and validated card references.
     async replaceForDeck(deckId: string, input: DeckPlanInput): Promise<void> {
       await db.transaction().execute(async (trx) => {
-        // Upsert (not delete+insert) so the row's id and created_at survive an
-        // edit and the BEFORE UPDATE trigger advances updated_at. deck_id is
-        // unique, so it's the conflict target.
+        // Upsert (not delete+insert) so id/created_at survive an edit and
+        // the BEFORE UPDATE trigger advances updated_at.
         const planValues = {
           generalStrategy: input.generalStrategy,
           mulliganSplit: input.mulliganSplit,

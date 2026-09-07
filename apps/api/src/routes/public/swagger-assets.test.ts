@@ -17,11 +17,10 @@ describe("GET /api/swagger-ui-dist/:file", () => {
     expect(body.length).toBeGreaterThan(0);
   });
 
-  it("serves the swagger bundle with a script content type", async () => {
+  it("serves the swagger bundle with a script content type, defining the SwaggerUIBundle global the /api/ui bootstrap calls", async () => {
     const res = await app.request("/api/swagger-ui-dist/swagger-ui-bundle.js");
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("text/javascript; charset=utf-8");
-    // The inline bootstrap on /api/ui calls this global; the bundle must define it.
     const body = await res.text();
     expect(body).toContain("SwaggerUIBundle");
   });
@@ -43,10 +42,8 @@ describe("GET /api/swagger-ui-dist/:file", () => {
 });
 
 describe("swagger UI page asset URLs", () => {
-  // Regression test: the middleware's default asset host is the jsDelivr CDN,
-  // which the site CSP (script-src/style-src 'self') blocks — the docs page
-  // rendered blank with a SwaggerUIBundle-is-not-defined error. The page must
-  // reference the self-hosted route instead.
+  // The middleware's default asset host is the jsDelivr CDN, which the site
+  // CSP (script-src/style-src 'self') blocks.
   it("references the self-hosted assets, not the CDN", async () => {
     const page = new Hono().get(
       "/api/ui",

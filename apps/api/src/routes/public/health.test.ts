@@ -5,10 +5,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { healthRoute } from "./health";
 
-// ---------------------------------------------------------------------------
-// Mock repos
-// ---------------------------------------------------------------------------
-
 const mockHealthRepo = {
   healthCheck: vi.fn(() => Promise.resolve("ok" as string)),
 };
@@ -18,13 +14,8 @@ const app = new Hono<{ Variables: Variables }>()
     c.set("repos", { health: mockHealthRepo } as never);
     await next();
   })
-  // Production mounts health unversioned at /api (app.ts), not /api/v1 — mirror
-  // that here so the test exercises the real path.
+  // Production mounts health unversioned at /api, not /api/v1.
   .route("/api", healthRoute);
-
-// ---------------------------------------------------------------------------
-// GET /api/health
-// ---------------------------------------------------------------------------
 
 describe("GET /api/health", () => {
   beforeEach(() => {

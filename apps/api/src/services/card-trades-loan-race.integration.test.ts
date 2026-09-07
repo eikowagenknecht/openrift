@@ -7,14 +7,9 @@ import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import { acceptTrade, createTrade } from "./card-trades.js";
 import { createLoan } from "./loans.js";
 
-// Integration counterpart to the mocked cross-claim regression tests in
-// card-trades.test.ts / loans.test.ts: acceptTrade and createLoan both
-// re-check the opposite claim table (cardTradeCopies / loanCopies) after
-// locking the candidate copies with `copies.lockByIds` (a real `FOR UPDATE`).
-// Driving this through two real, concurrently-committing transactions against
-// the shared database proves the row lock actually serializes the two
-// services, rather than the unit tests' hand-fed "the other side already
-// claimed it" mock responses.
+// Drives acceptTrade and createLoan through two real, concurrently-committing
+// transactions to prove `copies.lockByIds`'s `FOR UPDATE` actually serializes
+// them, unlike the mocked cross-claim tests in card-trades.test.ts / loans.test.ts.
 
 const GIVER_ID = crypto.randomUUID();
 const RECEIVER_ID = crypto.randomUUID();
@@ -38,10 +33,8 @@ describe.skipIf(!ctx)("acceptTrade vs createLoan cross-claim race (integration)"
   });
 
   afterAll(async () => {
-    // Loans and trades first (cascading loan_copies / card_trade_copies), then
-    // groups, lists, copies (before their collections — a trigger blocks
-    // deleting a non-empty collection), and collections. Users are file-owned
-    // and deleted last.
+    // Deletion order matters: copies before collections (a trigger blocks
+    // deleting a non-empty collection), users last (they own everything else).
     await db
       .deleteFrom("loans")
       .where((eb) =>
@@ -79,7 +72,6 @@ describe.skipIf(!ctx)("acceptTrade vs createLoan cross-claim race (integration)"
     createdGroupIds.push(group.id);
     await groupsRepo.addMember(group.id, RECEIVER_ID, "member");
 
-    // RECEIVER wishes 1 of PRINTING_1, shared to the group.
     const wish = await db
       .insertInto("lists")
       .values({ userId: RECEIVER_ID, name: "Wants", intent: "wish", kind: "printing" })
@@ -97,8 +89,6 @@ describe.skipIf(!ctx)("acceptTrade vs createLoan cross-claim race (integration)"
       .execute();
     await groupsRepo.share(group.id, wish.id, RECEIVER_ID);
 
-    // GIVER owns exactly one unclaimed copy, offered on a shared tradelist —
-    // the same physical copy is also lendable, since nothing has claimed it yet.
     const collection = await db
       .insertInto("collections")
       .values({ userId: GIVER_ID, name: "Race Binder", isInbox: false, sortOrder: 1 })
@@ -137,10 +127,6 @@ describe.skipIf(!ctx)("acceptTrade vs createLoan cross-claim race (integration)"
     });
     expect(trade.status).toBe("pending");
 
-    // The giver accepts the pending trade (reserving the copy for the trade)
-    // and, concurrently, lends the same copy out (free-text borrower — no
-    // third member needed, since both services draw from the giver's own
-    // unclaimed-copy pool for this printing).
     const [acceptResult, loanResult] = await Promise.allSettled([
       acceptTrade(transact, trade.id, GIVER_ID),
       createLoan(transact, {
@@ -151,10 +137,6 @@ describe.skipIf(!ctx)("acceptTrade vs createLoan cross-claim race (integration)"
       }),
     ]);
 
-    // The `FOR UPDATE` lock in `copies.lockByIds` serializes the two
-    // transactions on this copy: whichever commits first claims it, and the
-    // other's post-lock re-check against the opposite claim table sees the
-    // committed claim and 409s — never both succeeding, never both failing.
     const outcomes = [acceptResult, loanResult];
     expect(outcomes.filter((result) => result.status === "fulfilled")).toHaveLength(1);
     const rejected = outcomes.filter((result) => result.status === "rejected");

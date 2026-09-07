@@ -11,7 +11,6 @@ const mockRepo = { findByShareToken: vi.fn() };
 
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
-  // No session: share links are followed anonymously, which is the point.
   c.set("repos", { tierLists: mockRepo } as never);
   await next();
 });

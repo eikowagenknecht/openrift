@@ -14,7 +14,6 @@ import {
   summarizePlayerMatch,
 } from "./meta-match-suggestions.js";
 
-/** @returns A live event row with the fields the ranking reads. */
 function event(overrides: Partial<MetaEventWithCounts> = {}): MetaEventWithCounts {
   return {
     id: "3f7a1c2e-0000-7000-8000-000000000001",
@@ -36,7 +35,6 @@ function event(overrides: Partial<MetaEventWithCounts> = {}): MetaEventWithCount
   };
 }
 
-/** @returns A live standings row with the fields the ranking reads. */
 function player(overrides: Partial<AdminMetaPlayerRow> = {}): AdminMetaPlayerRow {
   return {
     id: "3f7a1c2e-0000-7000-8000-00000000000p",
@@ -172,8 +170,6 @@ describe("rankEventMatches", () => {
   });
 
   it("offers nothing for a name that only coincides with a different season", () => {
-    // Same recurring series, wrong year and wrong format: name alone must not
-    // carry a suggestion.
     const ranked = rankEventMatches(CANDIDATE, [
       event({ eventDate: "2025-08-01", format: "freeform" }),
     ]);

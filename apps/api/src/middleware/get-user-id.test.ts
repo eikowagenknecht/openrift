@@ -3,18 +3,10 @@ import { describe, expect, it } from "vitest";
 import { AppError } from "../errors.js";
 import { getUserId } from "./get-user-id.js";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function createMockContext(user: { id: string } | null) {
   const vars: Record<string, unknown> = { user };
   return { get: (key: string) => vars[key] } as any;
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("getUserId", () => {
   it("returns the user ID when user is present in context", () => {

@@ -1,23 +1,11 @@
 import type { MetaEventTier } from "@openrift/shared";
 
 /**
- * Files an event into the archive's tier vocabulary and reads a country off a
- * venue address.
- *
  * `uvsgames_event_templates.tier` sets a floor {@link classifyMetaEventTier}
- * can raise but never lower. Free-text name matching only feeds
- * {@link suggestTierForTemplateName}'s admin-confirmed prefill.
+ * can raise but never lower.
  */
 
-/**
- * Matched against a template's name, for the mapping UI's suggestion. Order
- * matters: the side events run alongside a Regional Qualifier ("Pre-RQ
- * Challenge", "Regional Rebound", "Super Nexus Night") contain the premier and
- * local needles, so their own patterns must claim them first.
- *
- * The local needle is "league night", never a bare "league": the game's own
- * name is "Riftbound: League of Legends TCG", which templates spell out.
- */
+/** Order matters: side-event patterns (Pre-RQ, Regional Rebound) must claim their names before the premier/local needles do. */
 const SUGGESTION_RULES: readonly { pattern: RegExp; tier: MetaEventTier }[] = [
   { pattern: /pre-?regional|pre-?rq|regional rebound|super nexus night/u, tier: "competitive" },
   { pattern: /regional qualifier|national championship|world championship/u, tier: "premier" },
@@ -28,12 +16,7 @@ const SUGGESTION_RULES: readonly { pattern: RegExp; tier: MetaEventTier }[] = [
   },
 ];
 
-/**
- * What the mapping UI prefills for an unmapped template. Never stored and
- * never classifies an event on its own — a human confirms it into the mapping.
- *
- * @returns The suggested tier, or null when the name suggests nothing.
- */
+/** Never stored and never classifies an event on its own; a human confirms it into the mapping. */
 export function suggestTierForTemplateName(name: string | null): MetaEventTier | null {
   if (name === null) {
     return null;
@@ -50,17 +33,9 @@ export function suggestTierForTemplateName(name: string | null): MetaEventTier |
 /** Most competitive first, so the lower number wins a comparison. */
 const TIER_RANK: Record<MetaEventTier, number> = { premier: 0, competitive: 1, local: 2 };
 
-/**
- * Files one event into a tier: the mapped template tier, raised to
- * `competitive` if the field is large enough, never lowered. Size alone never
- * reaches `premier`.
- *
- * @param competitivePlayerFloor - `meta_sync_settings.competitive_player_floor`.
- * @returns The tier, `"local"` when nothing claims more.
- */
+/** Raises the mapped template tier to `competitive` when the field is large enough; size alone never reaches `premier`. */
 export function classifyMetaEventTier(
   event: {
-    /** The admin-curated tier of the event's template, when it runs a mapped one. */
     templateTier?: MetaEventTier | null;
     playerCount?: number | null;
   },
@@ -71,13 +46,7 @@ export function classifyMetaEventTier(
   return TIER_RANK[mapped] <= TIER_RANK[bySize] ? mapped : bySize;
 }
 
-/**
- * Country names as venue addresses end, lowercase, mapped to ISO 3166-1
- * alpha-2. The source's addresses either end in a structured ", CC" suffix or
- * in a country name in the store's own language, so this table only needs the
- * spellings that actually occur — extend it when a new tail shows up, a miss
- * stores null and the admin can fill the field in.
- */
+/** Only the spellings that actually occur in the source's addresses; extend it when a new tail shows up. */
 const COUNTRY_NAME_TO_ISO: ReadonlyMap<string, string> = new Map([
   ["usa", "US"],
   ["united states", "US"],
@@ -158,25 +127,10 @@ const ISO_COUNTRIES = new Set(
    TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW`.split(/\s+/u),
 );
 
-/**
- * The structured tail the source emits, where a postal segment stands between
- * the city and the code (`", 7100, PH"`). The postal segment is what separates
- * a country code from a US state or Canadian province abbreviation: "Sacramento,
- * CA" is not Canada, "Denver, CO" is not Colombia, and roughly thirty such
- * abbreviations collide with an assigned code. So the segment must hold a digit
- * and no lowercase, which a city name never does.
- */
+/** Requires a digit in the postal segment so a US/Canadian province abbreviation ("Denver, CO") isn't read as a country code. */
 const POSTAL_ISO_TAIL = /,\s*[A-Z\d -]*\d[A-Z\d -]*,\s*(?<iso>[A-Z]{2})$/u;
 
-/**
- * Reads the country off a venue address.
- *
- * Two shapes cover the source's data: a structured suffix (`"..., 7100, PH"`),
- * and a trailing country name in whatever language the store wrote
- * (`"..., Deutschland"`, `"..., Singapore 437844"` — postal digits stripped).
- *
- * @returns The ISO 3166-1 alpha-2 code, or null when neither shape matches.
- */
+/** Matches a structured suffix (`"..., 7100, PH"`) or a trailing country name in the store's own language. */
 export function countryFromAddress(address: string | null): string | null {
   if (address === null) {
     return null;
@@ -186,7 +140,6 @@ export function countryFromAddress(address: string | null): string | null {
   if (isoTail !== undefined && ISO_COUNTRIES.has(isoTail)) {
     return isoTail;
   }
-  // Postal codes trail the country name in some formats ("Singapore 437844").
   const withoutDigits = trimmed.replace(/[\d\s,.-]+$/u, "").toLowerCase();
   for (const [name, iso] of COUNTRY_NAME_TO_ISO) {
     if (!withoutDigits.endsWith(name)) {

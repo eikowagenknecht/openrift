@@ -23,9 +23,6 @@ describe("parseLanguageCodes", () => {
   });
 });
 
-// A minimal CatalogResponse: only the fields the language filter reads matter,
-// so printings carry just a language and the core is a stand-in for the ~380KB
-// of cards/tags the split is trying not to send twice.
 function fakeCatalog(): CatalogResponse {
   return {
     sets: [{ id: "OGS", slug: "OGS", name: "Original Set", releases: {}, setType: "main" }],
@@ -74,7 +71,6 @@ describe("filterCatalogResponseByLanguages", () => {
     expect(Object.keys(variant.printings).toSorted()).toEqual(["p-fr", "p-sc"]);
     expect(variant.cards).toEqual({});
     expect(variant.customTagAssignments).toEqual({});
-    // Sets ride along (3KB) so the tail response stands on its own.
     expect(variant.sets).toHaveLength(1);
     expect(variant.totalCopies).toBe(42);
   });
@@ -192,7 +188,6 @@ describe("createContentAddressedCache", () => {
     const [first, second, third] = await Promise.all([cache(), cache(), cache()]);
 
     expect(assembleCalls).toBe(1);
-    // Concurrent probes coalesce into one.
     expect(probeCalls).toBe(1);
     expect(first).toBe(second);
     expect(second).toBe(third);

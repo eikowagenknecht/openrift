@@ -28,10 +28,8 @@ type MarkersRepo = ReturnType<typeof markersRepo>;
 type DistributionChannelsRepo = ReturnType<typeof distributionChannelsRepo>;
 
 /**
- * Replace a printing's marker set. Runs inside a transaction so the sync
- * trigger's intermediate `marker_slugs = {}` state between DELETE and INSERT
- * on `printing_markers` only has to satisfy the deferrable uniqueness checks
- * at commit time, after the final value is in place.
+ * Runs inside a transaction so the sync trigger's intermediate empty state
+ * only has to satisfy the deferrable uniqueness checks at commit time.
  */
 export async function updatePrintingMarkers(
   transact: Transact,
@@ -98,11 +96,6 @@ export async function updatePrintingDistributionChannels(
   );
 }
 
-/**
- * Delete a printing's rows inside an already-open transaction: unlink its
- * candidate printings, drop its images and link overrides, then the printing
- * row itself.
- */
 export async function deletePrintingRows(
   trxRepos: { catalogMutations: CatalogMutationsRepo; candidateCards: CandidateCardsRepo },
   printingId: string,
@@ -115,9 +108,8 @@ export async function deletePrintingRows(
 }
 
 /**
- * Delete image files (DB row + rehosted files) that no longer have any
- * references. Runs outside the deleting transaction: rehost deletion touches
- * external storage and must only happen after the DB delete is committed.
+ * Runs outside the deleting transaction: rehost deletion touches external
+ * storage and must only happen after the DB delete is committed.
  */
 export async function cleanupOrphanedImageFiles(
   io: Io,
@@ -149,10 +141,6 @@ const PRINTING_BLOCKER_LABELS: Record<keyof PrintingDeleteBlockers, string> = {
   productPrintings: "marketplace product mappings",
 };
 
-/**
- * Throw a CONFLICT AppError naming every non-zero blocker count (the
- * printing-scoped mirror of card-admin's `throwIfBlocked`).
- */
 function throwIfPrintingBlocked(blockers: PrintingDeleteBlockers): void {
   const blocking = Object.entries(blockers).filter(([, count]) => count > 0);
   if (blocking.length > 0) {
@@ -170,11 +158,6 @@ function throwIfPrintingBlocked(blockers: PrintingDeleteBlockers): void {
   }
 }
 
-/**
- * Delete a printing and clean up all related data. Referencing user data
- * (copies, list entries, trades, ...) blocks the delete with a typed 409
- * naming the blockers, instead of surfacing the raw FK violation as a 500.
- */
 export async function deletePrinting(
   transact: Transact,
   io: Io,
@@ -193,9 +176,8 @@ export async function deletePrinting(
   try {
     deletedImageFileIds = await transact((trxRepos) => deletePrintingRows(trxRepos, printing.id));
   } catch (error: unknown) {
-    // 23503 = foreign_key_violation: a referencing row appeared between the
-    // blocker check and the delete — re-check so the client gets the same
-    // CONFLICT it would have gotten had the row existed up front.
+    // 23503 foreign_key_violation: a row appeared between the blocker check
+    // and the delete; re-check so the client still gets a clean CONFLICT.
     if (error instanceof Error && "code" in error && error.code === "23503") {
       throwIfPrintingBlocked(await guards.countForPrinting(printing.id));
     }
@@ -204,8 +186,6 @@ export async function deletePrinting(
 
   await cleanupOrphanedImageFiles(io, mut, deletedImageFileIds);
 }
-
-// ── acceptPrinting ───────────────────────────────────────────────────────────
 
 interface AcceptPrintingFields {
   shortCode: string;
@@ -231,12 +211,8 @@ interface AcceptPrintingFields {
 }
 
 /**
- * Create a new printing from admin-selected fields and link all sources in the group.
- *
- * The write is an upsert, so the ingest paths (candidate accept, gallery,
- * favorites) can be re-run without duplicating rows. Callers where the admin
- * explicitly asked for a *new* printing pass `requireNew` so an identity
- * collision surfaces as a 409 instead of quietly updating the existing row.
+ * The write is an upsert so ingest paths can re-run without duplicating rows;
+ * `requireNew` makes an identity collision surface as 409 instead.
  */
 export async function acceptPrinting(
   transact: Transact,
@@ -418,12 +394,7 @@ export async function acceptPrinting(
     await recordNewPrintingEvent(repos.printingEvents, insertedId);
   }
 
-  // Rehost the image we just inserted so it is self-hosted right away instead
-  // of falling back to its external URL until some later rehost run picks it up.
-  // Targets the exact inserted image (not a blind batch sweep) and is fire-and-
-  // forget to avoid blocking the response on a slow external download. Every
-  // accept path funnels through here, so this is the single place that rehosts
-  // on accept.
+  // Fire-and-forget so a slow external download doesn't block the response.
   if (insertedImageId) {
     // oxlint-disable-next-line promise/prefer-await-to-then -- intentionally fire-and-forget to avoid blocking the response
     rehostSingleImage(io, repos.printingImages, insertedImageId).catch(() => {

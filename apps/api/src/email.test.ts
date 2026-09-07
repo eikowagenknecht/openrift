@@ -31,7 +31,6 @@ describe("createEmailSender", () => {
   it("returns a console-logging sender when unconfigured in development", async () => {
     const sendEmail = createEmailSender(unconfigured, true);
     expect(typeof sendEmail).toBe("function");
-    // The dev sender logs instead of sending and resolves without throwing.
     await expect(
       sendEmail({ to: "user@example.test", subject: "Hi", html: "<p>hi</p>" }),
     ).resolves.toBeUndefined();

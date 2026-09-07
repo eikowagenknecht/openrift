@@ -10,11 +10,8 @@ import { AppError } from "../errors.js";
 import type { Tournament } from "../repositories/tournaments.js";
 
 /**
- * The cross-field tournament invariants, mirroring the DB CHECK constraints
- * with readable messages. They live outside the router because the update
- * contract's fields are all optional and can't see the existing row: callers
- * pass the *effective* post-merge values, which is the part worth testing on
- * its own.
+ * Callers must pass the effective post-merge values, not the raw update patch.
+ * These functions have no access to the existing row.
  */
 
 export function assertDateOrder(
@@ -63,13 +60,7 @@ export function assertPlayModeCompatible(
   }
 }
 
-/**
- * Forward-only lifecycle. `cancelled` is terminal (and additionally blocked
- * upstream by the cannot-edit-cancelled guard); every state may stay itself,
- * so an unchanged status write is always a no-op. Reaching `cancelled` is
- * normally the dedicated `cancel` endpoint, but an explicit status write to
- * it is honored too.
- */
+/** `cancelled` is also blocked upstream by the cannot-edit-cancelled guard. */
 const ALLOWED_STATUS_TRANSITIONS: Record<TournamentStatus, readonly TournamentStatus[]> = {
   setup: ["setup", "running", "completed", "cancelled"],
   running: ["running", "completed", "cancelled"],
@@ -77,7 +68,6 @@ const ALLOWED_STATUS_TRANSITIONS: Record<TournamentStatus, readonly TournamentSt
   cancelled: ["cancelled"],
 };
 
-// A patch that omits the status, or restates the current one, is a no-op.
 export function assertStatusTransition(
   current: TournamentStatus,
   next: TournamentStatus | undefined,
@@ -90,11 +80,6 @@ export function assertStatusTransition(
   }
 }
 
-/**
- * Throws 409 when the tournament can no longer accept new participants. A
- * `completed` or `cancelled` tournament is closed; `setup` and `running` stay
- * open so hosts can still add late walk-ins.
- */
 export function assertParticipantsOpen(tournament: Tournament): void {
   const status = tournament.status;
   if (status === "completed" || status === "cancelled") {

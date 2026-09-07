@@ -10,67 +10,25 @@ import { syncEventTemplates } from "./templates.js";
 import type { UvsQuery } from "./uvsgames-client.js";
 import { MAX_PAGE_SIZE } from "./uvsgames-client.js";
 
-/**
- * The scheduled catalogue crawls.
- *
- * The listing is walked by date range, never by page number. `start_date_after`
- * and `start_date_before` are both inclusive and millisecond-precise, so a range
- * whose `count` fits in one page hands back all of it in a single request no
- * matter what order the source felt like using. That is the whole point: the
- * listing has no stable sort, and events tie on `start_datetime` in their
- * hundreds, so paging by offset returns the same event twice and drops another.
- *
- * A range too big for one page is split by time and re-asked. A range the
- * source refuses is split until the failure is cornered on a single instant,
- * which is how one unserializable row costs one row rather than a whole page.
- * Such a row answers 500 at every page size and on every retry, so cornering it
- * is the only way past.
- *
- * Unknown query parameters are ignored silently rather than rejected, which is
- * why every filter here has been checked against the live listing. These filter:
- * `game_slug`, `start_date_after`, `start_date_before`, `name`,
- * `is_headlining_event`, `event_configuration_template_ids`, and
- * `display_status` for the values `complete`, `upcoming` and `inProgress` only
- * (any other value falls through to no filter at all). These do nothing:
- * `ordering`, `event_type`, and the singular `event_configuration_template`.
- */
+// Walked by date range, not page number: the listing has no stable sort and
+// ties heavily on start_datetime, so offset paging drops and duplicates rows.
 
-/** The daily sync's reach into the past. Every event crosses it as it runs. */
 const SYNC_LOOKBACK_DAYS = 7;
 
-/** The first instant the backfill asks about, comfortably before event one. */
 export const ARCHIVE_START = new Date("2025-01-01T00:00:00Z");
 
-/** How far past today a crawl of "the future" bothers to look. */
 const FUTURE_HORIZON_DAYS = 730;
 
-/**
- * How many pieces an oversized range breaks into. Splitting by the count's own
- * ratio would cut straight to leaf-sized slices, but event density swings by
- * several times between a Tuesday and a Saturday, so the deeper tree of a
- * capped fan-out costs fewer requests than re-splitting a third of the leaves.
- */
 const MAX_SPLIT = 12;
 
-/** A crawl's ceiling, so a source bug cannot turn one run into a full backfill. */
 const MAX_REQUESTS_PER_CRAWL = 6000;
 
-/** How many rows a single refused instant is walked through one at a time. */
 const MAX_INSTANT_ROWS = 300;
 
-/** Pages a refused instant probes before accepting that it cannot read any. */
 const INSTANT_PROBE_PAGES = 5;
 
-/**
- * When this many range queries fail back to back, the source is down rather
- * than holding a bad row, and splitting further only hammers it: halving a
- * refused range is the right move against one unserializable row and exactly
- * the wrong one against an outage, which would otherwise spend the whole
- * request budget bisecting a listing that answers nothing.
- */
 const MAX_CONSECUTIVE_FAILURES = 20;
 
-/** How often a long crawl writes its counters into the job_runs row. */
 const HEARTBEAT_RANGES = 25;
 
 const MAX_ERRORS = 50;
@@ -79,17 +37,11 @@ const MAX_SKIPPED = 50;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export interface MetaCatalogSyncResult extends MetaSyncResultBase {
-  /** Listing queries that answered. `requests` is larger when retries happen. */
   ranges: number;
-  /** Rows the source returned in a shape with no usable id, name, or start. */
   unreadable: number;
-  /** Rows the source refused to serve, and so were never read. */
   skipped: number;
-  /** Templates the source's vocabulary endpoint named on this run. */
   templatesNamed: number;
-  /** Template ids the mirror carries that the endpoint no longer publishes. */
   templatesRetired: number;
-  /** What the crawl could not read, in the words the run list prints. */
   skippedRanges: string[];
 }
 
@@ -105,11 +57,8 @@ function emptyResult(): MetaCatalogSyncResult {
   };
 }
 
-/**
- * A run that touched nothing is worth marking as such in the job history. A
- * cancelled run never counts as one, however little it wrote: the admin who
- * stopped it needs to see the stop in the history.
- */
+// A cancelled run never counts as a noop, however little it wrote, so the
+// admin who stopped it still sees the stop in the history.
 export function isCatalogSyncNoop(result: MetaCatalogSyncResult): boolean {
   return (
     !result.cancelRequested &&
@@ -122,16 +71,12 @@ export function isCatalogSyncNoop(result: MetaCatalogSyncResult): boolean {
 
 interface CrawlContext {
   result: MetaCatalogSyncResult;
-  /** Keys the crawl inserted or changed, which are the auto-accept sweep's input. */
   touched: string[];
   seenAt: Date;
-  /** Filters every request in this crawl carries on top of the date range. */
   filter: UvsQuery;
   maxRequests: number;
   requestsBefore: number;
-  /** When set, partial counters land in this job_runs row as the crawl walks. */
   runId?: string;
-  /** Whether coveredThrough advances as the walk moves; the crawls set it. */
   checkpoints: boolean;
   rangesAtLastBeat: number;
   consecutiveFailures: number;
@@ -163,7 +108,7 @@ function record(ctx: CrawlContext, message: string): void {
   }
 }
 
-/** Marks a gap in coverage. The counters alone cannot say a crawl fell short. */
+// The counters alone cannot say a crawl fell short, so a gap is marked explicitly.
 function skip(ctx: CrawlContext, detail: string): void {
   ctx.result.complete = false;
   if (ctx.result.skippedRanges.length < MAX_SKIPPED) {
@@ -171,11 +116,8 @@ function skip(ctx: CrawlContext, detail: string): void {
   }
 }
 
-/**
- * Ranges are visited in chronological order, so a finished range means every
- * event starting at or before its end has been attempted. That single instant
- * is the whole resume state.
- */
+// Ranges are visited in chronological order, so a finished range's end
+// instant alone is the whole resume state.
 function cover(ctx: CrawlContext, to: Date): void {
   if (ctx.checkpoints) {
     ctx.result.coveredThrough = to.toISOString();
@@ -186,11 +128,8 @@ function spent(deps: MetaSyncDeps, ctx: CrawlContext): number {
   return deps.client.requests - ctx.requestsBefore;
 }
 
-/**
- * The budget check and the heartbeat, run before every request. A crawl that
- * stops here has to say so: a silent halt reads as complete coverage, which is
- * exactly the lie that left a third of the catalogue stale for a week.
- */
+// A crawl that stops here must mark complete=false; a silent halt would
+// read as full coverage it never achieved.
 async function keepGoing(deps: MetaSyncDeps, ctx: CrawlContext): Promise<boolean> {
   if (ctx.stopped) {
     return false;
@@ -214,11 +153,8 @@ async function keepGoing(deps: MetaSyncDeps, ctx: CrawlContext): Promise<boolean
   return !ctx.stopped;
 }
 
-/**
- * A failed progress write must never kill a crawl that is an hour into its
- * ranges, so the error is logged and the walk continues. The same beat re-reads
- * the row, which is how an out-of-band cancel reaches a job already running.
- */
+// A failed heartbeat write is only logged, never thrown, so it can't kill a
+// crawl hours into its ranges; the same beat is how an out-of-band cancel reaches it.
 async function heartbeat(deps: MetaSyncDeps, ctx: CrawlContext): Promise<void> {
   const runId = ctx.runId;
   if (runId === undefined) {
@@ -297,20 +233,13 @@ async function absorb(deps: MetaSyncDeps, ctx: CrawlContext, rows: unknown[]): P
   ctx.touched.push(...written.inserted, ...written.changed);
 }
 
-/**
- * How many pieces an oversized range breaks into, never fewer than two: a split
- * that handed back the same range would recurse forever.
- */
+// Never fewer than two: a split that handed back the same range would recurse forever.
 function splitParts(count: number): number {
   return Math.min(MAX_SPLIT, Math.max(2, Math.ceil(count / MAX_PAGE_SIZE)));
 }
 
-/**
- * Contiguous inclusive sub-ranges covering `[from, to]` exactly once, which is
- * what makes the walk lossless: every instant belongs to one slice, and the
- * source's own bounds are inclusive at both ends. A range narrower than `parts`
- * milliseconds yields one slice per millisecond instead.
- */
+// Contiguous inclusive sub-ranges covering [from, to] exactly once. A range
+// narrower than `parts` milliseconds yields one slice per millisecond instead.
 export function sliceRange(from: Date, to: Date, parts: number): { from: Date; to: Date }[] {
   const start = from.getTime();
   const points = to.getTime() - start + 1;
@@ -337,14 +266,6 @@ async function crawlSlices(
   }
 }
 
-/**
- * Reads `[from, to]` completely, or says which part of it it could not.
- *
- * One request settles a range whose events fit in a page. Anything else is a
- * split: too many events splits by the count, and a refusal splits in half,
- * because halving is the cheapest way to corner whichever row the source
- * cannot serialize.
- */
 async function crawlRange(
   deps: MetaSyncDeps,
   ctx: CrawlContext,
@@ -380,11 +301,8 @@ async function crawlRange(
   cover(ctx, to);
 }
 
-/**
- * An instant carrying more events than one page holds. Time cannot split it any
- * further, so this is the one place left that pages by offset, and the one
- * place the listing's unstable tie order can still drop a row.
- */
+// Time cannot split a single instant any further, so this is the one place
+// left that pages by offset, and where an unstable tie order can drop a row.
 async function drainInstant(
   deps: MetaSyncDeps,
   ctx: CrawlContext,
@@ -405,12 +323,8 @@ async function drainInstant(
   }
 }
 
-/**
- * One instant the source refused to serve as a page, walked a row at a time so
- * the row that breaks its serializer is the only thing lost. The row count
- * comes from the first page that answers, which is why the walk keeps probing
- * past a failure instead of giving up on the first one.
- */
+// Walks a refused instant a row at a time so only the row that breaks the
+// serializer is lost; keeps probing since the row count needs a page to answer.
 async function salvageInstant(deps: MetaSyncDeps, ctx: CrawlContext, at: Date): Promise<void> {
   let total: number | null = null;
   let page = 1;
@@ -436,11 +350,8 @@ async function salvageInstant(deps: MetaSyncDeps, ctx: CrawlContext, at: Date): 
   }
 }
 
-/**
- * The template refresh runs after the crawl rather than before it, so a
- * template id the crawl just met gets its row in the same run. A crawl that
- * stopped short skips it: the run is over, and it would spend one more request.
- */
+// Runs after the crawl so a template id the crawl just met gets its row in
+// the same run; skipped when the crawl stopped short to save one more request.
 async function finish(deps: MetaSyncDeps, ctx: CrawlContext): Promise<MetaCatalogSyncResult> {
   const auto = await autoAcceptCatalogEvents(deps, [...new Set(ctx.touched)]);
   ctx.result.autoAccepted = auto.accepted;
@@ -463,24 +374,8 @@ function shift(from: Date, days: number): Date {
   return new Date(from.getTime() + days * DAY_MS);
 }
 
-/**
- * The daily catalogue sync, `[now − 7d, now + horizon]`, one crawl doing three
- * jobs. The future side is discovery: every event is future-dated when it is
- * first listed, so the upsert's inserted count is exactly "events that did not
- * exist before", and known future events get their registration changes on the
- * same pass. The past side re-reads the last week, where events complete,
- * standings finalize, and decklists publish.
- *
- * Stored rows in the past slice the crawl did not return are flagged missing.
- * The source's own filter is what makes that sound: it returns every event
- * starting inside the range, so a stored row there that did not come back is a
- * row the source dropped. Only a run that covered everything is allowed to say
- * that, which is what `complete` is for. The future slice flags nothing — a
- * vanished future listing is routine cancellation churn, not a dropped row.
- *
- * Anything older than the lookback belongs to the recheck ladder (accepted
- * events) or the occasional manual backfill (everything else).
- */
+// Rows are flagged missing only when the crawl fully covered the range; a
+// partial run must not mistake unreached rows for dropped ones.
 export async function syncCatalog(
   deps: MetaSyncDeps,
   runId?: string,
@@ -504,21 +399,11 @@ export async function syncCatalog(
 }
 
 export interface BackfillOptions {
-  /**
-   * A prior run's `coveredThrough`. The crawl restarts one millisecond past it,
-   * which loses nothing because the source's bounds are inclusive.
-   */
   resumeFrom?: Date;
 }
 
-/**
- * The manual full resync, the archive's whole span in one walk. Nothing
- * scheduled runs this: old completed events are crawled once, by this, and
- * never again.
- *
- * It takes hours, so it checkpoints. A run that stops early leaves
- * `coveredThrough` behind and the next one carries on from there.
- */
+// Manual full resync only; nothing scheduled calls this. Old completed
+// events are crawled once, by this, and never again.
 export async function backfillCatalog(
   deps: MetaSyncDeps,
   runId?: string,

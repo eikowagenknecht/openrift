@@ -23,12 +23,8 @@ import { writeEventOverlayFields } from "../../services/meta-overlay-review.js";
 const os = implement(adminMetaContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
- * What a hand-entered event claims, which is exactly what its creator typed.
- *
- * A field left out, or sent as an explicit null, claims nothing: the admin said
- * nothing about it, so a source linked later is still free to decide it. `tier`
- * is the one field with a computed default, and the default goes on the row
- * rather than into the claim for the same reason.
+ * A field left out or sent as explicit null claims nothing, leaving a later source free to decide it.
+ * `tier`'s computed default goes on the row, not the claim.
  */
 function creationEdits(input: {
   name: string;
@@ -124,18 +120,9 @@ function zoneCardIds(deck: MetaArchivedDeckInput | null): {
 const ADMIN_META_EVENT_PAGE_SIZE = 50;
 
 /**
- * Meta archive curation, mounted under `/api/admin/v1/meta`. The Hono
- * `requireAdmin` middleware on that prefix is the only role check — no
- * handler here re-derives it, and the archive is deliberately not a grantable
- * admin section.
- *
- * The unit of curation is a standings row: a decklist is an optional
- * attachment, so `list` on the write bodies distinguishes "leave it alone"
- * (absent), "this is the list" (an object) and "there is no list" (null).
- * Archived decks are created here rather than through the deck builder, so this
- * is the single place that stamps the synthetic owner and the public flag; both
- * live in the repo's transaction, and nothing in this file can mint a deck
- * under a different owner.
+ * Meta archive curation, mounted under `/api/admin/v1/meta`; Hono's `requireAdmin` on that prefix is the only role check.
+ * `list` on write bodies: absent leaves it alone, an object sets it, null clears it.
+ * Archived decks are created here, not through the deck builder, and stamp the synthetic owner and public flag inside the repo's transaction.
  */
 export const adminMetaRouter = {
   listEvents: os.listEvents.handler(async ({ input, context }) => {
@@ -178,10 +165,8 @@ export const adminMetaRouter = {
     assertSlugAvailable(await meta.eventBySlug(input.slug), input.slug, "Event");
     const { competitivePlayerFloor } = await uvsgamesEvents.settings();
 
-    // The row is minted with identity and the NOT NULL columns only. What the
-    // admin typed is claimed by an overlay instead, the same way a later
-    // correction is, so the live values stay derived from sources plus claims
-    // and releasing one gives it up instead of stranding it on the row.
+    // The row is minted with identity and NOT NULL columns only; what the admin
+    // typed is claimed via overlay, not written directly.
     const row = await meta.createEvent({
       slug: input.slug,
       name: input.name,

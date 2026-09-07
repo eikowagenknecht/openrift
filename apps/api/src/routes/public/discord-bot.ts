@@ -15,12 +15,7 @@ import { AppError } from "../../errors.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
-/**
- * Rejects the call unless it carries the configured bot service secret as
- * `Authorization: Bearer <secret>`. Hash-then-compare keeps the comparison
- * constant-time without leaking length. An unset secret disables the
- * endpoints entirely (every call 401s).
- */
+/** Hash-then-compare keeps the secret comparison constant-time without leaking length. */
 function requireBotSecret(context: ApiContext): void {
   const expected = context.config.discordBotApiSecret;
   const header = context.reqHeader("authorization");
@@ -38,12 +33,8 @@ function requireBotSecret(context: ApiContext): void {
 const os = implement(discordBotContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the first-party Discord bot's privileged reads. Both
- * are `meta: "bearer"` procedures gated by {@link requireBotSecret}; the
- * guild→group link table (migration 217) provides the actual scoping. The
- * holders response deliberately carries display names, per-printing counts and
- * the names of the shared lists only — no account ids, copy conditions, notes,
- * or pricing preferences leave the API.
+ * The holders response deliberately carries display names, per-printing counts,
+ * and shared-list names only; no account ids, copy conditions, notes, or pricing.
  */
 export const discordBotRouter = {
   redeemLink: os.redeemLink.handler(

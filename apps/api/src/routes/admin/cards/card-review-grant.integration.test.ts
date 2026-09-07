@@ -348,7 +348,6 @@ describe.skipIf(!adminCtx || !grantCtx)("card-review grant (integration)", () =>
       expect(allowedJson.sources).toHaveLength(1);
       expect(allowedJson.sources[0].provider).toBe(ALLOWED);
 
-      // the denied group reads as empty, not 403 — it simply isn't visible
       const denied = await grantApp.fetch(adminReq("GET", "/cards/new/crgdeniednew"));
       expect(denied.status).toBe(200);
       const deniedJson = await readJson(denied);

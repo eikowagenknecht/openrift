@@ -10,14 +10,6 @@
    unicorn/no-useless-undefined
    -- test infrastructure: proxy mock intentionally uses loose patterns */
 
-/**
- * Proxy-based Kysely database mock for unit testing repositories.
- *
- * Chains all method calls and returns the provided result from terminal methods
- * (execute, executeTakeFirst, executeTakeFirstOrThrow). Callback arguments
- * (in .where(), .select(), .onConflict(), .leftJoin(), etc.) are automatically
- * invoked to maximise code coverage of callback bodies.
- */
 export function createMockDb(executeResult: unknown = []) {
   function chain(): any {
     const callFn = (fn: unknown) => {

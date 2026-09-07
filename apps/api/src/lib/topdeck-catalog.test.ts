@@ -41,7 +41,6 @@ function standing(overrides: Record<string, unknown> = {}): Record<string, unkno
 
 describe("topdeckLocalDay", () => {
   it("files an American evening event under the day it was played", () => {
-    // 2026-01-03 00:30Z is the evening of the 2nd in Florida.
     const startAt = new Date("2026-01-03T00:30:00.000Z");
     expect(topdeckLocalDay(startAt, KISSIMMEE)).toBe("2026-01-02");
   });

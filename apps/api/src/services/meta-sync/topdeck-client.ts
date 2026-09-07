@@ -1,30 +1,21 @@
 import type { Fetch } from "../../io.js";
 import { metaSyncUserAgent } from "./user-agent.js";
 
-/**
- * One authenticated POST per format, one request at a time, spaced. The source
- * states 100 requests a minute but throttles bulk queries far earlier (six
- * searches in twenty seconds drew a 429 asking for 33), and it names the wait,
- * so a throttle is honoured rather than retried blind. Nothing latches: unlike
- * playloltcg's WAF the limit lifts on the timer the source gives.
- */
-
-/** Minimum spacing between two request starts. */
+// The source claims 100 requests/minute but throttles bulk queries far
+// earlier (six searches in twenty seconds drew a 429), and it names its own
+// cool-down in the response body.
 const REQUEST_SPACING_MS = 2000;
 const REQUEST_JITTER_MS = 500;
 
-/** A transient error (5xx, dropped connection) is worth a short ladder. */
 const MAX_ATTEMPTS = 3;
 const RETRY_BASE_DELAY_MS = 1000;
 
-/** The ceiling on a throttle wait, so one absurd hint cannot hang a job. */
 const MAX_THROTTLE_WAIT_MS = 120_000;
 const DEFAULT_THROTTLE_WAIT_MS = 30_000;
 
-/** A whole-format search returns megabytes, so this is generous on purpose. */
 const REQUEST_TIMEOUT_MS = 120_000;
 
-/** A 4xx that is not a throttle, or a body that is not the array the search promises. Asking again cannot change it. */
+/** A 4xx that isn't a throttle; retrying cannot help. */
 export class TopdeckRefusedError extends Error {
   constructor(message: string) {
     super(message);
@@ -32,7 +23,6 @@ export class TopdeckRefusedError extends Error {
   }
 }
 
-/** Thrown when the run exhausted its throttle patience for one call. */
 export class TopdeckThrottledError extends Error {
   constructor(url: string) {
     super(`topdeck kept throttling: ${url}`);
@@ -40,11 +30,10 @@ export class TopdeckThrottledError extends Error {
   }
 }
 
-/** The search body, as the source's `POST /v2/tournaments` takes it. */
 export interface TopdeckSearchBody {
   game: string;
   format: string;
-  /** Unix seconds, inclusive bounds on the tournament start. */
+  /** Unix seconds. */
   start?: number;
   end?: number;
   columns?: string[];
@@ -54,18 +43,14 @@ export interface TopdeckClientOptions {
   fetch: Fetch;
   baseUrl: string;
   apiKey: string;
-  /** Overridden only by tests; production uses {@link metaSyncUserAgent}. */
   userAgent?: string;
-  /** Injected so tests neither wait nor jitter. */
   sleep?: (ms: number) => Promise<void>;
   random?: () => number;
   now?: () => number;
 }
 
 export interface TopdeckClient {
-  /** POST the tournament search and return the array the source answers with. */
   searchTournaments: (body: TopdeckSearchBody) => Promise<unknown[]>;
-  /** Every request this client has made, for the job summary's honesty. */
   readonly requests: number;
 }
 
@@ -73,7 +58,6 @@ function isRetryableStatus(status: number): boolean {
   return status >= 500;
 }
 
-/** The source names its own cool-down; anything unusable falls back to a fixed wait. */
 function throttleWaitMs(text: string): number {
   try {
     const body: unknown = JSON.parse(text);
@@ -95,7 +79,7 @@ async function settled(promise: Promise<unknown>): Promise<void> {
   }
 }
 
-/** Sequential by construction: every call awaits the previous one's spacing. */
+// Sequential by construction: every call awaits the previous one's spacing.
 export function createTopdeckClient(options: TopdeckClientOptions): TopdeckClient {
   const userAgent = options.userAgent ?? metaSyncUserAgent();
   const sleep = options.sleep ?? ((ms: number) => Bun.sleep(ms));
@@ -170,8 +154,7 @@ export function createTopdeckClient(options: TopdeckClientOptions): TopdeckClien
       }
       lastError = outcome.error;
       if (outcome.throttleMs !== null) {
-        // A throttle is not a failed attempt: the source told us when to come
-        // back, so waiting it out is the call, not backing off a fixed ladder.
+        // Throttles don't count against MAX_ATTEMPTS; they wait out the given delay.
         if (throttles > 0) {
           throw new TopdeckThrottledError(url);
         }

@@ -29,7 +29,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
   const createdCollectionIds: string[] = [];
   const createdCopyIds: string[] = [];
   const recreatedUserIds: string[] = [];
-  /** Throwaway users a single test seeds, deleted alongside the file-owned four. */
   const createdUserIds: string[] = [];
 
   afterAll(async () => {
@@ -52,10 +51,8 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
       .execute();
   });
 
-  // Restore any users a test deleted (cascade scenarios) BEFORE the next test —
-  // otherwise later tests that reference VIEWER_ID/OUTSIDER_ID hit the
-  // friend_group_members_user_id FK. (Deleting in afterAll left them gone for
-  // the rest of the suite.)
+  // Restore any users a test deleted before the next test runs, or later
+  // tests referencing them hit the friend_group_members_user_id FK.
   afterEach(async () => {
     for (const userId of recreatedUserIds) {
       await seedTestUser(db, { id: userId });
@@ -64,8 +61,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
   });
 
   beforeAll(async () => {
-    // Seed the four file-owned users. Some tests delete them as part of a
-    // cascade scenario; afterEach recreates any that were removed.
     for (const id of [VIEWER_ID, ADMIN_ID, SELLER_ID, OUTSIDER_ID]) {
       await seedTestUser(db, { id });
     }
@@ -153,10 +148,10 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
 
     const members = await repo.listMembers(group.id);
     expect(members.map((member) => member.userId)).toEqual([
-      VIEWER_ID, // owner
-      ADMIN_ID, // admin
-      SELLER_ID, // member "alice"
-      OUTSIDER_ID, // member "Bob"
+      VIEWER_ID,
+      ADMIN_ID,
+      SELLER_ID,
+      OUTSIDER_ID,
     ]);
 
     // Restore the shared seed name so later tests see the original fixture.
@@ -195,9 +190,7 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     const shared = await repo.sharedGroups(alice.id, bob.id);
     expect(shared.map((group) => group.id)).toEqual([piltover.id, zaun.id]);
     expect(shared[0]).toEqual({ id: piltover.id, slug: piltover.slug, name: "piltover pact" });
-    // A group only one of them is in never counts as shared.
     expect(shared.map((group) => group.id)).not.toContain(aliceOnly.id);
-    // The relation is symmetric — the sheet works from either side.
     const reversed = await repo.sharedGroups(bob.id, alice.id);
     expect(reversed.map((group) => group.id)).toEqual([piltover.id, zaun.id]);
   });
@@ -243,7 +236,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
 
     expect(await repo.listOwnRequestsForUser(ADMIN_ID)).toHaveLength(0);
 
-    // Requesters see the group's size but never its roster.
     expect(requests[0]?.memberCount).toBe(1);
     expect(requests[0]).not.toHaveProperty("memberPreviews");
   });
@@ -275,7 +267,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     const summary = summaries.find((row) => row.id === group.id);
     expect(summary?.memberCount).toBe(6);
     expect(summary?.sharedListCount).toBe(1);
-    // Owner first, then admin, then members by name; the sixth member is cut.
     expect(summary?.memberPreviews.map((preview) => preview.userId)).toEqual([
       VIEWER_ID,
       ADMIN_ID,
@@ -284,7 +275,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
       extraA.id,
     ]);
 
-    // Restore the shared fixture names and drop the throwaway users.
     await db
       .updateTable("users")
       .set({ name: "Test User" })
@@ -327,7 +317,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     const byNew = await repo.getBySlugOrPrevious(newSlug);
     expect(byNew?.id).toBe(group.id);
 
-    // Conflict checks depend on the exact lookup NOT resolving aliases.
     expect(await repo.getBySlug(oldSlug)).toBeUndefined();
   });
 
@@ -341,7 +330,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
       updatedAt: new Date(),
     });
 
-    // A new group claims the freed slug; lookups must prefer it over the alias.
     const groupB = await repo.createWithOwner(
       { slug: contestedSlug, name: "Claimer", description: null, code: null },
       VIEWER_ID,
@@ -355,7 +343,7 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
   it("rejects sharing into a group the user is not a member of", async () => {
     const group = await createGroup(VIEWER_ID);
     const list = await createList(OUTSIDER_ID, "wish", "card");
-    // Outsider is not in the group, so the composite FK to friend_group_members
+    // Outsider isn't in the group; the composite FK to friend_group_members
     // must reject this share.
     await expect(repo.share(group.id, list.id, OUTSIDER_ID)).rejects.toThrow();
   });
@@ -370,9 +358,8 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     expect(target?.role).toBe("owner");
   });
 
-  // Guards against a scenario where the promote is unguarded: transferring to
-  // someone who is not a member would update nothing while the demote still
-  // commits, leaving the group with no owner and no owner-only action to fix it.
+  // Without this guard, transferring to a non-member would update nothing
+  // while the demote still commits, leaving the group with no owner.
   it("rolls back a transfer to a non-member, keeping the current owner", async () => {
     const group = await createGroup(VIEWER_ID);
 
@@ -401,8 +388,8 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     await repo.addMember(group.id, ADMIN_ID, "admin");
     await repo.addMember(group.id, SELLER_ID, "member");
 
-    // Delete the owner. CASCADE drops their member row → trigger fires →
-    // promotes the admin (oldest admin first).
+    // A trigger on friendGroupMembers promotes the oldest admin once the
+    // owner's member row is cascade-deleted with their user.
     await db.deleteFrom("users").where("id", "=", VIEWER_ID).execute();
     recreatedUserIds.push(VIEWER_ID);
 
@@ -439,7 +426,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
       .execute();
     await repo.share(group.id, wish.id, VIEWER_ID);
 
-    // Seller offers an alt printing of the same card.
     const copy = await addCopy(SELLER_ID, ALT_PRINTING_OF_FURY_UNIT);
     const trade = await createList(SELLER_ID, "trade", "copy");
     await db
@@ -477,7 +463,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
       .execute();
     await repo.share(group.id, wish.id, VIEWER_ID);
 
-    // Seller has the alt printing of the same card — must NOT match.
     const altCopy = await addCopy(SELLER_ID, ALT_PRINTING_OF_FURY_UNIT);
     const trade = await createList(SELLER_ID, "trade", "copy");
     await db
@@ -496,7 +481,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
       await matches.othersHaveYourWants({ groupId: group.id, viewerUserId: VIEWER_ID }),
     ).toHaveLength(0);
 
-    // Add the exact printing — now it matches.
     const exactCopy = await addCopy(SELLER_ID, PRINTING_1.id);
     await db
       .insertInto("listEntries")
@@ -545,7 +529,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
         quantity: 1,
       })
       .execute();
-    // Sell list shared with B only.
     await repo.share(groupB.id, trade.id, SELLER_ID);
 
     expect(
@@ -556,8 +539,7 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     ).toHaveLength(1);
   });
 
-  // A pending offer counts as a claim on the copy (`assertSupplyAvailable`),
-  // so the match view must not advertise a copy already promised elsewhere.
+  // assertSupplyAvailable treats a pending offer as a claim on the copy.
   it("a pending offer to another member hides the copy from the match view", async () => {
     const group = await createGroup(VIEWER_ID);
     await repo.addMember(group.id, SELLER_ID, "member");
@@ -588,9 +570,8 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
       await matches.othersHaveYourWants({ groupId: group.id, viewerUserId: VIEWER_ID }),
     ).toHaveLength(1);
 
-    // The seller offers that same copy to the outsider. Nothing is pinned until
-    // the outsider accepts, so the copy is not `reserved` — only the claim pass
-    // takes it off the table.
+    // Nothing is pinned until the outsider accepts (status stays "pending");
+    // the claim pass is what takes the copy off the table.
     const offer = await db
       .insertInto("cardTrades")
       .values({
@@ -602,7 +583,7 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
         cardId: CARD_FURY_UNIT.id,
         quantity: 1,
         status: "pending",
-        // A pending trade always carries its TTL (enforced by a CHECK constraint).
+        // A CHECK constraint requires a TTL on every pending trade.
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       })
       .returningAll()
@@ -612,8 +593,7 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
       await matches.othersHaveYourWants({ groupId: group.id, viewerUserId: VIEWER_ID }),
     ).toHaveLength(0);
 
-    // A request in the other direction is a bid, not a commitment, so it must
-    // not hide anything.
+    // Reversing the initiator turns this into a bid, which still surfaces.
     await db
       .updateTable("cardTrades")
       .set({ initiator: "receiver", giverUserId: OUTSIDER_ID, receiverUserId: SELLER_ID })
@@ -623,8 +603,7 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
       await matches.othersHaveYourWants({ groupId: group.id, viewerUserId: VIEWER_ID }),
     ).toHaveLength(1);
 
-    // A closed offer releases the copy too. Closing stamps closed_at and
-    // clears the TTL, as every real writer does (enforced by shape CHECKs).
+    // Shape CHECKs require closedAt and no TTL on a closed trade.
     await db
       .updateTable("cardTrades")
       .set({
@@ -659,7 +638,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
       .execute();
     await repo.share(group.id, wish.id, VIEWER_ID);
 
-    // Seller has the matching card in an ORGANIZE list (not trade).
     const copy = await addCopy(SELLER_ID, PRINTING_1.id);
     const organize = await createList(SELLER_ID, "organize", "copy");
     await db
@@ -718,15 +696,9 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
   });
 
   it("deck-derived demand never appears (only explicit wish entries do)", async () => {
-    // We never read decks in the match query, so there is nothing structural
-    // to assert against. Instead we assert the *negative*: with no wishlist
-    // entries, the match view stays empty even when the seller has a copy of
-    // the card the viewer's deck would want.
     const group = await createGroup(VIEWER_ID);
     await repo.addMember(group.id, SELLER_ID, "member");
 
-    // Viewer has no wishlist — only a deck might create implicit demand, but
-    // decks are explicitly out of scope.
     const copy = await addCopy(SELLER_ID, PRINTING_1.id);
     const trade = await createList(SELLER_ID, "trade", "copy");
     await db
@@ -792,7 +764,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     const group = await createGroup(VIEWER_ID);
     await repo.addMember(group.id, SELLER_ID, "member");
 
-    // Other member wants Fury Unit.
     const wish = await createList(SELLER_ID, "wish", "card");
     await db
       .insertInto("listEntries")
@@ -806,7 +777,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
       .execute();
     await repo.share(group.id, wish.id, SELLER_ID);
 
-    // Viewer has the printing.
     const copy = await addCopy(VIEWER_ID, PRINTING_1.id);
     const trade = await createList(VIEWER_ID, "trade", "copy");
     await db
@@ -827,9 +797,7 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     expect(rows[0]?.cardId).toBe(CARD_FURY_UNIT.id);
     expect(rows[0]?.buyQuantity).toBe(2);
 
-    // CARD_FURY_SPELL is not in anyone's lists — sanity check we only got one row.
     expect(rows.every((row) => row.cardId !== CARD_FURY_SPELL.id)).toBe(true);
-    // PRINTING_2 wasn't involved — sanity check.
     expect(rows.every((row) => row.printingId !== PRINTING_2.id)).toBe(true);
   });
 
@@ -888,8 +856,8 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
   it("rejects sharing a pooled (group-owned) collection", async () => {
     const group = await createGroup(VIEWER_ID);
     const pooled = await createPooledCollection(group.id);
-    // The share row's user_id is NOT NULL, but the pooled collection has
-    // user_id IS NULL — composite FK to collections(id, user_id) blocks it.
+    // The share row's user_id is NOT NULL but the pooled collection's is
+    // NULL, so the composite FK to collections(id, user_id) blocks this.
     await expect(repo.shareCollection(group.id, pooled.id, VIEWER_ID)).rejects.toThrow();
   });
 
@@ -897,7 +865,6 @@ describe.skipIf(!ctx)("friendGroupsRepo (integration)", () => {
     const group = await createGroup(VIEWER_ID);
     await repo.addMember(group.id, SELLER_ID, "member");
     const col = await createPersonalCollection(SELLER_ID);
-    // VIEWER tries to claim ownership of SELLER's collection via the share.
     await expect(repo.shareCollection(group.id, col.id, VIEWER_ID)).rejects.toThrow();
   });
 

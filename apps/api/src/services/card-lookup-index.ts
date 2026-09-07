@@ -30,22 +30,8 @@ async function assembleCardLookupIndex(repos: Repos): Promise<CardLookupIndex> {
 }
 
 /**
- * A process-lived, content-addressed memo of the server-side card lookup index.
- *
- * This is the API's single answer to "which card did they mean?". The chat
- * endpoint ranks against it, and deck-check resolves decklist names against it,
- * so a name that finds a card in one cannot miss in the other. It is the same
- * index the pickers and the Discord bot build client-side, with the two things
- * only the server can supply folded in: the curated `card_name_aliases` keys,
- * and the colloquial Legend form derived from the card's tags.
- *
- * The whole catalogue has to be in memory for a lookup to be a scan over
- * pre-folded strings, so rebuilding it per request is out of the question. The
- * Discord bot solves this with a TTL refresh because it only talks to the API
- * over HTTP; server-side we can do better with the same helper the rule
- * catalogue uses. The memo is keyed on a cheap content-version probe rather
- * than a clock, so a card edit is visible on the next lookup with no staleness
- * window.
+ * Shared by the chat endpoint and deck-check so a name found by one cannot miss in the other.
+ * Cache key is a content-version probe, not a clock: an edit invalidates it immediately.
  */
 export function createCardLookupIndexLoader(repos: Repos): () => Promise<CardLookupIndex> {
   return createContentAddressedCache(

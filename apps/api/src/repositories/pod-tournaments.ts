@@ -65,11 +65,6 @@ export interface PodScoring {
   byePoints: number;
   winPoints: number;
   drawPoints: number;
-  /**
-   * 1v1 or 2v2 team play. In 2v2, a size-4 pod is a team match: each side's
-   * members share a placement, and the whole pod scores like a Swiss match
-   * (win/draw points per team) instead of the FFA placement tables.
-   */
   playMode: TournamentPlayMode;
 }
 
@@ -301,11 +296,8 @@ function sortedStandingRows(
       avgOpponentGamePoints: meanOver(opponents, gamePointsOf),
     };
   });
-  // Final fallback is "random", but a fresh draw on every read would reshuffle
-  // tied players each refresh; instead derive a stable per-player draw from the
-  // id hash so the arbitrary order holds across reads. The draw hashes the team
-  // id first so fully-tied teammates stay adjacent (their stat columns always
-  // tie exactly) instead of interleaving with an equally-tied other team.
+  // Final tiebreak must be a deterministic id hash, not a fresh random draw,
+  // or standings reshuffle every refresh. Hash the team id first.
   return rows.toSorted(
     (a, b) =>
       b.score - a.score ||
@@ -318,9 +310,8 @@ function sortedStandingRows(
   );
 }
 
-// Rolls the createTeam transaction back (Kysely commits unless the callback
-// throws) without the repo raising a transport-level AppError; the caller maps
-// it to a null return.
+// Kysely commits a transaction unless the callback throws; this lets a race
+// roll the transaction back without surfacing a transport-level AppError.
 class TeamRaceLostError extends Error {
   override name = "TeamRaceLostError";
 }
@@ -905,11 +896,7 @@ export function podTournamentsRepo(db: Kysely<Database>) {
       return sortedStandingRows(players, aggregates);
     },
 
-    /**
-     * The standings leader per tournament, batched: three queries across all
-     * ids instead of three per tournament. A tournament with no finalized
-     * rounds (or no finalized byes) has no winner and is absent from the map.
-     */
+    /** A tournament with no finalized rounds or byes is absent from the map. */
     async winnersAcross(
       tournaments: { id: string; scoring: PodScoring }[],
     ): Promise<Map<string, { participantId: string; displayName: string }>> {

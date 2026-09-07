@@ -19,10 +19,7 @@ function textsOf({ errata, printings }: TokenTextSources): (string | null)[] {
   ];
 }
 
-/**
- * Replace the derived rows for one card. Manual rows are left alone, and a
- * derived row that duplicates a manual one is dropped rather than conflicting.
- */
+// Manual rows are left alone; a derived row duplicating a manual one is dropped, not conflicting.
 async function writeDerived(
   trx: Kysely<Database>,
   cardId: string,
@@ -47,18 +44,7 @@ async function writeDerived(
     .execute();
 }
 
-/**
- * Reads and derivation for `card_tokens`: which token cards a card tells the
- * player to create.
- *
- * The derivation only ever reads EN text, because the phrasing it matches is
- * English (`findTokenReferences`). What it stores is a card-id pair, so the
- * result is language-neutral and every language renders the token through its
- * own printings.
- *
- * Callers must refresh `mv_card_aggregates` afterwards, since that view is what
- * the catalog reads.
- */
+/** Callers must refresh `mv_card_aggregates` afterwards; that view is what the catalog reads. */
 export function cardTokensRepo(db: Kysely<Database>) {
   async function tokenCards(): Promise<TokenCardName[]> {
     const rows = await db
@@ -71,7 +57,6 @@ export function cardTokensRepo(db: Kysely<Database>) {
     return rows;
   }
 
-  /** Every card-type slug, used to validate the word before "token". */
   async function cardTypeSlugs(): Promise<string[]> {
     const rows = await db.selectFrom("cardTypes").select("slug").execute();
     return rows.map((row) => row.slug);
@@ -100,11 +85,8 @@ export function cardTokensRepo(db: Kysely<Database>) {
       cardId,
     );
 
-    // No transaction of its own: this repo is also constructed from a
-    // `Transaction` by the printing-accept flow, and nesting one there would
-    // not be a savepoint. A single card's delete-then-insert is cheap enough
-    // that the uncovered gap is a non-issue, and in-transaction callers get
-    // atomicity from the transaction they already hold.
+    // No transaction of its own: this repo is also built from a `Transaction`
+    // by the printing-accept flow, and nesting one there would not be a savepoint.
     await writeDerived(db, cardId, tokenCardIds);
   }
 
@@ -127,10 +109,7 @@ export function cardTokensRepo(db: Kysely<Database>) {
       await recomputeForCard(row.cardId);
     },
 
-    /**
-     * Recompute the token relation for every card. Runs as one transaction so
-     * readers never see a half-rebuilt table.
-     */
+    /** Runs as one transaction so readers never see a half-rebuilt table. */
     async recomputeAll(): Promise<{ totalCards: number; withTokens: number }> {
       const [tokens, typeSlugs] = await Promise.all([tokenCards(), cardTypeSlugs()]);
 

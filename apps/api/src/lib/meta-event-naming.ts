@@ -1,28 +1,13 @@
-/**
- * Names promotion has to invent: the live event's URL slug, and a deck's
- * display name when the source shipped none.
- *
- * Both are pure and both are deliberately conservative. The slug grammar is a
- * CHECK constraint on `meta_events.slug` and the reserved list is the contract's
- * own, so a promotion that produced an illegal slug would fail at the insert
- * with nothing useful to show for it.
- */
 import { RESERVED_META_EVENT_SLUGS } from "@openrift/shared/contracts/admin/meta";
 import { slugifyName } from "@openrift/shared/utils";
 
-/**
- * `meta_events.slug` CHECK: `^[a-z0-9][a-z0-9-]{2,49}$` — 3 to 50 characters,
- * opening on a letter or digit.
- */
 const MIN_SLUG_LENGTH = 3;
 const MAX_SLUG_LENGTH = 50;
 
-/** Used when a name slugifies to nothing usable ("???", a purely CJK title). */
 const SLUG_FALLBACK_STEM = "event";
 
 const RESERVED_SLUGS = new Set(RESERVED_META_EVENT_SLUGS);
 
-/** How many `-2`, `-3`, … variants {@link metaEventSlugCandidates} offers. */
 const MAX_SLUG_VARIANTS = 50;
 
 function trimHyphens(text: string): string {
@@ -33,14 +18,7 @@ function yearOf(eventDate: string): string {
   return /^(?<year>\d{4})/u.exec(eventDate)?.groups?.year ?? "";
 }
 
-/**
- * The slug a promoted event gets before uniqueness is considered: the name,
- * slugified, with the event's year appended.
- *
- * The year is what keeps a recurring series ("Summoner Skirmish") from
- * colliding with itself every season, so it is part of the base rather than a
- * disambiguation suffix. A name that already ends in the year keeps it once.
- */
+/** The year is part of the base, not a disambiguation suffix, so a recurring series doesn't collide every season. */
 export function metaEventSlugBase(name: string, eventDate: string): string {
   const year = yearOf(eventDate);
   const slugified = slugifyName(name);
@@ -54,13 +32,6 @@ export function metaEventSlugBase(name: string, eventDate: string): string {
   return candidate.length < MIN_SLUG_LENGTH ? `${SLUG_FALLBACK_STEM}${suffix}` : candidate;
 }
 
-/**
- * The slugs to try, in order, when promoting an event. The caller
- * takes the first one no live event already holds.
- *
- * Reserved slugs are dropped rather than renamed, because the numbered variants
- * after them ("decks-2", …) are free and read better than a rewritten stem.
- */
 export function metaEventSlugCandidates(name: string, eventDate: string): string[] {
   const base = metaEventSlugBase(name, eventDate);
   const slugs: string[] = [];
@@ -75,7 +46,6 @@ export function metaEventSlugCandidates(name: string, eventDate: string): string
   return slugs;
 }
 
-/** `decks.name` CHECK bound. */
 const MAX_DECK_NAME_LENGTH = 200;
 
 /** Resolves a standing's name the way every read query's `coalesce` does, for callers holding raw columns. */
@@ -92,17 +62,7 @@ export function resolvedStandingName(
   return displayNames.get(standing.uvsgamesPlayerId) ?? "";
 }
 
-/**
- * The display name for a promoted deck whose source gave none.
- *
- * Sources routinely ship bare decklists, and "Untitled deck" ×8 on an event
- * page is useless. The legend is what players call the archetype, so it leads;
- * the event name stands in when the list has no legend zone card (an
- * incomplete import, or a format without legends).
- *
- * Every part is optional; an absent one drops its whole fragment, never an
- * empty pair.
- */
+/** The legend leads when present; the event name stands in for a list with no legend zone card. */
 export function defaultMetaDeckName(
   legendName: string | null,
   playerName: string,

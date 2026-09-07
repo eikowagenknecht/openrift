@@ -174,7 +174,6 @@ describe("buildNewPrintingPayloads", () => {
     const embed = payloads[0].embeds[0];
     expect(embed.image?.url).toBeDefined();
     expect(embed.footer?.text).toBeDefined();
-    // No description — the info lives in the footer so it renders below the image.
     expect(embed.description).toBeUndefined();
   });
 

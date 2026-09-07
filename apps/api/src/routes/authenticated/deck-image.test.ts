@@ -8,8 +8,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { deckImageRoute } from "./deck-image.js";
 
-// Only the heavy renderer is mocked; the route's auth scoping and data flow run
-// for real. `buildDeckImageCards` reads repos, so stub it too.
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 vi.mock("../../services/deck-image.js", async (importOriginal) => ({
   ...(await importOriginal<typeof DeckImageModule>()),
@@ -21,14 +19,8 @@ const mockDecksRepo = {
   getByIdForUser: vi.fn(),
 };
 
-/**
- * Mounts {@link deckImageRoute} the way `app.ts` does, with a 418 sentinel
- * fall-through standing in for the oRPC catch-all so we can tell "the image
- * route's auth gated this request" (401) apart from "fell through to a public
- * route" (418) — the public `/decks/share/{token}` og:image and encode routes
- * must never be gated.
- * @returns A configured Hono app for the test.
- */
+// 418 sentinel stands in for the oRPC catch-all, distinguishing a 401 from
+// this route's auth from a fall-through to a public route.
 function buildApp(session: { user: { id: string; name?: string } } | null) {
   return new Hono<{ Variables: Variables }>()
     .onError((err, c) => {
@@ -56,8 +48,6 @@ describe("deckImageRoute auth scoping", () => {
   it("does not gate the public deck share-token image path", async () => {
     const res = await buildApp(null).request("/api/v1/decks/share/some-token/image.png");
 
-    // The three-segment public path must fall through to the public route,
-    // never 401 on the owner route's `requireAuth`.
     expect(res.status).toBe(418);
     expect(mockDecksRepo.getByIdForUser).not.toHaveBeenCalled();
   });

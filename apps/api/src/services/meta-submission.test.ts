@@ -15,7 +15,7 @@ import type { MetaSubmissionArgs } from "./meta-submission.js";
 const NOW = new Date("2026-08-15T12:34:00.000Z");
 const EVENT_ID = "3f7a1c2e-0000-7000-8000-000000000001";
 
-/** @returns A valid submission against an event the archive already has. */
+/** A valid submission against an event the archive already has. */
 function args(overrides: Partial<MetaSubmissionArgs> = {}): MetaSubmissionArgs {
   return {
     userId: "user-1",
@@ -47,12 +47,6 @@ interface Harness {
   insertSubmission: ReturnType<typeof vi.fn>;
 }
 
-/**
- * @param options.pending How many submissions the user already has open.
- * @param options.eventName The target event's name, or undefined when it is gone.
- * @param options.resolvedCardIds Card ids the name matcher hands back, by name.
- * @returns A transact that runs against stub repos.
- */
 function harness(
   options: {
     pending?: number;
@@ -263,7 +257,6 @@ describe("submitMetaDeck", () => {
     const h = harness({ eventName: "Summoner Skirmish Berlin" });
     await submitMetaDeck(h.transact, args());
 
-    // Card lines are rows now, so they arrive as the insert's second argument.
     expect(h.insertPlayer.mock.calls[0][1]).toEqual([
       { lineNumber: 0, cardName: "Azir", zone: "legend", quantity: 1, cardId: "card-azir" },
       { lineNumber: 1, cardName: "Shock", zone: "main", quantity: 3, cardId: "card-shock" },
@@ -306,8 +299,6 @@ describe("submitMetaDeck", () => {
       expect.objectContaining({ eventOverlayId: "event-overlay-1", metaEventId: null }),
       expect.anything(),
     );
-    // The ledger keeps the submitter's own name for the event, since there is
-    // no live row to read one from.
     expect(h.insertSubmission).toHaveBeenCalledWith(
       expect.objectContaining({ metaEventId: null, eventName: "Summoner Skirmish Zaun" }),
     );

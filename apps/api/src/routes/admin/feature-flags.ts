@@ -10,14 +10,7 @@ import type { ApiContext } from "../../orpc/context.js";
 
 const os = implement(adminFeatureFlagsContract).$context<ApiContext>().use(requireAuthedUser);
 
-/**
- * Admin feature-flags tooling: global flag CRUD plus per-user overrides. The
- * static `feature-flags/overrides` path and the `feature-flags/{key}` param
- * path resolve within one router. Conflict / not-found states are thrown as
- * `AppError` and mapped by the handler's appErrorInterceptor.
- */
 export const adminFeatureFlagsRouter = {
-  // ── Global flags ──────────────────────────────────────────────────────────
   list: os.list.handler(async ({ context }) => {
     const { featureFlags: flagsRepo } = context.repos;
     const rows = await flagsRepo.listAll();
@@ -58,7 +51,6 @@ export const adminFeatureFlagsRouter = {
     assertDeleted(result, `Flag "${input.key}" not found`);
   }),
 
-  // ── Per-user overrides ────────────────────────────────────────────────────
   listOverrides: os.listOverrides.handler(async ({ context }) => {
     const { userFeatureFlags } = context.repos;
     const rows = await userFeatureFlags.listAllWithUsers();

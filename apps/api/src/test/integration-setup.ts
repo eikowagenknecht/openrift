@@ -254,8 +254,7 @@ export async function bootstrapSeededTestDb(
       // Without this every seeded printing falls back to the sentinel rank
       // and `printings_ordered` returns them in arbitrary order.
       await sql`REFRESH MATERIALIZED VIEW mv_printings_canonical_rank`;
-      // Same reason for the standard-printing rule: an unrefreshed printing
-      // reads as having no foil twin.
+      // Without this, printings look like they have no foil twin.
       await sql`REFRESH MATERIALIZED VIEW mv_printing_foil_twins`;
     }
     await sql.end();

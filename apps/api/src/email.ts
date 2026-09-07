@@ -6,10 +6,8 @@ import type { Config } from "./types.js";
 const log = createLogger("email");
 
 export function createEmailSender(smtp: Config["smtp"], isDev: boolean) {
-  // In dev, an unset SMTP_HOST is fine — emails are logged to the console. In a
-  // non-dev environment it is an outage: every verification and password-reset
-  // email would be silently dropped (better-auth swallows the send), and nothing
-  // surfaces the failure. Refuse to start so the bad config never reaches users.
+  // better-auth swallows email-send failures, so missing SMTP outside dev
+  // silently drops verification and password-reset mail.
   if (!smtp.configured && !isDev) {
     throw new Error(
       "SMTP is not configured (SMTP_HOST is unset) outside development. " +
@@ -45,16 +43,9 @@ export function createEmailSender(smtp: Config["smtp"], isDev: boolean) {
     to: string;
     subject: string;
     html: string;
-    /**
-     * RFC 8058 one-click endpoint. When set, the message carries
-     * `List-Unsubscribe` + `List-Unsubscribe-Post: List-Unsubscribe=One-Click`,
-     * so Gmail/Apple Mail render a native "Unsubscribe" chip whose tap POSTs
-     * this URL. Only set it for opt-out bulk/transactional mail.
-     */
     listUnsubscribeUrl?: string;
   }) {
-    // RFC 8058 requires both headers together; without the Post header the URL
-    // is treated as a legacy (often GET) link rather than one-click.
+    // RFC 8058 requires both headers together, or the URL is treated as a legacy link.
     const headers = listUnsubscribeUrl
       ? {
           "List-Unsubscribe": `<${listUnsubscribeUrl}>`,

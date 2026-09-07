@@ -28,14 +28,10 @@ import { buildTierListImageRows, renderTierListImage } from "../../services/tier
 import type { Variables } from "../../types.js";
 
 /**
- * These routes live in an app without `loadSession` on purpose: crawlers are
- * anonymous and the image is served with a long immutable cache, so it must
- * never vary by viewer (the bundle image always renders the anonymous,
- * public-only projection).
- *
- * The URL carries a `?v=` content version for cache-busting, which the handler
- * ignores — it always renders current state; the version only changes the edge
- * cache key.
+ * No `loadSession`: images are cached immutably for anonymous crawlers, so
+ * every response must render the public-only projection regardless of viewer.
+ * `?v=` is a cache-busting version the handler ignores; it only changes the
+ * edge cache key.
  */
 
 /** Long immutable cache: the `?v=` version makes each URL content-addressed. */
@@ -46,12 +42,9 @@ const MAX_RENDER_CARD_ROWS = 300;
 /** Matches the deck contract's name limit; anything longer only inflates satori layout. */
 const MAX_RENDER_TEXT_LENGTH = 200;
 
-// The POST render endpoint is anonymous by design (browser-local decks have no
-// session), and each call runs the CPU-heavy satori/resvg/sharp pipeline.
-// Unlike the GET share images it is neither token-gated nor edge-cached, so it
-// gets the same guards as the other anonymous write-ish surfaces: a per-IP
-// rate limit and a body cap that rejects oversized payloads before JSON
-// parsing. A legitimate 300-card payload is a few tens of KB.
+// POST /decks/image is anonymous, uncached, and CPU-heavy, so it gets a per-IP
+// rate limit and a body cap that rejects oversized payloads before JSON parsing.
+// A legitimate 300-card payload is a few tens of KB.
 const RENDER_MAX_BODY_BYTES = 256 * 1024;
 const RENDERS_PER_MINUTE = 10;
 
@@ -64,9 +57,8 @@ const renderRateLimit = rateLimiter<{ Variables: Variables }>({
   keyGenerator: (c) => c.req.header("x-real-ip") ?? "unknown",
 });
 
-// Throwing (rather than returning a hand-built body) routes the rejection
-// through `app.onError`, so an over-cap render answers with the same
-// `ApiErrorResponse` envelope as every other error on this plain-Hono route.
+// Throwing routes the rejection through `app.onError`, so it answers with the
+// same `ApiErrorResponse` envelope as every other error on this route.
 const renderBodyLimit = bodyLimit({
   maxSize: RENDER_MAX_BODY_BYTES,
   onError: () => {
@@ -219,16 +211,9 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
       ? metaDeckImageFraming(metaContext, splitDeckZones(cards).legend?.cardName ?? null)
       : null;
 
-    // `?size=hq` renders the same layout at 2× for the download; default 1× is
-    // the og:image. The rasterize cost grows super-linearly with output pixels,
-    // so HQ is capped at 2× — still crisp for screen/print, ~half the render of 3×.
-    // `?aspect=vertical` serves the 9:16 export off the same share token; the
-    // og:image itself never carries the param, so the cached crawler URL is
-    // untouched and the two aspects are separate immutable cache entries.
+    // HQ is capped at 2x: rasterize cost grows super-linearly with pixels.
     const scale = c.req.query("size") === "hq" ? 2 : 1;
     const aspect = aspectFromQuery(c.req.query("aspect"));
-    // `?qr=0` leaves the scannable mark out, for a download that is going
-    // somewhere the link would be noise. The og:image never sends it.
     const path = archive ? `/meta/decks/${token}` : `/decks/share/${token}`;
     const shareUrl = qrFromQuery(c.req.query("qr"))
       ? shareUrlFromOrigin(config.corsOrigin, path)
@@ -287,11 +272,8 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     return pngResponse(png);
   })
 
-  // Renders a deck image from posted cards for browser-local decks, which have
-  // no server row and no session — saved decks use the owner-auth GET route
-  // (`deck-image.ts`) instead. Enriches names/art/energy server-side from the
-  // posted card ids, so the client sends only identity, printing, zone, and
-  // count. Served `no-store`: the body is the content, there is nothing to cache.
+  // Browser-local decks have no server row or session; saved decks use the
+  // owner-auth GET route (`deck-image.ts`) instead.
   .post("/decks/image", renderRateLimit, renderBodyLimit, async (c) => {
     const repos = c.get("repos");
     const config = c.get("config");

@@ -17,10 +17,8 @@ interface KeywordTextSources {
 }
 
 /**
- * Derive a card's keyword list from its card-level errata text plus every EN
- * printing's text, in that order, deduped by first occurrence. Exported so
- * `services/import-errata.ts` shares the exact derivation the recompute paths
- * use instead of carrying its own copy.
+ * Reads errata text before printing text, in that order, deduped by first
+ * occurrence.
  */
 export function deriveKeywords({ errata, printings }: KeywordTextSources): string[] {
   return [
@@ -149,10 +147,6 @@ export function keywordsRepo(db: Kysely<Database>) {
       return result.length > 0 ? Number(result[0].numInsertedOrUpdatedRows ?? 0) : 0;
     },
 
-    /**
-     * Fetches printing text pairs for keyword translation discovery.
-     * Returns cards that have both EN and non-EN printings with rules/effect text.
-     */
     getTranslationCandidates(): Promise<
       {
         cardId: string;
@@ -194,19 +188,8 @@ export function keywordsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    // `cards.keywords` is a derived cache, never a source of truth. Its only
-    // input is card text: `extractKeywords` reads the `[...]` bracket spans out
-    // of EN printing text and card-level errata text, so the cache goes stale
-    // exactly when one of those texts changes, and only then. Any write path
-    // for those texts owes the cache a refresh — `services/printing-admin.ts`
-    // calls `recomputeForPrintingCard`, and `services/import-errata.ts` writes
-    // `keywords` in the same statement via the shared `deriveKeywords` export.
-    //
-    // The `keywords` table is *not* an input. It holds per-name display
-    // metadata (colour, dark text, cost-keyword flag) that the extractor never
-    // reads, and the name is its primary key, so there is no rename to chase.
-    // Creating, restyling, or deleting a keyword row therefore cannot
-    // invalidate this cache and needs no recompute.
+    // `cards.keywords` is derived only from card text; the `keywords` style
+    // table is never read by the extractor and needs no recompute hook.
 
     /**
      * Recompute keywords for the card that owns the given printing by scanning

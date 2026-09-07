@@ -13,11 +13,9 @@ describe.skipIf(!ctx)("priceRefreshRepo (integration)", () => {
   const seedPrintingId = PRINTING_1.id;
   const secondPrintingId = PRINTING_2.id;
 
-  // Real marketplace names — the CHECK constraint (migration 247) rejects
-  // made-up ones. The marketplaces are shared with the seed and other test
-  // files, so isolation comes from this file's groupId/externalId ranges:
-  // every assertion and every cleanup scopes on those, never on the
-  // marketplace alone.
+  // Real marketplace names: a CHECK constraint rejects made-up ones. The
+  // marketplaces are shared with the seed, so isolation comes from this
+  // file's groupId/externalId ranges, never the marketplace alone.
   const firstMarketplace = "tcgplayer" as const;
   const secondMarketplace = "cardmarket" as const;
   const marketplaces: Marketplace[] = [firstMarketplace, secondMarketplace];
@@ -27,9 +25,7 @@ describe.skipIf(!ctx)("priceRefreshRepo (integration)", () => {
   const externalIds = [firstExternalId, sharedExternalId];
 
   afterAll(async () => {
-    // Clean up only this file's rows, keyed by its externalId/groupId ranges.
-    // Variants don't cascade from the product delete, so they go first;
-    // price rows (none here) would cascade.
+    // Variants don't cascade from the product delete, so they go first.
     await db
       .deleteFrom("marketplaceProductVariants")
       .where("marketplaceProductId", "in", (eb) =>
@@ -90,8 +86,6 @@ describe.skipIf(!ctx)("priceRefreshRepo (integration)", () => {
         groupId: 9001,
         productName: "Test Product",
         printingId: seedPrintingId,
-        // Real TCG rows store NULL language; a value here just checks that the
-        // language axis round-trips onto the product row.
         finish: "normal",
         language: "EN",
       },
@@ -123,10 +117,6 @@ describe.skipIf(!ctx)("priceRefreshRepo (integration)", () => {
   });
 
   it("batchInsertProductVariants keeps two marketplaces that share an external id apart", async () => {
-    // Regression: the product lookup was keyed on (externalId, finish,
-    // language) with no marketplace, so two marketplaces handing out the same
-    // external id collapsed onto one key and both variants bound to whichever
-    // product the re-select returned last.
     await repo.upsertGroups(secondMarketplace, [
       { groupId: 9003, name: "Second Marketplace Group" },
     ]);

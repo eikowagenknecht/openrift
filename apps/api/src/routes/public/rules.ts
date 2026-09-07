@@ -13,10 +13,6 @@ import { implement } from "@orpc/server";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
-/**
- * Maps a database rule row to a response shape.
- * @returns Formatted rule response.
- */
 function toRuleResponse(row: {
   id: string;
   kind: RuleKind;
@@ -43,10 +39,6 @@ function toRuleResponse(row: {
 
 const os = implement(rulesContract).$context<ApiContext>().use(requireUser);
 
-/**
- * Public rules reads: rules at a given (or latest) version, and the list of
- * available versions per kind.
- */
 export const rulesRouter = {
   list: os.list.handler(async ({ input, context }): Promise<RulesListResponse> => {
     const { rules: repo } = context.repos;

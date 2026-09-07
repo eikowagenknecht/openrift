@@ -4,10 +4,6 @@ import { describe, expect, it } from "vitest";
 import { logFetchSummary, logUpsertCounts } from "./log";
 import type { UpsertCounts } from "./types";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function makeMockLogger(): { log: Logger; messages: string[] } {
   const messages: string[] = [];
   const log = {
@@ -15,10 +11,6 @@ function makeMockLogger(): { log: Logger; messages: string[] } {
   } as unknown as Logger;
   return { log, messages };
 }
-
-// ---------------------------------------------------------------------------
-// logFetchSummary
-// ---------------------------------------------------------------------------
 
 describe("logFetchSummary", () => {
   it("logs groups, products, and prices counts", () => {
@@ -61,10 +53,6 @@ describe("logFetchSummary", () => {
     expect(messages[0]).toMatch(/^Fetched:/u);
   });
 });
-
-// ---------------------------------------------------------------------------
-// logUpsertCounts
-// ---------------------------------------------------------------------------
 
 describe("logUpsertCounts", () => {
   it("logs non-zero inserted prices", () => {

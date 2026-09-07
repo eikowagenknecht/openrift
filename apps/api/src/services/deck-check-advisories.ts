@@ -17,7 +17,6 @@ import type { Repos } from "../deps.js";
  * `deck_check_entry_cards` rows and by not-yet-persisted submission previews.
  */
 export interface AdvisoryCardLine {
-  /** The entry-card row id; only persisted lines carry one, preview lines don't. */
   id?: string;
   rawName: string;
   zone: string;
@@ -33,7 +32,6 @@ export interface EntryAdvisories {
   zoneSuggestions: ZoneSuggestion[];
 }
 
-/** The card-detail shape {@link computeZoneSuggestions} reads, keyed by card id. */
 interface CardDetail {
   name: string;
   type: string;
@@ -41,39 +39,19 @@ interface CardDetail {
   superTypes: string[];
 }
 
-/**
- * The zones that accept exactly one card type (Legend → legend, Rune → runes,
- * Battlefield → battlefield). These are the only zones a card's type can be
- * checked against, so they bound what {@link computeZoneSuggestions} will touch.
- */
+/** The only zones {@link computeZoneSuggestions} checks a card's type against. */
 const TYPE_LOCKED_ZONES = new Set<string>([
   WellKnown.deckZone.LEGEND,
   WellKnown.deckZone.RUNES,
   WellKnown.deckZone.BATTLEFIELD,
 ]);
 
-/**
- * Rules that need the deck's per-deck format config (the chosen Custom-Region
- * tags) and per-card custom-tag data. A checked list is an imported text deck:
- * it carries neither, so these rules can't be evaluated here — without this
- * filter FORMAT_TAG_REQUIRED ("Pick at least one region…") fires on every
- * Custom-Region deck check as judge-facing noise.
- */
+/** A checked (imported) list carries no region/tag config, so these fire as noise without this filter. */
 const REGION_CONFIG_CODES = new Set<string>(["FORMAT_TAG_REQUIRED", "CARD_NOT_IN_FORMAT_TAG"]);
 
 /**
- * Finds resolved lines that are mis-zoned relative to a type-locked zone, in
- * either direction:
- *  - a Legend / Rune / Battlefield sitting outside its zone (e.g. a Rune dumped
- *    in main) → move it into that zone, and
- *  - any card sitting inside a type-locked zone it doesn't belong to (e.g. a
- *    Spell parked in battlefield) → move it back to main.
- *
- * A move is only suggested when it involves a type-locked zone (as origin or
- * destination). Moves among the non-locked zones — a Unit in main vs sideboard
- * vs champion vs overflow — are a deckbuilding choice, never derivable from the
- * card type, so they're left alone: a custom-format deck is never auto-corrected,
- * only flagged for the judge to confirm.
+ * Only suggests moves into or out of a type-locked zone; moves among the
+ * non-locked zones are a deckbuilding choice and are left alone.
  */
 export function computeZoneSuggestions(
   cards: AdvisoryCardLine[],
@@ -109,12 +87,7 @@ export function computeZoneSuggestions(
   return suggestions;
 }
 
-/**
- * Computes the advisory signals the checker and the player view share: the
- * deck-rules violations for the event's format, the allowed-sets findings, and
- * the deck-stat aggregates (same counting the deck list uses: main+champion
- * zones, legend/rune/battlefield types excluded from type counts).
- */
+/** Type counts use main+champion zones only; legend/rune/battlefield types are excluded. */
 export async function buildEntryAdvisories(
   repos: Repos,
   event: { format: string | null; playMode: TournamentPlayMode; allowedSets: string[] | null },
@@ -203,9 +176,8 @@ export async function buildEntryAdvisories(
           customTagSlugs: [],
           keywords: detail.keywords,
           maxCopiesOverride: detail.maxCopiesOverride,
-          // Always false: this service emits its own `banned-card` violation
-          // above, with the play-mode wording the event needs. Letting the
-          // rule engine's CARD_BANNED fire too would report every ban twice.
+          // Always false: this service already emits its own banned-card
+          // violation above; CARD_BANNED from the rule engine would double it.
           banned: false,
         },
       ];

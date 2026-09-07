@@ -110,9 +110,7 @@ export async function buildCandidateCardList(
     arr.push(cc);
   }
 
-  // orderIndex is the row's position in the repo result (canonical printing
-  // order), so codes merged across a group's candidate cards can be re-sorted
-  // globally instead of coming out grouped by provider.
+  // orderIndex preserves the repo's canonical printing order for the later global re-sort.
   const cpByCandidateCardId = new Map<
     string,
     ((typeof candidatePrintings)[number] & { orderIndex: number })[]
@@ -588,17 +586,11 @@ async function buildDetailResponse(
       : null,
     displayName,
     sources: candidates.map((s) => formatCandidateCard(s)),
-    // `printingsForDetail` already orders by canonicalRank. Kept explicit
-    // here as a safety net against upstream reordering (the spread in
-    // `formattedPrintings` preserves order, but a future refactor might not).
     printings: formattedPrintings.sort((a, b) => a.canonicalRank - b.canonicalRank),
     candidatePrintings: candidatePrintings.map((cp) => formatCandidatePrinting(cp)),
     candidatePrintingGroups: filteredGroups,
     expectedCardId: deriveExpectedCardId(displayName, card?.slug),
-    // `rotation` is a smallint the repo reads as `number`, but the domain is
-    // fixed (enforced on write by `setRotation`). Narrow it here to satisfy the
-    // response schema; the schema also runtime-validates, so a stray value 500s
-    // rather than silently escaping.
+    // `rotation` is stored as smallint; the response schema runtime-validates the narrowed literal, so a stray value 500s.
     printingImages: printingImages.map((image) => ({
       ...image,
       rotation: image.rotation as 0 | 90 | 180 | 270,

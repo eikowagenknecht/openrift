@@ -7,17 +7,9 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { collectionValueHistoryRouter } from "./collection-value-history";
 
-// ---------------------------------------------------------------------------
-// Mock repo
-// ---------------------------------------------------------------------------
-
 const mockMarketplaceRepo = {
   collectionValueTimeSeries: vi.fn(() => Promise.resolve([] as object[])),
 };
-
-// ---------------------------------------------------------------------------
-// Test app
-// ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
@@ -34,10 +26,6 @@ app.onError((err, c) => {
   }
   throw err;
 });
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 beforeEach(() => vi.resetAllMocks());
 
@@ -108,8 +96,6 @@ describe("GET /api/v1/collection-value-history", () => {
   });
 
   it("splits the exclude CSV filters into arrays", async () => {
-    // Regression: the exclude params never reached the repo, so the chart drew
-    // a wider collection than the rest of the stats page reported.
     mockMarketplaceRepo.collectionValueTimeSeries.mockResolvedValue([]);
     await app.request(
       "/api/v1/collection-value-history?setsExclude=OGS,OGN&domainsExclude=mind&typesExclude=rune&raritiesExclude=common",

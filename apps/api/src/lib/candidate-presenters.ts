@@ -62,7 +62,6 @@ export type CandidatePrintingRow = Pick<
   | "checkedAt"
 >;
 
-/** @returns The candidate card row mapped to its API response shape. */
 export function formatCandidateCard(row: CandidateCardRow): CandidateCardResponse {
   return {
     ...row,
@@ -70,7 +69,6 @@ export function formatCandidateCard(row: CandidateCardRow): CandidateCardRespons
   };
 }
 
-/** @returns The candidate printing row mapped to its API response shape. */
 export function formatCandidatePrinting(row: CandidatePrintingRow): CandidatePrintingResponse {
   return {
     ...row,

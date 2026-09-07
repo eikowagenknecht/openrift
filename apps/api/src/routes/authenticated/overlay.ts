@@ -12,9 +12,7 @@ import type { OverlayChannel } from "../../repositories/overlay-channels.js";
 const os = implement(overlayContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
- * Returns the user's channel, creating it on first ask. Auto-create keeps the
- * dashboard from needing a "set up your overlay" step with nothing in it beyond
- * a button.
+ * Returns the user's channel, creating it on first ask.
  */
 async function ensureChannel(repos: Repos, userId: string): Promise<OverlayChannel> {
   const existing = await repos.overlayChannels.findByUserId(userId);
@@ -24,8 +22,7 @@ async function ensureChannel(repos: Repos, userId: string): Promise<OverlayChann
   try {
     return await repos.overlayChannels.create(userId);
   } catch (error) {
-    // Two first-opens raced; the loser hits the user_id unique. The winner's
-    // row is the channel — return it instead of surfacing a 500.
+    // Two first-opens can race on the user_id unique; the winner's row is returned.
     if (isUniqueViolationOn(error, "overlay_channels_user_id_key")) {
       const winner = await repos.overlayChannels.findByUserId(userId);
       if (winner) {
@@ -37,11 +34,8 @@ async function ensureChannel(repos: Repos, userId: string): Promise<OverlayChann
 }
 
 /**
- * Holds a reveal step inside the board it belongs to.
- *
- * Past the last card the count would say "revealed more than there is", which
- * the source reads as a finished reveal anyway — but storing it would make a
- * later Prev press start counting down from a position the board never had.
+ * Clamps revealCount to [0, total]. An unclamped overshoot would make a later
+ * Prev press start counting down from a position the board never had.
  */
 function clampReveal(board: OverlayBoard, revealCount: number): number {
   const total = board.tiers.reduce((sum, row) => sum + row.cards.length, 0);
@@ -49,13 +43,9 @@ function clampReveal(board: OverlayBoard, revealCount: number): number {
 }
 
 /**
- * The signed-in creator's stream overlay control surface.
- *
- * Every write merges onto the current payload rather than replacing it, so a
- * push that only names a card leaves the corner, scale, plate and QR exactly
- * where the creator set them. `ensureChannel` runs first on every write, so the
- * repo's "no such row" branch is unreachable and its `undefined` falls back to
- * the channel we already hold.
+ * Every write merges onto the current payload; fields the caller doesn't send stay unchanged.
+ * `ensureChannel` runs first on every write, so setPayload's `undefined` return here is unreachable
+ * and falls back to the channel already held.
  */
 export const overlayRouter = {
   get: os.get.handler(async ({ context }): Promise<OverlayChannelResponse> =>
@@ -67,8 +57,7 @@ export const overlayRouter = {
     const updated = await context.repos.overlayChannels.setPayload(context.userId, {
       ...applyOverlaySettings(channel.payload, input),
       printingId: input.printingId,
-      // A card takes the scene over from a board rather than landing on top of
-      // it — the corner holds one thing at a time.
+      // Pushing a card clears the board: only one occupies the corner at a time.
       board: null,
     });
     return toOverlayChannel(updated ?? channel);
@@ -88,8 +77,7 @@ export const overlayRouter = {
     async ({ context, input }): Promise<OverlayChannelResponse> => {
       const channel = await ensureChannel(context.repos, context.userId);
       const board = channel.payload.board;
-      // Nothing to step. A phone that kept a stale reveal control on screen
-      // after the board came down should not raise an error on the stream.
+      // No board to step: a stale reveal control returns the channel unchanged.
       if (!board) {
         return toOverlayChannel(channel);
       }
@@ -103,9 +91,7 @@ export const overlayRouter = {
 
   setHidden: os.setHidden.handler(async ({ context, input }): Promise<OverlayChannelResponse> => {
     const channel = await ensureChannel(context.repos, context.userId);
-    // Whatever is up stays up, off-screen. Raising the curtain again is what
-    // puts it back, and the source still holds the art, so the return costs no
-    // round trip and no decode.
+    // Hidden only toggles visibility; the underlying card/board stays set.
     const updated = await context.repos.overlayChannels.setPayload(context.userId, {
       ...channel.payload,
       hidden: input.hidden,
@@ -115,13 +101,8 @@ export const overlayRouter = {
 
   clear: os.clear.handler(async ({ context }): Promise<OverlayChannelResponse> => {
     const channel = await ensureChannel(context.repos, context.userId);
-    // Only what is on screen leaves. The dressing is scene setup the creator
-    // tuned once against their layout, and clearing between cards must not
-    // undo it.
-    //
-    // `hidden` does go, though, because it is not dressing: clearing ends a
-    // segment, and leaving the curtain down would make the next segment's first
-    // push land on a scene that silently shows nothing.
+    // Clears card/board/hidden but leaves dressing (corner, scale, plate, QR)
+    // untouched; hidden must reset too or the next segment's first push lands unseen.
     const updated = await context.repos.overlayChannels.setPayload(context.userId, {
       ...channel.payload,
       printingId: null,

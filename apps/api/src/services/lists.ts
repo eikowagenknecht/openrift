@@ -4,24 +4,8 @@ import type { ListMoveResponse } from "@openrift/shared";
 import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";
 
-/**
- * Moves a set of entries from one list to another. The destination must be
- * owned by the same user and have the same `kind` and `intent` as the
- * source. The move is transactional — destination insert and source delete
- * happen in the same transaction, so a failed insert never leaves the source
- * with missing entries.
- *
- * Per-kind merge semantics mirror the existing `bulkCreateEntries`:
- *   - card / printing kind: a destination entry for the same target absorbs
- *     the source quantity; the destination's `tradeOverride` is preserved
- *     (the user set it deliberately on that list).
- *   - copy kind: a destination entry for the same copy keeps its existing
- *     tradeOverride and the source row is discarded (a copy can't be on the
- *     same list twice — see the partial unique index from migration 133).
- *
- * @returns Counts of entries removed from source and entries that merged
- *   into existing destination entries.
- */
+/** Merge semantics mirror `bulkCreateEntries`: card/printing entries absorb into an
+ * existing target keeping its tradeOverride; copy entries discard the source row. */
 export async function moveListEntries(
   repos: Repos,
   transact: Transact,

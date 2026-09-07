@@ -106,11 +106,9 @@ export function copiesRepo(db: Kysely<Database>) {
         .leftJoin("friendGroupMembers as gm", (join) =>
           join.onRef("gm.groupId", "=", "col.groupId").on("gm.userId", "=", userId),
         )
-        // A copy is pinned by at most one live loan (UNIQUE copy_id), so this
-        // join can't multiply rows.
+        // UNIQUE copy_id: a copy has at most one live loan, so this join can't multiply rows.
         .leftJoin("loanCopies as lc", "lc.copyId", "cp.id")
-        // Likewise pinned by at most one live trade (UNIQUE copy_id) — its
-        // presence means the copy is reserved for an outgoing trade.
+        // UNIQUE copy_id: a copy has at most one live trade.
         .leftJoin("cardTradeCopies as ctc", "ctc.copyId", "cp.id")
         .select([
           "cp.id",
@@ -450,15 +448,7 @@ export function copiesRepo(db: Kysely<Database>) {
       );
     },
 
-    /**
-     * Buildable copy count per card — the server-side mirror of the deck
-     * editor's `available` bucket, so the `/decks` overview's missing count
-     * matches the editor exactly. Borrowed-in copies are added separately
-     * (they aren't copy rows — see `loansRepo.borrowedCountByCard`).
-     *
-     * The `/decks` overview computes many decks at once and uses
-     * {@link buildableCountByCardForCollections} instead of calling this per deck.
-     */
+    /** Borrowed-in copies are added separately: they aren't copy rows, see `loansRepo.borrowedCountByCard`. */
     async buildableCountByCard(
       userId: string,
       exemptCollectionId?: string,
@@ -489,13 +479,8 @@ export function copiesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * The extra buildable stock a deck gains from its home collection, keyed by
-     * collection then card. Counts only copies {@link buildableCountByCard}
-     * leaves out because their collection is excluded from deck building, so a
-     * caller can add the two without double counting. Loaned and trade-reserved
-     * copies stay excluded — a home collection overrides the exclusion, not
-     * physical absence. Lets the `/decks` overview resolve every deck's home
-     * collection in one query instead of one query per deck.
+     * Counts only copies {@link buildableCountByCard} excludes for collection reasons, so
+     * callers can add the two without double counting. Loaned/trade-reserved copies stay excluded.
      */
     async buildableCountByCardForCollections(
       userId: string,

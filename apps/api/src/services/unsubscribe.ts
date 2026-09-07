@@ -12,7 +12,6 @@ import {
 import type { Repos } from "../deps.js";
 import { verifyUnsubscribeToken } from "../emails/unsubscribe-token.js";
 
-/** A verified, read-only view of one channel for the confirmation page. */
 export interface UnsubscribePreview {
   valid: boolean;
   channel: EmailNotificationChannel | null;
@@ -20,19 +19,12 @@ export interface UnsubscribePreview {
   alreadyUnsubscribed: boolean;
 }
 
-/** The outcome of flipping a channel off, used to render the success state. */
 export interface UnsubscribeResult {
   channel: EmailNotificationChannel;
   channelLabel: string;
 }
 
-/**
- * Whether the channel is already in its "off" state, honouring the per-channel
- * defaults (`tradeMatches` and `cardSubmissions` are opt-in; the two other trade
- * channels and both group channels are opt-out). Used so the confirmation page
- * can say "already unsubscribed" instead of implying a change.
- * @returns true if the channel currently delivers no mail.
- */
+/** `tradeMatches` and `cardSubmissions` are opt-in; every other channel is opt-out. */
 function isChannelOff(
   channel: EmailNotificationChannel,
   prefs: EmailNotificationPreference | undefined,
@@ -59,12 +51,7 @@ function isChannelOff(
   }
 }
 
-/**
- * Decodes the unsubscribe token and reports the channel + current state WITHOUT
- * mutating anything. Backs the safe `GET` the confirmation page renders from, so
- * link scanners and prefetchers can hit it freely.
- * @returns The preview; `valid: false` (everything else nulled) for a bad token.
- */
+/** Read-only: never mutates, so link scanners and prefetchers can hit the GET freely. */
 export async function previewUnsubscribe(
   repos: Repos,
   secret: string,
@@ -83,12 +70,7 @@ export async function previewUnsubscribe(
   };
 }
 
-/**
- * Verifies the token and flips its channel off, preserving the sibling channel.
- * Idempotent: applying twice is a harmless no-op. This is the single mutation
- * shared by the RFC 8058 one-click POST and the web confirmation POST.
- * @returns The affected channel + label, or `null` if the token is invalid.
- */
+/** Idempotent. Shared by both the RFC 8058 one-click POST and the web confirmation POST. */
 export async function applyUnsubscribe(
   repos: Repos,
   secret: string,

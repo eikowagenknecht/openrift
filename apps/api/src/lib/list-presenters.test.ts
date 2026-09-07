@@ -132,10 +132,6 @@ describe("toList", () => {
 
 describe("toListDetail", () => {
   it("re-hydrates a rule saved before a newer filter dimension without failing output validation", () => {
-    // A trade rule's persisted filter can predate the `presence` / `keywords`
-    // / `keywordsExclude` dimensions and still carry the superseded
-    // `hasAnyMarker`; toListDetail must backfill the missing keys so the
-    // response validates.
     const staleFilter = { ...EMPTY_CARD_FILTERS, hasAnyMarker: null } as Record<string, unknown>;
     delete staleFilter.presence;
     delete staleFilter.keywords;

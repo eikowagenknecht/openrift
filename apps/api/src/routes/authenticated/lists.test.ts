@@ -257,8 +257,6 @@ describe("GET /api/v1/lists/:id", () => {
 describe("PATCH /api/v1/lists/:id", () => {
   beforeEach(() => {
     mockListsRepo.update.mockReset();
-    // updateList now looks up the list's intent to strip trade prefs on
-    // organize lists; default the lookup to the (wish-intent) dbList.
     mockListsRepo.getByIdForUser.mockReset();
     mockListsRepo.getByIdForUser.mockResolvedValue(dbList);
   });
@@ -323,8 +321,6 @@ describe("PATCH /api/v1/lists/:id", () => {
     expect(mockListsRepo.update).not.toHaveBeenCalled();
   });
 
-  // Several trade rules are accepted, and the combine mode is validated
-  // against the list.
   const tradeRule = {
     kind: "trade",
     filter: {},
@@ -351,7 +347,6 @@ describe("PATCH /api/v1/lists/:id", () => {
     expect(res.status).toBe(200);
   });
 
-  // An organize list carries rules too, shaped by its kind.
   it("accepts rules on an organize list, shaped by its kind", async () => {
     const organizeCopy = { ...dbList, intent: "organize" as const, kind: "copy" as const };
     mockListsRepo.getByIdForUser.mockResolvedValue(organizeCopy);
@@ -400,11 +395,10 @@ describe("PATCH /api/v1/lists/:id", () => {
     expect(mockListsRepo.update).toHaveBeenCalledWith(LIST_ID, USER_ID, { ruleCombine: "max" });
   });
 
-  it("rejects a combine mode from the other kind with 400", async () => {
+  it("rejects a trade-mode combine rule on a wish list with 400", async () => {
     const res = await app.request(`/api/v1/lists/${LIST_ID}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      // dbList is a wish list; protect is a trade mode.
       body: JSON.stringify({ ruleCombine: "protect" }),
     });
     expect(res.status).toBe(400);
@@ -510,7 +504,6 @@ describe("POST /api/v1/lists/:id/entries", () => {
       body: JSON.stringify({ copyId: COPY_ID }),
     });
     expect(res.status).toBe(201);
-    // Trade list → personalOnly=true: only the user's own copies may be added.
     expect(mockCopiesRepo.existsForViewer).toHaveBeenCalledWith(COPY_ID, USER_ID, true);
   });
 
@@ -573,10 +566,7 @@ describe("POST /api/v1/lists/:id/entries/bulk", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        entries: [
-          { copyId: COPY_ID },
-          { copyId: "550e8400-e29b-41d4-a716-446655440099" }, // not owned
-        ],
+        entries: [{ copyId: COPY_ID }, { copyId: "550e8400-e29b-41d4-a716-446655440099" }],
       }),
     });
     expect(res.status).toBe(200);
@@ -586,7 +576,6 @@ describe("POST /api/v1/lists/:id/entries/bulk", () => {
     const args = mockListsRepo.bulkCreateEntries.mock.calls[0] ?? [];
     expect(args[0]).toBe("copy");
     expect((args[1] as unknown[]) ?? []).toHaveLength(1);
-    // Trade list → only the user's own copies are eligible.
     expect(mockCopiesRepo.filterAccessibleByViewer).toHaveBeenCalledWith(
       [COPY_ID, "550e8400-e29b-41d4-a716-446655440099"],
       USER_ID,
@@ -662,7 +651,6 @@ describe("POST /api/v1/lists/:id/entries/from-copies", () => {
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json).toEqual({ added: 2, updated: 1, skipped: 1 });
-    // Wish list → personalOnly=true.
     expect(mockListsRepo.bulkCreateEntriesFromCopies).toHaveBeenCalledWith(
       LIST_ID,
       "card",

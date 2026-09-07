@@ -6,11 +6,6 @@ import type { Io } from "../io.js";
 import { CARD_MEDIA_DIR } from "./images/paths.js";
 
 /**
- * Shared primitives for the server-rendered share images. A constant that
- * governs how the renderers *look* the same — palette, card aspect, tile, mark
- * size — belongs here rather than being restated per renderer, which is how
- * the surfaces drifted apart in the first place.
- *
  * satori speaks a CSS subset: every container with more than one child needs
  * an explicit `display: "flex"`, the default flex direction is `row`, and
  * colors must be concrete (no oklch). Raster sources (WebP card art, SVG
@@ -20,43 +15,24 @@ import { CARD_MEDIA_DIR } from "./images/paths.js";
 
 // Concrete approximations of the site's dark theme (apps/web/src/index.css).
 export const COLORS = {
-  background: "#14161d", // --background  oklch(0.16 0.025 260)
-  surface: "#21242b", // --card        oklch(0.22 0.005 260)
+  background: "#14161d",
+  surface: "#21242b",
   surfaceBorder: "#2d313a",
-  text: "#f2f2f2", // --foreground  oklch(0.95 0 0)
-  muted: "#9aa0ab", // --muted-foreground
-  gold: "#cdac6e", // --primary     oklch(0.74 0.09 80)
+  text: "#f2f2f2",
+  muted: "#9aa0ab",
+  gold: "#cdac6e",
 } as const;
 
-/** Portrait card aspect (width / height); landscape art letterboxes within the box. */
 export const CARD_ASPECT = 0.715;
 
-/**
- * Tile border width. The art is sized to the box inside it so it stays centered:
- * satori uses border-box, so an art image the full tile size is pinned top-left
- * and clipped bottom-right, shifting the card down-right. Sizing to the content
- * box centers it within the border.
- */
 export const TILE_BORDER = 1;
 
-/**
- * One mark size for every image, sized for the worst case these images meet —
- * a code read off a paused stream frame or a feed thumbnail — rather than for
- * whatever space a given layout happened to have spare.
- */
 export const QR_SIZE = 84;
 
 const QR_RADIUS = 6;
 
-/** Largest self-hosted variant (short edge ~800px). */
 const CARD_ART_VARIANT = "full";
 
-/**
- * Mirrors the web app's proportional `5% / 3.6%` card radius
- * (card-grid-constants.ts). Derived off the short edge rather than fixed in
- * px, so every tile size — landscape battlefield tiles included — rounds in
- * proportion to the art the way the app does.
- */
 export const CARD_RADIUS_FRACTION = 0.05;
 
 export function cardRadiusPx(tileW: number, tileH: number): number {
@@ -69,7 +45,6 @@ export interface Element {
 }
 export type Child = Element | string | false | null | undefined;
 
-/** Falsy children are dropped so conditionals inline cleanly. */
 export function element(
   type: string,
   style: Record<string, unknown>,
@@ -91,10 +66,7 @@ interface SatoriFont {
 
 let cachedFonts: SatoriFont[] | null = null;
 
-/**
- * satori cannot read the WOFF2 the web app uses, so these TTFs are static
- * instances of the same variable face.
- */
+/** satori cannot read the WOFF2 the web app uses, so these TTFs are static instances of the same variable face. */
 async function loadFonts(io: Io): Promise<SatoriFont[]> {
   if (cachedFonts) {
     return cachedFonts;
@@ -124,11 +96,6 @@ async function loadFonts(io: Io): Promise<SatoriFont[]> {
   return cachedFonts;
 }
 
-/**
- * Cards vary in orientation, so `fit: "contain"` letterboxes each onto a
- * uniform transparent tile. Callers pass the target resolution (display px ×
- * render scale) so high-res renders embed crisp source art.
- */
 async function cardArtDataUri(
   io: Io,
   imageId: string,
@@ -139,9 +106,7 @@ async function cardArtDataUri(
   try {
     const path = `${CARD_MEDIA_DIR}/${imageId.slice(-2)}/${imageId}-${CARD_ART_VARIANT}.webp`;
     const source = await io.fs.readFile(path);
-    // Corners are rounded in sharp rather than via the tile's overflow:hidden —
-    // satori does not clip a child <img> to the parent's border-radius, so a
-    // square scan would poke past the rounded tile at the corners.
+    // satori does not clip a child <img> to the parent's border-radius; round corners in sharp.
     const cornerMask = Buffer.from(
       `<svg width="${widthPx}" height="${heightPx}"><rect width="${widthPx}" height="${heightPx}" rx="${radiusPx}" ry="${radiusPx}" fill="#fff"/></svg>`,
     );
@@ -153,16 +118,13 @@ async function cardArtDataUri(
       .toBuffer();
     return `data:image/png;base64,${png.toString("base64")}`;
   } catch {
-    // A missing or corrupt file falls back to a name-only tile rather than
-    // failing the whole image.
+    // Falls back to a name-only tile on read/decode failure.
     return null;
   }
 }
 
 /**
- * Mirrors the web deck hero's full-art treatment. The blur is baked in here
- * because satori has no CSS `filter`; callers overlay their own scrim
- * gradients and opacity in the element tree.
+ * satori has no CSS `filter`; the blur is baked into the raster here.
  */
 export async function blurredArtBackdropDataUri(
   io: Io,
@@ -173,8 +135,7 @@ export async function blurredArtBackdropDataUri(
   try {
     const path = `${CARD_MEDIA_DIR}/${imageId.slice(-2)}/${imageId}-${CARD_ART_VARIANT}.webp`;
     const source = await io.fs.readFile(path);
-    // Oversized top-anchored cover, then a window one quarter down: skips the
-    // card border and lands on the art band, independent of source dimensions.
+    // Overscan 1.4x from the top, then extract a window 25% down, to stay off the card border.
     const overscanH = Math.round(heightPx * 1.4);
     const png = await io
       .sharp(source)
@@ -190,10 +151,7 @@ export async function blurredArtBackdropDataUri(
   }
 }
 
-/**
- * The input density is raised so librsvg renders the vector natively at the
- * target size rather than upscaling a 24px bitmap.
- */
+/** librsvg rasterizes at the intrinsic size; raise density to render natively at the target size. */
 export async function svgToPngDataUri(
   io: Io,
   svg: Buffer,
@@ -236,15 +194,11 @@ export function tileArtDataUri(
 
 export interface TileCard {
   cardName: string;
-  /** Tier-list tiles omit it — a tier list ranks a card once, so there is nothing to count. */
   quantity?: number;
 }
 
 /**
- * Card images already bake in cost/power/name/text, so a tile is just art plus
- * the badge. Every measurement is a fraction of the tile rather than a fixed
- * pixel value, so one tile serves ~90px deck cells and ~300px list cells alike
- * without per-surface constants to drift apart.
+ * Every measurement here must stay a fraction of the tile, not a fixed px value.
  */
 export function cardTile(
   card: TileCard,
@@ -275,8 +229,6 @@ export function cardTile(
       );
 
   const quantity = card.quantity ?? 1;
-  // Bounded because past ~40px the badge stops reading as a badge and starts
-  // competing with the art.
   const badgeH = Math.min(40, Math.max(20, Math.round(tileH * 0.18)));
   const inset = Math.max(5, Math.round(tileH * 0.03));
   const badge =
@@ -321,64 +273,28 @@ export function cardTile(
 }
 
 /**
- * Elided in code rather than with `overflow: hidden` so the title stays a
- * plain text node whose flex baseline is its text baseline — an
- * overflow-clipped node reports its box bottom as the baseline instead, which
- * pushes an adjacent byline off it.
+ * satori: an overflow-clipped node's flex baseline is its box bottom, not
+ * the text baseline. Elide the string instead.
  */
 export function elideTitle(title: string, max: number): string {
   return title.length > max ? `${title.slice(0, max - 1).trimEnd()}…` : title;
 }
 
-/**
- * Slope of the baseline error against the font-size gap, for runs that set
- * `lineHeight: 1`. Fitted on rendered output with gaps of 20–180px, where the
- * integer-pixel measurement pins it tightly: 40/20 → 3px, 100/20 → 11px,
- * 200/20 → 26px.
- *
- * It is specific to that line height. The same measurement at satori's default
- * line height gives 0.29, because the error is
- * `gap × (lineHeight + descent − ascent) / 2` and only the line height varies.
- * Runs that do not pin `lineHeight: 1` need the other constant — which is the
- * trap: applying this one to a default-line-height pair under-corrects by half,
- * and applying the other one to a `lineHeight: 1` pair lifts the smaller run
- * twice as far as it should go.
- */
 const BASELINE_ERROR_SLOPE_LH1 = 0.14;
 
 /**
- * Vertical correction for a smaller text run set beside a larger one — a byline
- * next to a title, "more" next to "+30".
- *
- * satori does not implement `alignItems: "baseline"`: it bottom-aligns the boxes
- * instead (measured, it produces output byte-identical to `flex-end`). Bottom
- * aligned, the smaller run's baseline lands low by the difference in the space
- * each box reserves beneath its baseline, which is a fixed fraction of the font
- * size — hence a correction linear in the size gap.
- *
- * **Both runs must set `lineHeight: 1`**, which every title row and the list
- * image's overflow tile do. The constant is only right for that line height; see
- * BASELINE_ERROR_SLOPE_LH1.
- *
- * Apply as `transform: translateY(...)` on the smaller run, and bottom-align the
- * row that holds them (`alignItems: "flex-end"`) so they start from a shared
- * edge — a row that centres its children instead leaves each box centred on its
- * own height, which no per-run offset can then reconcile.
- * @returns The px offset (negative, i.e. upward) for the smaller run.
+ * satori bottom-aligns flex children; apply as `translateY` on the smaller
+ * run, in a `flex-end` row, both runs at `lineHeight: 1`.
  */
 export function baselineNudge(largerFontSize: number, smallerFontSize: number): number {
   const gap = largerFontSize - smallerFontSize;
-  // Equal (or inverted) sizes need no correction, and returning a plain 0 keeps
-  // `-0` out of the emitted `translateY(-0px)`.
+  // A plain 0 here keeps `-0` out of the emitted `translateY(-0px)`.
   return gap <= 0 ? 0 : -Math.round(gap * BASELINE_ERROR_SLOPE_LH1);
 }
 
 /**
- * Dark-on-white rather than gold-on-transparent: a light-on-dark code is
- * inverted polarity, which older and cheaper scanners refuse. The 2-module
- * quiet zone is white rather than transparent, so it doubles as the light
- * plate the code needs and the mark's footprint stays exactly `size` for the
- * layout maths.
+ * Dark-on-white: a light-on-dark code is inverted polarity, which older
+ * scanners refuse. The white quiet zone doubles as the plate the code needs.
  */
 export function qrDataUri(url: string, scale: number, size = QR_SIZE): Promise<string | null> {
   return qrPngDataUri(url, { width: size * scale }).catch(() => null);
@@ -401,10 +317,8 @@ export function qrMark(dataUri: string, size = QR_SIZE): Element {
 }
 
 /**
- * resvg rather than sharp's librsvg path: ~20× faster here (a 2× render drops
- * from ~14s to ~0.8s). satori renders text as vector paths, so resvg needs no
- * fonts; `zoom: scale` renders the same base-sized layout at N×, with raster
- * sources embedded at the matching resolution by the caller.
+ * satori emits vector text, so resvg needs no fonts. `zoom: scale` renders
+ * the layout at N×.
  */
 export async function renderTreeToPng(
   io: Io,

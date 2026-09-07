@@ -9,17 +9,11 @@ import type { CardType, DeckZone, Domain, SuperType } from "@openrift/shared/typ
 
 import type { canonicalPrintingsRepo } from "../../repositories/canonical-printings.js";
 
-/**
- * The minimal per-card input the codecs need: identity + zone + quantity, plus
- * the display name (text format) and supertype/domain metadata. The short code
- * is resolved here, so callers don't pass it.
- */
 export interface EncodeDeckRow {
   cardId: string;
   zone: DeckZone;
   quantity: number;
   preferredPrintingId: string | null;
-  /** The card's display name, which is written verbatim into the exported text. */
   cardName: string;
   cardType: CardType;
   superTypes: SuperType[];
@@ -29,10 +23,8 @@ export interface EncodeDeckRow {
 type ShortCodeResolver = Pick<ReturnType<typeof canonicalPrintingsRepo>, "shortCodesForRows">;
 
 /**
- * Resolve canonical short codes for the given deck rows and encode them into the
- * requested deck-code format. Shared by the authenticated by-id `export` handler
- * and the public, stateless `encode` endpoint (logged-out local decks), so the
- * resolve-then-encode logic lives in exactly one place.
+ * Shared by the authenticated by-id `export` handler and the public, stateless
+ * `encode` endpoint (logged-out local decks).
  */
 export async function encodeDeck(
   canonicalPrintings: ShortCodeResolver,
@@ -79,13 +71,9 @@ export async function encodeDeck(
 }
 
 /**
- * Replaces or drops cards whose short code the Piltover library can't encode,
- * so one unsupported printing degrades to a warning instead of aborting the
- * whole export with a 500. A row pinned to an unsupported printing (a Founders
- * alt art, a token) falls back to the card's default printing when that one is
- * encodable; rows with no encodable printing at all (a card whose canonical
- * set the library doesn't know yet, e.g. a brand-new main set) are skipped
- * with a warning naming the card.
+ * A row pinned to an unsupported printing falls back to the card's default
+ * printing when that one is encodable; rows with no encodable printing at
+ * all are skipped with a warning naming the card.
  */
 async function degradeToEncodable(
   canonicalPrintings: ShortCodeResolver,

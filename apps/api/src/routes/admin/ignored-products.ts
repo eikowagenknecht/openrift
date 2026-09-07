@@ -7,10 +7,6 @@ import type { ApiContext } from "../../orpc/context.js";
 
 const os = implement(adminIgnoredProductsContract).$context<ApiContext>().use(requireAuthedUser);
 
-/**
- * Admin ignored-products controls. Any thrown `AppError` is mapped by the
- * handler's appErrorInterceptor.
- */
 export const adminIgnoredProductsRouter = {
   list: os.list.handler(async ({ context }) => {
     const { marketplaceAdmin: mktAdmin } = context.repos;

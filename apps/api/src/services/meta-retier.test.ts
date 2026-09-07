@@ -136,7 +136,6 @@ describe("retierMetaEvents", () => {
 
     const result = await retierMetaEvents(repos);
 
-    // 128 players and up is competitive whatever the organizer called it.
     expect(result.moved).toBe(1);
   });
 

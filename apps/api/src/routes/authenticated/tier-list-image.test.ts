@@ -22,14 +22,8 @@ const mockTierListsRepo = {
   getByIdForUser: vi.fn(),
 };
 
-/**
- * Mounts {@link tierListImageRoute} the way `app.ts` does, with a 418 sentinel
- * fall-through standing in for the oRPC catch-all, so we can tell "the image
- * route's auth gated this request" (401) apart from "fell through to a public
- * route" (418) — the public `/tier-lists/share/{token}` og:image must never be
- * gated.
- * @returns A configured Hono app for the test.
- */
+// A 418 sentinel stands in for the oRPC catch-all, distinguishing "the image
+// route's auth gated this" (401) from "fell through to a public route" (418).
 function buildApp(session: { user: { id: string; name?: string } } | null) {
   return new Hono<{ Variables: Variables }>()
     .onError((err, c) => {

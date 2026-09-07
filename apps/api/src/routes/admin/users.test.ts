@@ -10,7 +10,6 @@ const mockUsersRepo = {
   listWithCounts: vi.fn(),
 };
 
-// Mount the oRPC router directly (without the requireAdmin gate).
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("repos", { users: mockUsersRepo } as never);

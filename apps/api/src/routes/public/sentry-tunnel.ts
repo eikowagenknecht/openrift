@@ -8,18 +8,10 @@ const log = createLogger("sentry-tunnel");
 
 const MAX_ENVELOPE_BYTES = 1_000_000;
 
-// Tunnels browser Sentry envelopes through our own origin so they aren't
-// blocked by Firefox Enhanced Tracking Protection or ad-blockers (Sentry's
-// recommended workaround for `*.ingest.sentry.io` being on tracker blocklists).
-// Follows Sentry's documented pattern: parse the envelope header, validate
-// the claimed DSN host + project ID match SENTRY_DSN_SSR, then forward.
-//
-// The forward is fire-and-forget: the browser gets a 200 as soon as the
-// envelope is validated. Sentry ingest can take seconds to ack (or 429 under
-// rate limiting), and the SDK never reads the tunnel response body — awaiting
-// upstream only held a connection open per envelope and cluttered the network
-// tab with multi-second requests. The trade-off is that the SDK no longer sees
-// upstream 429s and won't back off; upstream failures are logged instead.
+// Tunnels envelopes through our own origin because `*.ingest.sentry.io` is on
+// Firefox ETP and ad-blocker blocklists.
+// Forward is fire-and-forget: the browser gets a 200 immediately, and the SDK
+// never reads the response, so upstream 429s are only logged, not backed off from.
 export const sentryTunnelRoute = new Hono<{ Variables: Variables }>().post(
   "/sentry-tunnel",
   async (c) => {
@@ -74,13 +66,6 @@ export const sentryTunnelRoute = new Hono<{ Variables: Variables }>().post(
   },
 );
 
-/**
- * Forward a validated envelope to Sentry ingest in the background. Never
- * throws — failures are logged so they show up in server logs without
- * surfacing as unhandled rejections.
- *
- * @returns A promise that resolves once the forward attempt has settled.
- */
 async function forwardEnvelope(
   fetch: Fetch,
   ingestHost: string,

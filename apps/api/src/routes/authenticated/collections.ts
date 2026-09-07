@@ -220,8 +220,6 @@ export const collectionsRouter = {
     });
   }),
 
-  // Built for the inbox (which can never be deleted, so "clear" is its
-  // delete-equivalent), but allowed for any collection the viewer administers.
   // Copies pinned by a live trade or loan stay put and are reported back.
   clear: os.clear.handler(async ({ input, context }): Promise<ClearCollectionResponse> => {
     const repos = context.repos;
@@ -251,9 +249,7 @@ export const collectionsRouter = {
     return keysetPage(rows, effectiveLimit, toCopy);
   }),
 
-  // Idempotent: re-sharing an already-shared collection returns the EXISTING
-  // token unchanged rather than minting a new one. Use rotate to deliberately
-  // churn the token.
+  // Idempotent: returns the existing token unchanged. Use rotate to churn it.
   share: os.share.handler(async ({ input, context }): Promise<CollectionShareResponse> => {
     const { collections } = context.repos;
     const userId = context.userId;

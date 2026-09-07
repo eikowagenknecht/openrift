@@ -3,13 +3,6 @@ import { afterAll, describe, expect, it } from "vitest";
 import { createDbContext } from "../test/integration-context.js";
 import { featureFlagsRepo } from "./feature-flags.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: featureFlagsRepo
-//
-// Uses the shared integration database. Feature flags are global (not
-// user-scoped), so we just need to clean up any flags we create.
-// ---------------------------------------------------------------------------
-
 const ctx = createDbContext("a0000000-0031-4000-a000-000000000001");
 
 describe.skipIf(!ctx)("featureFlagsRepo (integration)", () => {
@@ -24,8 +17,6 @@ describe.skipIf(!ctx)("featureFlagsRepo (integration)", () => {
       await repo.deleteByKey(key);
     }
   });
-
-  // ── create ──────────────────────────────────────────────────────────────
 
   it("creates a flag with description", async () => {
     const flag = await repo.create({
@@ -67,25 +58,19 @@ describe.skipIf(!ctx)("featureFlagsRepo (integration)", () => {
     expect(result).toBeUndefined();
   });
 
-  // ── listAll ─────────────────────────────────────────────────────────────
-
   it("lists all flags ordered by key", async () => {
     const flags = await repo.listAll();
 
     expect(flags.length).toBeGreaterThanOrEqual(2);
 
-    // Verify our two test flags are present
     const keys = flags.map((f) => f.key);
     expect(keys).toContain("test-flag-0031-a");
     expect(keys).toContain("test-flag-0031-b");
 
-    // Verify ordering
     for (let i = 1; i < flags.length; i++) {
       expect(flags[i].key >= flags[i - 1].key).toBe(true);
     }
   });
-
-  // ── listKeyEnabled ─────────────────────────────────────────────────────
 
   it("lists only key and enabled fields", async () => {
     const flags = await repo.listKeyEnabled();
@@ -95,11 +80,8 @@ describe.skipIf(!ctx)("featureFlagsRepo (integration)", () => {
     const flagA = flags.find((f) => f.key === "test-flag-0031-a");
     expect(flagA).toBeDefined();
     expect(flagA!.enabled).toBe(true);
-    // Should only have key and enabled, no description
     expect(Object.keys(flagA!).sort()).toEqual(["enabled", "key"]);
   });
-
-  // ── update ──────────────────────────────────────────────────────────────
 
   it("updates a flag and returns the updated row", async () => {
     const updated = await repo.update("test-flag-0031-a", {
@@ -119,10 +101,7 @@ describe.skipIf(!ctx)("featureFlagsRepo (integration)", () => {
     expect(result).toBeUndefined();
   });
 
-  // ── deleteByKey ─────────────────────────────────────────────────────────
-
   it("deletes a flag and returns numDeletedRows = 1", async () => {
-    // Create a disposable flag
     await repo.create({
       key: "test-flag-0031-delete",
       enabled: false,

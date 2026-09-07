@@ -7,31 +7,15 @@ import { errorText } from "./deps.js";
 import type { PlayloltcgSyncDeps } from "./playloltcg-deps.js";
 import { clock } from "./playloltcg-deps.js";
 
-/**
- * Turning a playloltcg catalogue row into a live event, by hand or by the
- * player-count rule.
- *
- * Both paths mint the live row and its citation, then promote from this
- * source's mirror, exactly as the uvsgames path does. The only per-source
- * difference is the accept rule: there is no template or notable-name signal
- * here, because `activityType` is too blunt to say whether an event is worth
- * archiving, so the registered player count is all there is.
- */
-
+/** This source has no template or notable-name signal; `activityType` doesn't distinguish events, so player count is the only accept rule. */
 export interface PlayloltcgAcceptSummary {
-  /** Rows the threshold was run against. */
   considered: number;
   accepted: number;
-  /** Rows over the threshold that could not be accepted. */
   failed: number;
-  /** One line per failure, up to {@link MAX_SWEEP_ERRORS}. */
   errors: string[];
 }
 
-/** How many keys one page of a sweep reads rows for; see the uvsgames note. */
 const SWEEP_PAGE = 1000;
-
-/** The most failures one sweep spells out. Past this only the count grows. */
 const MAX_SWEEP_ERRORS = 50;
 
 function emptySummary(): PlayloltcgAcceptSummary {
@@ -48,11 +32,6 @@ function eventDate(row: PlayloltcgListRow, now: Date): string {
   return row.startAt ?? now.toISOString().slice(0, 10);
 }
 
-/**
- * Accepts one catalogue row and arms its recheck queue at `now`, so the next
- * fetch pass picks it up. For a finished event that is when its standings
- * arrive; for a future one the ladder reschedules to its start.
- */
 export async function acceptPlayloltcgEvent(
   deps: PlayloltcgSyncDeps,
   row: PlayloltcgListRow,
@@ -64,7 +43,7 @@ export async function acceptPlayloltcgEvent(
     {
       name: row.name.slice(0, 120),
       eventDate: eventDate(row, clock(deps)),
-      // Everything on this source is filed as constructed; see the module note.
+      // This source carries no other format.
       format: WellKnown.deckFormat.CONSTRUCTED,
       sourceUrl: playloltcgEventUrl(row.activityShopId),
     },
@@ -104,11 +83,7 @@ async function sweep(
   return summary;
 }
 
-/**
- * The rule-gated accept over the keys a crawl just touched. Player count only:
- * an event at or above the admin's threshold is accepted, everything else waits
- * for a human. Already-accepted or dismissed rows never reach here.
- */
+/** Already-accepted or dismissed rows never reach here. */
 export async function autoAcceptPlayloltcgEvents(
   deps: PlayloltcgSyncDeps,
   activityShopIds: readonly number[],
@@ -125,10 +100,8 @@ export async function autoAcceptPlayloltcgEvents(
 }
 
 /**
- * The threshold over every row still awaiting triage, rather than over one
- * crawl's own keys. A crawl only judges what it wrote, so a threshold lowered
- * today never reaches the events already in the list; this is how those are
- * caught up.
+ * Runs the threshold over every row still awaiting triage, not just what a
+ * crawl just wrote, so a threshold lowered today reaches events already listed.
  */
 export async function autoAcceptPlayloltcgBacklog(
   deps: PlayloltcgSyncDeps,

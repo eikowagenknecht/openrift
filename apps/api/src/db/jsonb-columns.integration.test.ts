@@ -3,27 +3,13 @@ import { describe, expect, it } from "vitest";
 
 import { createDbContext } from "../test/integration-context.js";
 
-// postgres.js serializes a bound parameter according to the type Postgres
-// describes for it, and for a jsonb parameter that means JSON.stringify. Pass
-// the value and the column gets the right structure; pass JSON *text* and it is
-// encoded twice, landing as a jsonb string scalar. That bug corrupted nine
-// columns and hid for months, because a defensive JSON.parse on every read
-// repaired the shape before any caller could see it.
-//
-// Two things stop it coming back. The write-side column types in `tables.ts`
-// make a stringified value a compile error, which this file cannot check. The
-// other is a `jsonb_typeof` CHECK constraint per column, which it can: the
-// first test fails when a new jsonb column ships without one, so the guard
-// arrives with the column rather than after the next incident.
+// postgres.js serializes a bound jsonb parameter with JSON.stringify. Passing
+// already-serialized JSON text encodes it twice, landing as a jsonb string scalar.
+// Every jsonb column needs a `jsonb_typeof` CHECK constraint; the first test
+// fails when a new one ships without it.
 
 const ctx = createDbContext("jsonb-columns");
 
-/**
- * `job_runs.result` is every job's own summary shape and has no single one — a
- * job may legitimately return an object, an array, or a scalar — so it is the
- * one column whose shape is not constrained. It still must never hold
- * double-encoded text, which the second test covers for every column alike.
- */
 const SHAPE_EXEMPT = new Set(["job_runs.result"]);
 
 describe.skipIf(!ctx)("jsonb columns", () => {
@@ -108,12 +94,8 @@ describe.skipIf(!ctx)("jsonb columns", () => {
   });
 
   it("stores a value passed as an object, and refuses one passed as JSON text", async () => {
-    // The end-to-end statement of the rule, on a throwaway table shaped like a
-    // real one: the same call that used to corrupt silently now raises.
-    // A real table rather than a TEMPORARY one, because the pool can run the
-    // create and the insert on different connections and a temp table is
-    // session-scoped. Dropped in `finally` so a failure cannot leak it into the
-    // shared database.
+    // Must be a real table, not TEMPORARY: the pool can run the create and the
+    // insert on different connections, and a temp table is session-scoped.
     await sql`
       CREATE TABLE jsonb_rule_probe (
         v jsonb NOT NULL CONSTRAINT chk_probe CHECK (jsonb_typeof(v) = 'object')

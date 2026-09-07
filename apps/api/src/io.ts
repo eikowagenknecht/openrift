@@ -16,10 +16,8 @@ interface Fs {
 }
 
 /**
- * The part of `fetch` this app injects and consumes: the call itself. Deliberately
- * not `typeof globalThis.fetch` — under Bun's types that carries a `preconnect`
- * static that nothing here calls, and requiring it would force every fake to
- * carry a property the seam exists to avoid.
+ * Not `typeof globalThis.fetch`: under Bun's types that carries a `preconnect`
+ * static that would force every fake to implement it too.
  */
 export type Fetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 

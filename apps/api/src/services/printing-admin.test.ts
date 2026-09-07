@@ -23,8 +23,6 @@ function mockTransact(trxRepos: unknown): Transact {
   return (fn) => fn(trxRepos as any) as any;
 }
 
-// ── updatePrintingMarkers ───────────────────────────────────────────────
-
 describe("updatePrintingMarkers", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -103,8 +101,6 @@ describe("updatePrintingMarkers", () => {
   });
 });
 
-// ── deletePrinting ──────────────────────────────────────────────────────
-
 const NO_PRINTING_BLOCKERS = {
   copies: 0,
   collectionEvents: 0,
@@ -164,8 +160,6 @@ describe("deletePrinting", () => {
   });
 
   it("blocks the delete with a typed 409 naming the referencing user data", async () => {
-    // Regression: copies referencing the printing used to
-    // surface as a raw PostgresError 500 instead of a clean CONFLICT.
     const deletePrintingById = vi.fn(async () => {});
     const repos = {
       catalogMutations: {
@@ -224,8 +218,6 @@ describe("deletePrinting", () => {
     expect(deleteRehostFiles).toHaveBeenCalledWith({}, "/media/cards/g1/img-1");
   });
 });
-
-// ── acceptPrinting ──────────────────────────────────────────────────────
 
 describe("acceptPrinting", () => {
   const io = {} as Io;
@@ -379,7 +371,6 @@ describe("acceptPrinting", () => {
         { requireNew: true },
       ),
     ).rejects.toThrow('This card already has a printing with short code "OGN-001"');
-    // The upsert would have silently overwritten the existing row.
     expect(upsertPrinting).not.toHaveBeenCalled();
   });
 
@@ -653,8 +644,6 @@ describe("acceptPrinting", () => {
       io,
     );
 
-    // Targets the exact inserted image id returned by insertImage, not a blind
-    // batch sweep — this is the single accept path that partial admins reach.
     expect(rehostSingleImage).toHaveBeenCalledWith(io, repos.printingImages, "pi-1");
   });
 });

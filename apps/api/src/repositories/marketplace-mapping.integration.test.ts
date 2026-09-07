@@ -9,16 +9,11 @@ const ctx = createDbContext("a0000000-0044-4000-a000-000000000001");
 describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
   const { db } = ctx!;
   const repo = marketplaceMappingRepo(db);
-  // The marketplace vocabulary is a closed CHECK (migration 247), so these
-  // fixtures live under a real marketplace. Isolation comes from this file's
-  // own id ranges, not the marketplace value: seeded fixtures and other test
-  // files share "cardtrader", so every assertion and delete below is scoped
-  // to the ids this file owns.
+  // The marketplace vocabulary is a closed CHECK; other test files also use
+  // "cardtrader", so isolation comes from this file's own id ranges below.
   const marketplace = "cardtrader" as const;
   const externalId = 872_479;
   const groupId = 90_001;
-  // Every externalId this file writes, in one place so cleanup can target
-  // exactly these rows. Extend it when a test adds a new id.
   const fileExternalIds = [872_479, 872_480, 872_481, 872_482, 872_490, 872_491];
 
   const enPrintingId = PRINTINGS["SFD-R01:common:normal::EN"].id;
@@ -69,8 +64,6 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
     expect(first).toHaveLength(1);
     expect(first[0].printingId).toBe(enPrintingId);
 
-    // The unique conflict is on (product_id, finish, language, printing_id),
-    // so this second printing coexists with the first rather than replacing it.
     const second = await repo.upsertProductVariants([
       {
         marketplace,
@@ -98,11 +91,8 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
   });
 
   it("upsertProductVariants accepts one batch with multiple sibling-printing variants for the same SKU", async () => {
-    // Batch-accept of language-aggregate suggestions (TCG/CM) sends one
-    // mapping per sibling printing in a single call, all sharing the same
-    // (external_id, finish, language) tuple but differing in printing_id.
-    // Without the product-row dedupe, the multi-row INSERT would hit
-    // "ON CONFLICT DO UPDATE command cannot affect row a second time".
+    // Without the product-row dedupe, this multi-row INSERT (same SKU tuple,
+    // differing printing_id) hits "ON CONFLICT DO UPDATE ... row a second time".
     const batchExternalId = 872_480;
     await db
       .insertInto("marketplaceGroups")
@@ -208,8 +198,6 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
         finish: "normal",
         printingId: enPrintingId,
       });
-      // Deliberately inserted out of order so a query that leaned on physical
-      // row order rather than recorded_at would pick the wrong one.
       await insertPrice(productId, new Date("2026-01-02T00:00:00Z"), 200);
       await insertPrice(productId, new Date("2026-01-03T00:00:00Z"), 300);
       await insertPrice(productId, new Date("2026-01-01T00:00:00Z"), 100);

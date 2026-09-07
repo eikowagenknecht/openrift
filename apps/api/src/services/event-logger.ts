@@ -13,10 +13,7 @@ interface EventInput {
   toCollectionName?: string | null;
 }
 
-/**
- * Logs collection events (card added/removed/moved).
- * When called inside a transaction, pass transactional repos to ensure atomicity.
- */
+/** When called inside a transaction, pass transactional repos to ensure atomicity. */
 export async function logEvents(repos: Repos, events: EventInput[]): Promise<void> {
   await repos.collectionEvents.insert(
     events.map((e) => ({

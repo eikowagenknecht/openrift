@@ -8,10 +8,6 @@ import type { Repos, Transact } from "../deps.js";
 import type { MarketplaceConfig, StagingRow } from "../routes/admin/marketplace-configs.js";
 import { getMappingOverview, saveMappings, unmapPrinting } from "./marketplace-mapping.js";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function mockTransact(trxRepos: Repos): Transact {
   return (fn) => fn(trxRepos) as any;
 }
@@ -76,9 +72,8 @@ function makeStagingRow(overrides: Partial<StagingRow> = {}): StagingRow {
 }
 
 function makeCardPrintingRow(overrides: Record<string, unknown> = {}) {
-  // NB: if you override `externalId` with a real value, also supply
-  // `productFinish` (and `sourceLanguage` for per-language marketplaces) —
-  // those describe the bound SKU and drive the assigned-products list.
+  // Overriding `externalId` with a real value also needs `productFinish`
+  // (and `sourceLanguage` for per-language marketplaces) to describe the bound SKU.
   return {
     cardId: "card-1",
     cardSlug: "fireball",
@@ -107,10 +102,6 @@ function makeCardPrintingRow(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
-
-// ---------------------------------------------------------------------------
-// getMappingOverview
-// ---------------------------------------------------------------------------
 
 describe("getMappingOverview", () => {
   beforeEach(() => {
@@ -232,11 +223,6 @@ describe("getMappingOverview", () => {
   });
 
   it("does not steal products belonging to a longer-named card when scoped to one card", async () => {
-    // Regression: /admin/cards/blast-cone scopes matchedCards to just "Blast
-    // Cone", but both "Blast Cone" and "Blastcone Fae" products exist in
-    // staging. Without allCardsForMatching, the shorter alias `blastcone`
-    // would match `blastconefae` via startsWith and pull the Fae product
-    // onto the Blast Cone page.
     const mappingRepo = createMockMappingRepo({
       allStaging: vi
         .fn()
@@ -258,8 +244,6 @@ describe("getMappingOverview", () => {
 
     const productIds = result.groups[0].stagedProducts.map((p) => p.externalId);
     expect(productIds).toEqual([1]);
-    // The Fae row has been matched to another (out-of-scope) card, so it
-    // shouldn't resurface as unmatched either.
     expect(result.unmatchedProducts.map((p) => p.externalId)).not.toContain(2);
   });
 
@@ -325,7 +309,6 @@ describe("getMappingOverview", () => {
 
     const result = await getMappingOverview(repos, config);
 
-    // Both SKUs filtered by the single L2 ignore
     expect(result.unmatchedProducts).toHaveLength(0);
     expect(result.ignoredProducts).toHaveLength(1);
     expect(result.ignoredProducts[0].level).toBe("product");
@@ -596,16 +579,10 @@ describe("getMappingOverview", () => {
 
     const result = await getMappingOverview(repos, config);
 
-    // Both printings share externalId=123 and finish=normal, so only one assigned product
     expect(result.groups[0].assignedProducts).toHaveLength(1);
   });
 
   it("keeps per-finish prices distinct when one externalId has two SKUs bound to the same printing", async () => {
-    // Regression: /admin/cards/<slug> randomly switched the displayed price
-    // between normal and foil when both SKUs of a single Cardmarket externalId
-    // were bound to the same printing. The price-row JOIN drops the finish
-    // dimension, and the lookup map keyed only on (printingId, externalId)
-    // overwrote one finish's price with the other's.
     const priceQuery = vi.fn().mockResolvedValue([
       {
         printingId: "printing-1",
@@ -797,7 +774,6 @@ describe("getMappingOverview", () => {
 
     const result = await getMappingOverview(repos, config);
 
-    // Should keep this staged product since there's an unmapped foil printing
     expect(result.groups[0].stagedProducts).toHaveLength(1);
   });
 
@@ -884,7 +860,6 @@ describe("getMappingOverview", () => {
 
     const result = await getMappingOverview(repos, config);
 
-    // Already matched by prefix in first pass, so no double-match
     expect(result.groups[0].stagedProducts).toHaveLength(1);
   });
 
@@ -905,15 +880,10 @@ describe("getMappingOverview", () => {
 
     const result = await getMappingOverview(repos, config);
 
-    // Override points to nonexistent card, falls through to prefix matching
     expect(result.unmatchedProducts).toHaveLength(1);
   });
 
   it("keeps staged foil product when only a normal printing is assigned (uniform per-SKU filter)", async () => {
-    // Under the SKU-normalized model, the staged-product filter keys on
-    // (externalId, finish, language). Assigning (123, normal, EN) only
-    // removes the corresponding staged row — a distinct (123, foil, EN)
-    // staged SKU remains visible regardless of marketplace.
     const priceQuery = vi.fn().mockResolvedValue([
       {
         printingId: "p-mapped",
@@ -982,10 +952,6 @@ describe("getMappingOverview", () => {
     expect(priceQuery).not.toHaveBeenCalled();
   });
 });
-
-// ---------------------------------------------------------------------------
-// saveMappings
-// ---------------------------------------------------------------------------
 
 describe("saveMappings", () => {
   beforeEach(() => {
@@ -1112,10 +1078,6 @@ describe("saveMappings", () => {
   });
 
   it("rebinds a historical product to a new printing using the existing product row", async () => {
-    // Regression: allow rebinding a historical product (one fetched long ago,
-    // possibly without recent prices) to a different printing. saveMappings
-    // resolves the SKU through marketplace_products only, so any existing row
-    // is enough to drive the upsert.
     const upsertSpy = vi.fn().mockResolvedValue([
       {
         printingId: "p-1",
@@ -1147,7 +1109,6 @@ describe("saveMappings", () => {
 
     expect(result.skipped).toHaveLength(0);
     expect(result.saved).toBe(1);
-    // Upsert reuses the existing product's group_id + product_name.
     expect(upsertSpy).toHaveBeenCalledWith([
       expect.objectContaining({
         externalId: 12_345,
@@ -1161,9 +1122,6 @@ describe("saveMappings", () => {
   });
 
   it("returns SKU mismatch when the product exists for a different finish", async () => {
-    // The product row's finish/language describe a different SKU than the
-    // requested mapping — surface the mismatch rather than silently binding
-    // the wrong row.
     const mappingRepo = createMockMappingRepo({
       productsByExternalIds: vi.fn().mockResolvedValue([
         {
@@ -1188,11 +1146,6 @@ describe("saveMappings", () => {
   });
 
   it("accepts cross-language assignments on language-aggregate marketplaces", async () => {
-    // Regression: Cardmarket stores staging with language=null since the
-    // scraper can't observe per-language pricing. A non-EN printing (e.g. SC)
-    // assigned via the suggest UI must still resolve to that null-language
-    // staged row when the caller passes language=null — the service no longer
-    // guesses from the printing, it trusts the caller's SKU tuple.
     const upsertSpy = vi.fn().mockResolvedValue([
       {
         printingId: "p-sc",
@@ -1224,8 +1177,6 @@ describe("saveMappings", () => {
 
     expect(result.skipped).toHaveLength(0);
     expect(result.saved).toBe(1);
-    // Variant is upserted with NULL language and the product row's
-    // group_id / product_name.
     expect(upsertSpy).toHaveBeenCalledWith([
       expect.objectContaining({
         externalId: 872_479,
@@ -1293,18 +1244,12 @@ describe("saveMappings", () => {
       { printingId: "p-1", externalId: 12_345, finish: "normal", language: null },
     ]);
 
-    // Cardmarket stores NULL language on products; the service just forwards
-    // the caller's tuple verbatim.
     expect(upsertMock).toHaveBeenCalledOnce();
     const upsertValues = upsertMock.mock.calls[0][0] as { language: string | null }[];
     expect(upsertValues[0].language).toBeNull();
   });
 
   it("accepts a metal printing against foil staging and writes finish=foil on the product", async () => {
-    // Marketplaces never emit `metal` in staging — metal printings reuse the
-    // foil staging rows. The caller supplies finish="foil" explicitly from the
-    // product row the admin clicked on; the service just forwards it, and the
-    // product row (which is what price refresh joins on) carries finish="foil".
     const upsertMock = vi.fn().mockResolvedValue([
       {
         printingId: "p-metal",
@@ -1442,10 +1387,6 @@ describe("saveMappings", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// unmapPrinting
-// ---------------------------------------------------------------------------
-
 describe("unmapPrinting", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -1493,9 +1434,7 @@ describe("unmapPrinting", () => {
     expect(mappingRepo.deleteVariantById).toHaveBeenCalledWith("var-1");
   });
 
-  // CardTrader fans one blueprint id out across multiple (finish, language)
-  // rows. Without finish/language the lookup matched both rows and unmapped
-  // whichever sort order returned first.
+  // CardTrader fans one blueprint id out across multiple (finish, language) rows.
   it("scopes the variant lookup by finish and language so CT siblings don't collide", async () => {
     const mappingRepo = createMockMappingRepo({
       getVariantForPrinting: vi.fn().mockResolvedValue({
@@ -1525,10 +1464,6 @@ describe("unmapPrinting", () => {
     expect(mappingRepo.deleteVariantById).toHaveBeenCalledWith("var-sc");
   });
 });
-
-// ---------------------------------------------------------------------------
-// Helpers (createMockRepos for save/unmap tests)
-// ---------------------------------------------------------------------------
 
 function createMockRepos(mappingOverrides: Record<string, unknown> = {}): Repos {
   return {

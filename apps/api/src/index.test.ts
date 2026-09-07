@@ -6,10 +6,6 @@ import { healthRoute } from "./routes/public/health.js";
 import { readJson } from "./test/read-json.js";
 import type { Variables } from "./types.js";
 
-// ---------------------------------------------------------------------------
-// Mock repos
-// ---------------------------------------------------------------------------
-
 const mockHealthRepo = {
   healthCheck: vi.fn(async (): Promise<HealthStatus> => "ok"),
 };
@@ -21,10 +17,6 @@ const app = new Hono<{ Variables: Variables }>()
     await next();
   })
   .route("/api", healthRoute);
-
-// ---------------------------------------------------------------------------
-// GET /api/health
-// ---------------------------------------------------------------------------
 
 describe("GET /api/health", () => {
   beforeEach(() => {

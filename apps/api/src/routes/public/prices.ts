@@ -28,9 +28,7 @@ function emptyMarketplaceInfo(): MarketplaceInfo {
 }
 
 /**
- * Whole days between two `YYYY-MM-DD` days, never negative. Both are dates
- * rather than instants, so UTC midnight on each side keeps this free of
- * timezone drift.
+ * Whole days between two `YYYY-MM-DD` days, never negative. Both sides parse at UTC midnight to avoid timezone drift.
  */
 function daysBetween(from: string, to: string): number {
   const ms = Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`);
@@ -38,9 +36,7 @@ function daysBetween(from: string, to: string): number {
 }
 
 /**
- * Public price reads. An unknown printing in `history` resolves to an
- * `available: false` payload (200) rather than a 404. The short-TTL
- * `Cache-Control` is applied uniformly in the mount.
+ * Public price reads. An unknown printing in `history` resolves to an `available: false` payload (200), not a 404.
  */
 export const pricesRouter = {
   /**
@@ -55,10 +51,7 @@ export const pricesRouter = {
 
     const prices: PriceMap = {};
     const stale: PricesResponse["stale"] = {};
-    // Age against the freshest observation anywhere rather than the wall
-    // clock: the pipeline runs on a cron, so "today" in the data can lag real
-    // time by hours, and comparing to now() would report every price as a day
-    // older than it is right after midnight.
+    // Age against the freshest observation, not the wall clock: the cron pipeline's "today" can lag real time by hours.
     const newest = rows.reduce((max, row) => (row.lastSeen > max ? row.lastSeen : max), "");
 
     for (const row of rows) {

@@ -5,21 +5,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "./app.js";
 import { readJson } from "./test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// better-auth APIError mapping
-//
-// better-auth throws better-call's APIError, a plain Error subclass that
-// matches none of the typed branches in the error handlers. Before this
-// mapping, every API-key rate-limit denial and every invalid key came back as a
-// 500 + INTERNAL_ERROR and was captured as an unhandled Sentry exception, and
-// the Retry-After hint on a 429 was thrown away.
-//
-// Both surfaces are covered: `/api/v1/feature-flags` resolves its session in
-// the Hono `loadSession` middleware (so the throw reaches `app.onError`), while
-// `/api/v1/preferences` resolves it inside the oRPC pipeline (which encodes the
-// throw into a Response and never reaches `onError`).
-// ---------------------------------------------------------------------------
-
 const captureException = vi.fn();
 vi.mock("@sentry/bun", () => ({
   captureException: (...args: unknown[]) => captureException(...args),
@@ -45,8 +30,6 @@ const baseMockConfig = {
   smtp: { configured: false },
 };
 
-/** Builds an app whose session lookup always rejects with `toThrow`.
- * @returns The Hono app. */
 function buildApp(toThrow: unknown) {
   const auth = {
     handler: () => new Response("ok"),
@@ -67,8 +50,6 @@ function buildApp(toThrow: unknown) {
   // oxlint-enable
 }
 
-/** Sends a request carrying an API key, which is what makes better-auth throw.
- * @returns The response. */
 async function fetchWithKey(app: ReturnType<typeof buildApp>, path: string): Promise<Response> {
   return await app.fetch(
     new Request(`http://localhost${path}`, { headers: { "x-api-key": "orift_test" } }),

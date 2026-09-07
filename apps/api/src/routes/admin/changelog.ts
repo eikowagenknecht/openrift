@@ -14,13 +14,8 @@ const log = createLogger("admin");
 const os = implement(adminChangelogContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
- * Admin changelog Discord post action. Any thrown `AppError` is mapped by the
- * handler's appErrorInterceptor.
- *
- * This is the one request-path caller of the job runner, so it takes the
- * outcome rather than `runJob`'s `T | null`: collapsing both a failed post and
- * an already-running one to `null` would answer the admin's click with a 200
- * and a "nothing to post" toast.
+ * `runJobOutcome` distinguishes a failed post from an already-running one;
+ * collapsing both to `null` here would answer the click with a 200.
  */
 export const adminChangelogRouter = {
   post: os.post.handler(async ({ context }) => {

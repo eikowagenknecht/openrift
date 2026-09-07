@@ -68,10 +68,8 @@ describe("createMetricsMiddleware", () => {
     expect(res.status).toBe(200);
 
     const body = await registry.metrics();
-    // OpenMetrics exemplars are emitted as `# {traceID="..."} value timestamp`
-    // following the histogram bucket lines.
+    // OpenMetrics exemplar line format: `# {traceID="..."} value timestamp`.
     expect(body).toMatch(/# \{traceID="[0-9a-f]{32}"\} \S+/u);
-    // OpenMetrics terminator must be present.
     expect(body.trimEnd().endsWith("# EOF")).toBe(true);
   });
 

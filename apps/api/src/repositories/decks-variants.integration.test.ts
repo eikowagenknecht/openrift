@@ -48,7 +48,7 @@ if (ctx) {
   });
 }
 
-describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
+describe.skipIf(!ctx)("decksRepo variants", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { db } = ctx!;
   const decks = decksRepo(db);
@@ -68,10 +68,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
     });
   }
 
-  /**
-   * Copies a deck and asserts the source was found, so the tests can read the
-   * new row without threading `undefined` through every assertion.
-   */
   async function copyOf(
     sourceId: string,
     input: { name?: string },
@@ -86,10 +82,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
     return db.selectFrom("decks").selectAll().where("id", "=", id).executeTakeFirstOrThrow();
   }
 
-  /**
-   * Links two decks and asserts the call succeeded, so the tests can read the
-   * updated row without narrowing the result literal at every use.
-   */
   async function linkOf(
     id: string,
     input: { otherDeckId: string; markAsPreviousVersion?: boolean },
@@ -101,9 +93,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
     return result as Selectable<DecksTable>;
   }
 
-  /**
-   * Unlinks a deck and asserts the call succeeded.
-   */
   async function unlinkOf(id: string, owner = userId): Promise<Selectable<DecksTable>> {
     const result = await decks.unlinkVariant(id, owner);
     expect(result).not.toBe("not-found");
@@ -135,7 +124,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       const reloadedSource = await reload(source.id);
       expect(reloadedSource.familyId).toBe(copy.familyId);
       expect(reloadedSource.isPrimary).toBe(true);
-      // The copy joins the family, but the source keeps fronting it.
       expect(copy.isPrimary).toBe(false);
     });
 
@@ -162,7 +150,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       const notMine = await decks.createVariantCopy(foreign.id, userId, {});
       expect(notMine).toBeUndefined();
 
-      // The foreign deck stayed standalone.
       const reloaded = await reload(foreign.id);
       expect(reloaded.familyId).toBeNull();
     });
@@ -174,7 +161,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       const copy = await copyOf(source.id, {});
 
       expect(copy.predecessorDeckId).toBe(source.id);
-      // The live deck's own chain is untouched by a sibling variant.
       const reloadedSource = await reload(source.id);
       expect(reloadedSource.predecessorDeckId).toBeNull();
     });
@@ -216,7 +202,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       expect(calm?.quantity).toBe(2);
       expect(calm?.preferredPrintingId).toBeNull();
 
-      // The source keeps its own rows: this is a copy, not a move.
       const sourceCards = await decks.cardsForDeck(source.id, userId);
       expect(sourceCards).toHaveLength(2);
     });
@@ -267,7 +252,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       expect(first?.swaps.find((swap) => swap.direction === "in")?.cardId).toBe(CARD_FURY_UNIT.id);
       expect(first?.swaps.find((swap) => swap.direction === "out")?.quantity).toBe(2);
 
-      // Rows were duplicated, not re-parented.
       const sourcePlan = await plans.getForDeck(source.id);
       expect(sourcePlan.plan).toBeDefined();
       expect(sourcePlan.matchups).toHaveLength(2);
@@ -312,7 +296,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
         { url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", title: "Guide" },
       ]);
 
-      // A copy is private and unpinned no matter what the source is.
       expect(copy.isPublic).toBe(false);
       expect(copy.shareToken).toBeNull();
       expect(copy.isPinned).toBe(false);
@@ -326,8 +309,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
       const variant = await copyOf(source.id, {});
 
-      // An inherited box would reserve its copies a second time, hiding the
-      // surplus from the source's Box tab.
       expect(variant.collectionId).toBeNull();
       const reloadedSource = await reload(source.id);
       expect(reloadedSource.collectionId).toBe(collectionId);
@@ -406,7 +387,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       expect(missing).toBe("not-found");
       const notMine = await decks.promoteToPrimary(foreign.id, userId);
       expect(notMine).toBe("not-found");
-      // The other user's family is untouched.
       const reloadedForeign = await reload(foreign.id);
       expect(reloadedForeign.isPrimary).toBe(true);
     });
@@ -414,8 +394,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
   describe("setPredecessor", () => {
     it("points a member at another member of the same family", async () => {
-      // Two variants of one source: siblings, so neither already descends from
-      // the other and the repointing is not a loop.
       const source = await makeDeck("DV Parent Source");
       const first = await copyOf(source.id, {});
       const second = await copyOf(source.id, {});
@@ -426,7 +404,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
     it("clears the pointer with null", async () => {
       const source = await makeDeck("DV Parent Clear");
-      // A copy descends from its source, so it starts out with a pointer.
       const copy = await copyOf(source.id, {});
 
       const updated = await decks.setPredecessor(copy.id, userId, null);
@@ -445,9 +422,7 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       const grandchild = await copyOf(child.id, {});
 
       expect(await decks.setPredecessor(source.id, userId, grandchild.id)).toBe("invalid");
-      // The direct child is the same loop, one step shorter.
       expect(await decks.setPredecessor(source.id, userId, child.id)).toBe("invalid");
-      // The rejected write leaves the row alone.
       const unchanged = await reload(source.id);
       expect(unchanged.predecessorDeckId).toBeNull();
     });
@@ -473,7 +448,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
       expect(await decks.setPredecessor(MISSING_DECK_ID, userId, null)).toBe("not-found");
       expect(await decks.setPredecessor(foreign.id, userId, foreignSibling.id)).toBe("not-found");
-      // A predecessor the caller does not own is a miss, not a silent write.
       const source = await makeDeck("DV Parent Foreign Target");
       await copyOf(source.id, {});
       expect(await decks.setPredecessor(source.id, userId, foreignSibling.id)).toBe("not-found");
@@ -488,7 +462,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       const linked = await linkOf(current.id, { otherDeckId: other.id });
       expect(linked.familyId).toBeTypeOf("string");
       expect(linked.isPrimary).toBe(true);
-      // Linking alone says nothing about lineage.
       expect(linked.predecessorDeckId).toBeNull();
 
       const reloadedOther = await reload(other.id);
@@ -536,7 +509,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
         [leftSource.id, leftSibling.id, rightSource.id, rightSibling.id].toSorted(),
       );
       expect(members.filter((member) => member.isPrimary)).toHaveLength(1);
-      // The absorbed family's primary steps down, and its id is left empty.
       const reloadedRightSource = await reload(rightSource.id);
       expect(reloadedRightSource.isPrimary).toBe(false);
       expect(await familyMembers(rightSibling.familyId)).toHaveLength(0);
@@ -551,14 +523,12 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
         markAsPreviousVersion: true,
       });
       expect(linked.predecessorDeckId).toBe(other.id);
-      // Only this deck's chain moves; the other keeps its own.
       const reloadedOther = await reload(other.id);
       expect(reloadedOther.predecessorDeckId).toBeNull();
     });
 
     it("ignores the previous-version flag when this deck already has one", async () => {
       const older = await makeDeck("DV Link Previous Kept");
-      // The copy descends from its source, so it arrives already pointed.
       const source = await copyOf(older.id, {});
       const other = await makeDeck("DV Link Previous Ignored");
 
@@ -597,7 +567,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       const notMine = await decks.linkAsVariant(mine.id, userId, { otherDeckId: foreign.id });
       expect(notMine).toBe("not-found");
 
-      // Neither side was touched by the failed attempts.
       const reloadedMine = await reload(mine.id);
       expect(reloadedMine.familyId).toBeNull();
       const reloadedForeign = await reload(foreign.id);
@@ -607,9 +576,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
   describe("unlinkVariant", () => {
     it("closes the predecessor chain over the departing deck", async () => {
-      // Three versions in one chain: live -> newer -> older. The copies both
-      // land pointed at `live`, so `older` has to let go of its pointer before
-      // the other two can descend from it without closing a loop.
       const live = await makeDeck("DV Unlink Chain");
       const older = await copyOf(live.id, {});
       const newer = await copyOf(live.id, {});
@@ -643,7 +609,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       const reloadedOlder = await reload(older.id);
       expect(reloadedNewer.isPrimary).toBe(true);
       expect(reloadedOlder.isPrimary).toBe(false);
-      // Both descended from the departing deck, which itself had no predecessor.
       expect(reloadedNewer.predecessorDeckId).toBeNull();
       expect(reloadedOlder.predecessorDeckId).toBeNull();
     });
@@ -675,7 +640,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       expect(missing).toBe("not-found");
       const notMine = await decks.unlinkVariant(foreign.id, userId);
       expect(notMine).toBe("not-found");
-      // The other user's family is untouched.
       const reloadedForeign = await reload(foreign.id);
       expect(reloadedForeign.familyId).not.toBeNull();
       expect(reloadedForeign.isPrimary).toBe(true);
@@ -698,7 +662,6 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
       const reloadedOlder = await reload(older.id);
       expect(reloadedNewer.isPrimary).toBe(true);
       expect(reloadedOlder.isPrimary).toBe(false);
-      // Predecessor pointers at the deleted deck detach rather than cascade.
       expect(reloadedNewer.predecessorDeckId).toBeNull();
       expect(reloadedOlder.predecessorDeckId).toBeNull();
     });

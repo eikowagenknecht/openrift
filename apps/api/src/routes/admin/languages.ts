@@ -41,7 +41,7 @@ export const adminLanguagesRouter = {
       unknownLabel: "language codes",
     });
     await repo.reorder(codes);
-    // language.sort_order is the leading canonical_rank term (migration 215).
+    // language.sort_order is the leading canonical_rank term.
     await context.repos.catalog.refreshCanonicalRank();
   }),
 

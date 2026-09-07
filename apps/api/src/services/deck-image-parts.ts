@@ -34,7 +34,6 @@ export interface DeckImageCard {
   quantity: number;
   imageId: string | null;
   energy: number | null;
-  /** Card domains, used to group runes by their domain glyph. */
   domains: readonly string[];
   /** Deck zone slug (legend / champion / main / runes / battlefield / sideboard / overflow). */
   zone: string;
@@ -160,13 +159,7 @@ export interface PackGridOptions {
    * three 340px slabs, and a one-card deck as a single 700px one.
    */
   maxTileW?: number;
-  /**
-   * Break near-ties toward more columns. On a tall area two column counts can
-   * yield the same tile to within a pixel — a two-card deck packs as one column
-   * of two at 508px or two columns of one at 507px — and the raw maximum picks
-   * the taller arrangement, which on a 9:16 canvas reads as a column of cards
-   * running off down the frame rather than as a decklist.
-   */
+  /** Break near-ties toward more columns; the raw area maximum can favor a single tall column on a tall canvas. */
   preferWider?: boolean;
 }
 
@@ -287,11 +280,9 @@ export function deckSection(label: string, tiles: Child[], marginTop = 0): Eleme
 }
 
 /**
- * Ambient background glow built from the legend's domain colors, mirroring
- * the web app's deck hero (`deckGlowStyle` in
+ * Must mirror the web app's deck hero (`deckGlowStyle` in
  * apps/web/src/components/deck/deck-hero.tsx): one radial per domain,
- * anchored to opposite top corners so a dual-domain deck reads as a blend. A
- * deck with no legend keeps the flat background.
+ * anchored to opposite top corners.
  */
 export function legendGlowBackground(domains: readonly string[]): string | undefined {
   if (domains.length === 0) {

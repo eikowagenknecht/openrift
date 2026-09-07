@@ -10,10 +10,6 @@ import {
   assertValidReorder,
 } from "./assertions.js";
 
-// ---------------------------------------------------------------------------
-// assertFound
-// ---------------------------------------------------------------------------
-
 describe("assertFound", () => {
   it("does nothing when the value is defined", () => {
     expect(() => assertFound({ id: "1" }, "Not found")).not.toThrow();
@@ -44,14 +40,9 @@ describe("assertFound", () => {
   it("narrows the type after the call", () => {
     const value: string | null = "hello";
     assertFound(value, "Not found");
-    // TypeScript should narrow value to string here
     expect(value.toUpperCase()).toBe("HELLO");
   });
 });
-
-// ---------------------------------------------------------------------------
-// assertUpdated
-// ---------------------------------------------------------------------------
 
 describe("assertUpdated", () => {
   it("does nothing when rows were updated", () => {
@@ -76,10 +67,6 @@ describe("assertUpdated", () => {
     expect(() => assertUpdated(undefined, "Not found")).toThrow(AppError);
   });
 });
-
-// ---------------------------------------------------------------------------
-// assertSlugAvailable
-// ---------------------------------------------------------------------------
 
 describe("assertSlugAvailable", () => {
   it("does nothing when no existing row was found (null / undefined)", () => {
@@ -107,10 +94,6 @@ describe("assertSlugAvailable", () => {
     }
   });
 });
-
-// ---------------------------------------------------------------------------
-// assertValidReorder
-// ---------------------------------------------------------------------------
 
 describe("assertValidReorder", () => {
   const rows = [{ slug: "a" }, { slug: "b" }, { slug: "c" }];
@@ -175,10 +158,6 @@ describe("assertValidReorder", () => {
     ).not.toThrow();
   });
 });
-
-// ---------------------------------------------------------------------------
-// assertDeleted
-// ---------------------------------------------------------------------------
 
 describe("assertDeleted", () => {
   it("does nothing when rows were deleted", () => {

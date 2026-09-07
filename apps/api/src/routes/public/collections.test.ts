@@ -68,8 +68,6 @@ const dbInbox = {
 const dbCopy = {
   id: "a0000000-0001-4000-a000-000000000020",
   printingId: "OGS-001:rare:normal:",
-  // Owner-internal fields that must NOT reach anonymous viewers (CPL-1). Present
-  // on the repo row so the projection test below can prove they're stripped.
   collectionId: COLLECTION_ID,
   groupId: "a0000000-0001-4000-a000-000000000040",
   createdAt: NOW,
@@ -77,8 +75,6 @@ const dbCopy = {
   grader: null,
   grade: null,
   notesPublic: "Pack fresh",
-  // Private notes never reach anonymous viewers (ADR-038); the projection
-  // test below proves they're stripped alongside collectionId/groupId.
   notesPrivate: "secret",
   isAltered: false,
   links: [],
@@ -135,10 +131,7 @@ describe("GET /api/v1/collections/share/:token", () => {
     expect(json.collection).not.toHaveProperty("userId");
   });
 
-  // Regression (CPL-1): the anonymous share endpoint must not leak owner-internal
-  // collectionId/groupId. toPublicCopy narrows each copy to { id, printingId };
-  // the repo row above deliberately carries both owner-internal fields.
-  it("narrows public copies, stripping collectionId/groupId/notesPrivate (ADR-038)", async () => {
+  it("narrows public copies, stripping collectionId/groupId/notesPrivate", async () => {
     mockCollectionsRepo.findByShareToken.mockResolvedValue({
       collection: dbCollection,
       ownerName: "Alice",

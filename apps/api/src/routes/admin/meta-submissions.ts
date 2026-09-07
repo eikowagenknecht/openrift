@@ -11,23 +11,11 @@ import { recordAdminEvent } from "../../services/record-admin-event.js";
 
 const os = implement(adminMetaSubmissionsContract).$context<ApiContext>().use(requireAuthedUser);
 
-/**
- * Corrections are read one at a time and closed as they are read, so the queue
- * is never long. The cap exists so a burst cannot turn one page into an
- * unbounded fetch, not because a second page is expected — and when one happens
- * the panel says so rather than the extras vanishing.
- */
 const EVENT_CORRECTION_LIMIT = 200;
 
 /**
- * Loads the submission a write names, refusing the one outcome an admin must
- * not overwrite.
- *
- * An accepted submission was settled in the same transaction as the
- * contributor's public credit and the archived deck it produced. Stamping
- * "rejected" over that would leave the ledger, the credit line, and the archive
- * telling three different stories; taking the deck back out is `unlink`'s job,
- * and that removes the credit with it.
+ * An accepted submission is settled with the contributor's credit and the archived deck.
+ * Only `unlink` may reverse it; it also removes the credit.
  */
 async function requireUnsettled(
   repos: ApiContext["repos"],
@@ -50,17 +38,9 @@ async function requireUnsettled(
 /**
  * Admin side of meta decklist submissions.
  *
- * The card pipeline derives a submission's outcome from the check and ignore
- * verbs its review loop already uses. This one cannot: a submitted entry hangs
- * off a live event and carries no source-event key, so there is no ignore entry
- * to represent it and nothing for an outcome to fall out of. The verb is
- * explicit here instead — without it a submission can only ever reach
- * `accepted`, and a contributor whose list was turned down reads "pending"
- * forever.
- *
- * Resolving does not delete the overlay. That is what lets
- * {@link adminMetaSubmissionsRouter.reopen} actually undo a misclick, and the
- * cost of the alternative is somebody's decklist gone on one wrong button.
+ * A submission carries no source-event key, so its outcome cannot be derived
+ * from check/ignore verbs the way the card pipeline does; the verb is explicit here.
+ * Resolving does not delete the overlay: {@link adminMetaSubmissionsRouter.reopen} reverses it.
  */
 export const adminMetaSubmissionsRouter = {
   forPlayerOverlay: os.forPlayerOverlay.handler(async ({ input, context }) => {

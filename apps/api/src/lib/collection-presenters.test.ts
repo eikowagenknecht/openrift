@@ -5,10 +5,6 @@ import { toCollection, toCollectionEvent } from "./collection-presenters.js";
 const NOW = new Date("2025-06-15T12:00:00.000Z");
 const LATER = new Date("2025-06-16T08:30:00.000Z");
 
-// ---------------------------------------------------------------------------
-// toCollection
-// ---------------------------------------------------------------------------
-
 describe("toCollection", () => {
   it("maps a collection row with date serialization", () => {
     const result = toCollection({
@@ -66,7 +62,6 @@ describe("toCollection", () => {
     expect(
       toCollection(row, undefined, [{ id: "deck-1", name: "Sunfire Aggro" }]).homeDecks,
     ).toEqual([{ id: "deck-1", name: "Sunfire Aggro" }]);
-    // A caller that doesn't resolve deck boxes reports none rather than guessing.
     expect(toCollection(row).homeDecks).toEqual([]);
   });
 
@@ -86,7 +81,6 @@ describe("toCollection", () => {
       updatedAt: LATER,
     };
     expect(toCollection({ ...row, sidebarHidden: true }).sidebarHidden).toBe(true);
-    // Callers that don't join the per-viewer prefs table leave it unset.
     expect(toCollection(row).sidebarHidden).toBe(false);
   });
 
@@ -132,10 +126,6 @@ describe("toCollection", () => {
     expect(result.viewerCanAdmin).toBe(false);
   });
 });
-
-// ---------------------------------------------------------------------------
-// toCollectionEvent
-// ---------------------------------------------------------------------------
 
 describe("toCollectionEvent", () => {
   it("maps an enriched collection event row", () => {

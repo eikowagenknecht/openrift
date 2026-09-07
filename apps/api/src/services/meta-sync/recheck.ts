@@ -6,36 +6,19 @@ import { deepFetchEvent } from "./deep-fetch.js";
 import type { MetaSyncDeps } from "./deps.js";
 import { clock, errorText } from "./deps.js";
 
-/**
- * The per-event recheck queue. Only accepted events are ever in it,
- * and one visit costs one listing request: read the event's current status,
- * decide whether its results are worth pulling, and set the next visit.
- *
- * The two things this catches are what the daily sync cannot. A tournament
- * that finishes today has its standings within the hour — a quarter hour on a
- * watched template — because an accepted event past its start time is polled
- * while it runs. And a decklist published six weeks later still lands, because
- * the ladder keeps looking long after the sync's lookback has aged the event
- * out.
- */
-
-/** Rows one pass will visit. Ten minutes apart, this drains a real backlog fast. */
 export const RECHECK_BATCH_SIZE = 40;
 
 export interface MetaRecheckResult {
   due: number;
   processed: number;
   requests: number;
-  /** Events whose results this pass pulled. */
   fetched: number;
   players: number;
   acceptedPlayers: number;
-  /** True when the admin's Stop ended the pass with rows still due. */
   cancelRequested: boolean;
   errors: string[];
 }
 
-/** A pass that visited nothing, and one that only collected failures, are not the same run. */
 export function isRecheckNoop(result: MetaRecheckResult): boolean {
   return result.processed === 0 && result.errors.length === 0;
 }
@@ -48,7 +31,6 @@ export async function processRechecks(
   const before = deps.client.requests;
   const now = clock(deps);
   const due = await deps.repos.uvsgamesEvents.dueForRecheck(now, limit);
-  // One read for the pass: watched is what earns a live event the 15-minute poll.
   const watched = await deps.repos.uvsgamesEvents.watchedTemplates();
 
   const result: MetaRecheckResult = {
@@ -78,13 +60,8 @@ export async function processRechecks(
   return result;
 }
 
-/**
- * One event's failure is that event's alone. An unhandled throw used to end the
- * pass before the visit reached its `setRecheck`, so the row stayed due, sorted
- * first into the next pass ten minutes later, and failed there too while every
- * event queued behind it went unvisited. The same hour's grace a failed read
- * gets is what breaks that loop.
- */
+// A throw here must not abort the pass, or the failing row stays due and
+// blocks every row queued behind it.
 async function visitContained(
   deps: MetaSyncDeps,
   row: UvsgamesListRow,
@@ -101,10 +78,7 @@ async function visitContained(
   }
 }
 
-/**
- * A refused read must not end a pass that is already minutes into its rows, so
- * a failed cancel check reads as "keep going" and is logged.
- */
+// A failed cancel check must not abort the pass; log and keep going.
 async function cancelled(deps: MetaSyncDeps, runId: string): Promise<boolean> {
   try {
     return await runCancelRequested(deps.repos.jobRuns, runId);
@@ -114,10 +88,6 @@ async function cancelled(deps: MetaSyncDeps, runId: string): Promise<boolean> {
   }
 }
 
-/**
- * A pass over a published event spends minutes fetching decks at the crawl's
- * pacing, so the admin panel needs the running totals, not just the epitaph.
- */
 async function heartbeat(
   deps: MetaSyncDeps,
   runId: string,
@@ -140,8 +110,7 @@ async function visit(
   const now = clock(deps);
   const refreshed = await refreshStatus(deps, row, now, result.errors);
   if (refreshed === null) {
-    // The source could not be read this pass. Come back in an hour rather than
-    // hammering a failing endpoint every ten minutes.
+    // Failed read: retry in an hour, not the ten-minute cadence.
     await reschedule(deps, row, now, row.checkStage);
     return;
   }
@@ -172,14 +141,12 @@ async function visit(
     nextCheckAt: decision.nextCheckAt,
     checkStage: decision.checkStage,
   });
-  // Counted where the visit ends, so a row that threw on the way is a failure
-  // in the run's errors rather than a number saying the pass handled it.
+  // Counted here, not at entry, so a row that throws mid-visit lands in errors.
   result.processed++;
 }
 
 interface RefreshedRow {
   row: UvsgamesListRow;
-  /** The detail row this read already paid for, handed on to the deep fetch. */
   detail: unknown;
   checkStage: number;
   displayStatus: string;
@@ -190,11 +157,6 @@ interface RefreshedRow {
   playersPending: boolean;
 }
 
-/**
- * One request: the event's own detail row, which carries the same fields the
- * listing does. Upserting it keeps the catalogue current for an event the
- * daily sync has already aged past.
- */
 async function refreshStatus(
   deps: MetaSyncDeps,
   row: UvsgamesListRow,
@@ -212,8 +174,6 @@ async function refreshStatus(
   }
   await deps.repos.uvsgamesEvents.upsertBatch([projection], now);
 
-  // Every "have we got this yet" question the ladder asks is a mirror query
-  // now, where it used to walk the staged raw payload in application code.
   const [standings, coverage] = await Promise.all([
     deps.repos.uvsgamesResults.standings(row.externalId),
     deps.repos.uvsgamesResults.deckCoverage(row.externalId),
@@ -226,18 +186,16 @@ async function refreshStatus(
     displayStatus: projection.displayStatus,
     startAt: projection.startAt,
     decklistStatus: projection.decklistStatus,
-    // The completion marker, not "the mirror holds rows": a cancelled event
-    // legitimately has zero standings and must still count as fetched.
+    // A cancelled event has zero standings and must still count as fetched.
     fetched: row.resultsFetchedAt !== null,
     decksComplete: coverage.outstanding.length === 0,
-    // A standing the mirror holds but no live row carries is work promotion
-    // has not finished, which is what keeps the ladder visiting.
+    // True while a standing the mirror holds has no live row yet: promotion
+    // is still in flight.
     playersPending:
       standings.length > 0 && (await liveLagsMirror(deps, row.externalId, standings.length)),
   };
 }
 
-/** Whether the live event carries fewer standings rows than the mirror holds. */
 async function liveLagsMirror(
   deps: MetaSyncDeps,
   externalId: string,
@@ -264,7 +222,6 @@ async function readDetail(
   }
 }
 
-/** An hour's grace after a failed read, without advancing the ladder. */
 async function reschedule(
   deps: MetaSyncDeps,
   row: UvsgamesListRow,

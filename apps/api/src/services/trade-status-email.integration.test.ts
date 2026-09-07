@@ -9,8 +9,6 @@ import { acceptTrade, cancelTrade, createTrade, declineTrade } from "./card-trad
 import { flushTradeStatusEmails } from "./trade-status-notifications.js";
 import type { TradeStatusFlushDeps } from "./trade-status-notifications.js";
 
-// Random per-file users, self-inserted below. This file keeps its own upsert
-// (rather than seedTestUser) because it toggles emailVerified per-case.
 const GIVER_ID = crypto.randomUUID();
 const RECEIVER_ID = crypto.randomUUID();
 const ALL_USER_IDS = [GIVER_ID, RECEIVER_ID];
@@ -27,7 +25,6 @@ describe.skipIf(!ctx)("trade-status emails (integration)", () => {
   const createdGroupIds: string[] = [];
   const log = createLogger("test", "silent");
 
-  // Captures every email a flush call would send.
   function makeSink() {
     const sent: { to: string; subject: string }[] = [];
     // oxlint-disable-next-line require-await -- mock matches the async sender shape
@@ -71,9 +68,7 @@ describe.skipIf(!ctx)("trade-status emails (integration)", () => {
 
   beforeEach(async () => {
     await insertUsers(true);
-    // Recipient is the *initiator* (RECEIVER); give them the instant cadence so a
-    // queued status change is always due — the timed-cadence debounce is the same
-    // `isRequestGroupDue` the trade-request flush already covers.
+    // Instant cadence: timed-cadence debounce is covered by the trade-request flush tests.
     await repos.userPreferences.upsert(RECEIVER_ID, {
       emailNotifications: { tradeRequestCadence: "instant" },
     });
@@ -127,7 +122,6 @@ describe.skipIf(!ctx)("trade-status emails (integration)", () => {
     return created.id;
   }
 
-  // Giver shares one trade copy of each printing; receiver wishes one of each.
   async function setupMatch() {
     const slug = `st-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`;
     const group = await groupsRepo.createWithOwner(
@@ -176,7 +170,6 @@ describe.skipIf(!ctx)("trade-status emails (integration)", () => {
     return group;
   }
 
-  // RECEIVER requests both printings (the initiator); returns the trade ids.
   async function requestBoth(group: { slug: string }): Promise<{ first: string; second: string }> {
     const first = await createTrade(repos, {
       callerUserId: RECEIVER_ID,
@@ -201,21 +194,18 @@ describe.skipIf(!ctx)("trade-status emails (integration)", () => {
     const group = await setupMatch();
     const { first, second } = await requestBoth(group);
 
-    // The non-initiator (GIVER) accepts both requests.
     await acceptTrade(transact, first, GIVER_ID);
     await acceptTrade(transact, second, GIVER_ID);
 
     const flush = makeSink();
     const result = await flushTradeStatusEmails(flushDeps(flush.sendEmail));
 
-    // Two reserves to the same recipient fold into one email to the initiator.
     expect(result.emailsSent).toBe(1);
     expect(result.events).toBe(2);
     expect(flush.sent).toHaveLength(1);
     expect(flush.sent[0].to).toBe(RECEIVER_EMAIL);
     expect(flush.sent[0].subject).toBe("Giver accepted 2 of your trades");
 
-    // A second flush has nothing left — the rows are claimed.
     const flush2 = makeSink();
     const result2 = await flushTradeStatusEmails(flushDeps(flush2.sendEmail));
     expect(result2.emailsSent).toBe(0);
@@ -226,7 +216,6 @@ describe.skipIf(!ctx)("trade-status emails (integration)", () => {
     const group = await setupMatch();
     const { first, second } = await requestBoth(group);
 
-    // Decline one; accept-then-cancel the other (the reserve never gets emailed).
     await declineTrade(transact, first, GIVER_ID);
     await acceptTrade(transact, second, GIVER_ID);
     await cancelTrade(transact, second, GIVER_ID);
@@ -234,8 +223,6 @@ describe.skipIf(!ctx)("trade-status emails (integration)", () => {
     const flush = makeSink();
     const result = await flushTradeStatusEmails(flushDeps(flush.sendEmail));
 
-    // One email folding the declined + cancelled events — not three (the reserve
-    // for `second` was dropped because it was no longer 'reserved' at flush time).
     expect(result.emailsSent).toBe(1);
     expect(result.events).toBe(2);
     expect(flush.sent[0].to).toBe(RECEIVER_EMAIL);
@@ -252,7 +239,6 @@ describe.skipIf(!ctx)("trade-status emails (integration)", () => {
     expect(result.emailsSent).toBe(0);
     expect(flush.sent).toHaveLength(0);
 
-    // Suppressed rows are claimed, so they aren't reconsidered next tick.
     const remaining = await repos.cardTrades.listPendingStatusEmails();
     expect(remaining.filter((row) => row.recipientUserId === RECEIVER_ID)).toHaveLength(0);
   });
@@ -270,7 +256,6 @@ describe.skipIf(!ctx)("trade-status emails (integration)", () => {
     expect(result.emailsSent).toBe(0);
     expect(flush.sent).toHaveLength(0);
 
-    // The row stays queued (unclaimed) for a later tick.
     const remaining = await repos.cardTrades.listPendingStatusEmails();
     expect(remaining.filter((row) => row.recipientUserId === RECEIVER_ID)).toHaveLength(1);
   });

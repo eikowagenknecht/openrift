@@ -20,17 +20,8 @@ import {
 } from "./share-image-core.js";
 
 /**
- * Unranked cards never reach this renderer — the board is the artifact, and a
- * trailing tray of everything the creator hasn't got to yet would dominate it.
- * Empty rows *are* drawn, because a deliberately empty D tier is a statement
- * about the set.
- *
- * The vertical canvas is a second composition, not a resize: landscape divides
- * its height evenly across the rows, which on a canvas three times as tall
- * would leave each row mostly empty around a width-capped tile. Vertical sizes
- * rows to their content and lets a crowded row wrap, so the extra height buys
- * bigger cards. Landscape's geometry is deliberately left alone — it is what
- * every published og:image already looks like.
+ * Unranked cards never reach this renderer; empty rows are still drawn.
+ * The vertical canvas rows size to their wrapped content, not an even split.
  */
 
 const PAD = 24;
@@ -42,25 +33,15 @@ const FOOTER_H = 26;
 
 const ROW_GAP = 8;
 const ROW_PAD = 5;
-/** Floor on tile height, so a hopeless board still renders something. */
 const MIN_TILE_H = 12;
-/** Fits three characters at the largest row height. */
 const LABEL_W = 58;
 
-/** Longest title kept before eliding, so it never collides with the right cluster. */
 const TITLE_MAX_CHARS = 46;
 
-/** Named because the baseline corrections are derived from the gaps between
- * these sizes, so a size change must reach both places. */
 const TITLE_SIZE = 34;
 const BYLINE_SIZE = 22;
 const META_SIZE = 20;
 
-/**
- * Everything that differs between the two compositions lives here rather than
- * being branched on at each use, so a vertical tweak cannot silently move the
- * landscape og:image.
- */
 interface TierCanvas {
   width: number;
   height: number;
@@ -70,15 +51,8 @@ interface TierCanvas {
   bylineSize: number;
   metaSize: number;
   titleMaxChars: number;
-  /** Reserved height for the title area (one row landscape, two lines vertical). */
   titleH: number;
-  /**
-   * The QR sits in the title area rather than the footer: hemmed in by the
-   * footer's height it was too small to scan once a chat client renders the
-   * image at a few hundred pixels.
-   */
   headerQr: number;
-  /** Lines of tiles a single row may wrap onto before the "+N" chip takes over. */
   maxLines: number;
 }
 
@@ -99,13 +73,10 @@ const VERTICAL: TierCanvas = {
   ...SHARE_IMAGE_CANVAS.vertical,
   pad: 28,
   labelW: 88,
-  // A story is read at arm's length on a phone, where the landscape type sizes
-  // would be a third of the frame's width.
   titleSize: 46,
   bylineSize: 28,
   metaSize: 26,
   titleMaxChars: 30,
-  // Title line, then the byline and count on a second line beneath it.
   titleH: 92,
   headerQr: 132,
   maxLines: 3,
@@ -121,7 +92,6 @@ export function truncateTierListTitle(title: string, max = TITLE_MAX_CHARS): str
 
 export interface TierListImageEntry {
   cardId: string;
-  /** Printing the creator pinned for the tile; null takes the card's default. */
   printingId: string | null;
 }
 
@@ -133,7 +103,6 @@ export interface TierListImageCard {
 export interface TierListImageRow {
   label: string;
   cards: readonly TierListImageCard[];
-  /** The grey "considered and cut" row, drawn off the ranking ramp. */
   unranked?: boolean;
 }
 
@@ -145,24 +114,15 @@ export interface TierListImageInput {
   shareUrl?: string;
 }
 
-/**
- * One tile size for the whole board, so a card in S is exactly as large as a
- * card in D and the rows read as one ladder.
- */
+/** One tile size for the whole board: a card in S is exactly as large as a card in D. */
 interface BoardMetrics {
   rowH: number;
   tileH: number;
   tileW: number;
-  /** Tiles that fit one row at this size; the rest collapse into a "+N" chip. */
   maxTilesPerRow: number;
 }
 
-/**
- * Landscape only: rows are a fixed share of the height whether or not their
- * tiles fill it, which is right where height is the binding constraint. Both
- * caps are global rather than per row — a uniform tile is what makes the
- * ranking legible. See `measureWrappedBoard` for the vertical canvas.
- */
+/** Landscape only: caps are global, not per row. See `measureWrappedBoard` for vertical. */
 export function measureBoard(
   rowCount: number,
   cardsInFullestRow: number,
@@ -173,8 +133,6 @@ export function measureBoard(
   const rowH = Math.floor((areaH - Math.max(0, rowCount - 1) * ROW_GAP) / Math.max(1, rowCount));
   const heightCap = rowH - 2 * ROW_PAD;
   const tilesAreaW = areaW - labelW - ROW_PAD;
-  // Width cap only bites when a row genuinely overflows; a board whose rows all
-  // fit keeps the taller tiles the height allows.
   const widthCap =
     cardsInFullestRow > 0
       ? (tilesAreaW - (cardsInFullestRow - 1) * TILE_GAP) / cardsInFullestRow / CARD_ASPECT
@@ -185,18 +143,12 @@ export function measureBoard(
   return { rowH, tileH, tileW, maxTilesPerRow };
 }
 
-/**
- * Rows may differ in height (a crowded row wraps onto more lines), but the
- * tile size is still global, so a card in S is the same size as a card in D.
- */
+/** Tile size is global across rows even though row height varies with wrap. */
 export interface WrappedBoardMetrics {
   tileH: number;
   tileW: number;
-  /** Tiles that fit one line at this size. */
   tilesPerLine: number;
-  /** Lines each row wraps onto, index-aligned with the board's rows. */
   linesPerRow: number[];
-  /** Each row's total height, index-aligned with the board's rows. */
   rowHeights: number[];
 }
 
@@ -221,11 +173,9 @@ function wrapAtTileHeight(
 }
 
 /**
- * Picks the largest tile at which every row's wrapped height still fits the
- * area. Total height rises monotonically with tile height (a bigger tile fits
- * fewer per line, so rows wrap onto more lines, never fewer), which is what
- * makes the search a binary one. If even the smallest tile overflows, the wrap
- * allowance is spent one line at a time until the board fits.
+ * Total height rises monotonically with tile height, so binary search finds
+ * the largest fit; if the smallest tile still overflows, the wrap allowance
+ * is spent one line at a time.
  */
 export function measureWrappedBoard(
   cardCounts: readonly number[],
@@ -243,7 +193,6 @@ export function measureWrappedBoard(
     let low = MIN_TILE_H;
     let high = Math.max(MIN_TILE_H, Math.floor(Math.min(areaH, tilesAreaW / CARD_ASPECT)));
     if (wrapAtTileHeight(cardCounts, tilesAreaW, low, lines).totalH > areaH) {
-      // Even the floor overflows at this allowance; try one line fewer.
       continue;
     }
     while (low < high) {
@@ -257,8 +206,7 @@ export function measureWrappedBoard(
     return { tileH: low, ...wrapAtTileHeight(cardCounts, tilesAreaW, low, lines).metrics };
   }
 
-  // More rows than the area can hold even as single lines of minimum tiles. The
-  // board overflows its box and clips, which still reads better than no board.
+  // Falls back to overflowing and clipping when single-line minimum tiles still don't fit.
   return {
     tileH: MIN_TILE_H,
     ...wrapAtTileHeight(cardCounts, tilesAreaW, MIN_TILE_H, 1).metrics,
@@ -285,26 +233,17 @@ function overflowChip(hidden: number, tileW: number, tileH: number): Element {
   );
 }
 
-/**
- * A creator may rename rows ("Broken", "Trap"), and satori has no text
- * overflow — an over-long label would push the tiles off the row.
- */
+/** satori has no text overflow; an over-long label would push tiles off the row. */
 export function fitRowLabel(label: string, rowH: number): string {
-  // Roughly two characters per 24px of row height, floored at three so a short
-  // board never shows a bare initial where the chip has room for more.
   const max = Math.max(3, Math.round((rowH / 24) * 2));
   return label.length > max ? label.slice(0, max) : label;
 }
 
-/** Average glyph advance as a fraction of the font size, for bold Hanken Grotesk. */
 const BOLD_CHAR_WIDTH_RATIO = 0.58;
 
 /**
- * Measured against the chip's *width*: the vertical board's rows are several
- * times taller than landscape's while the chip is only slightly wider, so
- * `fitRowLabel`'s height heuristic would allow a label many times the chip's
- * width. Landscape keeps that heuristic — it is what its published og:images
- * already render.
+ * Measured against the chip's width: the vertical board's rows are much
+ * taller than wide, so `fitRowLabel`'s height heuristic doesn't apply.
  */
 export function fitRowLabelToChip(label: string, chipW: number, fontSize: number): string {
   const max = Math.max(1, Math.floor(chipW / (fontSize * BOLD_CHAR_WIDTH_RATIO)));
@@ -319,8 +258,7 @@ function boardRow(
 ): Element {
   const shown = row.cards.slice(0, metrics.maxTilesPerRow);
   const hidden = row.cards.length - shown.length;
-  // The chip stands in for the last visible card, so drop one tile to make room
-  // rather than letting the row overflow its width.
+  // Chip replaces the last visible card so the row doesn't overflow its width.
   const visible = hidden > 0 ? shown.slice(0, -1) : shown;
   const hiddenTotal = row.cards.length - visible.length;
 
@@ -411,11 +349,7 @@ function wrappedBoardRow(
     fitRowLabelToChip(row.label, labelW, labelSize),
   );
 
-  // Lines are cut explicitly rather than left to `flex-wrap`, so the cards
-  // spread evenly across them: wrapping a seven-card row at the line's capacity
-  // gives six tiles and a lone straggler, where an even cut gives four and
-  // three. Balanced lines never exceed the capacity the measurement solved for,
-  // because that capacity is what set the line count in the first place.
+  // Lines are cut explicitly, not left to `flex-wrap`, so cards split evenly (7 cards: 4+3, not 6+1).
   const perLine = Math.max(1, Math.ceil(visible.length / lines));
   const tileLines: Element[] = [];
   for (let start = 0; start < visible.length; start += perLine) {
@@ -447,9 +381,6 @@ function wrappedBoardRow(
     {
       display: "flex",
       flexDirection: "column",
-      // Top-aligned rather than centred: a row that wraps onto fewer lines than
-      // its neighbours should start its tiles at the same offset from the row's
-      // top edge, so the board still reads as a ladder.
       justifyContent: "flex-start",
       flexGrow: 1,
       height: rowH,
@@ -486,8 +417,6 @@ export async function buildTierListImageRows(
   if (entries.length === 0) {
     return tiers.map((tier) => ({ label: tier.label, cards: [], unranked: tier.unranked }));
   }
-  // The same card cannot repeat across the board, so one key per entry is
-  // already the deduplicated set.
   const uniqueCardIds = [...new Set(entries.map((entry) => entry.cardId))];
   const [cardMetas, printingMetas] = await Promise.all([
     repos.catalog.cardsByIds(uniqueCardIds),
@@ -508,8 +437,7 @@ export async function buildTierListImageRows(
     unranked: tier.unranked,
     cards: [...tier.cards].flatMap((entry) => {
       const meta = metaById.get(entry.cardId);
-      // A card deleted from the catalogue since the list was saved simply drops
-      // out of the image rather than rendering as a blank tile.
+      // A card deleted since the tier list was saved is dropped from the image.
       return meta
         ? [
             {
@@ -531,11 +459,8 @@ function rankedLabel(rankedCount: number): string {
 }
 
 /**
- * Title and byline share a baseline inside their own left group; the count is
- * a separate cluster. Baseline-aligning the whole row instead would put the
- * count's baseline on the 34px title's, and the flexible spacer between them
- * has no text baseline at all to align to. Type roles match the deck and list
- * images: gold marks who made it, muted carries the incidental metadata.
+ * Title and byline share a baseline in their own group; the count is a
+ * separate cluster since the spacer between them has no baseline to align against.
  */
 function landscapeTitle(
   input: TierListImageInput,
@@ -600,11 +525,6 @@ function landscapeTitle(
   );
 }
 
-/**
- * Stacked rather than one row: the canvas is narrower than landscape while the
- * type is larger, so all three on one line would leave the title a dozen
- * characters.
- */
 function verticalTitle(
   input: TierListImageInput,
   canvas: TierCanvas,
@@ -660,20 +580,14 @@ function verticalTitle(
           fontSize: canvas.metaSize,
           lineHeight: 1,
           color: COLORS.muted,
-          // Both runs pin lineHeight 1 and the row is centre-aligned rather than
-          // bottom-aligned, so the two sit on their own centres and the baseline
-          // correction that the landscape row needs does not apply here.
         },
+        // Row is centre-aligned, not bottom-aligned, so this needs no baselineNudge.
         rankedLabel(rankedCount),
       ),
     ),
   );
 }
 
-/**
- * The type block keeps its own height and centres against the mark, so growing
- * the area for the QR does not drag the title onto the area's bottom edge.
- */
 function titleArea(typeBlock: Element, qrUri: string | null, canvas: TierCanvas): Element {
   return element(
     "div",
@@ -771,9 +685,6 @@ export async function renderTierListImage(
       flexDirection: "column",
       height: boardH,
       gap: ROW_GAP,
-      // Wrapped rows are content-sized, so they rarely add up to the area
-      // exactly; the few leftover pixels split above and below rather than
-      // pooling under the last row.
       ...(wrapped ? { justifyContent: "center" } : {}),
     },
     ...rows.map((row, index) =>

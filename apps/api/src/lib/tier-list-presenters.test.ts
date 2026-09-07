@@ -6,7 +6,6 @@ import { toPublicTierList, toTierList, toTierListSummary } from "./tier-list-pre
 const CARD = (n: number): string => `c0000000-0000-4000-a000-00000000000${n}`;
 const PRINTING = (n: number): string => `d0000000-0000-4000-a000-00000000000${n}`;
 
-/** @returns Entries for `cardIds`, all following the default printing. */
 const entries = (cardIds: string[]) => cardIds.map((cardId) => ({ cardId, printingId: null }));
 
 function makeRow(overrides: Partial<TierList> = {}): TierList {
@@ -87,8 +86,6 @@ describe("toTierListSummary", () => {
   });
 
   it("skips an empty row but keeps the board position of the ones it sends", () => {
-    // The tier colour is derived from the board index, so a preview that
-    // renumbered its rows would paint A in S's colour.
     const summary = toTierListSummary(
       makeRow({
         tiers: [

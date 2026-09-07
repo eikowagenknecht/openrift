@@ -5,14 +5,11 @@ import { implement } from "@orpc/server";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
-// Cap the scatter at desktop's full deck (36 cards) — mobile uses fewer.
 const THUMBNAIL_SAMPLE_SIZE = 36;
 
-// What the promos vignette renders: one channel section of two printings.
 const PROMO_SECTION_COUNT = 1;
 const PROMO_PRINTINGS_PER_SECTION = 2;
 
-// What the tier-list vignette's board and pool hold between them.
 const LEGEND_SAMPLE_SIZE = 10;
 
 const os = implement(landingSummaryContract).$context<ApiContext>().use(requireUser);

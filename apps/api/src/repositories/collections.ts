@@ -170,10 +170,6 @@ export function collectionsRepo(db: Kysely<Database>) {
       return db.insertInto("collections").values(values).returningAll().executeTakeFirstOrThrow();
     },
 
-    /**
-     * The next `sort_order` for a new personal collection, so it lands at the
-     * bottom of the user's list instead of stacking onto position 0.
-     */
     async nextPersonalSortOrder(userId: string): Promise<number> {
       const row = await db
         .selectFrom("collections")

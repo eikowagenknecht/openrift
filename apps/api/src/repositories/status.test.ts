@@ -6,7 +6,6 @@ import { statusRepo } from "./status.js";
 
 const captured = createRecordingDb();
 
-/** @returns Every statement recorded so far, whitespace collapsed. */
 function statements(): string[] {
   return captured.statements.map((s) => s.sql.replaceAll(/\s+/gu, " "));
 }
@@ -17,9 +16,6 @@ describe("statusRepo.getPricingStats", () => {
   });
 
   it("counts prices in a query that never joins the variants table", async () => {
-    // Regression: variants and prices both hang off a product, so counting
-    // them in one join multiplied each product's price rows by its variant
-    // count (dev database: 519354 reported cardmarket price rows vs 270817).
     await statusRepo(captured.db).getPricingStats();
 
     const [products, prices] = statements();
@@ -31,9 +27,6 @@ describe("statusRepo.getPricingStats", () => {
   });
 
   it("counts every price row, not the distinct products behind them", async () => {
-    // `marketplace_product_prices` is keyed (marketplace_product_id,
-    // recorded_at), so the row count is the whole point — collapsing it to
-    // distinct product ids would report the product count instead.
     await statusRepo(captured.db).getPricingStats();
 
     const [, prices] = statements();

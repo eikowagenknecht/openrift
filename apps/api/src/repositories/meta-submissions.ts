@@ -52,14 +52,8 @@ export interface MetaEventCorrectionRow {
 }
 
 /**
- * The outcome ledger for user decklist submissions to the meta archive,
- * shaped like `card_submissions`.
- *
- * Separate from the overlays because not every submission has one: an event
- * correction is a set of field edits against a live event and writes no
- * overlay at all. It is also what the contributor reads, so it snapshots the
- * event name rather than joining for it. Provider mirrors write nothing here,
- * those sources being the maintainer's own tooling.
+ * The outcome ledger for user decklist submissions to the meta archive, shaped like `card_submissions`.
+ * An event correction writes no overlay row; the event name is snapshotted, not joined.
  */
 export function metaSubmissionsRepo(db: Kysely<Database>) {
   return {
@@ -77,10 +71,8 @@ export function metaSubmissionsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * One contributor's submissions, newest first, keyset-paginated on the
-     * `(user_id, created_at DESC, id DESC)` index. Always scoped by `userId`
-     * here rather than at the call site. Returns up to `limit + 1` rows, so
-     * the caller can detect a next page.
+     * Newest first, keyset-paginated on `(user_id, created_at DESC, id DESC)`.
+     * Returns up to `limit + 1` rows so the caller can detect a next page.
      */
     listByUser(
       userId: string,
@@ -113,9 +105,7 @@ export function metaSubmissionsRepo(db: Kysely<Database>) {
      * Every unresolved correction to an event's own facts, oldest first, each
      * beside the event as it stands today.
      *
-     * A left join rather than an inner one: deleting an event does not delete
-     * the correction that was sent about it, and a row with nothing to compare
-     * against is still one the reviewer has to close.
+     * Left join: deleting an event must not delete the correction row.
      */
     async listPendingEventCorrections(limit: number): Promise<MetaEventCorrectionRow[]> {
       const rows = await db
@@ -234,19 +224,9 @@ export function metaSubmissionsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * The two writes an accepted contribution owes, in one transaction: the
-     * public credit and the ledger's outcome.
-     *
-     * They live together because they are one fact seen from two sides — the
-     * event page's "contributed by" line and the contributor's own "accepted"
-     * row — and a crash between them would leave a person credited for
-     * something their submission still calls pending, or the reverse. The
-     * credit insert is idempotent, so re-accepting a corrected list is safe.
-     *
-     * Reaching `meta_credits` from here rather than through `metaRepo` is
-     * deliberate: the atomicity is the point, and the two repos share the
-     * connection anyway. `submissionId` is null when the contribution has no
-     * ledger row.
+     * Writes the credit and the submission's outcome in one transaction: a
+     * crash between them must not leave one without the other.
+     * `submissionId` is null when the contribution has no ledger row.
      */
     async recordAcceptance(values: {
       submissionId: string | null;
@@ -297,8 +277,8 @@ export function metaSubmissionsRepo(db: Kysely<Database>) {
 
     /**
      * How many of a user's submissions are still awaiting an outcome, for the
-     * per-user cap. Counted on the ledger rather than on the overlays, which is
-     * the one table every submission kind writes to, corrections included.
+     * per-user cap. Counts the ledger, not overlays: corrections write no
+     * overlay row.
      */
     async countPendingByUser(userId: string): Promise<number> {
       const row = await db

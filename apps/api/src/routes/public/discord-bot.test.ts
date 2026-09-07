@@ -18,9 +18,6 @@ const mockMatchesRepo = {
 
 const SECRET = "test-bot-secret";
 
-// Mount like production (single catch-all + buildApiContext) so the
-// `context.reqHeader` Bearer-secret auth and the native error envelope are
-// exercised end to end.
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("repos", {
@@ -32,7 +29,6 @@ app.use("*", async (c, next) => {
 });
 registerRouterForTest(app, discordBotRouter);
 
-// Same mount, but with the secret unset — the feature-off configuration.
 const appWithoutSecret = new Hono<{ Variables: Variables }>();
 appWithoutSecret.use("*", async (c, next) => {
   c.set("repos", {

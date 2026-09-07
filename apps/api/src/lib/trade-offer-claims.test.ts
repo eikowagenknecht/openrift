@@ -53,8 +53,6 @@ describe("claimCopiesForOffers", () => {
   });
 
   it("allocates each offer within its own group", () => {
-    // The giver shares different copies with each group, so neither offer eats
-    // the other's supply.
     const { claimed, unfillable } = claimCopiesForOffers(
       [offer("t-1", "g-a"), offer("t-2", "g-b")],
       new Map([

@@ -12,14 +12,6 @@ import type { MetaEventSourceRow } from "../repositories/meta.js";
 import { rankPlayerMatches } from "./meta-match-suggestions.js";
 import { promoteMetaEvent, sourceStandings } from "./meta-promote.js";
 
-/**
- * The review that turns a second mirror's citation from cited-only to read
- * (ADR-014, "Two mirrors on one event"): per standing the mirror publishes,
- * the admin names the live row it is, or that it is nobody the event already
- * lists. Nothing here decides on its own; ranking is `rankPlayerMatches`, and
- * every write is a human's confirmed pick.
- */
-
 const MIRROR_PROVIDERS: ReadonlySet<string> = new Set(META_CATALOG_PROVIDERS);
 
 /** The event's mirror citations, in the order promotion reads them. */
@@ -34,10 +26,6 @@ function mirrorCitations(sources: readonly MetaEventSourceRow[]) {
     .toSorted((a, b) => a.priority - b.priority || a.createdAt.getTime() - b.createdAt.getTime());
 }
 
-/**
- * The review for one event: every standings row its unread mirrors publish,
- * ranked against the live field. Empty once every linked mirror is read.
- */
 export async function metaCrossSourceReview(
   repos: Repos,
   metaEventId: string,
@@ -112,10 +100,6 @@ export interface MetaCrossSourceDecision {
   metaEventPlayerId: string | null;
 }
 
-/**
- * Records decisions: this mirror's standing is that live row, or is nobody.
- * The whole batch is one transaction; a refused decision settles nothing.
- */
 export async function linkMetaCrossSourcePlayers(
   repos: Repos,
   metaEventId: string,
@@ -178,10 +162,6 @@ export async function linkMetaCrossSourcePlayers(
   await promoteMetaEvent(repos, metaEventId);
 }
 
-/**
- * Takes one decision back, returning the standing to the unreviewed pile.
- * Refused while the source is read: stop reading it first.
- */
 export async function unlinkMetaCrossSourcePlayer(
   repos: Repos,
   metaEventId: string,
@@ -202,10 +182,6 @@ export async function unlinkMetaCrossSourcePlayer(
   await promoteMetaEvent(repos, metaEventId);
 }
 
-/**
- * Turns a cited-but-unread mirror on, or back off. Turning it on is refused
- * while any of its standings is undecided.
- */
 export async function setMetaEventSourceContributes(
   repos: Repos,
   sourceId: string,

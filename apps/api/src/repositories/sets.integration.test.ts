@@ -12,7 +12,6 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
   const createdSetIds: string[] = [];
 
   afterAll(async () => {
-    // Delete printings referencing our test sets first
     if (createdSetIds.length > 0) {
       await db.deleteFrom("printings").where("setId", "in", createdSetIds).execute();
       // `set_releases` cascades from `sets`, but delete explicitly so a failed
@@ -74,8 +73,7 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
     expect(id).not.toBeNull();
     createdSetIds.push(id!);
 
-    // The column defaults to 'main', so a stored supplemental proves the
-    // chosen type survives the insert rather than the default winning.
+    // The column defaults to 'main'.
     const sets = await repo.listAll();
     expect(sets.find((s) => s.id === id)!.setType).toBe("supplemental");
   });
@@ -129,8 +127,6 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
       KR: { releasedAt: null, precision: null },
     });
 
-    // A language dropped from the map stops being announced; a language kept
-    // is updated in place.
     await repo.replaceReleases(id, {
       EN: { releasedAt: "2026-01-16", precision: "day" },
       FR: { releasedAt: "2026-04-01", precision: "quarter" },
@@ -199,9 +195,6 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
     const sets = await repo.listAll();
     const a = sets.find((s) => s.id === idA);
     const b = sets.find((s) => s.id === idB);
-    // Positions are 0-based, matching reorderBySortOrder and every other
-    // taxonomy. Sets used to write i + 1 before they moved onto the shared
-    // helper; nothing reads sort_order except as an ORDER BY term.
     expect(b!.sortOrder).toBe(0);
     expect(a!.sortOrder).toBe(1);
   });
@@ -228,10 +221,6 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
     expect(after.length).toBe(beforeCount);
   });
 
-  // Regression: upsert used to SELECT the slug and then INSERT in a second
-  // statement, so concurrent ingests of the same new set both saw it missing
-  // and every loser threw on sets_slug_key. One INSERT ... ON CONFLICT DO
-  // NOTHING absorbs the race.
   it("upsert tolerates concurrent inserts of the same new slug", async () => {
     const slug = "test-upsert-race-42";
 

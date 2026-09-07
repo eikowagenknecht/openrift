@@ -113,9 +113,7 @@ interface PostChangelogParams {
   readFile?: (path: string) => Promise<string>;
 }
 
-// The watermark only advances after every chunk for a date is posted, so a
-// crash mid-date re-posts the whole date on the next run rather than
-// skipping the rest.
+// The watermark advances only after every chunk for a date is posted: a crash mid-date re-posts the whole date.
 export async function postChangelogToDiscord(
   params: PostChangelogParams,
 ): Promise<ChangelogJobResult> {

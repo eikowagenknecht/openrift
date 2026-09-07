@@ -168,13 +168,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     return { group, wishEntryId: wishEntry.id, tradeListId: tradeList.id, copyIds };
   }
 
-  /**
-   * Like {@link setupMatch}, but the giver offers the copies via a *dynamic
-   * trade rule* (keep 0 per card) instead of manual `copy` entries — the
-   * reservable-supply count must still see them. The copies live in a fresh
-   * collection scoped by the rule, so this suite's shared-DB accumulation
-   * can't leak extra copies into the match.
-   */
   async function setupRuleMatch(copyCount: number, wishQuantity: number = copyCount) {
     const slug = await uniqueSlug();
     const group = await groupsRepo.createWithOwner(
@@ -311,9 +304,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
   }
 
   /**
-   * Counts PRINTING_1 copies the receiver owns. The suite shares one DB with
-   * afterAll-only cleanup, so copies accumulate across tests — assert deltas
-   * around an apply rather than absolute totals.
+   * Copies accumulate across tests in this suite's shared DB. Assert deltas, not absolute totals.
    */
   async function countReceiverCopiesOfP1(): Promise<number> {
     const rows = await db
@@ -386,9 +377,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
   it("auto-cancels a pending request whose underlying copies vanished before acceptance", async () => {
     const { group, copyIds } = await setupMatch(1);
     const trade = await request(group, 1);
-    // The giver removes the underlying copy from the group before acceptance
-    // (fk cascade also drops its tradelist entry). The basis is gone, so accept
-    // resolves the trade to cancelled (system actor) rather than 409-ing.
     await db.deleteFrom("copies").where("id", "=", copyIds[0]).execute();
     const result = await acceptTrade(transact, trade.id, GIVER_ID);
     expect(result.status).toBe("cancelled");
@@ -399,11 +387,8 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
 
   it("offers and accepts a trade whose supply is a dynamic trade rule, not manual copies (ADR-034)", async () => {
     const { group } = await setupRuleMatch(1);
-    // Sanity: the rule-derived copy shows as available supply in the match view.
     expect(await availableForReceiver(group.id)).toBe(1);
 
-    // The giver offers their single rule-offered copy: the supply count must
-    // evaluate the rule, not just manual `copy` list entries.
     const trade = await createTrade(repos, {
       callerUserId: GIVER_ID,
       groupSlug: group.slug,
@@ -493,14 +478,10 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
 
     await acceptTrade(transact, tradeForReceiver.id, GIVER_ID);
 
-    // The second request can no longer be filled, so the accept closes it in
-    // the same transaction (system actor). Otherwise it would sit pending for
-    // the whole seven-day TTL, silently 409-ing every giver accept.
     const outsiderRow = await repos.cardTrades.getById(tradeForOutsider.id);
     expect(outsiderRow?.status).toBe("cancelled");
     expect(outsiderRow?.lastActorUserId).toBeNull();
 
-    // And accepting it now reports the closed state, not a bare supply error.
     await expect(acceptTrade(transact, tradeForOutsider.id, GIVER_ID)).rejects.toMatchObject({
       status: 409,
       message: "This trade is no longer pending",
@@ -634,8 +615,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
   });
 
   it("one side settling leaves the trade reserved; the second one completes it", async () => {
-    // Nobody asserts completion. It is derived from both halves being settled,
-    // which is what makes a premature "trade done" inexpressible.
     const { group } = await setupMatch(1);
     const trade = await request(group, 1);
     await acceptTrade(transact, trade.id, GIVER_ID);
@@ -695,7 +674,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     expect(await traded(RECEIVER_ID)).toEqual(new Map([[GIVER_ID, 2]]));
     expect(await traded(GIVER_ID)).toEqual(new Map());
 
-    // The second settle completes the trade, so it now counts for both.
     await applyTradeSync(transact, trade.id, GIVER_ID);
     expect(await traded(RECEIVER_ID)).toEqual(new Map([[GIVER_ID, 2]]));
     expect(await traded(GIVER_ID)).toEqual(new Map([[RECEIVER_ID, 2]]));
@@ -708,8 +686,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     await applyTradeSync(transact, trade.id, RECEIVER_ID);
     await applyTradeSync(transact, trade.id, GIVER_ID);
 
-    // A bystander in the same group has traded nothing, however busy the group
-    // is. The badge used to be group-wide and credited them anyway.
     expect(
       await repos.cardTrades.countTradedCardsWithViewerInGroup(group.id, BYSTANDER_ID),
     ).toEqual(new Map());
@@ -926,8 +902,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     const { group } = await setupMatch(1);
     const trade = await request(group, 1);
 
-    // The giver is the non-initiator: they must accept or decline, so it counts
-    // — and it counts as a response owed, not a swap to confirm.
     const giverCounts = await repos.cardTrades.actionNeededCountsForUser(GIVER_ID);
     expect(giverCounts.find((entry) => entry.groupId === group.id)).toMatchObject({
       count: 1,
@@ -935,12 +909,9 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       settleCount: 0,
     });
 
-    // The receiver initiated, so their only action is "cancel" — not counted.
     const receiverCounts = await repos.cardTrades.actionNeededCountsForUser(RECEIVER_ID);
     expect(receiverCounts.find((entry) => entry.groupId === group.id)).toBeUndefined();
 
-    // Accepting makes it reserved, where the giver's action becomes "settle" —
-    // still counted, but in the swap half rather than the response half.
     await acceptTrade(transact, trade.id, GIVER_ID);
     const giverAfterAccept = await repos.cardTrades.actionNeededCountsForUser(GIVER_ID);
     expect(giverAfterAccept.find((entry) => entry.groupId === group.id)).toMatchObject({
@@ -1089,8 +1060,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
   it("setTradeQuantity resizes an offer without counting it against itself", async () => {
     const { group } = await setupMatch(3);
     const offered = await offer(group, RECEIVER_ID, 2);
-    // The 2 copies this offer already holds are its own, so raising it to the
-    // giver's full stack of 3 is allowed.
     const resized = await setTradeQuantity(transact, offered.id, GIVER_ID, 3);
     expect(resized.quantity).toBe(3);
     await cancelTrade(transact, offered.id, GIVER_ID);
@@ -1099,17 +1068,10 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
   it("accepting an offer is not blocked by the supply that offer holds", async () => {
     const { group } = await setupMatch(1);
     const offered = await offer(group, RECEIVER_ID, 1);
-    // Accept pins copies rather than re-checking committed offers, so the
-    // trade's own commitment can't block the reservation it becomes.
     const reserved = await acceptTrade(transact, offered.id, RECEIVER_ID);
     expect(reserved.status).toBe("reserved");
     expect(await repos.cardTrades.listReservedCopyIds(offered.id)).toHaveLength(1);
   });
-
-  // Whenever the giver's supply drops below a pending trade's quantity, that
-  // trade is auto-cancelled in the same transaction as the drop. Without this
-  // it would sit pending for the whole seven-day TTL, telling the giver it
-  // needed action and 409-ing every time they pressed accept.
 
   it("disposing the copies behind a pending request closes it", async () => {
     const { group, copyIds } = await setupMatch(1);
@@ -1316,10 +1278,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     });
   });
 
-  // The candidate set here is every free copy the giver owns of the printing,
-  // and this suite's copies accumulate across tests, so these assert membership
-  // and per-copy outcomes rather than candidate counts.
-
   async function copyExists(copyId: string): Promise<boolean> {
     const row = await db
       .selectFrom("copies")
@@ -1338,8 +1296,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     const options = await listTradeCopyOptions(repos, trade.id, GIVER_ID);
 
     expect(options.copies[0]).toMatchObject({ id: copyIds[0], pinned: true });
-    // The copy that physically travelled can be one the group never saw, which
-    // is the case the accept picker's group-scoped supply cannot cover.
     const alternatives = options.copies.filter((row) => !row.pinned).map((row) => row.id);
     expect(alternatives).toContain(unlisted);
   });
@@ -1354,8 +1310,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
 
     expect(await copyExists(unlisted)).toBe(false);
     expect(await copyExists(copyIds[0])).toBe(true);
-    // The pins are released either way, so the untouched copy goes back into
-    // the group's supply instead of staying hidden.
     expect(await repos.cardTrades.listReservedCopyIds(trade.id)).toEqual([]);
     const row = await repos.cardTrades.getById(trade.id);
     expect(row?.giverSyncAppliedAt).not.toBeNull();
@@ -1563,7 +1517,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       const before = await countReceiverCopiesOfP1();
       const settled = await applyTradeSync(transact, trade.id, RECEIVER_ID, { quantity: 1 });
 
-      // Only the card that actually arrived is claimed.
       expect(await countReceiverCopiesOfP1()).toBe(before + 1);
       expect(settled.quantity).toBe(1);
       expect(settled.id).not.toBe(trade.id);
@@ -1576,8 +1529,6 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
         giverSyncAppliedAt: null,
       });
 
-      // Both halves point at the same wish entry, so their decrements sum to
-      // the original's quantity rather than double-counting it.
       const wish = await db
         .selectFrom("listEntries")
         .select("quantity")

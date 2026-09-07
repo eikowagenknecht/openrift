@@ -12,11 +12,6 @@ import { createMarketplaceConfigs } from "./marketplace-configs.js";
 
 const os = implement(adminUnifiedMappingsContract).$context<ApiContext>().use(requireAuthedUser);
 
-/**
- * Admin unified marketplace-mappings. `save` (query + body) and `unmap` (query)
- * use detailed input structure. Any thrown `AppError` is mapped by the
- * handler's {@link appErrorInterceptor}.
- */
 export const adminUnifiedMappingsRouter = {
   list: os.list.handler(async ({ context }) => {
     const repos = context.repos;

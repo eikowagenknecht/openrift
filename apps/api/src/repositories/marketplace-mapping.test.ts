@@ -191,9 +191,8 @@ describe("marketplaceMappingRepo (generated SQL)", () => {
   });
 
   it("upsertProductVariants updates on conflict so RETURNING covers existing products", async () => {
-    // The SKU unique is NULLS NOT DISTINCT, so a NULL language collapses onto
-    // the existing row rather than inserting a second one. `doNothing` would
-    // leave that row out of RETURNING and the variant would have no id to bind.
+    // The SKU unique is NULLS NOT DISTINCT: a NULL language collapses onto the
+    // existing row. `doNothing` would leave it out of RETURNING, with no id to bind.
     captured.setRows([
       {
         id: "mp-1",

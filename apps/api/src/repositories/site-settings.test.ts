@@ -38,7 +38,6 @@ describe("siteSettingsRepo", () => {
   });
 
   it("getBool treats an unrecognised value as on", async () => {
-    // Only "false" disables, so a hand-typed value can't silently stop a send.
     const db = createMockDb([{ value: "off" }]);
     const repo = siteSettingsRepo(db);
     expect(await repo.getBool("trade-match-digest")).toBe(true);

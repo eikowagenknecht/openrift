@@ -813,11 +813,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       return states;
     },
 
-    /**
-     * The values a candidate proposed, in the shape the submission diff
-     * compares. Read back from staging rather than kept on the ledger so the
-     * review-time comparison uses exactly what the admin is looking at.
-     */
+    // Reads current values from candidate staging, not the ledger, so the review-time comparison stays live.
     async proposalForCandidate(
       candidateCardId: string,
     ): Promise<{ card: ProposedCard; printings: ProposedPrinting[] } | null> {
@@ -872,18 +868,8 @@ export function candidateCardsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Mark all candidate cards with matching normalized names OR linked to the
-     * given card via candidate_printings → printings as checked.
-     *
-     * Returns the ids as well as the count so submission resolution knows which
-     * candidates this covers, rather than restating the match predicate in a
-     * second query where the two could drift.
-     *
-     * The ids are **every** matching candidate, not only the rows this call
-     * flipped. A candidate checked one entry at a time before its printings
-     * were done stays pending, and a later "check all" would otherwise update
-     * nothing and so resolve nothing, leaving the submission stuck. Resolution
-     * gates on the candidate being fully checked anyway, so a wider set is safe.
+     * Marks all candidate cards with matching normalized names OR linked to the given card as checked.
+     * The returned ids are every matching candidate, not only the rows this call flipped.
      */
     async checkAllCandidateCards(
       normNames: string[],

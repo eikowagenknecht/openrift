@@ -19,11 +19,7 @@ import type { Variables } from "../../types.js";
 const MAX_BODY_BYTES = 1024 * 1024;
 const PUSHES_PER_MINUTE = 60;
 
-/**
- * 60 pushes per minute per key. Keyed by the raw Authorization header: an
- * invalid key burns the unauthenticated bucket for that header value, a valid
- * one is per-key by construction.
- */
+/** Keyed by the raw Authorization header, so a valid key is rate-limited per-key. */
 const ingestRateLimit = rateLimiter<{ Variables: Variables }>({
   windowMs: 60_000,
   limit: PUSHES_PER_MINUTE,
@@ -34,11 +30,8 @@ const ingestRateLimit = rateLimiter<{ Variables: Variables }>({
 const os = implement(deckCheckIngestContract).$context<ApiContext>().use(requireUser);
 
 /**
- * oRPC implementation of the deck-check provider push (ADR-025). A public
- * procedure (no session): it authenticates off the `Authorization: Bearer <key>`
- * header (per-group API key, sha256-hashed) read via `context.reqHeader`. oRPC
- * validates the body before the handler runs, so a malformed push 400s before
- * the key is ever looked up — matching the previous validation-first ordering.
+ * Public procedure (no session): authenticates off the `Authorization: Bearer
+ * <key>` header (per-group API key, sha256-hashed), read via `context.reqHeader`.
  */
 export const deckCheckIngestRouter = {
   push: os.push.handler(async ({ input, context }): Promise<DeckCheckIngestResultResponse> => {
@@ -68,22 +61,13 @@ export const deckCheckIngestRouter = {
   }),
 };
 
-/**
- * Registers the Hono path middleware that fronts the deck-check ingest push —
- * the per-key rate limit and the 1 MB body limit. The push itself is served by
- * the single oRPC catch-all (see `app.ts`); these run before it. Registered
- * before the catch-all so an oversized or over-rate push is rejected early.
- * @returns Nothing; registers middleware on the passed app.
- */
+/** Must be registered before the oRPC catch-all so it can reject an oversized or over-rate push early. */
 export function mountDeckCheckIngestMiddleware(app: Hono<{ Variables: Variables }>): void {
   app.use("/api/v1/ingest/deck-check", ingestRateLimit);
   app.use(
     "/api/v1/ingest/deck-check",
     bodyLimit({
       maxSize: MAX_BODY_BYTES,
-      // The limit rejects before the oRPC catch-all runs, so the body is built
-      // here rather than thrown as an AppError — providers get the same
-      // envelope for the 413 as for this endpoint's other errors.
       onError: (c) => orpcErrorResponse(c, ERROR_CODES.PAYLOAD_TOO_LARGE, "Push exceeds 1 MB"),
     }),
   );

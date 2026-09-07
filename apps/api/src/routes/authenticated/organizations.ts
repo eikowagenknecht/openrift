@@ -17,10 +17,6 @@ import type { Organization } from "../../repositories/organizations.js";
 
 const os = implement(organizationsContract).$context<ApiContext>().use(requireAuthedUser);
 
-/**
- * Builds the org detail with its members and the viewer's role.
- * @returns The organization detail response.
- */
 async function buildDetail(
   repos: Repos,
   org: Organization,
@@ -37,11 +33,7 @@ async function buildDetail(
   };
 }
 
-/**
- * Authenticated organization surfaces (ADR-033): the host picker, the org page,
- * and member management. Only an owner may grant or remove an `owner`; managers
- * may manage managers; the last owner cannot be removed.
- */
+/** Only an owner may grant or remove an `owner`; the last owner cannot be removed. */
 export const organizationsRouter = {
   list: os.list.handler(async ({ context }): Promise<OrganizationListResponse> => {
     const rows = await context.repos.organizations.listForUser(context.userId);
@@ -92,14 +84,11 @@ export const organizationsRouter = {
       if (target.role === input.role) {
         return buildDetail(repos, org, context.userId);
       }
-      // Granting or revoking the owner role is owner-only.
       if ((input.role === "owner" || target.role === "owner") && membership.role !== "owner") {
         throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only an owner can change the owner role");
       }
       await context.transact(async (trxRepos) => {
-        // Re-read the target under the org lock: the snapshot above may be
-        // stale by now, and both the owner-only gate and the last-owner guard
-        // depend on the role actually being vacated.
+        // Re-checks the role under the org lock: the snapshot above may be stale.
         await trxRepos.organizations.lockForUpdate(org.id);
         const lockedTarget = await trxRepos.organizations.getMembership(org.id, input.userId);
         if (!lockedTarget || lockedTarget.role === input.role) {
@@ -108,7 +97,6 @@ export const organizationsRouter = {
         if (lockedTarget.role === "owner" && membership.role !== "owner") {
           throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only an owner can change the owner role");
         }
-        // Demoting the last remaining owner would leave the org ownerless.
         if (lockedTarget.role === "owner") {
           await assertNotLastOwner(trxRepos, org.id);
         }
@@ -131,7 +119,7 @@ export const organizationsRouter = {
         throw new AppError(403, ERROR_CODES.FORBIDDEN, "Only an owner can remove another owner");
       }
       await context.transact(async (trxRepos) => {
-        // Re-read the target under the org lock — see updateMemberRole.
+        // Re-checks the role under the org lock, as updateMemberRole does.
         await trxRepos.organizations.lockForUpdate(org.id);
         const lockedTarget = await trxRepos.organizations.getMembership(org.id, input.userId);
         if (!lockedTarget) {
@@ -145,7 +133,6 @@ export const organizationsRouter = {
               "Only an owner can remove another owner",
             );
           }
-          // Removing the last remaining owner would leave the org ownerless.
           await assertNotLastOwner(trxRepos, org.id);
         }
         await trxRepos.organizations.removeMember(org.id, input.userId);

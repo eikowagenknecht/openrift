@@ -20,7 +20,6 @@ describe.skipIf(!ctx)("friendGroupDiscordLinksRepo (integration)", () => {
   });
 
   afterAll(async () => {
-    // Links cascade with their group.
     if (createdGroupIds.length > 0) {
       await db.deleteFrom("friendGroups").where("id", "in", createdGroupIds).execute();
     }
@@ -31,9 +30,8 @@ describe.skipIf(!ctx)("friendGroupDiscordLinksRepo (integration)", () => {
     return `fgdl-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`;
   }
 
-  // Group ids are uuidv7, so their leading hex digits are the millisecond
-  // timestamp: every group created in the same ~65s window shares a prefix.
-  // Codes and guild ids must be derived from the whole id to stay unique.
+  // Group ids are uuidv7: created in the same ~65s window, they share a hex
+  // prefix, so codes/guild ids must use the whole id to stay unique.
   async function createGroup() {
     const group = await groups.createWithOwner(
       { slug: uniqueSlug(), name: "Test Group", description: null, code: null },
@@ -139,7 +137,6 @@ describe.skipIf(!ctx)("friendGroupDiscordLinksRepo (integration)", () => {
     });
     await repo.redeemCode({ code: `a-${groupA.id}`, guildId, guildName: "Old name" });
 
-    // Another group's code for the same guild: conflict, code stays unspent.
     await repo.createPendingLink({
       groupId: groupB.id,
       createdByUserId: OWNER_ID,
@@ -150,7 +147,6 @@ describe.skipIf(!ctx)("friendGroupDiscordLinksRepo (integration)", () => {
       status: "guild-taken",
     });
 
-    // Same group re-links the same guild: existing link kept, name refreshed.
     await repo.createPendingLink({
       groupId: groupA.id,
       createdByUserId: OWNER_ID,
@@ -191,11 +187,8 @@ describe.skipIf(!ctx)("friendGroupDiscordLinksRepo (integration)", () => {
     expect(await repo.findByGuildId(`guild-${groupA.id}`)).toBeUndefined();
   });
 
-  // Regression: the redeem ran as four statements on the bare db, so two
-  // concurrent /link commands could both pass the pending check and bind two
-  // guilds to a single one-time code. The FOR UPDATE lock inside the
-  // transaction serializes them: the loser re-checks the qualifier once the
-  // lock lifts, no longer matches, and reports unknown-code.
+  // The redeem locks the pending row FOR UPDATE so concurrent /link commands
+  // serialize; the loser re-checks the qualifier after the lock lifts.
   it("lets only one of two concurrent redeems consume the code", async () => {
     const group = await createGroup();
     await repo.createPendingLink({
@@ -221,17 +214,11 @@ describe.skipIf(!ctx)("friendGroupDiscordLinksRepo (integration)", () => {
     const statuses = outcomes.map((outcome) => outcome.status).toSorted();
     expect(statuses).toEqual(["linked", "unknown-code"]);
 
-    // Exactly one guild bound, and the code is gone.
     const links = await repo.listLinks(group.id);
     expect(links).toHaveLength(1);
     expect(links[0].code).toBeNull();
   });
 
-  /**
-   * Links a fresh group to a guild.
-   *
-   * @returns The linked guild id.
-   */
   async function linkedGuild(prefix: string): Promise<string> {
     const group = await createGroup();
     const guildId = `guild-${prefix}-${group.id}`;
@@ -251,7 +238,6 @@ describe.skipIf(!ctx)("friendGroupDiscordLinksRepo (integration)", () => {
     expect(await repo.setTradeChannel({ guildId, channelId: "chan-1", enabled: true })).toEqual([
       "chan-1",
     ]);
-    // Adding the same channel twice must not duplicate it.
     expect(await repo.setTradeChannel({ guildId, channelId: "chan-1", enabled: true })).toEqual([
       "chan-1",
     ]);
@@ -262,7 +248,6 @@ describe.skipIf(!ctx)("friendGroupDiscordLinksRepo (integration)", () => {
     expect(await repo.setTradeChannel({ guildId, channelId: "chan-1", enabled: false })).toEqual([
       "chan-2",
     ]);
-    // Removing one that was never there is a no-op, not an error.
     expect(await repo.setTradeChannel({ guildId, channelId: "chan-9", enabled: false })).toEqual([
       "chan-2",
     ]);

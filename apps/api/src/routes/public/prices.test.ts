@@ -22,9 +22,7 @@ const mockMarketplaceRepo = {
   ),
 };
 
-// Mount the prices router the way production does (one OpenAPIHandler behind a
-// catch-all). oRPC input validation produces the 400s for bad range / uuid /
-// missing printings. Cache-Control + `etag()` are app-level (orpc/cache-policy.ts).
+// Mounted the way production does: one OpenAPIHandler behind a catch-all.
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("repos", {
@@ -147,8 +145,6 @@ describe("GET /api/v1/prices", () => {
   });
 
   it("flags a price last seen longer ago than the threshold", async () => {
-    // The pipeline stops writing snapshots once a card's last listing goes, so
-    // this price still looks current in `prices` and only `stale` gives it away.
     mockMarketplaceRepo.latestPrices.mockResolvedValue([
       { ...dbPrice, lastSeen: "2026-03-01" },
       {
@@ -176,9 +172,6 @@ describe("GET /api/v1/prices", () => {
   });
 
   it("ages prices against the newest observation, not the wall clock", async () => {
-    // Every fixture day is far in the past. Comparing to now() would mark the
-    // whole catalogue stale; comparing to the freshest row is what the cron
-    // cadence actually means.
     mockMarketplaceRepo.latestPrices.mockResolvedValue([
       { ...dbPrice, lastSeen: "2020-01-10" },
       { ...dbPriceFoil, lastSeen: "2020-01-10" },

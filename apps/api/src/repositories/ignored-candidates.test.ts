@@ -7,7 +7,6 @@ const CARD = { provider: "test", externalId: "ext-1", createdAt: new Date() };
 const PRINTING = { provider: "test", externalId: "ext-1", finish: "normal", createdAt: new Date() };
 
 describe("ignoredCandidatesRepo", () => {
-  // ── Cards ──────────────────────────────────────────────────────────────────
   it("listIgnoredCards returns all ignored cards", async () => {
     const db = createMockDb([CARD]);
     expect(await ignoredCandidatesRepo(db).listIgnoredCards()).toEqual([CARD]);
@@ -26,7 +25,6 @@ describe("ignoredCandidatesRepo", () => {
     expect(result).toEqual({ numDeletedRows: 1n });
   });
 
-  // ── Printings ──────────────────────────────────────────────────────────────
   it("listIgnoredPrintings returns all ignored printings", async () => {
     const db = createMockDb([PRINTING]);
     expect(await ignoredCandidatesRepo(db).listIgnoredPrintings()).toEqual([PRINTING]);

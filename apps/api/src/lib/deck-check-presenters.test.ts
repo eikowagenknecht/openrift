@@ -136,7 +136,7 @@ describe("toEntrySummary", () => {
     ).toBe(true);
   });
 
-  // An editable list is not yet delivered to a judge (TR 401.3, ADR-027): its
+  // TR 401.3: an editable list is not yet delivered to a judge, so its
   // copy/progress counts stay hidden even though the row still renders.
   it("hides copy and progress counts while the list is still editable", () => {
     const editable = toEntrySummary(summary({ state: "editable" }));

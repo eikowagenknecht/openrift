@@ -3,17 +3,9 @@ import { afterAll, describe, expect, it } from "vitest";
 import { createUnauthenticatedTestContext, req } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Site Settings route
-//
-// GET /site-settings — returns web-scoped settings as a key-value map
-// Uses the shared integration database. Requires INTEGRATION_DB_URL.
-// Uses prefix STS- for entities it creates.
-// ---------------------------------------------------------------------------
-
+// Requires INTEGRATION_DB_URL. Entities it creates use the STS- prefix.
 const ctx = createUnauthenticatedTestContext();
 
-// Seed site settings so we have data to query
 if (ctx) {
   const { db } = ctx;
 
@@ -67,9 +59,6 @@ describe.skipIf(!ctx)("Site Settings route (integration)", () => {
     expect(res.headers.get("Cache-Control")).toBe("public, max-age=60, stale-while-revalidate=300");
   });
 
-  // RFC 9110: HEAD answers with the headers a GET would send and no body.
-  // oRPC matches on the declared method, so HEAD used to miss every route and
-  // fall through to the JSON-404 handler.
   it("answers HEAD with the GET's status and headers, and no body", async () => {
     const get = await app.fetch(req("GET", "/site-settings"));
     const head = await app.fetch(req("HEAD", "/site-settings"));

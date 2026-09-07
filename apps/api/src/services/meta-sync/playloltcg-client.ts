@@ -2,39 +2,23 @@ import type { Fetch } from "../../io.js";
 import { metaSyncUserAgent } from "./user-agent.js";
 
 /**
- * The HTTP half of the second source's sync. POST-JSON, one request at a time,
- * spaced and jittered.
- *
- * The source sits behind a WAF that answers a burst with an HTML 403 and keeps
- * answering it for hours afterwards. Retrying through that costs the run its
- * whole budget for nothing, so after one patient retry the client latches
- * {@link blocked}, fails every later call in the run fast, and throws
- * {@link PlayloltcgBlockedError} so the job can stand the source down until the
- * cool-down passes.
+ * The source's WAF answers a burst with an HTML 403 for hours afterwards, so
+ * after one patient retry the client latches `blocked` and fails fast.
  */
 
 /**
- * The list endpoints' safe page ceiling: bigger pages return empty.
- *
- * It is also, on the event listing, the number of rows one query can ever
- * reach however it is paged, so a full page there means the window was cut
- * short rather than exhausted.
+ * The list endpoints' safe page ceiling: bigger pages return empty. A full
+ * page on the event listing means the window was cut short, not exhausted.
  */
 export const MAX_PAGE_SIZE = 10_000;
 
-/** Minimum spacing between two request starts. */
 const REQUEST_SPACING_MS = 400;
 const REQUEST_JITTER_MS = 200;
-
-/** A transient error (5xx, dropped connection) is worth a short ladder. */
 const MAX_ATTEMPTS = 3;
 const RETRY_BASE_DELAY_MS = 1000;
-
-/** A refusal gets one patient retry, in case it was a momentary throttle. */
 const WAF_RETRY_DELAY_MS = 15_000;
 const REQUEST_TIMEOUT_MS = 30_000;
 
-/** Thrown when the WAF refused a call. The job catches it and sets a cool-down. */
 export class PlayloltcgBlockedError extends Error {
   constructor(url: string) {
     super(`playloltcg WAF blocked the request: ${url}`);
@@ -43,9 +27,8 @@ export class PlayloltcgBlockedError extends Error {
 }
 
 /**
- * Thrown when the source answered and said no: a 4xx, or its own non-zero
- * envelope code. Asking again cannot change the answer, which is what lets a
- * deck fetch record the id as refused instead of retrying it every pass.
+ * A 4xx, or a non-zero envelope code: the source answered and said no. Asking
+ * again cannot change the answer.
  */
 export class PlayloltcgRefusedError extends Error {
   constructor(message: string) {
@@ -59,20 +42,14 @@ type PlayloltcgBody = Record<string, unknown>;
 /** A list response, normalized across the source's two shapes. */
 export interface PlayloltcgList<T> {
   items: T[];
-  /**
-   * The source's own total, or null when it answered with a bare array. The
-   * page's own length is not a total, and standing one in for a missing one is
-   * what silently truncated every bare-array listing at its first page.
-   */
+  /** Null when the source answered with a bare array; not the page's own length. */
   total: number | null;
 }
 
 export interface PlayloltcgClientOptions {
   fetch: Fetch;
   baseUrl: string;
-  /** Overridden only by tests; production uses {@link metaSyncUserAgent}. */
   userAgent?: string;
-  /** Injected so tests neither wait nor jitter. */
   sleep?: (ms: number) => Promise<void>;
   random?: () => number;
   now?: () => number;
@@ -81,15 +58,12 @@ export interface PlayloltcgClientOptions {
 type PlayloltcgQuery = Record<string, string | number>;
 
 export interface PlayloltcgClient {
-  /** POST and return the unwrapped `result`, whatever its shape. */
+  /** Returns the unwrapped `result`, whatever its shape. */
   post: <T>(path: string, body: PlayloltcgBody) => Promise<T>;
-  /** POST a list endpoint and normalize `result` (array or `{list,total}`). */
+  /** Normalizes `result` (array or `{list,total}`) into a PlayloltcgList. */
   postList: <T>(path: string, body: PlayloltcgBody) => Promise<PlayloltcgList<T>>;
-  /** GET a detail endpoint (e.g. `activityShop/info`) and return the unwrapped `result`. */
   get: <T>(path: string, query?: PlayloltcgQuery) => Promise<T>;
-  /** Every request this client has made, for the job summary's honesty. */
   readonly requests: number;
-  /** True once the WAF blocked a call, so the run knows to stand down. */
   readonly blocked: boolean;
 }
 
@@ -134,11 +108,7 @@ function asList<T>(result: unknown): PlayloltcgList<T> {
   return { items, total };
 }
 
-/**
- * A single-flight, paced, WAF-aware JSON client. Sequential by construction:
- * every call awaits the previous one's spacing, so concurrent callers still
- * produce one request at a time.
- */
+/** Sequential by construction: every call awaits the previous one's spacing. */
 export function createPlayloltcgClient(options: PlayloltcgClientOptions): PlayloltcgClient {
   const baseUrl = options.baseUrl;
   const userAgent = options.userAgent ?? metaSyncUserAgent();

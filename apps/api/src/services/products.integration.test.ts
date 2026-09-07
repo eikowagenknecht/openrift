@@ -19,7 +19,6 @@ describe.skipIf(!ctx)("products snapshot service (integration)", () => {
   const createdProductIds: string[] = [];
   let slugCounter = 0;
 
-  /** @returns A slug unique to this test file run. */
   function nextSlug(): string {
     slugCounter += 1;
     return `products-itest-${slugCounter}`;
@@ -67,7 +66,7 @@ describe.skipIf(!ctx)("products snapshot service (integration)", () => {
     return { list, product };
   }
 
-  it("snapshots a printing list's entries with quantities", async () => {
+  it("snapshots a printing list's entries with quantities and writes no collection events", async () => {
     const { product } = await createProduct([
       { printingId: PRINTING_1.id, quantity: 1 },
       { printingId: PRINTING_2.id, quantity: 3 },
@@ -80,8 +79,6 @@ describe.skipIf(!ctx)("products snapshot service (integration)", () => {
     expect(byPrinting.get(PRINTING_1.id)).toBe(1);
     expect(byPrinting.get(PRINTING_2.id)).toBe(3);
 
-    // Snapshots write no collection events — browsing/creating a product is
-    // not collection activity (ADR-015).
     const events = await db
       .selectFrom("collectionEvents")
       .select(db.fn.countAll().as("count"))

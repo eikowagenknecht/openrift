@@ -20,7 +20,6 @@ const ORG_ID = "b0000000-0001-4000-a000-000000000001";
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const OTHER_USER_ID = "a0000000-0001-4000-a000-000000000002";
 
-/** @returns A minimal tournament row, cast the way the invariants suite does, since these gates only read the host columns. */
 function tournament(overrides: Partial<Tournament> = {}): Tournament {
   return {
     id: TOURNAMENT_ID,

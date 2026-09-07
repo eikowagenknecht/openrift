@@ -85,22 +85,13 @@ function requireListVisible(entry: DeckCheckEntry): void {
 
 const os = implement(tournamentDeckCheckContract).$context<ApiContext>().use(requireAuthedUser);
 
-/**
- * The tournament-scoped judge-facing deck-check router, mounted under
- * `/api/v1/tournaments/{tournamentId}/deck-check`. It reuses the same services,
- * repo methods, and response mappers as the group-scoped surface; only the
- * resolve-and-authorize step differs (by tournament host/staff rather than
- * friend-group membership). Thrown `AppError`s map to ORPCErrors at the handler
- * boundary.
- */
+/** Thrown `AppError`s map to ORPCErrors at the handler boundary. */
 export const tournamentDeckCheckRouter = {
   listEntries: os.listEntries.handler(
     async ({ input, context }): Promise<DeckCheckEventDetailResponse> => {
       const repos = context.repos;
       const event = await authorizeJudge(repos, input.tournamentId, context.userId);
       let entries = await repos.deckCheck.listEntriesForEvent(event.id);
-      // Settle the deadline auto-submit: entries still editable once the
-      // window closed become submissions as-is, stamped with the close time.
       if (!submissionWindowOpen(event) && entries.some((entry) => entry.state === "editable")) {
         for (const entry of entries) {
           await settleExpiredEditable(repos, event, entry);
@@ -133,12 +124,8 @@ export const tournamentDeckCheckRouter = {
       if (!participant || participant.tournamentId !== event.id) {
         throw new AppError(404, ERROR_CODES.NOT_FOUND, "Participant not found");
       }
-      // One transaction for the whole creation: the has-deck check re-runs
-      // under a participant row lock (a judge double-click otherwise inserts
-      // two entries — nothing unique covers participant_id, since a later
-      // provider push may legitimately add a second entry), and the entry row
-      // and its card lines land atomically instead of a failure between them
-      // stranding a cardless entry.
+      // No unique constraint on participant_id; the has-deck check re-runs under a
+      // participant row lock to close the judge-double-click race.
       const created = await context.transact(async (trxRepos) => {
         await trxRepos.tournaments.lockParticipant(participant.id);
         if (await trxRepos.deckCheck.participantHasDeck(participant.id)) {
@@ -166,16 +153,12 @@ export const tournamentDeckCheckRouter = {
     async ({ input, context }): Promise<DeckCheckEntryDetailResponse> => {
       const repos = context.repos;
       const event = await authorizeJudge(repos, input.tournamentId, context.userId);
-      // 404 fast, outside the transaction; the entry loaded here is not used
-      // for the transition itself — see the re-load below.
+      // This 404s fast, outside the transaction; it is not the entry the transition validates against.
       await loadEntry(repos, event, input.entryId);
 
       const updated = await context.transact(async (txRepos) => {
-        // Re-load under a row lock inside the transaction, rather than reusing
-        // the entry loaded above: two near-simultaneous judge requests both
-        // loading the pre-transaction state would otherwise both validate
-        // against it, and the second commit would silently overwrite the
-        // first's state/reviewOutcome instead of failing the transition.
+        // Row-locked re-load: without it, two concurrent judge requests validate
+        // against stale state and the second commit overwrites the first's.
         const fresh = await txRepos.deckCheck.getEntryForUpdate(event.id, input.entryId);
         if (!fresh) {
           throw new AppError(404, ERROR_CODES.NOT_FOUND, "Entry not found");
@@ -211,9 +194,6 @@ export const tournamentDeckCheckRouter = {
       const event = await authorizeJudge(repos, input.tournamentId, context.userId);
       await loadEntry(repos, event, input.entryId);
 
-      // Identity (playerName/riotId) lives on the participant while the rest stays
-      // on the entry, so updateEntry issues two writes — wrap them in one
-      // transaction so a partial failure can't patch one without the other.
       const updated = await context.transact((txRepos) =>
         txRepos.deckCheck.updateEntry(input.entryId, {
           ...(input.playerName === undefined ? {} : { playerName: input.playerName }),
@@ -321,9 +301,8 @@ export const tournamentDeckCheckRouter = {
       const entry = await loadEntry(repos, event, input.entryId);
       requireListVisible(entry);
 
-      // Re-derive the suggestions server-side: the client only names which cards
-      // to move, never the destination, so a stale or forged id can't push a card
-      // into an arbitrary zone — only a currently-suggested move is applied.
+      // The client names which cards to move, never the destination; only a
+      // currently-suggested move is applied, so a forged id is a no-op.
       const cards = await repos.deckCheck.listCardsForEntry(entry.id);
       const matchedIds = [
         ...new Set(
@@ -387,8 +366,7 @@ export const tournamentDeckCheckRouter = {
       input.found,
     );
     if (!stored) {
-      // The card row was replaced by a re-import while the judge had the entry
-      // open; the client refetches instead of erroring opaquely.
+      // The card row was replaced by a re-import while the judge had the entry open.
       throw new AppError(409, ERROR_CODES.CONFLICT, "Card list changed. Reload the entry.");
     }
   }),

@@ -4,13 +4,10 @@ import { describe, expect, it } from "vitest";
 import { createTestContext, req, syncCardCardTypes } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// Uses prefix PRC- for entities it creates.
-
 const USER_ID = "a0000000-0023-4000-a000-000000000001";
 
 const ctx = createTestContext(USER_ID);
 
-// Seed IDs populated during setup
 let setId: string;
 let cardId: string;
 let printingId: string;
@@ -136,36 +133,31 @@ if (ctx) {
     .returning("id")
     .execute();
 
-  // Prices are keyed on the SKU product, not the variant — every variant
-  // bound to the product inherits the history.
+  // Prices are keyed on the SKU product, not the variant.
   const now = new Date();
   const daysAgo = (d: number) => new Date(now.getTime() - d * 86_400_000);
 
   await db
     .insertInto("marketplaceProductPrices")
     .values([
-      // Recent (2 days ago) — should appear in all ranges
       {
         marketplaceProductId: tcgProduct.id,
         recordedAt: daysAgo(2),
         marketCents: 250,
         lowCents: 120,
       },
-      // 15 days ago — should appear in 30d, 90d, all
       {
         marketplaceProductId: tcgProduct.id,
         recordedAt: daysAgo(15),
         marketCents: 200,
         lowCents: 100,
       },
-      // 60 days ago — should appear in 90d, all
       {
         marketplaceProductId: tcgProduct.id,
         recordedAt: daysAgo(60),
         marketCents: 150,
         lowCents: 80,
       },
-      // 120 days ago — should only appear in "all"
       {
         marketplaceProductId: tcgProduct.id,
         recordedAt: daysAgo(120),
@@ -209,7 +201,6 @@ if (ctx) {
     .returning("id")
     .execute();
 
-  // Zero-eligible low 2 days ago + plain low 5 days ago.
   await db
     .insertInto("marketplaceProductPrices")
     .values([
@@ -230,10 +221,8 @@ if (ctx) {
     ])
     .execute();
 
-  // GET /prices reads headline prices from the mv_latest_printing_prices
-  // materialized view. The runner refreshes it during setup, before this
-  // file seeds its prices at import time — so refresh again to surface them.
-  // Daily first: the latest view is defined over it.
+  // Refresh daily then latest again: the runner already refreshed before
+  // this file's seed data existed, and latest is defined over daily.
   await sql`REFRESH MATERIALIZED VIEW mv_daily_printing_prices`.execute(db);
   await sql`REFRESH MATERIALIZED VIEW mv_latest_printing_prices`.execute(db);
 }
@@ -256,12 +245,6 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       const res = await app.fetch(req("GET", "/prices"));
       const json = await readJson(res);
 
-      // mv_latest_printing_prices picks the headline per marketplace; the wire
-      // carries integer cents:
-      //   tcgplayer  → COALESCE(market_cents, low_cents) = 250
-      //   cardmarket → COALESCE(low_cents, market_cents) = 100
-      //   cardtrader → COALESCE(zero_low_cents, low_cents) = 420
-      //     (latest row prefers the one with a zero-eligible low: 2 days ago)
       expect(json.prices[printingId]).toEqual({
         tcgplayer: 250,
         cardmarket: 100,
@@ -329,8 +312,6 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       const res = await app.fetch(req("GET", `/prices/${printingId}/history`));
       const json = await readJson(res);
 
-      // With default 30d range: 2-day-old and 15-day-old tcgplayer snapshots
-      // should be included, but 60-day and 120-day should be excluded
       expect(json.tcgplayer.snapshots.length).toBe(2);
     });
 
@@ -338,7 +319,6 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       const res = await app.fetch(req("GET", `/prices/${printingId}/history?range=7d`));
       const json = await readJson(res);
 
-      // Only the 2-day-old snapshot should be included
       expect(json.tcgplayer.snapshots.length).toBe(1);
     });
 
@@ -346,7 +326,6 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       const res = await app.fetch(req("GET", `/prices/${printingId}/history?range=90d`));
       const json = await readJson(res);
 
-      // 2-day, 15-day, 60-day snapshots included; 120-day excluded
       expect(json.tcgplayer.snapshots.length).toBe(3);
     });
 
@@ -354,7 +333,6 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       const res = await app.fetch(req("GET", `/prices/${printingId}/history?range=all`));
       const json = await readJson(res);
 
-      // All 4 tcgplayer snapshots
       expect(json.tcgplayer.snapshots.length).toBe(4);
     });
 
@@ -365,7 +343,7 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       const snap = json.tcgplayer.snapshots[0];
       expect(snap.date).toBeTypeOf("string");
       expect(typeof snap.market).toBe("number");
-      expect(snap.market).toBe(250); // integer cents
+      expect(snap.market).toBe(250);
       expect(snap.low).toBe(120);
       expect(snap.mid).toBeUndefined();
       expect(snap.high).toBeUndefined();
@@ -392,12 +370,11 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       expect(json.cardtrader.productId).toBe(90_003);
       expect(json.cardtrader.snapshots.length).toBe(2);
 
-      // Sort ascending by date, so oldest (5 days ago, no Zero) then newest (2 days ago, with Zero).
       const [older, newer] = json.cardtrader.snapshots;
       expect(older.zeroLow).toBeNull();
-      expect(older.low).toBe(280); // integer cents
+      expect(older.low).toBe(280);
       expect(newer.zeroLow).toBe(420);
-      expect(newer.low).toBe(300); // overall low remains cheaper than the Zero low
+      expect(newer.low).toBe(300);
     });
 
     it("returns Cache-Control header", async () => {

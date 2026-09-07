@@ -10,14 +10,8 @@ interface OverrideWithUser {
   enabled: boolean;
 }
 
-/**
- * Queries for per-user feature flag overrides.
- *
- * @returns An object with user feature flag query methods bound to the given `db`.
- */
 export function userFeatureFlagsRepo(db: Kysely<Database>) {
   return {
-    /** @returns All overrides across all users, joined with user name/email for admin display. */
     async listAllWithUsers(): Promise<OverrideWithUser[]> {
       const rows = await db
         .selectFrom("userFeatureFlags")
@@ -35,11 +29,6 @@ export function userFeatureFlagsRepo(db: Kysely<Database>) {
       return rows;
     },
 
-    /**
-     * Merges global defaults with per-user overrides into a single `Record<string, boolean>`.
-     *
-     * @returns A flat flags map where user overrides take precedence over global defaults.
-     */
     async listMerged(userId: string): Promise<Record<string, boolean>> {
       const [globals, overrides] = await Promise.all([
         db.selectFrom("featureFlags").select(["key", "enabled"]).execute(),
@@ -60,11 +49,6 @@ export function userFeatureFlagsRepo(db: Kysely<Database>) {
       return flags;
     },
 
-    /**
-     * Sets a per-user override, inserting or updating as needed.
-     *
-     * @returns The upserted row.
-     */
     upsert(
       userId: string,
       flagKey: string,
@@ -78,7 +62,6 @@ export function userFeatureFlagsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns Delete result — check `numDeletedRows` to verify the row existed. */
     delete(userId: string, flagKey: string): Promise<DeleteResult> {
       return db
         .deleteFrom("userFeatureFlags")

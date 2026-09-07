@@ -3,10 +3,7 @@ import { describe, expect, it } from "vitest";
 import { CARD_RADIUS_FRACTION, baselineNudge, cardRadiusPx } from "./share-image-core.js";
 
 describe("baselineNudge", () => {
-  // Each expectation is an offset measured off a rendered PNG, with both runs at
-  // `lineHeight: 1` — the line height every caller pins. Measured by lit-pixel
-  // histogram rather than by lowest lit row, since a "g" or "y" descender hangs
-  // below the baseline and would read as the bottom of the run.
+  // Offsets are measured off rendered PNGs at `lineHeight: 1`, the value every caller pins.
   it("matches the measured offset for the title / byline pairing", () => {
     expect(baselineNudge(34, 22)).toBe(-2);
   });
@@ -20,7 +17,6 @@ describe("baselineNudge", () => {
   });
 
   it("scales with the gap, not with either size on its own", () => {
-    // Large gaps, where the integer measurement pins the slope tightly.
     expect(baselineNudge(200, 20)).toBe(-25);
     expect(baselineNudge(100, 20)).toBe(-11);
     expect(baselineNudge(40, 20)).toBe(-3);
@@ -40,14 +36,11 @@ describe("baselineNudge", () => {
 
 describe("cardRadiusPx", () => {
   it("rounds to 5% of the tile's short edge", () => {
-    // Portrait tile: width is the short edge, so 5% of it.
     expect(cardRadiusPx(100, 140)).toBe(5);
     expect(cardRadiusPx(200, 280)).toBe(10);
   });
 
   it("uses the short edge for landscape (battlefield) tiles", () => {
-    // Landscape tile: height is now the short edge, so the radius tracks it, not
-    // the wider width — keeping the corner physically proportional to the art.
     expect(cardRadiusPx(280, 200)).toBe(10);
     expect(cardRadiusPx(140, 100)).toBe(5);
   });
@@ -57,7 +50,6 @@ describe("cardRadiusPx", () => {
   });
 
   it("rounds to the nearest whole pixel", () => {
-    // 63 × 0.05 = 3.15 → 3.
     expect(cardRadiusPx(63, 88)).toBe(3);
   });
 });

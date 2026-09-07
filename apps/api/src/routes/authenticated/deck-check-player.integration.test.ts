@@ -381,7 +381,6 @@ describe.skipIf(!ownerCtx)("deck-check player self-service (integration, ADR-026
       ]);
       const result = (await readJson(res)) as { entriesUpdated: number; entriesIgnored: number };
       expect(result.entriesUpdated).toBe(1);
-      // Deprecated field, always 0 (edit-takeover no longer exists).
       expect(result.entriesIgnored).toBe(0);
 
       const after = await repos.deckCheck.getEntryByExternalId(eventId, "p-entry-1");

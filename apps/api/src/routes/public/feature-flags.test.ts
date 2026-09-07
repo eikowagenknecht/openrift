@@ -6,18 +6,9 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { featureFlagsRouter } from "./feature-flags";
 
-// ---------------------------------------------------------------------------
-// Mock repo
-// ---------------------------------------------------------------------------
-
 const mockFeatureFlagsRepo = {
   listKeyEnabled: vi.fn(() => Promise.resolve([] as { key: string; enabled: boolean }[])),
 };
-
-// ---------------------------------------------------------------------------
-// Test app — mounts the oRPC handler exactly as production does, then injects
-// the repos + a no-session auth stub so the anonymous branch runs.
-// ---------------------------------------------------------------------------
 
 function buildApp() {
   const app = new Hono<{ Variables: Variables }>();
@@ -33,10 +24,6 @@ function buildApp() {
 }
 
 const app = buildApp();
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("GET /api/v1/feature-flags", () => {
   beforeEach(() => {

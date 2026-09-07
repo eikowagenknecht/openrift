@@ -25,10 +25,6 @@ function registration(overrides: Record<string, unknown> = {}): Record<string, u
   };
 }
 
-/**
- * A deck section as the source writes one: the zone is named by `section_type`,
- * each line nests its card, and a section with nothing in it is still sent.
- */
 /** The shape all but a few dozen real lists have: no legend, champion or battlefields. */
 function raw(overrides: Partial<UvsDeepFetchResponses> = {}): UvsDeepFetchResponses {
   return {

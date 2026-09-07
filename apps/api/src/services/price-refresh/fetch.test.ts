@@ -3,10 +3,6 @@ import { describe, expect, it } from "vitest";
 import type { Fetch } from "../../io";
 import { fetchJson } from "./fetch";
 
-// ---------------------------------------------------------------------------
-// fetchJson
-// ---------------------------------------------------------------------------
-
 describe("fetchJson", () => {
   it("returns parsed JSON body and null lastModified when no header", async () => {
     const mockFetch: Fetch = async () => Response.json({ hello: "world" }, { status: 200 });

@@ -38,7 +38,6 @@ describe.skipIf(!ctx)("providerSettingsRepo (integration)", () => {
 
     const updated = await repo.upsert("test-partial-35", { isHidden: true });
     expect(updated.isHidden).toBe(true);
-    // sortOrder should remain from the on-conflict update (only isHidden was in the set)
   });
 
   it("listAll returns provider settings ordered by sortOrder then provider", async () => {

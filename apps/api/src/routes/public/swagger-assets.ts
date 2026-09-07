@@ -7,11 +7,8 @@ import { Hono } from "hono";
 
 import type { Variables } from "../../types.js";
 
-// Base URL passed to the swaggerUI middleware in app.ts. The middleware appends
-// `/swagger-ui-dist/<file>` to it, which is exactly the path this route serves —
-// keeping the constant here ties the page's asset URLs to the route that
-// answers them. Self-hosted because the site CSP only allows 'self' for
-// scripts and styles, so the middleware's default jsDelivr assets are blocked.
+// Self-hosted: the site CSP only allows 'self' for scripts and styles, so the
+// swaggerUI middleware's default jsDelivr assets are blocked.
 export const SWAGGER_ASSETS_BASE_URL = "/api";
 
 // The two files the swagger page loads, plus their source maps so devtools

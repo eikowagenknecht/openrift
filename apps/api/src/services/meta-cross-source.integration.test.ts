@@ -139,8 +139,6 @@ describe.skipIf(!ctx)("cross-mirror player links", () => {
       const ashe = review.rows.find((row) => row.sourceIdentity === "ta");
       expect(ashe?.state).toBe("unreviewed");
       expect(ashe?.suggestions[0]?.isExact).toBe(true);
-      // The name shares no bigram with either live row and the finish is its
-      // own, so nothing is offered.
       expect(review.rows.find((row) => row.sourceIdentity === "tz")?.suggestions).toEqual([]);
     });
 

@@ -13,7 +13,6 @@ export interface CreateLoanInput {
   quantity: number;
   borrowerUserId?: string;
   borrowerName?: string;
-  /** Biases automatic copy selection toward this collection. */
   contextCollectionId?: string;
 }
 
@@ -30,10 +29,6 @@ async function reloadDto(repos: Repos, loanId: string, userId: string): Promise<
   return toLoanResponse(row, userId);
 }
 
-/**
- * Loads a loan and verifies the caller is its lender. Non-parties and
- * borrowers get the same 404 (a loan's management surface is lender-only).
- */
 async function requireLenderLoan(repos: Repos, loanId: string, userId: string) {
   const loan = await repos.loans.getById(loanId);
   if (loan === undefined || loan.lenderUserId !== userId) {
@@ -42,21 +37,13 @@ async function requireLenderLoan(repos: Repos, loanId: string, userId: string) {
   return loan;
 }
 
-/**
- * Records a loan: active immediately, copies pinned in place. The borrower is
- * a friend-group co-member (who may later acknowledge/reject) or a free-text
- * name. Copies are auto-selected from the lender's personal collections,
- * context collection first, skipping every copy already claimed by a trade
- * reservation or another loan.
- */
 export function createLoan(transact: Transact, input: CreateLoanInput): Promise<LoanResponse> {
   const { lenderUserId, printingId, quantity, borrowerUserId, borrowerName, contextCollectionId } =
     input;
 
   return transact(async (trxRepos) => {
-    // The contract's refine already enforces this shape; re-check inside the
-    // promise (never a synchronous throw — callers expect a rejection) because
-    // the service is also called from tests and future in-process callers.
+    // Must throw inside the promise, not synchronously: tests and future
+    // in-process callers expect a rejection here.
     if ((borrowerUserId === undefined) === (borrowerName === undefined)) {
       throw new AppError(
         400,
@@ -88,21 +75,16 @@ export function createLoan(transact: Transact, input: CreateLoanInput): Promise<
       throw tooFewAvailable(unclaimed.length);
     }
 
-    // Lock the candidate copies before pinning so a concurrent dispose of one
-    // of them serializes against this loan; the survivors are the ids that
-    // still exist under the lock.
+    // Locking before pinning serializes against a concurrent dispose of one
+    // of these copies; survivors are the ids that still exist under the lock.
     const surviving = new Set(await trxRepos.copies.lockByIds(unclaimed));
     const lockedCopyIds = unclaimed.filter((id) => surviving.has(id));
     if (lockedCopyIds.length < quantity) {
       throw tooFewAvailable(lockedCopyIds.length);
     }
 
-    // `listUnclaimedCopyIds` excluded reserved copies before the lock, but a
-    // concurrent acceptTrade can reserve one of these ids in the gap between that
-    // read and the lock above — the unclaimed check and the trade reservation
-    // live in separate tables, so `copies.lockByIds` alone can't catch it (the
-    // pinCopies unique-violation catch below only guards against another loan).
-    // Re-check the trade side now that the rows are locked.
+    // A concurrent acceptTrade can reserve one of these copy ids in the gap
+    // between listUnclaimedCopyIds and the lock above; re-check now they're locked.
     const reservedByTrade = new Set(await trxRepos.cardTrades.filterReservedCopyIds(lockedCopyIds));
     const availableCopyIds = lockedCopyIds.filter((id) => !reservedByTrade.has(id));
     if (availableCopyIds.length < quantity) {
@@ -120,11 +102,8 @@ export function createLoan(transact: Transact, input: CreateLoanInput): Promise<
     try {
       await trxRepos.loans.pinCopies(loan.id, availableCopyIds.slice(0, quantity));
     } catch (error) {
-      // A concurrent loan pinned one of these copies between our unclaimed read
-      // and this insert (UNIQUE(copy_id) on loan_copies). Surface it as "too few
-      // available" — the same 409 acceptTrade returns — instead of a raw 500. At
-      // least one of the picked copies was lost, so report one fewer than we
-      // thought we had.
+      // UNIQUE(copy_id) on loan_copies: a concurrent loan pinned one of these
+      // copies first. At least one was lost, so report one fewer than we had.
       if (isUniqueViolation(error)) {
         throw tooFewAvailable(Math.max(0, availableCopyIds.length - 1));
       }
@@ -135,11 +114,6 @@ export function createLoan(transact: Transact, input: CreateLoanInput): Promise<
   });
 }
 
-/**
- * Marks `count` copies as physically returned (lender only, partial returns
- * allowed). Releases that many pins; the loan closes as `returned` once
- * everything is back.
- */
 export function returnLoanCopies(
   transact: Transact,
   loanId: string,
@@ -169,14 +143,6 @@ export function returnLoanCopies(
   });
 }
 
-/**
- * Closes an active loan whose outstanding copies are never coming back
- * (lender only — covers both "keeping it by agreement" and a vanished
- * borrower). Releases the pins; with `removeCopies` the outstanding copies
- * are disposed from the lender's collection in the same transaction (the
- * apply side of the write-off proposal), without it they reappear as
- * available until fixed manually (the skip side). The borrower gets nothing.
- */
 export function writeOffLoan(
   transact: Transact,
   loanId: string,
@@ -203,10 +169,6 @@ export function writeOffLoan(
   });
 }
 
-/**
- * The borrower confirms they hold the copies. Unlocks their borrowed surfaces
- * (Borrowed view, deck-builder counts).
- */
 export function acknowledgeLoan(
   transact: Transact,
   loanId: string,
@@ -225,11 +187,6 @@ export function acknowledgeLoan(
   });
 }
 
-/**
- * The borrower disputes the loan ("I don't have this"). The loan stays active
- * on the lender's side — rejection flags it back to them and hides it from the
- * borrower's surfaces.
- */
 export function rejectLoan(
   transact: Transact,
   loanId: string,
@@ -248,10 +205,6 @@ export function rejectLoan(
   });
 }
 
-/**
- * Deletes a loan outright (lender only, any status): mis-entries and unwanted
- * history. Pins cascade, so an active loan's copies become available again.
- */
 export async function deleteLoan(
   transact: Transact,
   loanId: string,

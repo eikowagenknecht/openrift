@@ -19,36 +19,25 @@ const mockCollectionsRepo = {
   getByIdForUser: vi.fn(),
 };
 
-/**
- * Builds a Hono app mounting {@link collectionImageRoute} the way `app.ts` does
- * (`.route("/api/v1", collectionImageRoute)`), with a fall-through standing in
- * for the oRPC catch-all so "the image route's auth gated this" (401) is
- * distinguishable from "the request fell through to the public handler" (418, a
- * sentinel no real route uses).
- * @returns A configured Hono app for the test.
- */
+// 418 is a sentinel no real route uses, so a fall-through distinguishes "the
+// image route's auth gated this" (401) from "fell through to the oRPC catch-all".
 function buildApp(session: { user: { id: string; name?: string } } | null) {
-  return (
-    new Hono<{ Variables: Variables }>()
-      .onError((err, c) => {
-        if (err instanceof AppError) {
-          return c.json({ error: err.message, code: err.code }, err.status as 401);
-        }
-        throw err;
-      })
-      .use("/api/*", async (c, next) => {
-        c.set("auth", { api: { getSession: () => Promise.resolve(session) } } as never);
-        c.set("repos", { collections: mockCollectionsRepo, copies: {} } as never);
-        c.set("io", {} as never);
-        c.set("config", { corsOrigin: "https://openrift.app" } as never);
-        await next();
-      })
-      .route("/api/v1", collectionImageRoute)
-      // Stand-in for the oRPC catch-all: any path the image route does not own
-      // reaches here. The public `GET /api/v1/collections/share/{token}` view
-      // lives in the oRPC router, so it must reach this, never 401.
-      .all("/api/*", (c) => c.text("fell through to oRPC catch-all", 418))
-  );
+  return new Hono<{ Variables: Variables }>()
+    .onError((err, c) => {
+      if (err instanceof AppError) {
+        return c.json({ error: err.message, code: err.code }, err.status as 401);
+      }
+      throw err;
+    })
+    .use("/api/*", async (c, next) => {
+      c.set("auth", { api: { getSession: () => Promise.resolve(session) } } as never);
+      c.set("repos", { collections: mockCollectionsRepo, copies: {} } as never);
+      c.set("io", {} as never);
+      c.set("config", { corsOrigin: "https://openrift.app" } as never);
+      await next();
+    })
+    .route("/api/v1", collectionImageRoute)
+    .all("/api/*", (c) => c.text("fell through to oRPC catch-all", 418));
 }
 
 beforeEach(() => {

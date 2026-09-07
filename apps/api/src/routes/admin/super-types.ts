@@ -14,10 +14,6 @@ const handlers = createSlugTaxonomyHandlers({
   inUseBy: "one or more cards",
 });
 
-/**
- * Admin super type taxonomy CRUD. Conflict / not-found / bad-request states are
- * thrown as `AppError` and mapped by the handler's appErrorInterceptor.
- */
 export const adminSuperTypesRouter = {
   list: os.list.handler(handlers.list),
   reorder: os.reorder.handler(handlers.reorder),

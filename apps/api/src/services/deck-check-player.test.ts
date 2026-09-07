@@ -7,10 +7,6 @@ const TOURNAMENT_ID = "019ebd7e-ee5b-76ab-bd4f-9d2184fc3296";
 const USER_ID = "user-claiming";
 const TOKEN = "claim-token";
 
-/**
- * A minimal repos double exposing only the methods the claim path touches.
- * @returns The repos double plus the spies the assertions check.
- */
 function makeRepos(overrides: {
   tokenParticipant?: unknown;
   existingParticipant?: unknown;
@@ -41,10 +37,7 @@ function makeRepos(overrides: {
 
 describe("claimParticipantByToken", () => {
   it("refuses as 'duplicate' when the caller already holds a different spot in the tournament", async () => {
-    // The token's spot is unclaimed and unblocked, but the caller is already a
-    // participant in this tournament under another spot — linking this one too
-    // would violate uq_tournament_participants_user (ADR-033). It must resolve
-    // to a friendly outcome, not the raw unique-violation 500.
+    // Linking the token's spot too would violate uq_tournament_participants_user.
     const { repos, findParticipantByUser, linkParticipantByClaimTokenIfUnclaimed } = makeRepos({
       tokenParticipant: {
         id: "spot-from-token",
@@ -68,7 +61,6 @@ describe("claimParticipantByToken", () => {
       entryId: "deck-already-held",
     });
     expect(findParticipantByUser).toHaveBeenCalledWith(TOURNAMENT_ID, USER_ID);
-    // It bails before attempting the link, so no unique violation is ever risked.
     expect(linkParticipantByClaimTokenIfUnclaimed).not.toHaveBeenCalled();
   });
 

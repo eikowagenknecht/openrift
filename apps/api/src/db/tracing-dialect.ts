@@ -24,11 +24,6 @@ const tracer = trace.getTracer("openrift-api/db");
 /** Truncate large SQL bodies so individual spans stay under exporter limits. */
 const MAX_STATEMENT_LENGTH = 2048;
 
-/**
- * Strip leading whitespace and grab the first SQL keyword for the span name.
- *
- * @returns A short low-cardinality span name like "db.select" or "db.update".
- */
 function deriveSpanName(sql: string): string {
   const trimmed = sql.trimStart();
   const firstWord = trimmed.split(/\s+/u, 1)[0]?.toUpperCase() ?? "QUERY";
@@ -39,13 +34,6 @@ function truncate(sql: string): string {
   return sql.length > MAX_STATEMENT_LENGTH ? `${sql.slice(0, MAX_STATEMENT_LENGTH)}…` : sql;
 }
 
-/**
- * Wraps a Kysely Dialect so every `executeQuery` / `streamQuery` is
- * surrounded by an OTel `db.query` span. The span automatically inherits
- * the active OTel context as its parent, which is the `http.server` span
- * opened by the Hono request middleware (or the cron span opened by
- * runJob), so traces show route → query relationships end-to-end.
- */
 export class TracingDialect implements Dialect {
   private readonly inner: Dialect;
   constructor(inner: Dialect) {

@@ -16,10 +16,6 @@ import { readJson } from "../../../test/read-json.js";
 import type { Variables } from "../../../types.js";
 import { adminCardQueriesRouter } from "./queries";
 
-// ---------------------------------------------------------------------------
-// Mock modules
-// ---------------------------------------------------------------------------
-
 vi.mock("../../../services/candidate-queries.js", () => ({
   buildCandidateCardList: vi.fn(),
   buildExport: vi.fn(),
@@ -31,10 +27,6 @@ const mockBuildCandidateCardList = vi.mocked(buildCandidateCardList);
 const mockBuildExport = vi.mocked(buildExport);
 const mockBuildCandidateCardDetail = vi.mocked(buildCardDetail);
 const mockBuildUnmatchedDetail = vi.mocked(buildUnmatchedDetail);
-
-// ---------------------------------------------------------------------------
-// Mock repos
-// ---------------------------------------------------------------------------
 
 const mockCandidateCards = {
   listAllCards: vi.fn(),
@@ -51,17 +43,11 @@ const mockMarketplaceMapping = {
   variantsForCard: vi.fn().mockResolvedValue([]),
 };
 
-// ---------------------------------------------------------------------------
-// Test app — mount the oRPC router directly (without the requireAdmin gate).
-// ---------------------------------------------------------------------------
-
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
-  // requireAdmin isn't mounted here; emulate the access it would resolve for
-  // a full admin (handlers read it for card-review provider scoping).
   c.set("adminAccess", { isAdmin: true, sections: [] });
   c.set("repos", {
     candidateCards: mockCandidateCards,
@@ -71,10 +57,6 @@ app.use("*", async (c, next) => {
   await next();
 });
 registerRouterForTest(app, adminCardQueriesRouter);
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("GET /api/admin/v1/cards/all-cards", () => {
   beforeEach(() => {

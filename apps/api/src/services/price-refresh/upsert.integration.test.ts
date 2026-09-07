@@ -105,7 +105,6 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
     printingId = insertedPrintings[0].id;
     printingId2 = insertedPrintings[1].id;
 
-    // Each marketplace product row represents ONE SKU; cardmarket has no per-language axis.
     const insertedProducts = await db
       .insertInto("marketplaceProducts")
       .values([
@@ -188,14 +187,11 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
 
       const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, fetched);
 
-      // One price row per (product, recorded_at) regardless of how many
-      // printings are bound to the product.
       expect(counts.prices.total).toBe(1);
       expect(counts.prices.new).toBe(1);
     });
 
     it("reports unchanged when upserting identical data", async () => {
-      // Same data as the first insert — should be unchanged
       const fetched: StagingRow[] = [
         makeStagingRow(94_101, "normal", {
           marketCents: 100,
@@ -256,8 +252,6 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
     });
 
     it("creates the product row and writes a price row even for an externalId with no bound printings", async () => {
-      // Under the new model, every fetched SKU gets a product row + price row.
-      // Binding a printing later inherits the accumulated history.
       const fetched: StagingRow[] = [
         makeStagingRow(99_999, "normal", {
           marketCents: 100,

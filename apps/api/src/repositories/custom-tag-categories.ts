@@ -71,7 +71,6 @@ export function customTagCategoriesRepo(db: Kysely<Database>) {
       await db.deleteFrom("customTagCategories").where("id", "=", id).execute();
     },
 
-    /** @returns true if at least one custom_tags row uses this category. */
     async isInUse(id: string): Promise<boolean> {
       const row = await db
         .selectFrom("customTags")

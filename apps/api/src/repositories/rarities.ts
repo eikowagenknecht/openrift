@@ -4,7 +4,6 @@ import type { Kysely } from "kysely";
 import type { Database } from "../db/index.js";
 import { slugTaxonomyRepo } from "./slug-taxonomy.js";
 
-/** @returns The rarity taxonomy repo; rarities are referenced by `printings.rarity`. */
 export function raritiesRepo(db: Kysely<Database>) {
   return slugTaxonomyRepo(db, {
     table: "rarities",

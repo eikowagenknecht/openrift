@@ -5,8 +5,6 @@ import { registerRouterForTest } from "../../test/mount-router.js";
 import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 
-// The router calls the changelog-discord service helpers and run-job at module
-// load + request time; mock both so no real Discord post / job runner runs.
 vi.mock("../../services/changelog-discord.js", () => ({
   extractWatermark: vi.fn(() => null),
   postChangelogToDiscord: vi.fn(),
@@ -28,9 +26,6 @@ const mockJobRuns = {
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-// Mount the oRPC router directly (without the requireAdmin gate). AppErrors are
-// bridged to ORPCErrors inside the router, so 4xx/5xx responses carry
-// `{ message }`.
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);

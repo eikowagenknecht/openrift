@@ -13,11 +13,8 @@ const stubFetch: Fetch = (() => {
   throw new Error("unexpected real fetch");
 }) as unknown as Fetch;
 
-// Mock data sampled from the real Cardmarket API.
-
 const CREATED_AT = "2026-03-10T02:49:27+0100";
 
-/** Blazing Scorcher — has both normal and foil prices */
 const PRODUCT_BLAZING = { idProduct: 845_712, name: "Blazing Scorcher", idExpansion: 6286 };
 const PRICE_BLAZING = {
   idProduct: 845_712,
@@ -35,7 +32,6 @@ const PRICE_BLAZING = {
   "avg30-foil": 0.19,
 };
 
-/** Annie, Fiery — normal prices only; foil has no listings at all (all zero) */
 const PRODUCT_ANNIE = { idProduct: 847_277, name: "Annie, Fiery", idExpansion: 6289 };
 const PRICE_ANNIE = {
   idProduct: 847_277,
@@ -53,7 +49,6 @@ const PRICE_ANNIE = {
   "avg30-foil": 0,
 };
 
-/** Teemo, Scout — normal has no listings; foil prices present */
 const PRODUCT_TEEMO = { idProduct: 847_140, name: "Teemo, Scout", idExpansion: 6286 };
 const PRICE_TEEMO = {
   idProduct: 847_140,
@@ -71,11 +66,6 @@ const PRICE_TEEMO = {
   "avg30-foil": 0.16,
 };
 
-/**
- * Vi, Piltover Enforcer V.2 — brand-new alt-art listing with a low price but
- * no average yet (no sales recorded); demonstrates accepting low as a
- * fallback price signal when avg is 0.
- */
 const PRODUCT_VI_V2 = { idProduct: 885_568, name: "Vi, Piltover Enforcer V.2", idExpansion: 6491 };
 const PRICE_VI_V2 = {
   idProduct: 885_568,
@@ -112,7 +102,6 @@ interface MockReposConfig {
 function createMockRepos(config: MockReposConfig = {}) {
   const insertedExpansionIds: number[] = [];
 
-  // L2 ignores (no finish) go into productIds; L3 ignores (with finish) into variantKeys.
   const productIds = new Set<number>();
   const variantKeys = new Set<string>();
   for (const p of config.ignoredProducts ?? []) {
@@ -300,9 +289,6 @@ describe("refreshCardmarketPrices", () => {
     });
 
     it("ingests product with low but no avg (brand-new alt-art listing)", async () => {
-      // Previously such a listing was silently dropped because avg was 0 even
-      // though low was set, leaving newly-listed alt-arts invisible in the
-      // admin staging UI until cardmarket computed a trend.
       const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, [PRODUCT_VI_V2], [PRICE_VI_V2]);
@@ -382,9 +368,6 @@ describe("refreshCardmarketPrices", () => {
       await refreshCardmarketPrices(stubFetch, repos, log);
 
       const staging = upsertStaging();
-      // Blazing: normal + foil = 2
-      // Annie: normal only (foil avg = 0) = 1
-      // Teemo: foil only (normal avg = 0) = 1
       expect(staging).toHaveLength(4);
     });
   });
@@ -393,7 +376,6 @@ describe("refreshCardmarketPrices", () => {
     it("collects unique expansion IDs from products", async () => {
       const { repos, insertedExpansionIds } = createMockRepos();
       const { log } = makeMockLogger();
-      // Blazing & Teemo share 6286; Annie is 6289
       setupFetchJson(
         fetchJsonSpy,
         [PRODUCT_BLAZING, PRODUCT_ANNIE, PRODUCT_TEEMO],
@@ -490,7 +472,6 @@ describe("refreshCardmarketPrices", () => {
       expect(result.transformed).toEqual({
         groups: 2,
         products: 3,
-        // Blazing: normal + foil, Annie: normal only, Teemo: foil only
         prices: 4,
       });
     });
@@ -611,13 +592,11 @@ describe("refreshCardmarketPrices", () => {
     it("correctly computes group rows from unique expansion IDs", async () => {
       const { repos } = createMockRepos();
       const { log } = makeMockLogger();
-      // Two products in the same expansion
       const product2 = { idProduct: 845_713, name: "Another Card", idExpansion: 6286 };
       setupFetchJson(fetchJsonSpy, [PRODUCT_BLAZING, product2], [PRICE_BLAZING]);
 
       const result = await refreshCardmarketPrices(stubFetch, repos, log);
 
-      // Only one unique expansion
       expect(result.transformed.groups).toBe(1);
       expect(result.transformed.products).toBe(2);
     });

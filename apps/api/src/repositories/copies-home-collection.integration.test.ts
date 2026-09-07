@@ -10,9 +10,7 @@ const USER_ID = crypto.randomUUID();
 
 const ctx = createDbContext(USER_ID);
 
-// A deck's home collection overrides the deck-building exclusion for that deck
-// only: the box the deck lives in is buildable for it, and stays locked away
-// for every other deck.
+// A deck's home collection exempts only that deck's build check; every other deck still excludes it.
 describe.skipIf(!ctx)("copiesRepo home-collection exemption (integration)", () => {
   const { db } = ctx!;
   const copies = copiesRepo(db);
@@ -47,8 +45,6 @@ describe.skipIf(!ctx)("copiesRepo home-collection exemption (integration)", () =
     await deckbuildingPrefs.set(USER_ID, excludedId, false);
     await deckbuildingPrefs.set(USER_ID, otherExcludedId, false);
 
-    // 1 buildable copy on the open shelf, 3 sleeved in the red deckbox, 2 in
-    // the blue one (another deck's box).
     await copies.insertBatch([{ printingId: PRINTING_1.id, collectionId: openId }]);
     await copies.insertBatch([
       { printingId: PRINTING_1.id, collectionId: excludedId },
@@ -82,8 +78,6 @@ describe.skipIf(!ctx)("copiesRepo home-collection exemption (integration)", () =
   });
 
   it("leaves the other deck's box locked away", async () => {
-    // A deck stored in the blue box gets 1 open + 2 blue; the 3 in the red box
-    // stay locked for it.
     const counts = await copies.buildableCountByCard(USER_ID, otherExcludedId);
     expect(counts.get(cardId)).toBe(3);
   });
@@ -107,8 +101,6 @@ describe.skipIf(!ctx)("copiesRepo home-collection exemption (integration)", () =
       excludedId,
       otherExcludedId,
     ]);
-    // The open shelf is already in `buildableCountByCard`, so it contributes
-    // nothing extra and never shows up here.
     expect(extras.has(openId)).toBe(false);
     expect(extras.get(excludedId)?.get(cardId)).toBe(3);
     expect(extras.get(otherExcludedId)?.get(cardId)).toBe(2);

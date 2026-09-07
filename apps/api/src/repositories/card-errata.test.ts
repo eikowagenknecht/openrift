@@ -61,7 +61,6 @@ describe("cardErrataRepo", () => {
   });
 
   it("getByCardIds short-circuits on an empty id list", async () => {
-    // Guard the early return: no ids must not reach the database at all.
     const throwingDb = new Proxy(
       {},
       {

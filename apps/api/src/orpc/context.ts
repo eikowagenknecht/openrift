@@ -70,17 +70,8 @@ export interface ApiContext {
    */
   response: {
     /**
-     * An ETag the handler computed from its own content version, rather than
-     * letting `etag()` hash the serialized body. The catch-all mount sets it on
-     * a successful GET; Hono's `etag()` keeps a tag that is already present and
-     * still does the `If-None-Match` → 304 handling around it.
-     *
-     * The catalog uses this so every language variant of one catalog state
-     * shares a tag (ETags are scoped per-URL, so one value across URLs is
-     * well-formed). That is what lets `immutableWhenVersionMatches` recognise
-     * `?v=<token>` on a `?langs=` variant — hashing the variant body would give
-     * it a tag that could never equal the token the client was handed for the
-     * whole catalog.
+     * Handler-set tag; Hono's `etag()` keeps it instead of hashing the body.
+     * The catalog shares one tag across `?langs=` variants so `immutableWhenVersionMatches` can match `?v=`.
      */
     etag?: string;
   };

@@ -179,7 +179,7 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
   });
 
   it("creates an inbox if none exists and returns its id", async () => {
-    const inboxUserId = userId; // Already has an inbox from earlier test
+    const inboxUserId = userId;
     const inboxId = await repo.ensureInbox(inboxUserId);
     expect(inboxId).toBeDefined();
     expect(typeof inboxId).toBe("string");
@@ -197,8 +197,6 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
       isInbox: false,
       sortOrder: 99,
     });
-    // Not added to createdCollectionIds — deleted directly by this test instead
-
     await repo.deleteByIdForUser(col.id, userId);
 
     const fetched = await repo.getByIdForUser(col.id, userId);

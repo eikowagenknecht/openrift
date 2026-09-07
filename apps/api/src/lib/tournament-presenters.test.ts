@@ -124,8 +124,6 @@ describe("toParticipant", () => {
     expect(toParticipant(participant()).claimToken).toBe("claim-tok-abc");
   });
 
-  // Regression (ADR-033): a linked spot's token is dead — never surface it as a
-  // copyable link, even when the spot was never judge-blocked.
   it("hides the claim token once the spot is linked to an account", () => {
     const result = toParticipant(participant({ userId: "user-9", userName: "Linked Larry" }));
     expect(result.claimToken).toBeNull();

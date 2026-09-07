@@ -1,10 +1,7 @@
 /**
- * Core upsert logic for price refresh workflows.
- *
- * Per fetch cycle we upsert one `marketplace_products` row per SKU and one
+ * Per fetch cycle: one `marketplace_products` row per SKU and one
  * `marketplace_product_prices` row per (product, recorded_at). The unmatched
- * products panel and fuzzy name match read directly off `marketplace_products`
- * (LEFT JOIN bindings) — no staging side-table.
+ * products panel and fuzzy name match read `marketplace_products` directly.
  */
 
 import type { Marketplace } from "@openrift/shared";
@@ -24,9 +21,8 @@ import type {
 const BATCH_SIZE = 200;
 
 /**
- * Load the two sets of ignored keys (level-2 whole-product + level-3 per-variant)
- * for a marketplace. Skip a staging row if its externalId is in `productIds`
- * OR its `externalId::finish::language` tuple is in `variantKeys`.
+ * Skip a staging row if its externalId is in `productIds` (whole-product
+ * ignore) or its `externalId::finish::language` tuple is in `variantKeys`.
  */
 export function loadIgnoredKeys(
   priceRefresh: Repos["priceRefresh"],
@@ -35,10 +31,7 @@ export function loadIgnoredKeys(
   return priceRefresh.loadIgnoredKeys(marketplace);
 }
 
-/**
- * Upsert marketplace groups (TCGPlayer groups / Cardmarket expansions).
- * Uses COALESCE to preserve existing name/abbreviation when not provided.
- */
+/** Preserves existing name/abbreviation on conflict when not provided. */
 export async function upsertMarketplaceGroups(
   priceRefresh: Repos["priceRefresh"],
   marketplace: Marketplace,
@@ -66,13 +59,6 @@ interface ProductPriceInsertRow extends PriceColumns {
   recordedAt: Date;
 }
 
-/**
- * Batch-upsert product prices and staging rows for a single marketplace.
- * For each distinct SKU in the fetch, upsert a `marketplace_products` row and
- * then a `marketplace_product_prices` row per recorded_at. Every bound
- * printing inherits the same price history through the shared product row —
- * no more per-variant fan-out.
- */
 export async function upsertPriceData(
   priceRefresh: Repos["priceRefresh"],
   log: Logger,
@@ -82,10 +68,7 @@ export async function upsertPriceData(
   const { marketplace } = config;
   const repo = priceRefresh;
 
-  // One `marketplace_products` row per SKU in the fetch. Multiple staging
-  // rows for the same SKU collapse onto a single product, so we feed the
-  // unique SKU set here. Groups/names update on conflict — they legitimately
-  // drift over time.
+  // Groups/names update on conflict; they legitimately drift over time.
   const uniqueSkus = new Map<
     string,
     {
@@ -118,11 +101,8 @@ export async function upsertPriceData(
     }
   }
 
-  // One row per (product_id, recorded_at). Multiple staging rows with the
-  // same SKU and timestamp (shouldn't happen, but the fetcher doesn't
-  // guarantee it) collapse to the last write — the upsert DO UPDATE step
-  // handles any remaining drift when the same (product, recorded_at) shows
-  // up twice.
+  // Staging rows sharing a (product, recorded_at) collapse to the last
+  // write; the upsert's DO UPDATE handles any remaining duplicates.
   const uniquePrices = new Map<string, ProductPriceInsertRow>();
   for (const staging of allStaging) {
     const productId = productIdByKey.get(

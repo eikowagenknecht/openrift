@@ -58,9 +58,8 @@ describe.skipIf(!ctx)("trade match digest (integration)", () => {
     });
   });
 
-  // Per-test cleanup: the digest scans *all* of a user's groups, so matches left
-  // by earlier tests would leak into later ones (e.g. masking the reserved-copy
-  // exclusion). Reset every created group + its lists/copies/trades after each test.
+  // The digest scans *all* of a user's groups, so matches left by earlier tests
+  // would leak into later ones (e.g. masking the reserved-copy exclusion).
   afterEach(async () => {
     await db.deleteFrom("cardTradeCopies").execute();
     await db

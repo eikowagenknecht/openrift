@@ -15,7 +15,6 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
   let copyIds: string[] = [];
 
   it("setup: creates collections for copy tests", async () => {
-    // Trigger inbox creation
     await app.fetch(req("GET", "/collections"));
 
     const res1 = await app.fetch(req("POST", "/collections", { name: "Main Collection" }));
@@ -65,8 +64,6 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       expect(json.items[0].collectionId).not.toBe(collectionId);
     });
 
-    // A copy added to a group-owned collection must come back with groupId set
-    // to the owning group (the field the web used to synthesize client-side).
     describe("groupId for a group-owned collection", () => {
       let groupId: string;
       let groupCollectionId: string;
@@ -100,7 +97,6 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
           .values({ groupId, userId, role: "member" })
           .execute();
 
-        // A group-owned collection (user_id NULL, group_id set).
         const pooled = await db
           .insertInto("collections")
           .values({ groupId, name: "Pooled Box", isInbox: false, sortOrder: 0 })
@@ -163,7 +159,6 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
 
       const json = (await readJson(res)) as { items: Record<string, unknown>[] };
       expect(Array.isArray(json.items)).toBe(true);
-      // 3 from first add + 1 from inbox add = 4
       expect(json.items.length).toBe(4);
 
       const copy = json.items[0];
@@ -376,7 +371,6 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
 
       const json = (await readJson(res)) as { items: { action: string }[] };
       const actions = json.items.map((e) => e.action);
-      // Should have: added (x3 from setup), moved, removed
       expect(actions).toContain("added");
       expect(actions).toContain("moved");
       expect(actions).toContain("removed");

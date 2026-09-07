@@ -22,7 +22,6 @@ import { CARD_MEDIA_DIR, MEDIA_DIR } from "./images/paths.js";
 type CatalogRepo = ReturnType<typeof catalogRepo>;
 type ScanIndexRepo = ReturnType<typeof scanIndexRepo>;
 
-/** Job-runs `kind` for the scanner bank rebuild. */
 export const REBUILD_SCAN_BANK_KIND = "scan.rebuild_bank";
 
 /** Where the scanner's served artifacts live (nginx serves /media/ as-is). */
@@ -32,10 +31,8 @@ const SCAN_MEDIA_DIR = join(MEDIA_DIR, "scan");
 const BUILD_BATCH = 8;
 
 /**
- * Groups renders by artwork. Language is excluded, a null variant collapses to
- * the empty string to match the dev catalogue's grouping, and an overnumbered
- * print keys apart from the in-total one since it carries its own illustration.
- * @returns The artwork key shared by every render of one illustration.
+ * Groups renders by artwork: language excluded, null variant collapses to "",
+ * and an overnumbered print keys apart since it carries its own illustration.
  */
 export function scanArtKey(
   row: Pick<ScanReferenceRow, "setSlug" | "name" | "artVariant" | "isOvernumbered">,
@@ -45,7 +42,6 @@ export function scanArtKey(
 
 export interface ScanBankBuildResult {
   entryCount: number;
-  /** Catalogued renders whose 400w file was missing or undecodable. */
   skipped: number;
   bankHash: string;
   durationMs: number;
@@ -55,18 +51,10 @@ interface ScanBankDeps {
   repos: { catalog: CatalogRepo; scanIndex: ScanIndexRepo };
   io: Io;
   log: Logger;
-  /** Filename of the encoder under media/scan (config.scan.encoderFile). */
   encoderFile: string;
 }
 
-/**
- * Decode a render into the packed RGBA buffer the scan engine works on,
- * exactly like the dev bench does: flattened onto mid grey so the rounded
- * corners sit near the card's own average instead of injecting a hard edge no
- * photograph would show. Bank and query preprocessing must stay identical.
- *
- * @returns The decoded image.
- */
+/** Bank and query preprocessing must stay identical (flattened onto mid grey). */
 async function decodeRender(io: Io, file: string): Promise<RgbaImage> {
   const buffer = await io.fs.readFile(file);
   const { data, info } = await io
@@ -83,31 +71,14 @@ async function decodeRender(io: Io, file: string): Promise<RgbaImage> {
   };
 }
 
-/**
- * The disk path of a render's 400w derivative (the variant the scanner uses
- * both as bank source and as ORB reference).
- *
- * @returns The absolute file path.
- */
+/** The 400w derivative: used both as bank source and as ORB reference. */
 function renderPath(imageId: string): string {
   return join(CARD_MEDIA_DIR, imageId.slice(-2), `${imageId}-400w.webp`);
 }
 
 /**
- * Rebuild the scanner's embedding bank from every catalogued front render and
- * publish it as a new content-hashed generation under media/scan.
- *
- * The encoder is opened per run and released after: onnxruntime-node holds a
- * native session worth hundreds of megabytes, which has no business resident
- * in the API between rebuilds. The previous generation's files are kept (a
- * client may hold its manifest mid-download); anything older is pruned.
- *
- * Renders are embedded in the canonical frame (landscape rotated 90 degrees
- * left, the way players place battlefields), which is how every encoder we
- * serve is trained. Swapping in an encoder trained on the native frame would
- * degrade battlefield matching and needs this builder changed with it.
- *
- * @returns Counts and the new generation's hash for the job summary.
+ * Renders are embedded in the canonical frame (landscape rotated 90° left),
+ * which is how every encoder we serve is trained; changing that needs this builder changed with it.
  */
 export async function rebuildScanBank(deps: ScanBankDeps): Promise<ScanBankBuildResult> {
   const startedAt = Date.now();
@@ -207,11 +178,8 @@ export async function rebuildScanBank(deps: ScanBankDeps): Promise<ScanBankBuild
     keys,
     vectors: concat(vectors),
   };
-  // Banks are always built in the canonical frame, so the flag is constant
-  // here. It still travels in the file: the format keeps it because v1 banks
-  // decode as native, and the browser gates its guide-mode pair-only rotation
-  // search on what the loaded bank reports rather than on a build-time
-  // assumption.
+  // Always true: the browser reads this flag to gate its rotation search,
+  // so it travels in the file even though this builder always sets it.
   const bankBuffer = Buffer.from(encodeEmbedBank(bank, (key) => artKeys.get(key) ?? key, true));
   const labelsBuffer = Buffer.from(`${JSON.stringify(labels)}\n`);
   const bankHash = createHash("sha256")
@@ -234,6 +202,7 @@ export async function rebuildScanBank(deps: ScanBankDeps): Promise<ScanBankBuild
     durationMs: Date.now() - startedAt,
   });
 
+  // Keeps the previous generation's files: a client may hold its manifest mid-download.
   await pruneGenerations(io, log, [bankHash, previous?.bankHash]);
 
   const result = {
@@ -246,23 +215,15 @@ export async function rebuildScanBank(deps: ScanBankDeps): Promise<ScanBankBuild
   return result;
 }
 
-/** @returns The served bank filename for a generation hash. */
 export function bankFileName(hash: string): string {
   return `scan-bank-${hash}.bin`;
 }
 
-/** @returns The served labels filename for a generation hash. */
 export function labelsFileName(hash: string): string {
   return `scan-labels-${hash}.json`;
 }
 
-/**
- * Concatenate per-image vectors into one bank buffer. The row width comes
- * from the vectors themselves, so encoders with other embedding dimensions
- * pack unchanged.
- *
- * @returns The packed vectors.
- */
+/** Row width comes from the vectors, so other embedding dimensions pack unchanged. */
 function concat(vectors: readonly Float32Array[]): Float32Array {
   const dim = vectors[0]?.length ?? 0;
   const out = new Float32Array(vectors.length * dim);
@@ -272,12 +233,7 @@ function concat(vectors: readonly Float32Array[]): Float32Array {
   return out;
 }
 
-/**
- * Delete bank/labels generations other than the ones to keep. The engine
- * assets (encoder, opencv) are never touched.
- *
- * @returns Nothing; stale files are unlinked best-effort.
- */
+/** The engine assets (encoder, opencv) are never touched. */
 async function pruneGenerations(
   io: Io,
   log: Logger,

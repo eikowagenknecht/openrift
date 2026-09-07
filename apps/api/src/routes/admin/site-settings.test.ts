@@ -6,10 +6,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminSiteSettingsRouter } from "./site-settings";
 
-// ---------------------------------------------------------------------------
-// Mock repo
-// ---------------------------------------------------------------------------
-
 const mockRepo = {
   listAll: vi.fn(),
   create: vi.fn(),
@@ -19,8 +15,6 @@ const mockRepo = {
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-// Mount the oRPC router directly (without the requireAdmin gate). AppErrors are
-// bridged to ORPCErrors inside the router, so 4xx responses carry `{ message }`.
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
@@ -28,10 +22,6 @@ app.use("*", async (c, next) => {
   await next();
 });
 registerRouterForTest(app, adminSiteSettingsRouter);
-
-// ---------------------------------------------------------------------------
-// Test data
-// ---------------------------------------------------------------------------
 
 const now = new Date("2026-03-17T00:00:00Z");
 
@@ -50,10 +40,6 @@ const dbSetting2 = {
   createdAt: now,
   updatedAt: now,
 };
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("GET /api/admin/v1/site-settings", () => {
   beforeEach(() => {

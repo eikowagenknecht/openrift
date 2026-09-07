@@ -9,9 +9,8 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminMetaCandidatesRouter } from "./meta-candidates";
 
-// Promotion is its own unit and reaches for repos this route mock has no
-// reason to carry. `sourceEventFacts` stays real, because the drift tests below
-// are about exactly what it computes.
+// sourceEventFacts stays unmocked because the drift tests assert exactly what
+// it computes.
 vi.mock("../../services/meta-promote.js", async (importOriginal) => ({
   ...(await importOriginal<typeof MetaPromote>()),
   promoteMetaEvent: vi.fn(() =>
@@ -28,10 +27,6 @@ vi.mock("../../services/meta-promote.js", async (importOriginal) => ({
     }),
   ),
 }));
-
-// The overlay queue and the drift view (ADR-014 revision 3). The repos are
-// faked because the shapes these handlers assemble are the point: what the
-// reviewer is shown for a claimed field, and which source cells drift greys out.
 
 const mockOverlays = {
   pendingEventOverlays: vi.fn(),
@@ -84,8 +79,6 @@ const mockUvsgames = {
   settings: vi.fn(),
   playerDisplayNames: vi.fn(),
 };
-// Drift reads promotion's own view of each source, which reaches for the
-// mirror the fetch filled.
 const mockUvsgamesResults = { standings: vi.fn() };
 const mockPlayloltcg = { byKey: vi.fn() };
 const mockTopdeck = { byKey: vi.fn() };
@@ -237,7 +230,6 @@ beforeEach(() => {
   mockOverlays.acceptedPlayerOverlays.mockResolvedValue([]);
   mockMetaSubmissions.byPlayerOverlayId.mockResolvedValue(null);
   mockMeta.eventIdForPlayer.mockResolvedValue(LIVE_EVENT_ID);
-  // A row the source names, so clearing `playerName` has somewhere to fall back to.
   mockMeta.rawStandingsForEvent.mockResolvedValue([{ id: LIVE_PLAYER_ID, uvsgamesPlayerId: 4821 }]);
   mockCatalog.cardNamesByIds.mockResolvedValue(new Map([[CARD_ID, "Yasuo"]]));
   mockMeta.eventById.mockResolvedValue(LIVE_EVENT);
@@ -541,7 +533,6 @@ describe("GET /meta/events/{id}/drift", () => {
 
   it("blanks one source's column rather than failing the page on a bad row", async () => {
     mockMeta.sourcesForEvent.mockResolvedValue([citation("uvsgames", "evt-1")]);
-    // A listing row the crawl half-wrote: no start time to derive a date from.
     mockUvsgames.byKey.mockResolvedValue(mirrorRow({ startAt: undefined }));
 
     const response = await app.request(`/api/admin/v1/meta/events/${LIVE_EVENT_ID}/drift`);
@@ -563,9 +554,7 @@ describe("GET /meta/events/{id}/drift", () => {
     );
     const fields = body.fields as { field: string; bySource: { raw: string | null }[] }[];
 
-    // The archive files it as "constructed"; the source said "Constructed".
     expect(fields.find((row) => row.field === "format")?.bySource[0]?.raw).toBe("Constructed");
-    // A pass-through field has nothing to show twice.
     expect(fields.find((row) => row.field === "name")?.bySource[0]?.raw).toBeNull();
   });
 
@@ -630,8 +619,6 @@ describe("POST /meta/events/{id}/overlays", () => {
 
     await claim({ field: "location", value: "Zaun" });
 
-    // Ten edits are one row claiming ten fields, not ten rows the next promote
-    // replays in sequence.
     expect(mockOverlays.insertEventOverlay).not.toHaveBeenCalled();
     expect(mockOverlays.updateEventOverlay).toHaveBeenCalledWith(
       EVENT_OVERLAY_ID,
@@ -819,8 +806,6 @@ describe("POST /meta/players/{id}/overlays", () => {
   it("claims a field set to null, which is the only way to clear one", async () => {
     await write({ fields: { wins: null } });
 
-    // Present-and-null is "clear it"; absent is "say nothing". Without the
-    // mask those two would be the same request.
     expect(mockOverlays.insertPlayerOverlay).toHaveBeenCalledWith(
       expect.objectContaining({ claimedFields: ["wins"], wins: null }),
       [],
@@ -866,8 +851,6 @@ describe("POST /meta/players/{id}/overlays", () => {
   it("resolves each list line to the catalog's own name for the card", async () => {
     await write({ list: { cards: [LINE], listStatus: "partial" } });
 
-    // The mirror stores what a source said; an admin's list stores what the
-    // catalog says, so the queue and promotion read the same words.
     expect(mockOverlays.insertPlayerOverlay).toHaveBeenCalledWith(
       expect.objectContaining({ claimedFields: ["cards", "listStatus"], listStatus: "partial" }),
       [
@@ -924,7 +907,6 @@ describe("POST /meta/players/{id}/overlays", () => {
 
     await write({ list: { name: "Yasuo Control", cards: [LINE], listStatus: "full" } });
 
-    // A freshly claimed list has no deck until the promote derives one.
     expect(order).toEqual(["promote", "rename"]);
     expect(mockMeta.renamePlayerDeck).toHaveBeenCalledWith(LIVE_PLAYER_ID, "Yasuo Control");
   });

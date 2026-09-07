@@ -3,12 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { adminReq, createTestContext, req, seedTestUser } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// Route-level integration tests for the ADR-033 organization surfaces: admin
-// provisioning (under /api/admin/v1, requireAdmin-gated) and authenticated
-// member management (owner/manager rules, last-owner guard).
-
-// Random per-file users (seeded via seedTestUser in beforeAll) so this file
-// cannot collide with pre-seeded registry users or other files' fixtures.
+// Random per-file users avoid collisions with pre-seeded registry users or other files' fixtures.
 const ADMIN_ID = crypto.randomUUID();
 const OWNER_ID = crypto.randomUUID();
 const MANAGER_ID = crypto.randomUUID();
@@ -23,7 +18,7 @@ const extraCtx = createTestContext(EXTRA_ID, `test-${EXTRA_ID}@test.com`);
 
 const ALL_IDS = [ADMIN_ID, OWNER_ID, MANAGER_ID, OUTSIDER_ID, EXTRA_ID];
 
-// Mirrors the seed email assigned in beforeAll; members are added by email.
+// Mirrors the seed email assigned in beforeAll.
 const emailFor = (userId: string) => `test-${userId}@test.com`;
 
 describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraCtx)(
@@ -152,7 +147,6 @@ describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraC
       );
       expect(add.status).toBe(200);
 
-      // A manager cannot grant the owner role.
       const denied = await manager.app.fetch(
         req("POST", `/organizations/${orgId}/members`, {
           email: emailFor(EXTRA_ID),
@@ -161,7 +155,6 @@ describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraC
       );
       expect(denied.status).toBe(403);
 
-      // A manager may add another manager.
       const managerAdds = await manager.app.fetch(
         req("POST", `/organizations/${orgId}/members`, {
           email: emailFor(EXTRA_ID),
@@ -170,7 +163,6 @@ describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraC
       );
       expect(managerAdds.status).toBe(200);
 
-      // Re-adding an existing member is a conflict.
       const dup = await owner.app.fetch(
         req("POST", `/organizations/${orgId}/members`, {
           email: emailFor(MANAGER_ID),
@@ -179,7 +171,6 @@ describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraC
       );
       expect(dup.status).toBe(409);
 
-      // An unknown email resolves to no account.
       const unknown = await owner.app.fetch(
         req("POST", `/organizations/${orgId}/members`, {
           email: "nobody@test.com",
@@ -190,13 +181,11 @@ describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraC
     });
 
     it("lets an owner change a member's role and guards the last owner", async () => {
-      // A manager cannot grant or revoke the owner role.
       const denied = await manager.app.fetch(
         req("PATCH", `/organizations/${orgId}/members/${EXTRA_ID}`, { role: "owner" }),
       );
       expect(denied.status).toBe(403);
 
-      // An owner promotes a manager to owner.
       const promote = await owner.app.fetch(
         req("PATCH", `/organizations/${orgId}/members/${EXTRA_ID}`, { role: "owner" }),
       );
@@ -204,13 +193,11 @@ describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraC
       const promoted = (await readJson(promote)) as { members: { userId: string; role: string }[] };
       expect(promoted.members.find((member) => member.userId === EXTRA_ID)?.role).toBe("owner");
 
-      // With two owners, demoting one back to manager is allowed.
       const demote = await owner.app.fetch(
         req("PATCH", `/organizations/${orgId}/members/${EXTRA_ID}`, { role: "manager" }),
       );
       expect(demote.status).toBe(200);
 
-      // The last remaining owner cannot be demoted.
       const lastOwner = await owner.app.fetch(
         req("PATCH", `/organizations/${orgId}/members/${OWNER_ID}`, { role: "manager" }),
       );
@@ -218,7 +205,6 @@ describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraC
     });
 
     it("makes an org judge a member that cannot manage members", async () => {
-      // Owner sets EXTRA to the judge role.
       const setJudge = await owner.app.fetch(
         req("PATCH", `/organizations/${orgId}/members/${EXTRA_ID}`, { role: "judge" }),
       );
@@ -226,7 +212,6 @@ describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraC
       const body = (await readJson(setJudge)) as { members: { userId: string; role: string }[] };
       expect(body.members.find((member) => member.userId === EXTRA_ID)?.role).toBe("judge");
 
-      // A judge is a member but has no org-admin authority.
       const denied = await extra.app.fetch(
         req("POST", `/organizations/${orgId}/members`, {
           email: emailFor(OUTSIDER_ID),
@@ -249,7 +234,6 @@ describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraC
     });
 
     it("keeps an owner when two concurrent owner demotions race (TOCTOU guard)", async () => {
-      // A fresh org so the race is isolated from the shared fixture's role state.
       const create = await admin.app.fetch(
         adminReq("POST", "/organizations", {
           slug: "store-race",
@@ -259,7 +243,6 @@ describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraC
       );
       const raceOrgId = ((await readJson(create)) as { id: string }).id;
 
-      // Promote EXTRA to a second owner so the org has exactly two owners.
       await owner.app.fetch(
         req("POST", `/organizations/${raceOrgId}/members`, {
           email: emailFor(EXTRA_ID),
@@ -271,8 +254,7 @@ describe.skipIf(!adminCtx || !ownerCtx || !managerCtx || !outsiderCtx || !extraC
       );
       expect(promote.status).toBe(200);
 
-      // Two co-owners demote each other at the same instant. The last-owner guard
-      // must serialize them: exactly one demotion wins, the org keeps one owner.
+      // The last-owner guard must serialize concurrent demotions: exactly one wins.
       const [first, second] = await Promise.all([
         owner.app.fetch(
           req("PATCH", `/organizations/${raceOrgId}/members/${EXTRA_ID}`, { role: "manager" }),

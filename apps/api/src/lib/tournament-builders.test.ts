@@ -147,7 +147,7 @@ describe("buildStaffList", () => {
   it("dedupes a grant for a user who is also an org member, listing them once from the org", async () => {
     const members = [orgMember({ userId: "u1", role: "owner" })];
     const grants = [
-      staffGrant({ userId: "u1", role: "judge" }), // redundant grant, member wins
+      staffGrant({ userId: "u1", role: "judge" }),
       staffGrant({ userId: "u2", role: "organizer" }),
     ];
     const { repos } = makeRepos({ members, staff: grants });

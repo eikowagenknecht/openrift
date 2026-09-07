@@ -18,12 +18,7 @@ describe("collectionEventsRepo", () => {
     expect(await repo.listForUser("u1", 20, "2026-01-01T00:00:00.000Z_e-last")).toEqual([]);
   });
 
-  // Regression: the cursor parser used to pass an unparseable cursor straight
-  // into `new Date(...)` and let the resulting Invalid Date reach the Kysely
-  // query, producing an INTERNAL_ERROR 500. The query schema now rejects
-  // malformed cursors before they get this far, but keysetCursorPredicate also
-  // guards, so any unvalidated caller fails with a 400 AppError instead.
-  it("listForUser rejects an unparseable cursor", () => {
+  it("listForUser rejects an unparseable cursor with a 400 AppError instead of an Invalid Date reaching the query", () => {
     const db = createMockDb([]);
     const repo = collectionEventsRepo(db);
     expect(() => repo.listForUser("u1", 20, "not-a-date")).toThrow(AppError);

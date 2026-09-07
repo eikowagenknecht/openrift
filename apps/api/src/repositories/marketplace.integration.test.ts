@@ -35,8 +35,6 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
   const tcgExternalId = 913_101;
   const cmExternalId = 913_102;
 
-  // Fury Rune is printed in both EN and SC in the seed, which is what the
-  // language-aware pricing needs.
   const runeEnPrintingId = PRINTINGS["OGN-007:common:normal::EN"].id;
   const runeScPrintingId = PRINTINGS["OGN-007:common:normal::SC"].id;
 

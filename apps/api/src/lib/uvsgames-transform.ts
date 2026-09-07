@@ -2,25 +2,12 @@ import { META_ENTRY_STATUSES, REQUIRED_ZONES, WellKnown, ZONE_EXPECTED } from "@
 import type { MetaEntryStatus } from "@openrift/shared";
 
 /**
- * Projects one deep fetch's responses into the source mirror's columns
- * (ADR-014 revision 3).
- *
- * This is an allowlist, and that is the storage contract: a field named here
- * reaches `uvsgames_*`, and everything else is dropped where it is read. No
- * response body is kept, so a contact detail the source starts publishing
- * tomorrow cannot land in the database by default.
- *
- * Nothing here matches a card, maps a format or classifies a tier. Those are
- * promotion's job, and keeping them out is what makes a mapping fix a
- * re-promote instead of a re-crawl.
- *
- * Everything reads `unknown`. The source publishes no schema, so a field that
- * changed shape must degrade to "we don't know that" rather than throw
- * mid-crawl: a player with no name is dropped and counted, an unreadable deck
- * section becomes a standings-only row.
+ * Projects one deep fetch's responses into the source mirror's columns.
+ * Allowlist: only fields named here reach `uvsgames_*`. Fields are `unknown`
+ * because the source publishes no schema; a changed shape degrades to a
+ * drop, not a crawl-wide throw.
  */
 
-/** The responses one deep fetch makes, held only long enough to project them. */
 export interface UvsDeepFetchResponses {
   detail: unknown;
   registrations: unknown[];
@@ -48,22 +35,16 @@ interface UvsStandingProjection {
 
 export interface UvsTransformResult {
   standings: UvsStandingProjection[];
-  /** Registrations with no usable name or placement. Reported, never guessed at. */
   dropped: number;
-  /** The player behind each registration, upserted into `uvsgames_players`. */
   players: UvsPlayerIdentity[];
 }
 
-/** One player as the source's registration names them. */
 interface UvsPlayerIdentity {
-  /** The registration id, which is the staged row's `external_id`. */
   registrationId: string;
-  /** The source's global user id. */
   userId: number;
   displayName: string;
 }
 
-/** Source section key → `WellKnown.deckZone`. Anything else lands in the main deck. */
 const ZONE_BY_SECTION: Readonly<Record<string, string>> = {
   main: WellKnown.deckZone.MAIN,
   main_deck: WellKnown.deckZone.MAIN,
@@ -77,13 +58,6 @@ const ZONE_BY_SECTION: Readonly<Record<string, string>> = {
   battlefields: WellKnown.deckZone.BATTLEFIELD,
 };
 
-/**
- * Where a card belongs when the source filed it in the main deck but typed it
- * as something the main deck cannot hold. The source's own vocabulary, not the
- * catalog's, because the transform is pure and never sees a resolved card.
- * Only main-deck lines consult it: a Champion is a Unit, so a section that
- * names its zone outright is always the better authority.
- */
 const ZONE_BY_CARD_TYPE: Readonly<Record<string, string>> = {
   legend: WellKnown.deckZone.LEGEND,
   rune: WellKnown.deckZone.RUNES,
@@ -124,7 +98,6 @@ function fraction(value: unknown): number | null {
     : null;
 }
 
-/** The source's registration status, lowered into the archive's vocabulary. */
 function entryStatus(value: unknown): MetaEntryStatus | null {
   const lowered = text(value)?.toLowerCase();
   return META_ENTRY_STATUSES.find((status) => status === lowered) ?? null;
@@ -135,21 +108,15 @@ function positive(value: unknown): number | null {
   return parsed === null || parsed === 0 ? null : parsed;
 }
 
-/** One finished round as the detail's phase list names it. */
 export interface UvsRoundMeta {
   roundId: string;
-  /** Position of the round's phase in the detail (Day 1, Day 2, top cut). */
   phaseOrder: number;
-  /** The round's position within its phase, from the source when it says one. */
   roundNumber: number;
 }
 
 /**
- * The rounds the source reports as finished, in the order the phases list them.
- * Matches are read from all of them. Standings are read from a few: the last
- * round of a phase names everyone still seated in that phase, but a top cut is
- * a phase of its own, so the field a cut left behind is only named by the phase
- * before it. `phaseOrder` is what lets the caller walk back that far.
+ * Standings are named only by a phase's last round; a top cut is a separate
+ * phase, so `phaseOrder` lets the caller find the phase a cut left behind.
  */
 export function completedRounds(detail: unknown): UvsRoundMeta[] {
   const rounds: UvsRoundMeta[] = [];
@@ -157,9 +124,8 @@ export function completedRounds(detail: unknown): UvsRoundMeta[] {
   for (const [phaseOrder, phase] of phases.entries()) {
     const phaseRounds = array(record(phase)?.rounds);
     const numbered = phaseRounds.map((round) => positive(record(round)?.round_number));
-    // The source's own numbers are only usable when it numbers the whole phase
-    // distinctly; mixing them with the positional fallback would render two of
-    // the phase's rounds under one number.
+    // Source numbers are only usable when they're distinct across the phase;
+    // mixed with the positional fallback, two rounds could share a number.
     const useSource =
       numbered.every((number) => number !== null) && new Set(numbered).size === numbered.length;
     for (const [index, round] of phaseRounds.entries()) {
@@ -180,7 +146,6 @@ export function completedRounds(detail: unknown): UvsRoundMeta[] {
 
 /** One mirrored match, as `uvsgames_event_matches` stores it minus the event FK. */
 interface UvsMatchProjection {
-  /** The source's own match id, and the staged row's key. */
   sourceMatchId: string;
   roundId: string;
   phaseOrder: number;
@@ -197,9 +162,7 @@ interface UvsMatchProjection {
 
 export interface UvsRoundMatchesResult {
   matches: UvsMatchProjection[];
-  /** User id -> handle for participants the round names, for the player upsert. */
   players: Map<number, string>;
-  /** Rows with no id, no readable seat, an unreadable opponent, or extra seats. */
   dropped: number;
 }
 
@@ -209,7 +172,6 @@ interface UvsMatchSeat {
   gamesWon: number | null;
 }
 
-/** The source's global user id behind one match seat. */
 function matchSeatUserId(seat: Json | null): number | null {
   const direct = record(record(seat?.user_event_status)?.user)?.id;
   if (typeof direct === "number" && Number.isInteger(direct) && direct > 0) {
@@ -220,14 +182,9 @@ function matchSeatUserId(seat: Json | null): number | null {
 }
 
 /**
- * The handle the player entered under, which is what the registrations path
- * stores and what the standings render. `best_identifier` names a different
- * thing at each level: on `user_event_status` it is the handle, on `user` and
- * on the legacy `player` it is the account name, which is a real name for ~90 %
- * of players. Reading those first overwrote every participant's handle with
- * their real name as soon as a round staged. They stay as fallbacks only
- * because a seat with no name at all costs the whole round: its player row
- * cannot be written, so the staging insert fails the FK.
+ * `best_identifier` means the handle on `user_event_status` but the account's
+ * real name on `user`/`player`; check `user_event_status` first or every
+ * participant's handle gets overwritten with their real name.
  */
 function matchSeatName(seat: Json | null): string | null {
   return (
@@ -237,7 +194,6 @@ function matchSeatName(seat: Json | null): string | null {
   );
 }
 
-/** Whether this seat won, from its own flag or the match-level winner id. */
 function seatWon(seat: Json | null, userId: number, winningPlayer: number | null): boolean {
   if (seat?.is_winner === true) {
     return true;
@@ -249,13 +205,9 @@ function seatWon(seat: Json | null, userId: number, winningPlayer: number | null
 }
 
 /**
- * One completed round's matches from `tournament-rounds/{id}/matches/paginated/`,
- * as staged rows (ADR-014, "Pairings"). The source's match id is the row's key,
- * so a player it pairs twice in one round keeps both matches; participants are
- * still ordered by user id, which is what makes the seat columns deterministic.
- * A row that cannot be represented, meaning no id, no readable seat, an
- * unreadable or missing opponent on a non-bye, or more than two seats, is
- * dropped and counted, never guessed at.
+ * The source's match id keys the staged row, so a player paired twice in one
+ * round keeps both matches. Rows with no id, no readable seat, a missing
+ * opponent on a non-bye, or more than two seats are dropped and counted.
  */
 export function projectRoundMatches(
   round: UvsRoundMeta,
@@ -348,7 +300,6 @@ export function projectRoundMatches(
   return { matches, players, dropped };
 }
 
-/** The deck ids the event's registrations reference, deduped and in listing order. */
 export function referencedDeckIds(registrations: readonly unknown[]): string[] {
   const ids = new Set<string>();
   for (const row of registrations) {
@@ -369,19 +320,7 @@ interface UvsStandingDetail {
   opponentGameWinPct: number | null;
 }
 
-/**
- * Registration id → that player's standings row, read from the per-round
- * standings. It carries the legend as `deck_defining_card` (verified to be the
- * legend for effectively every observed deck, and the only place it appears for
- * an event that published no lists) alongside the match points and tiebreakers
- * the standings are ordered by.
- *
- * The registrations endpoint has neither, which is why both are read here.
- *
- * The first row for a registration wins. Callers hand the rounds over latest
- * first, so a player who made the top cut keeps their cut row and everyone else
- * keeps the last round they actually played.
- */
+/** First row per registration wins. Callers must hand rounds latest-first. */
 function standingsByRegistration(
   roundStandings: readonly unknown[],
 ): Map<string, UvsStandingDetail> {
@@ -415,13 +354,8 @@ export interface UvsPhaseProjection {
 }
 
 /**
- * The event's phase structure, from the same `tournament_phases` list
- * {@link completedRounds} walks for round ids.
- *
- * `rank_required_to_enter_phase` is where a cut size comes from: the source has
- * a `top_cut_size` field of its own and leaves it null on every event observed.
- * A phase with no `round_type` is skipped rather than stored typeless, since
- * the type is the only reason the row is worth keeping.
+ * Cut size comes from `rank_required_to_enter_phase`; the source's own
+ * `top_cut_size` field is null on every event observed.
  */
 export function projectPhases(detail: unknown): UvsPhaseProjection[] {
   const phases: UvsPhaseProjection[] = [];
@@ -443,11 +377,7 @@ export function projectPhases(detail: unknown): UvsPhaseProjection[] {
   return phases;
 }
 
-/**
- * Display name → final rank from the tv standings, used only to fill a
- * registration the source left without a placement. Names that appear twice are
- * dropped: a wrong rank is worse than a missing player.
- */
+/** Names that appear twice are dropped: a wrong rank is worse than a missing player. */
 function ranksByDisplayName(standings: readonly unknown[]): Map<string, number> {
   const seen = new Map<string, number | null>();
   for (const row of standings) {
@@ -481,12 +411,8 @@ interface DeckLines {
 }
 
 /**
- * The zone one deck section stands for. The source names it in `section_type`
- * (`main`, `rune_pool`, `battlefield`) on today's shape and in `name` alone
- * (`Main Deck`, `Rune Pool`, `Battlefields`) on the older one, so all three
- * keys are probed and the first recognised spelling wins. An unknown key is a
- * section shape nobody has seen, whose cards are worth more in the main deck
- * than dropped.
+ * Probes `section_type`, `type`, then `name`: today's shape names the zone in
+ * `section_type` (`main`, `rune_pool`); the older shape only in `name`.
  */
 function sectionZone(section: Json | null): string {
   for (const raw of [section?.section_type, section?.type, section?.name]) {
@@ -501,11 +427,6 @@ function sectionZone(section: Json | null): string {
   return WellKnown.deckZone.MAIN;
 }
 
-/**
- * One fetched decklist as ingest card lines. The source publishes no schema, so
- * the section list, the key naming each section, and each entry's name and
- * quantity are all probed rather than destructured.
- */
 export function readDeckLines(deck: unknown): DeckLines | null {
   const row = record(deck);
   if (row === null) {
@@ -542,22 +463,7 @@ export function readDeckLines(deck: unknown): DeckLines | null {
 }
 
 /**
- * Whether a list is the whole record of what was played, or only the part the
- * source published.
- *
- * uvsgames fills the Legend, Chosen Champion and Battlefields sections on a few
- * dozen of its several thousand lists and leaves them empty on the rest, so
- * `full` is earned per list rather than granted to every list that parsed. The
- * marker is what turns the deck page's missing zones into dashed "Unknown"
- * slots instead of zones the player is shown as having left empty.
- *
- * The standings legend counts as held: promotion files it into the list's own
- * Legend zone when the list carries none.
- *
- * The targets are the constructed baselines rather than `zoneExpected`, because
- * the mirror's format is still the source's unmapped string here.
- *
- * Expects {@link withSingleChampion} to have already run; an unnormalised
+ * Requires {@link withSingleChampion} to have already run; an unnormalised
  * champion playset leaves `main` short and misreads as partial.
  */
 export function listStatusFor(
@@ -596,15 +502,6 @@ export function withSingleChampion<TLine extends { zone: string; quantity: numbe
   });
 }
 
-/**
- * Every registration as a mirror row.
- *
- * Players come from the registrations, the only endpoint public for every
- * event, with the tiebreakers and the legend joined from the round standings
- * and the deck id kept as the source's own reference. The list behind that id
- * is projected separately, because a deck is fetched once and a standings row
- * is re-read on every visit.
- */
 export function projectUvsStandings(raw: UvsDeepFetchResponses): UvsTransformResult {
   const standings = standingsByRegistration(raw.roundStandings);
   const ranks = ranksByDisplayName(raw.standings);
@@ -626,9 +523,6 @@ export function projectUvsStandings(raw: UvsDeepFetchResponses): UvsTransformRes
       ranks.get(playerName.toLowerCase()) ??
       null;
     if (rank === null) {
-      // No placement anywhere: a drop, a no-show, or an event the source has
-      // not finalised. Promotion has nothing to file such a row under, so it
-      // is counted and skipped rather than mirrored rankless.
       dropped++;
       continue;
     }
@@ -644,14 +538,12 @@ export function projectUvsStandings(raw: UvsDeepFetchResponses): UvsTransformRes
 
     const sourceDeckId = text(registration?.deck_id);
 
-    // The registrations endpoint carries the record and the status; the
-    // tiebreakers and the legend only exist on the round standings row.
     const standing = standings.get(registrationId) ?? null;
     rows.push({
       registrationId,
       uvsgamesPlayerId: userId,
-      // A keyed player is rendered under `uvsgames_players.display_name`, so
-      // the mirror stores a name only where there is no id to resolve.
+      // A keyed player is rendered under `uvsgames_players.display_name`.
+      // The mirror stores a name only where there is no id to resolve.
       playerName: userId === null ? playerName.slice(0, 80) : null,
       rank,
       wins: count(registration?.matches_won),
@@ -667,11 +559,8 @@ export function projectUvsStandings(raw: UvsDeepFetchResponses): UvsTransformRes
     });
   }
 
-  // A TO who reports no match results still enters placements, and the source
-  // then shows every player as 0-0-1 from a single placeholder round. A field
-  // with zero wins and zero losses means matches were never tracked, so no
-  // record is stored. A two-player field is exempt: one genuinely drawn match
-  // is the only real all-draw event.
+  // A TO reporting no results shows every player as 0-0-1 from a placeholder
+  // round; null the record out unless it's a genuine two-player all-draw.
   const matchesTracked =
     rows.length <= 2 || rows.some((row) => (row.wins ?? 0) > 0 || (row.losses ?? 0) > 0);
   if (!matchesTracked) {
@@ -693,11 +582,7 @@ export interface UvsDecklistLineProjection {
   cardName: string;
 }
 
-/**
- * @returns The deck's lines, or null when the payload carried none readable —
- *   which the caller records as a fetched deck with no lines rather than
- *   retrying it.
- */
+/** Null when the payload carries no readable lines: recorded as a fetched deck with no lines, never retried. */
 export function projectUvsDecklistCards(deck: unknown): UvsDecklistLineProjection[] | null {
   const lines = readDeckLines(deck);
   if (lines === null) {

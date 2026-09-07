@@ -6,17 +6,10 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminMetaRouter } from "./meta";
 
-// The overlay write is its own unit, tested against a real database. Here it
-// only has to be observable: the create path's job is to claim exactly what the
-// admin typed, not to prove promotion works.
 vi.mock("../../services/meta-overlay-review.js", () => ({
   writeEventOverlayFields: vi.fn(),
 }));
 const { writeEventOverlayFields } = await import("../../services/meta-overlay-review.js");
-
-// ---------------------------------------------------------------------------
-// Mock repos
-// ---------------------------------------------------------------------------
 
 const mockMeta = {
   listEvents: vi.fn(),
@@ -60,7 +53,7 @@ app.use("*", async (c, next) => {
 });
 registerRouterForTest(app, adminMetaRouter);
 
-/** @returns A stored citation row, provider-keyed only when asked. */
+/** A stored citation row, provider-keyed only when asked. */
 function sourceRow(overrides: Record<string, unknown> = {}) {
   return {
     id: SOURCE_ID,
@@ -74,7 +67,7 @@ function sourceRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** @returns An event row with its standings and deck counts, as the repo hands it back. */
+/** An event row with its standings and deck counts, as the repo hands it back. */
 function eventRow(overrides: Record<string, unknown> = {}) {
   return {
     id: EVENT_ID,
@@ -96,7 +89,7 @@ function eventRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** @returns A standings row with no list attached, as the admin table reads it. */
+/** A standings row with no list attached, as the admin table reads it. */
 function playerRow(overrides: Record<string, unknown> = {}) {
   return {
     id: PLAYER_ID,
@@ -120,7 +113,7 @@ function playerRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** @returns A list body for a standings row's archived deck. */
+/** A list body for a standings row's archived deck. */
 function listBody(overrides: Record<string, unknown> = {}) {
   return {
     name: "Renata Control",
@@ -130,7 +123,7 @@ function listBody(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** @returns The response to a citation POST. */
+/** The response to a citation POST. */
 function createSource(body: unknown) {
   return app.request(`/api/admin/v1/meta/events/${EVENT_ID}/sources`, {
     method: "POST",
@@ -139,7 +132,7 @@ function createSource(body: unknown) {
   });
 }
 
-/** @returns The response to a standings-row POST. */
+/** The response to a standings-row POST. */
 function createPlayer(body: unknown) {
   return app.request("/api/admin/v1/meta/players", {
     method: "POST",
@@ -174,8 +167,8 @@ describe("POST /meta/events", () => {
     });
 
     expect(res.status).toBe(201);
-    // Migration 255 took the source key and the URL off the live row; the
-    // create path must not try to write either back.
+    // The live row has no source key or URL column; the create path must not
+    // try to write either back.
     expect(mockMeta.createEvent).toHaveBeenCalledWith({
       slug: "summoner-skirmish-2026",
       name: "Summoner Skirmish",
@@ -188,8 +181,6 @@ describe("POST /meta/events", () => {
       country: null,
       location: null,
     });
-    // The data the admin typed is a claim, not a column write, so releasing it
-    // later hands the field back instead of stranding the value on the row.
     expect(writeEventOverlayFields).toHaveBeenCalledWith(
       expect.anything(),
       EVENT_ID,
@@ -326,7 +317,6 @@ describe("POST /meta/players", () => {
       },
       null,
     );
-    // No list, so no format was validated.
     expect(mockDeckFormats.getBySlug).not.toHaveBeenCalled();
   });
 

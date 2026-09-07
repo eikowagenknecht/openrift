@@ -7,8 +7,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { deckCheckIngestRouter, mountDeckCheckIngestMiddleware } from "./deck-check-ingest";
 
-// Mock the ingest service so the handler (auth + validation + result wiring) is
-// exercised without a database.
 const mockIngest = vi.fn();
 vi.mock("../../services/deck-check-ingest.js", () => ({
   ingestDeckCheckPush: (...args: unknown[]) => mockIngest(...args),
@@ -19,11 +17,6 @@ const mockDeckCheckKeysRepo = {
   touchKeyUsage: vi.fn(),
 };
 
-// Mount the oRPC router the way production does (single catch-all +
-// appErrorInterceptor + buildApiContext), so the native `{ code, message }`
-// error envelope and the `context.reqHeader` Bearer-key auth are exercised end
-// to end. The rate limit / body limit are app-level Hono middleware (app.ts),
-// not part of the router, so they get their own app in the last describe.
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("repos", { deckCheckKeys: mockDeckCheckKeysRepo } as never);
@@ -36,8 +29,6 @@ registerRouterForTest(app, deckCheckIngestRouter);
 
 const EVENT_ID = "a0000000-0001-4000-a000-000000000001";
 
-// A full, schema-valid result — oRPC now validates the handler's output, so the
-// mocked service must return the real `DeckCheckIngestResultResponse` shape.
 const RESULT = {
   tournamentId: EVENT_ID,
   entriesCreated: 0,
@@ -112,15 +103,11 @@ describe("POST /api/v1/ingest/deck-check (oRPC)", () => {
   it("returns 400 on a bad body, before the auth check (oRPC input validation)", async () => {
     const res = await push({ tournamentId: "not-a-uuid" }, { Authorization: "Bearer secret" });
     expect(res.status).toBe(400);
-    // Validation runs before the handler, so the key is never looked up — this
-    // preserves the previous validation-first ordering.
     expect(mockDeckCheckKeysRepo.findActiveKeyByHash).not.toHaveBeenCalled();
   });
 });
 
 describe("deck-check ingest body limit", () => {
-  // Its own app: the limit is path middleware registered ahead of the oRPC
-  // catch-all, so it has to be mounted the way app.ts does to be exercised.
   const limited = new Hono<{ Variables: Variables }>();
   mountDeckCheckIngestMiddleware(limited);
   limited.use("*", async (c, next) => {
@@ -138,9 +125,6 @@ describe("deck-check ingest body limit", () => {
     });
 
     expect(res.status).toBe(413);
-    // A provider must get the same envelope here as for this endpoint's 401 /
-    // 404 / 409: `defined` and `status` are what let the client rebuild the
-    // error instead of discarding the body as a malformed response.
     expect(await readJson(res)).toStrictEqual({
       defined: false,
       code: ERROR_CODES.PAYLOAD_TOO_LARGE,

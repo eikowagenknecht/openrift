@@ -71,12 +71,8 @@ import type { Database } from "./types.js";
 const DATABASE_URL = process.env.DATABASE_URL;
 
 /**
- * Every string-enum CHECK in the schema, mapped to the TypeScript value list
- * that owns the same vocabulary. Adding a value in a migration without adding
- * it here (and therefore to the union the code branches on) fails this test.
- *
- * Keyed by constraint name because that is what `pg_constraint` reports and it
- * is unique per table.
+ * Every string-enum CHECK, keyed by constraint name, mapped to the union it
+ * must match. A value added in a migration without one here fails this test.
  */
 const ENUM_CHECKS: Record<string, readonly string[]> = {
   chk_card_submissions_kind: cardSubmissionKindSchema.options,
@@ -151,12 +147,6 @@ const ENUM_CHECKS: Record<string, readonly string[]> = {
   chk_uvsgames_id_probes_outcome: UVSGAMES_PROBE_OUTCOMES,
 };
 
-/**
- * CHECKs that mention an enum list but constrain a combination rather than one
- * column's vocabulary, so there is no single union to compare them against.
- * Listed explicitly so a new compound constraint is noticed rather than
- * silently skipped.
- */
 const COMPOUND_CHECKS = new Set([
   "chk_lists_intent_kind",
   "chk_lists_prefs_only_on_trade_intents",
@@ -166,10 +156,8 @@ const COMPOUND_CHECKS = new Set([
 ]);
 
 /**
- * Array-subset CHECKs (`col <@ ARRAY[...]`): an array column constrained to a
- * vocabulary rather than a scalar one. The overlays' claimed-field masks live
- * here, so a field added to the zod enum without a migration (or the reverse)
- * fails this test the same way a scalar enum would.
+ * Array-subset CHECKs (`col <@ ARRAY[...]`): the overlays' claimed-field
+ * masks, compared like a scalar enum.
  */
 const SUBSET_CHECKS: Record<string, readonly string[]> = {
   chk_meta_event_overlays_claimed_fields_known: META_EVENT_OVERLAY_FIELDS,
@@ -211,11 +199,8 @@ describe.skipIf(!DATABASE_URL)("DB enum CHECKs match their TypeScript unions", (
       WHERE c.contype = 'c' AND n.nspname = 'public'
       ORDER BY c.conname
     `.execute(db);
-    // Only enum-shaped CHECKs are in scope: `col = ANY (ARRAY[...])`. Requiring
-    // the literal array drops the overlays' per-column claim CHECKs, which test
-    // a literal against an array *column* (`'name'::text = ANY (claimed_fields)`)
-    // and have no vocabulary to compare. The ::text requirement drops the
-    // numeric enumerations (pod sizes, image rotations).
+    // Scoped to `col = ANY (ARRAY[...])`; ::text excludes array-column claim
+    // CHECKs and numeric enumerations (pod sizes, image rotations).
     checks = result.rows.filter(
       (row) =>
         (row.definition.includes("= ANY (ARRAY[") || row.definition.includes("= ANY ((ARRAY[")) &&
@@ -285,8 +270,6 @@ describe.skipIf(!DATABASE_URL)("DB enum CHECKs match their TypeScript unions", (
         continue;
       }
       const match = SIMPLE_ENUM_CHECK.exec(row.definition);
-      // A registered constraint that stopped being a plain single-column enum
-      // is itself drift worth failing on, so an unparseable one yields no values.
       const actual = match?.groups ? parseArrayLiterals(match.groups.values).toSorted() : [];
       const wanted = [...expected].toSorted();
       if (actual.join("\0") !== wanted.join("\0")) {

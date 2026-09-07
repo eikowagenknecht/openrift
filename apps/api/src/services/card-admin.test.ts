@@ -33,11 +33,7 @@ function noBlockers(overrides: Partial<CardDeleteBlockers> = {}): CardDeleteBloc
   };
 }
 
-/**
- * Build the repo set `deleteCard` reads, flattened so a test can override any
- * single method by name regardless of which repo now owns it.
- * @returns The repos object plus a `mut` view over every mocked method.
- */
+/** Flattened so a test can override any single method by name regardless of which repo owns it. */
 function baseRepos(overrides: Record<string, unknown> = {}) {
   const mut = {
     getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),

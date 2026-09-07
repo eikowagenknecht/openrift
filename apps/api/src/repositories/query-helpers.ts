@@ -33,14 +33,6 @@ export function imageId(alias: string): RawBuilder<string | null> {
   >`CASE WHEN ${sql.ref(`${alias}.rehostedUrl`)} IS NOT NULL THEN ${sql.ref(`${alias}.id`)} ELSE NULL END`;
 }
 
-/**
- * The same rule as {@link imageId}, applied to a printing's pinned fallback
- * art one join away: NULL unless something is pinned *and* that file has been
- * rehosted. A correlated subquery rather than a join, because the five queries
- * that build a catalog printing row select from a shared column list and would
- * each have to carry the join otherwise. It is a primary-key lookup on a
- * column that is NULL for all but a handful of printings.
- */
 export function fallbackImageId(alias: string) {
   return sql<string | null>`(
     SELECT fbf.id FROM image_files fbf
@@ -165,26 +157,8 @@ function parseKeysetCursor(cursor: string): { time: Date; id: string | null } {
 }
 
 /**
- * WHERE predicate that resumes a keyset-paginated list after `cursor`. The
- * caller's ORDER BY must be `<timeColumn> desc, <idColumn> <idDirection>` —
- * the tie-break comparator follows `idDirection`, so the two orderings in use
- * (events page id-descending, copies id-ascending) stay explicit rather than
- * drifting apart.
- *
- * The predicate has two parts, and both are needed.
- *
- * The correctness half compares through `date_trunc('milliseconds', ...)`: the
- * column keeps µs precision that a JS `Date` cannot carry, so an untruncated
- * equality would silently skip the rows sharing the cursor's millisecond.
- *
- * The performance half is the redundant `<timeColumn> < cursorTime + 1ms`
- * bound. `date_trunc` is only STABLE, so no index can serve the truncated
- * comparison and the planner falls back to scanning the table. The bare column
- * bound is sargable, so an index on `(timeColumn, idColumn)` can seek. It
- * excludes nothing: the cursor time is millisecond-aligned (it comes from a JS
- * `Date`), every row passing the truncated half satisfies
- * `date_trunc(col) <= cursorTime`, and that is equivalent to
- * `col < cursorTime + 1ms`.
+ * Caller's ORDER BY must be `<timeColumn> desc, <idColumn> <idDirection>`.
+ * Needs both a `date_trunc('milliseconds', ...)` comparison (the column keeps µs precision a JS `Date` cannot) and a redundant bare-column bound (`date_trunc` is only STABLE, so it alone is not sargable).
  */
 export function keysetCursorPredicate(
   cursor: string,
@@ -193,9 +167,6 @@ export function keysetCursorPredicate(
   const { time, id } = parseKeysetCursor(cursor);
   const timeRef = sql.ref(options.timeColumn);
   const truncatedTime = sql<Date>`date_trunc('milliseconds', ${timeRef})`;
-  // Exclusive upper bound: the cursor's millisecond plus one, so every µs
-  // inside the cursor's own millisecond still passes and the truncated half
-  // stays the only thing deciding those rows.
   const upperBound = new Date(time.getTime() + 1);
   const sargableBound = sql<SqlBool>`${timeRef} < ${upperBound}`;
   if (id === null) {
@@ -246,13 +217,8 @@ interface RequiredFrontImageTables {
 }
 
 /**
- * Inner-join variant of {@link joinFrontImage}: takes the printing id from an
- * explicit reference instead of a `p` alias, and drops rows whose printing has
- * no active front image. Use it where an imageless printing must not surface at
- * all — cover fans and thumb stacks, where a blank tile would waste a slot.
- *
- * Exposes the joins as `pim` and `imgf`, so a query can carry this or
- * `joinFrontImage`, never both.
+ * Drops rows whose printing has no active front image. Exposes the joins as
+ * `pim`/`imgf`; never combine with {@link joinFrontImage} in the same query.
  */
 export function requireFrontImage<DB extends Database, TB extends keyof DB, O>(
   qb: SelectQueryBuilder<DB, TB, O>,
@@ -273,11 +239,8 @@ export function requireFrontImage<DB extends Database, TB extends keyof DB, O>(
 }
 
 /**
- * A card's type slugs for a **left**-joined `mvCardAggregates as mca`, empty
- * when the view has not been refreshed since the card was added. The join has
- * to be a left join: `mv_card_aggregates` is refreshed on demand, and an inner
- * join would drop a fresh card's copies out of a share image or a trade match
- * entirely rather than just naming it without its Legend prefix.
+ * Requires a **left**-joined `mvCardAggregates as mca`: it is refreshed on demand,
+ * and an inner join would drop a fresh card's copies from the query entirely.
  *
  * @returns The aliased `types` column, never null.
  */
@@ -349,12 +312,8 @@ export async function printingDetailsByIds(
 }
 
 /**
- * The tables whose sharing follows the deck pattern: a `share_token` column
- * armed by an `is_public` flag, owned through a non-null `user_id`, and
- * revoked by nulling both. `collections` deliberately isn't one of them — it
- * touches `updated_at` on every share write, scopes its setter by id alone
- * (group admins share collections they don't own), and its public lookup can
- * take the owner label from a friend group instead of a user.
+ * Tables whose sharing follows the `share_token`/`is_public`/`user_id` pattern.
+ * `collections` is deliberately excluded: it scopes its setter by id alone.
  */
 type ShareableTable = "lists" | "decks" | "tierLists";
 
@@ -364,18 +323,13 @@ export interface ShareState {
 }
 
 /*
- * The four helpers below pin their query builder to one concrete table
- * (`table as "lists"`) while the runtime value of `table` supplies the real
- * name in the emitted SQL. Every ShareableTable carries the same four columns
- * with the same types, so the pinned shape describes all of them; the two
- * row-returning helpers cast the result back to the caller's own table.
+ * The helpers below cast `table` to one concrete member of ShareableTable;
+ * the runtime value still supplies the real table name in the emitted SQL.
  */
 
 /**
- * Reads the share state of a row the caller owns. A row that exists but has
- * never been shared reports `{ shareToken: null, isPublic: false }`, which is
- * what lets a route tell "not yours" (undefined, so 404) apart from "yours,
- * not shared yet".
+ * Returns undefined for "not yours" (404); a row the caller owns but never
+ * shared reports `{ shareToken: null, isPublic: false }`, not undefined.
  */
 export function selectShareState(
   db: Kysely<Database>,
@@ -406,12 +360,7 @@ function shareUpdate(
     .where("userId", "=", userId);
 }
 
-/**
- * Sets (or nulls) the share token and public flag on a row the caller owns.
- * `is_public=true` with a token means "shareable by link"; null + false means
- * private, and clearing the token as well is what stops a revoked link from
- * ever coming back to life.
- */
+/** Revoking must clear `shareToken`, not just `isPublic`, or the old link still resolves. */
 export async function updateShareRow<T extends ShareableTable>(
   db: Kysely<Database>,
   table: T,
@@ -426,11 +375,6 @@ export async function updateShareRow<T extends ShareableTable>(
   return row as Selectable<Database[T]> | undefined;
 }
 
-/**
- * {@link updateShareRow} for a caller that only needs to know the write landed:
- * returns the two share columns instead of the whole row, so a big jsonb
- * payload never rides back on an unshare.
- */
 export function updateShareState(
   db: Kysely<Database>,
   table: ShareableTable,
@@ -445,11 +389,8 @@ export function updateShareState(
 }
 
 /**
- * Resolves a public share token to its row plus the owner's identity.
- * Anonymous, with no user scoping, but `is_public` is required as well as the
- * token, so revoking sharing kills the link even while the token is still on
- * the row. The owner's email is carried for gravatar derivation and never
- * reaches a response on its own.
+ * Requires `isPublic` as well as the token, so revoking kills the link even
+ * if the token is still on the row.
  */
 export async function findByShareToken<T extends ShareableTable>(
   db: Kysely<Database>,

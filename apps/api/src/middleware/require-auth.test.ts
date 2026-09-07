@@ -3,10 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import { AppError } from "../errors.js";
 import { requireAuth } from "./require-auth.js";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function createMockContext(session: { user: { id: string } } | null) {
   const vars: Record<string, unknown> = {
     auth: {
@@ -23,10 +19,6 @@ function createMockContext(session: { user: { id: string } } | null) {
     req: { raw: { headers: new Headers() } },
   } as any;
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("requireAuth", () => {
   it("throws 401 AppError when no session", async () => {

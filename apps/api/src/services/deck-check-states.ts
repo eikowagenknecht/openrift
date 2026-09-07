@@ -6,10 +6,8 @@ import { AppError } from "../errors.js";
 import type { DeckCheckEntry, DeckCheckEntryCard } from "../repositories/deck-check.js";
 
 /**
- * Whether the event currently accepts player writes: it is not archived and
- * the close date (when set) has not passed. Judges are never bound by this;
- * `allow_self_submission` is checked separately, because it gates only the
- * creation of new entries.
+ * Judges are never bound by this; `allow_self_submission` gates only the
+ * creation of new entries, and is checked separately.
  */
 export function submissionWindowOpen(event: {
   status: string;
@@ -21,7 +19,6 @@ export function submissionWindowOpen(event: {
   );
 }
 
-/** Re-derives the normalized card lines from stored card rows, for diffing and for the pre-edit baseline snapshot. */
 export function storedCardLines(cards: DeckCheckEntryCard[]): DeckCheckCardLine[] {
   return cards.map((card) => ({
     name: card.rawName,
@@ -35,11 +32,8 @@ function summaryIsEmpty(summary: DeckCheckChangeSummary): boolean {
 }
 
 /**
- * The `editable → submitted` transition: stamps `submitted_at` and stores the
- * diff against the pre-edit baseline (the list as the judge last saw it), so
- * the judge reviews exactly what changed. The baseline itself is kept until a
- * judge approves or checks, so repeated unlock/submit cycles keep diffing
- * against the same reviewed list.
+ * The pre-edit baseline (`preEditLines`) is not cleared here; it persists
+ * across unlock/submit cycles until a judge approves or checks the entry.
  */
 export async function submitEntryList(
   repos: Repos,
@@ -61,11 +55,8 @@ export async function submitEntryList(
 }
 
 /**
- * A transition into `editable`: the player's self-unlock from `submitted`, a
- * judge granting an unlock request, or a judge sending the list back ("fix
- * this"). Snapshots the current lines as the diff baseline, except on a
- * self-unlock that already has one, so the original reviewed baseline
- * survives repeated unlock/submit cycles.
+ * Keeps the existing `preEditLines` baseline on a self-unlock that already
+ * has one; snapshots the current lines as the new baseline otherwise.
  */
 export async function unlockEntryToEditable(
   repos: Repos,
@@ -91,12 +82,7 @@ export async function unlockEntryToEditable(
   return updated ?? entry;
 }
 
-/**
- * The lazy deadline settle: an entry still `editable` once the submission
- * window closed auto-submits as-is, stamped with the close time, so nobody
- * misses the event over a forgotten button. Run wherever an entry (or its
- * event) is loaded; a no-op while the window is open.
- */
+/** Run wherever an entry (or its event) is loaded; a no-op while the window is open. */
 export function settleExpiredEditable(
   repos: Repos,
   event: { status: string; submissionsCloseAt: Date | null },
@@ -115,16 +101,6 @@ export interface JudgeTransitionInput {
   playerMessage?: string | null;
 }
 
-/**
- * Applies one judge transition, validating the state matrix: approve from
- * `submitted`; check from `approved` with an explicit outcome (the list must
- * pass legality review before the physical check); revoke / re-open back to
- * `submitted`; hand a linked entry back to the player (`editable`),
- * optionally as a rejection; or record an issue in place on a `submitted`
- * entry that has no linked player. A judge can also withdraw an entry from
- * any state and restore a withdrawn one to `submitted` — like the provider's
- * withdrawal flag and flagless re-push, so the pre-withdrawal state is not preserved.
- */
 // oxlint-disable-next-line max-lines-per-function -- one branch per transition, splitting hurts readability
 export async function applyJudgeTransition(
   repos: Repos,
@@ -185,9 +161,7 @@ export async function applyJudgeTransition(
         preEditLines: null,
         unlockRequestedAt: null,
       });
-      // Concluding a clean check verifies the whole list, so fill the found
-      // ticks to match. A flagged check leaves them as the judge left them,
-      // the issue is the point, and they may not have counted every copy.
+      // A clean check fills all found ticks; a flagged check leaves them as the judge left them.
       if (input.reviewOutcome === "ok") {
         await repos.deckCheck.markAllCopiesFound(entry.id);
       }
@@ -198,8 +172,6 @@ export async function applyJudgeTransition(
       if (!entry.claimedUserId) {
         throw conflict("No linked player can edit this entry. Link an account first.");
       }
-      // Snapshot-based unlock; works from submitted, approved, and checked
-      // (the after-deadline venue correction included).
       const unlocked = await unlockEntryToEditable(repos, entry, {
         markIssue: input.reviewOutcome === "issue",
       });
@@ -211,9 +183,7 @@ export async function applyJudgeTransition(
     }
 
     case "withdrawn": {
-      // Pull the entry from the event; mirrors the provider's withdrawal flag
-      // (the same fields the ingest sets), so a later provider re-push
-      // interacts with it identically.
+      // Sets the same fields the provider's ingest sets on a withdrawal.
       const updated = await repos.deckCheck.updateEntry(entry.id, {
         ...annotations,
         state: "withdrawn",
@@ -225,8 +195,7 @@ export async function applyJudgeTransition(
 
     case "submitted": {
       if (entry.state === "withdrawn") {
-        // Restore; like the provider's flagless re-push, the pre-withdrawal
-        // state is not preserved, the entry needs re-review.
+        // Pre-withdrawal state is not restored; the entry needs re-review.
         const updated = await repos.deckCheck.updateEntry(entry.id, {
           ...annotations,
           state: "submitted",
@@ -235,7 +204,6 @@ export async function applyJudgeTransition(
         return updated ?? entry;
       }
       if (entry.state === "editable") {
-        // Lock a list on the player's behalf (venue: "I'm done").
         const submitted = await submitEntryList(repos, entry);
         if (Object.keys(annotations).length === 0) {
           return submitted;
@@ -244,7 +212,6 @@ export async function applyJudgeTransition(
         return annotated ?? submitted;
       }
       if (entry.state === "approved") {
-        // Revoke the approval.
         const updated = await repos.deckCheck.updateEntry(entry.id, {
           ...annotations,
           state: "submitted",
@@ -256,8 +223,6 @@ export async function applyJudgeTransition(
         return updated ?? entry;
       }
       if (entry.state === "checked") {
-        // Re-open the check; clear the found ticks so the re-check starts clean
-        // and a prior auto-fill can't read as a fresh physical count.
         const updated = await repos.deckCheck.updateEntry(entry.id, {
           ...annotations,
           state: "submitted",
@@ -268,8 +233,6 @@ export async function applyJudgeTransition(
         await repos.deckCheck.clearAllCopiesFound(entry.id);
         return updated ?? entry;
       }
-      // submitted → submitted: record an outcome in place (the rejection
-      // path for entries with no linked player to hand the list back to).
       if (input.reviewOutcome === undefined || input.reviewOutcome === null) {
         throw conflict("Entry is already submitted");
       }

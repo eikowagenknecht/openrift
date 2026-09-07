@@ -21,8 +21,6 @@ describe("mapAuthError", () => {
   });
 
   it("maps an invalid key to 401 with the canonical code for the status", () => {
-    // `INVALID_API_KEY` is better-auth's vocabulary, not ours, so the envelope
-    // gets UNAUTHORIZED rather than a code the published schema rejects.
     const err = new APIError("UNAUTHORIZED", {
       message: "Invalid API key.",
       code: "INVALID_API_KEY",

@@ -15,20 +15,19 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
   const SEED_PRINTING_ANNIE_ID = PRINTING_1.id;
   const SEED_PRINTING_FIRESTORM_ID = PRINTING_2.id;
 
-  const CC_ID_1 = "cc000034-0001-4000-a000-000000000001"; // matches 'anniefiery' normName
-  const CC_ID_2 = "cc000034-0002-4000-a000-000000000001"; // matches 'firestorm' normName
-  const CC_ID_3 = "cc000034-0003-4000-a000-000000000001"; // no match — unique name
+  const CC_ID_1 = "cc000034-0001-4000-a000-000000000001";
+  const CC_ID_2 = "cc000034-0002-4000-a000-000000000001";
+  const CC_ID_3 = "cc000034-0003-4000-a000-000000000001";
   const CP_ID_1 = "c0000034-0001-4000-a000-000000000001";
   const CP_ID_2 = "c0000034-0002-4000-a000-000000000001";
-  const CP_ID_3 = "c0000034-0003-4000-a000-000000000001"; // unlinked (no printingId)
-  const CP_ID_4 = "c0000034-0004-4000-a000-000000000001"; // for CC_ID_3
-  const CP_ID_5 = "c0000034-0005-4000-a000-000000000001"; // for CC_ID_3, SC language
-  const CP_ID_6 = "c0000034-0006-4000-a000-000000000001"; // for CC_ID_3, EN language
+  const CP_ID_3 = "c0000034-0003-4000-a000-000000000001";
+  const CP_ID_4 = "c0000034-0004-4000-a000-000000000001";
+  const CP_ID_5 = "c0000034-0005-4000-a000-000000000001";
+  const CP_ID_6 = "c0000034-0006-4000-a000-000000000001";
 
   const PROVIDER = "test-cc-34";
 
   afterAll(async () => {
-    // Clean up in reverse FK order
     await db
       .deleteFrom("candidatePrintings")
       .where("id", "in", [CP_ID_1, CP_ID_2, CP_ID_3, CP_ID_4, CP_ID_5, CP_ID_6])
@@ -39,7 +38,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
   // Insert test data — runs before each describe block because vitest runs
   // `it` blocks sequentially within a describe.
   it("setup: inserts test candidate cards and printings", async () => {
-    // Candidate card matching 'Annie, Fiery' (normName = anniefiery)
     await db
       .insertInto("candidateCards")
       .values({
@@ -60,7 +58,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
       })
       .execute();
 
-    // Candidate card matching 'Firestorm'
     await db
       .insertInto("candidateCards")
       .values({
@@ -81,7 +78,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
       })
       .execute();
 
-    // Candidate card with NO matching card
     await db
       .insertInto("candidateCards")
       .values({
@@ -102,7 +98,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
       })
       .execute();
 
-    // Candidate printing linked to a real printing
     await db
       .insertInto("candidatePrintings")
       .values({
@@ -123,7 +118,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
       })
       .execute();
 
-    // Another linked printing
     await db
       .insertInto("candidatePrintings")
       .values({
@@ -144,7 +138,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
       })
       .execute();
 
-    // Unlinked printing (no printingId) — for coverage of "unlinked" queries
     await db
       .insertInto("candidatePrintings")
       .values({
@@ -165,7 +158,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
       })
       .execute();
 
-    // Printing for the unmatched card
     await db
       .insertInto("candidatePrintings")
       .values({
@@ -186,10 +178,8 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
       })
       .execute();
 
-    // Two more unmatched printings that tie on every pre-language ordering
-    // key (same shortCode, null set/finish/isSigned). SC is inserted BEFORE
-    // EN so that heap order alone would surface SC first — the ordering
-    // regression test below relies on this.
+    // SC is inserted before EN so heap order alone would put SC first;
+    // the ordering test below relies on that.
     await db
       .insertInto("candidatePrintings")
       .values({
@@ -233,7 +223,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
   });
 
   it("listCardsWithMissingImages returns cards lacking active front images", async () => {
-    // Temporarily deactivate Annie's front image so at least one printing is missing
     await db
       .updateTable("printingImages")
       .set({ isActive: false })
@@ -249,16 +238,13 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     expect(result[0]).toHaveProperty("slug");
     expect(result[0]).toHaveProperty("name");
 
-    // Annie's card should appear since her printing now lacks an active front image
     const annie = result.find((r) => r.cardId === SEED_CARD_ANNIE_ID);
     expect(annie).toBeDefined();
-    // …with the deactivated EN printing counted under its own language
     expect(annie?.byLanguage).toContainEqual(
       expect.objectContaining({ language: "EN", count: expect.any(Number) }),
     );
     expect(annie?.byLanguage.find((e) => e.language === "EN")?.count).toBeGreaterThan(0);
 
-    // Restore the image
     await db
       .updateTable("printingImages")
       .set({ isActive: true })
@@ -277,9 +263,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     expect(ours[0]).toHaveProperty("printingId");
   });
 
-  // Like candidatePrintingsForDetail below, this query used to ignore
-  // language, so same-code candidates in different languages came back in
-  // physical row order. It now shares the canonical printing order.
   it("listCandidatePrintingsForSourceList orders by language sort order", async () => {
     const result = await repo.listCandidatePrintingsForSourceList();
     const ours = result.filter((row) => row.candidateCardId === CC_ID_3);
@@ -332,10 +315,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     expect(result).toEqual([]);
   });
 
-  // The query used to order only by (setId, finish, isSigned, shortCode), so
-  // an SC and an EN candidate for the same printing tied on every key and
-  // came back in physical row order. The order now mirrors the
-  // printings_ordered view: languages.sort_order first, unknowns last.
   it("candidatePrintingsForDetail orders by language sort order like accepted printings", async () => {
     const result = await repo.candidatePrintingsForDetail([CC_ID_3]);
     expect(result.map((r) => [r.shortCode, r.language])).toEqual([
@@ -388,7 +367,7 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
 
   it("allCandidatePrintingsForCandidateCards returns all printings unfiltered", async () => {
     const result = await repo.allCandidatePrintingsForCandidateCards([CC_ID_1]);
-    expect(result.length).toBeGreaterThanOrEqual(2); // CP_ID_1 + CP_ID_3
+    expect(result.length).toBeGreaterThanOrEqual(2);
     const ourIds = result.map((row) => row.id);
     expect(ourIds).toContain(CP_ID_1);
     expect(ourIds).toContain(CP_ID_3);

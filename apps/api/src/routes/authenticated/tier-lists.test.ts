@@ -58,10 +58,9 @@ function dbRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** @returns The response body of a JSON request against the mounted router. */
 async function request(path: string, init?: RequestInit) {
   // Spreading HeadersInit drops a Headers instance's entries and turns a
-  // string[][] into indices, so build the headers rather than merging objects.
+  // string[][] into indices.
   const headers = new Headers(init?.headers);
   if (!headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
@@ -190,8 +189,6 @@ describe("POST /tier-lists", () => {
   });
 
   it("rejects a whitespace-only title as a validation error, not a DB error", async () => {
-    // Regression: the contract used to validate before trimming, so "   "
-    // passed min(1), trimmed to "", and hit the DB's not-empty check as a 500.
     const { status } = await request("/tier-lists", {
       method: "POST",
       body: JSON.stringify({ title: "   " }),
@@ -213,16 +210,12 @@ describe("PATCH /tier-lists/{id}", () => {
       }),
     });
 
-    // Notably no `title` key: an undefined one would reach Kysely's SET clause
-    // and null the column.
     expect(mockTierListsRepo.update).toHaveBeenCalledWith(LIST_ID, USER_ID, {
       tiers: [{ label: "S", cards: [{ cardId: CARD_ID, printingId: PRINTING_ID }] }],
     });
   });
 
   it("stores an entry with no printing as an explicit null", async () => {
-    // The column holds what the contract parsed, so an omitted printing has to
-    // arrive at the repo already filled in rather than as a missing key.
     mockTierListsRepo.update.mockResolvedValue(dbRow());
 
     await request(`/tier-lists/${LIST_ID}`, {
@@ -320,8 +313,6 @@ describe("sharing", () => {
     const { body } = await request(`/tier-lists/${LIST_ID}/share`, { method: "POST" });
 
     expect(body).toEqual({ shareToken: "existing", isPublic: true });
-    // Re-sharing must not rotate the token: a creator may already have pasted
-    // it into a video description.
     expect(mockTierListsRepo.setShare).not.toHaveBeenCalled();
   });
 

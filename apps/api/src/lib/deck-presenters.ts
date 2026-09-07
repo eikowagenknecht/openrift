@@ -33,7 +33,6 @@ export function toDeck(row: Selectable<DecksTable>): DeckResponse {
     coverPrintingId: row.coverPrintingId,
     coverPosition: row.coverPosition,
     links: row.links,
-    // Owner-only: where the owner stores this deck. `toPublicDeck` omits it.
     collectionId: row.collectionId,
     familyId: row.familyId,
     predecessorDeckId: row.predecessorDeckId,
@@ -56,8 +55,6 @@ export function toDeckSummary(row: Selectable<DecksTable>): DeckSummaryResponse 
     coverCardId: row.coverCardId,
     coverPrintingId: row.coverPrintingId,
     coverPosition: row.coverPosition,
-    // Owner-only, like on the full deck: the list only ever renders the
-    // caller's own decks.
     collectionId: row.collectionId,
     familyId: row.familyId,
     predecessorDeckId: row.predecessorDeckId,
@@ -66,7 +63,6 @@ export function toDeckSummary(row: Selectable<DecksTable>): DeckSummaryResponse 
   };
 }
 
-// Excludes shareToken, isPublic, and userId — see toDeck for the full set.
 export function toPublicDeck(row: Selectable<DecksTable>): PublicDeckResponse {
   return {
     id: row.id,
@@ -84,10 +80,6 @@ export function toPublicDeck(row: Selectable<DecksTable>): PublicDeckResponse {
   };
 }
 
-/**
- * Maps a deck's stored plan data to the wire shape; deck-level fields default
- * to empty when no row exists.
- */
 export function toDeckPlan(data: DeckPlanData): DeckPlanResponse {
   const { plan, matchups } = data;
   return {
@@ -115,10 +107,6 @@ export function toDeckPlan(data: DeckPlanData): DeckPlanResponse {
   };
 }
 
-/**
- * True when a plan has no deck-level content and no matchups — the public page
- * renders nothing for it.
- */
 export function isEmptyDeckPlan(plan: DeckPlanResponse): boolean {
   return (
     plan.generalStrategy === "" &&
@@ -147,13 +135,7 @@ export function toDeckCard(row: {
   };
 }
 
-/**
- * Composes an enriched public-deck card from the deck-card row, the card's
- * catalog row, and the resolved printing meta. The public share-deck endpoint
- * denormalizes this so the share page can SSR without pulling the global
- * catalog. `banned` feeds the share page's rule engine, which otherwise can't
- * see bans.
- */
+/** `banned` is precomputed by the caller; the share page's rule engine can't see bans on its own. */
 export function toPublicDeckCard(
   deckCard: { cardId: string; zone: string; quantity: number; preferredPrintingId: string | null },
   cardMeta: {

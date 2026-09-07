@@ -4,17 +4,7 @@ import type { Kysely } from "kysely";
 import type { Database } from "../db/index.js";
 
 export function printingImagesRepo(db: Kysely<Database>) {
-  /**
-   * Resolve the `image_files` row for an original URL, creating it if it is new.
-   *
-   * The insert leads and takes the deduping on itself, because a read-then-write
-   * pair loses the race: two imports of the same URL both see no row and both
-   * insert, and `idx_image_files_original_url` (a UNIQUE index on `original_url`
-   * WHERE `original_url IS NOT NULL`) makes the loser throw instead of dedupe.
-   * `ON CONFLICT` needs the index's own predicate to match that partial index,
-   * so the `where` on the conflict target is load-bearing. A conflicting insert
-   * returns nothing, which is when the select runs and picks up the winner's row.
-   */
+  /** `ON CONFLICT`'s `where` must match `idx_image_files_original_url`'s partial predicate. */
   async function findOrCreateImageFile(originalUrl: string): Promise<string> {
     const inserted = await db
       .insertInto("imageFiles")
@@ -392,11 +382,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /**
-     * Mode and file move together because `chk_printings_fallback_pinned_has_image`
-     * requires them to agree, so writing one without the other is a constraint
-     * violation rather than a half-applied state.
-     */
+    /** `chk_printings_fallback_pinned_has_image` requires mode and file to agree; write both together. */
     async setFallbackArt(
       printingId: string,
       mode: FallbackArtMode,

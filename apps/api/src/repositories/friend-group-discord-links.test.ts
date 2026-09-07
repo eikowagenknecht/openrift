@@ -28,10 +28,6 @@ const LINKED_ROW = {
 const REDEEM = { code: "abc123", guildId: "guild-1", guildName: "Summoner Skirmish" } as const;
 
 describe("friendGroupDiscordLinksRepo.redeemCode", () => {
-  // Regression: the redeem used to be four statements on the bare db. Two
-  // concurrent redeems of the same one-time code could both pass the pending
-  // check, and a crash between statements left a spent code alive. Locking the
-  // pending row inside a transaction is what serializes them.
   it("claims the pending row with a lock inside one transaction", async () => {
     const { db, queries, events } = createRecordingDb([[PENDING_ROW], [], [LINKED_ROW]]);
 
@@ -43,10 +39,7 @@ describe("friendGroupDiscordLinksRepo.redeemCode", () => {
     expect(queries).toHaveLength(3);
   });
 
-  // The crash-window invariant: a failure part-way through must undo the claim,
-  // so the code is either fully spent or still redeemable — never both gone and
-  // unlinked.
-  it("rolls back when a statement fails after the code was claimed", async () => {
+  it("rolls back when a statement fails after the code was claimed, leaving the code neither spent nor unlinked", async () => {
     const { db, queries, events } = createRecordingDb([
       [PENDING_ROW],
       [],
@@ -60,9 +53,6 @@ describe("friendGroupDiscordLinksRepo.redeemCode", () => {
     expect(queries).toHaveLength(3);
   });
 
-  // The loser of a concurrent redeem re-checks the qualifier once the winner's
-  // lock lifts, no longer matches, and must report unknown-code rather than
-  // binding a second guild to a spent code.
   it("reports unknown-code when the pending row is already consumed", async () => {
     const { db, queries, events } = createRecordingDb([[]]);
 
@@ -82,7 +72,6 @@ describe("friendGroupDiscordLinksRepo.redeemCode", () => {
     const result = await friendGroupDiscordLinksRepo(db).redeemCode(REDEEM);
 
     expect(result).toEqual({ status: "guild-taken" });
-    // Only the two locking reads ran: no write touched the pending row.
     expect(queries).toHaveLength(2);
     expect(events).toEqual(["begin", "commit"]);
   });

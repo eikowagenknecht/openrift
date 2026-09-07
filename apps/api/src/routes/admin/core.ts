@@ -8,11 +8,7 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(adminCoreContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
- * Admin "core" endpoints. A pure read that never throws `AppError` (no service
- * calls), so no error bridging is needed. `me` reports the caller's actual
- * access — full admin, or the per-section grants that let them through the
- * `requireAdmin` mount gate. The lookup hits the gate's 30s cache, so reaching
- * the handler makes it effectively free.
+ * `me` hits the `requireAdmin` gate's 30s cache, so calling it is effectively free.
  */
 export const adminCoreRouter = {
   me: os.me.handler(({ context }) => getAdminAccess(context.repos, context.userId)),

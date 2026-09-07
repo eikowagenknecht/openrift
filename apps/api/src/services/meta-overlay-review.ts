@@ -19,26 +19,7 @@ import { sourceEventKeyPrefix } from "../repositories/meta-overlays.js";
 import type { MetaEventPlayerRow } from "../repositories/meta.js";
 import { promoteMetaEvent, promoteNewEvent } from "./meta-promote.js";
 
-/**
- * Writing and settling overlays (ADR-014 revision 3).
- *
- * Accepting is two steps and never more: flip the status, then promote the
- * event it touches. Promotion re-reads the mirrors and re-applies every
- * accepted overlay, so the accepted patch lands and nothing else moves.
- *
- * Rejecting only flips the status. The row survives so the submitter can still
- * see what happened to it, and so accepting it later needs no re-entry.
- *
- * {@link writeEventOverlayFields} is the admin's own remedy — the drift view
- * and the event dialog both go through it. It is the same table and the same
- * apply path a user's submission takes, born accepted rather than pending, so
- * there is still exactly one way a field leaves the sources' hands.
- */
-
-/**
- * Whether two values would read as the same to a reviewer. The two sides type
- * dates and numbers differently, so the comparison is the display form.
- */
+/** Compares the display form: the two sides type dates and numbers differently. */
 function sameValue(left: unknown, right: unknown): boolean {
   if (left === null || left === undefined || right === null || right === undefined) {
     return (left ?? null) === (right ?? null);
@@ -47,10 +28,8 @@ function sameValue(left: unknown, right: unknown): boolean {
 }
 
 /**
- * Claims that would write back the value the live row already carries. A claim
- * holds until it is released, so claiming an agreed value would freeze it and
- * silence every later correction the source publishes. `cards` is never
- * dropped, and `listStatus` stays while `cards` is claimed.
+ * A claim matching the live value would freeze it against future corrections.
+ * `cards` is never dropped; `listStatus` stays claimed while `cards` is.
  */
 function redundantClaims(
   claimedFields: readonly string[],
@@ -71,15 +50,6 @@ function redundantClaims(
   });
 }
 
-/**
- * Accepts an event overlay.
- *
- * A patch promotes its existing event. A proposal (no `metaEventId`) either
- * lands on `intoMetaEventId` — the reviewer saying "this is that event I
- * already have" — or mints the live row. Either way the player overlays
- * hanging off the proposal are filed under the result, so a submitted event
- * and its field are accepted as one thing.
- */
 export async function acceptMetaEventOverlay(
   repos: Repos,
   overlayId: string,
@@ -121,9 +91,8 @@ export async function acceptMetaEventOverlay(
     return { metaEventId: intoMetaEventId, created: false };
   }
 
-  // A proposal has to name enough to mint a row, and the check runs before
-  // anything is written: an accept that fails validation must leave the
-  // overlay pending, not accepted with no live event behind it.
+  // The check runs before anything is written: a failed validation must leave
+  // the overlay pending, not accepted with no live event behind it.
   if (overlay.name === null || overlay.eventDate === null || overlay.format === null) {
     throw new AppError(
       400,
@@ -132,8 +101,8 @@ export async function acceptMetaEventOverlay(
     );
   }
 
-  // Minted before the overlay is flipped: a failure in here must leave the
-  // proposal pending in the queue, not accepted with no live event behind it.
+  // Minted before the overlay is flipped: a failure here must leave the
+  // proposal pending, not accepted with no live event behind it.
   const promoted = await promoteNewEvent(repos, overlay.provider, overlay.externalId, {
     name: overlay.name,
     eventDate: overlay.eventDate,
@@ -141,8 +110,6 @@ export async function acceptMetaEventOverlay(
     sourceUrl: null,
   });
 
-  // Re-point the overlay and its players at what they proposed, so a re-promote
-  // keeps applying them and the queue stops showing them as unattached.
   await repos.metaOverlays.updateEventOverlay(overlayId, {
     metaEventId: promoted.metaEventId,
     status: "accepted",
@@ -291,18 +258,8 @@ export interface MetaEventFieldEdit {
 }
 
 /**
- * Claims event fields for the archive: the admin's correction path.
- *
- * Corrections are born accepted, so this is write-then-promote in one call. It
- * goes through the same overlay table a user submission does, which is what
- * keeps "who owns this value" answerable from the data: after this, each field
- * reads as claimed and no source wins it again.
- *
- * One admin's edits on one event merge into a single overlay row — ten edits
- * are one row claiming ten fields, not ten rows the next promote replays in
- * sequence. `acceptedAt` moves to now on every merge, so the admin's latest
- * word still beats an overlay accepted in between. Different submitters keep
- * separate rows.
+ * One admin's edits merge into a single row per author. `acceptedAt` moves to
+ * now on each merge, so the latest edit outranks overlays accepted between.
  */
 export async function writeEventOverlayFields(
   repos: Repos,
@@ -345,13 +302,8 @@ export async function writeEventOverlayFields(
 }
 
 /**
- * Hands one field back to the sources.
- *
- * Every accepted overlay claiming it loses the claim, so the next promote lets
- * the winning source (or, with none, the live base) decide it again. An
- * admin-edit row whose last claim goes is deleted; a submission keeps its row
- * — its claim list must stay non-empty by CHECK, so releasing its only claim
- * rejects it instead, which reads correctly in the submitter's ledger.
+ * An admin-edit row whose last claim goes is deleted. A submission's claim
+ * list must stay non-empty by CHECK, so releasing its last claim rejects it.
  */
 export async function releaseEventOverlayField(
   repos: Repos,
@@ -389,13 +341,6 @@ export async function releaseEventOverlayField(
   return { metaEventId, created: false };
 }
 
-/**
- * The typed column one field's text value becomes.
- *
- * The overlay table carries real column types, so a form field's string has to
- * land as the right one. Rejecting here rather than at the insert is what turns
- * a constraint violation into a message the reviewer can act on.
- */
 function coerceEventField(
   field: MetaEventOverlayField,
   value: string | null,
@@ -436,9 +381,7 @@ function coerceEventField(
     return { eventDate: trimmed };
   }
 
-  // The remaining two the live row cannot be without: clearing them is not a
-  // patch the archive can apply, so it is refused rather than written and then
-  // rejected by a NOT NULL a promote away.
+  // name and format have a NOT NULL constraint on the live row.
   if ((field === "name" || field === "format") && empty) {
     throw new AppError(400, ERROR_CODES.BAD_REQUEST, `An event must keep its ${field}.`);
   }
@@ -446,7 +389,6 @@ function coerceEventField(
   return { [field]: empty ? null : trimmed };
 }
 
-/** The scalar corrections a standings-row edit can claim, already zod-typed. */
 export interface MetaPlayerFieldEdits {
   playerName?: string | null;
   rank?: number;
@@ -463,7 +405,6 @@ export interface MetaPlayerFieldEdits {
   championCardId?: string | null;
 }
 
-/** See the contract's `playerOverlayListSchema` for why there is no format. */
 export interface MetaPlayerOverlayList {
   name?: string;
   cards: { cardId: string; zone: string; quantity: number; preferredPrintingId?: string | null }[];
@@ -487,11 +428,8 @@ const PLAYER_SCALAR_FIELDS = [
 ] as const satisfies readonly MetaPlayerOverlayField[];
 
 /**
- * Claims standings-row fields for the archive: {@link writeEventOverlayFields}
- * for players. A present key is claimed; `list` claims the deck (`null` claims
- * that there is none). One admin's edits merge into a single accepted overlay
- * per (row, author); a list's `name` is applied as a direct rename after the
- * promote, because promotion preserves deck names rather than owning them.
+ * A list's `name` renames the deck after promote; promotion leaves deck
+ * names alone otherwise.
  */
 export async function writeMetaPlayerOverlayFields(
   repos: Repos,
@@ -612,9 +550,8 @@ async function toOverlayLines(
 }
 
 /**
- * {@link releaseEventOverlayField} for standings rows. Releasing `cards` or
- * `listStatus` releases both: a list and its status can never disagree, so
- * they claim and release as one.
+ * `cards` and `listStatus` release together: a list and its status can never
+ * disagree.
  */
 export async function releaseMetaPlayerOverlayField(
   repos: Repos,
@@ -697,8 +634,8 @@ async function loadPlayerAccept(
 }
 
 /**
- * @returns The claims left after redundant ones drop; narrowing must use
- * this, not the overlay's original claims, or it reclaims a nulled field.
+ * Callers must narrow using the returned claims, not the overlay's original
+ * ones, or narrowing reclaims a field this just nulled.
  */
 async function anchorPlayerOverlay(
   repos: Repos,
@@ -865,8 +802,7 @@ export async function acceptMetaPlayerOverlays(
 
 /**
  * Anchors a standings overlay to the live row it describes, then promotes so
- * an already-accepted overlay lands immediately. This is what acting on a
- * player match suggestion calls.
+ * an already-accepted overlay lands immediately.
  */
 export async function linkMetaPlayerOverlay(
   repos: Repos,
@@ -891,11 +827,8 @@ export async function linkMetaPlayerOverlay(
 }
 
 /**
- * Rejects either kind of overlay.
- *
- * Promotion runs afterwards only when the overlay had already been applied:
- * un-accepting a patch has to put the promoted value back, which a re-promote
- * does for free.
+ * Promotion runs afterward only if the overlay had been applied:
+ * un-accepting a patch must put the promoted value back, which a re-promote does.
  */
 export async function rejectMetaOverlay(
   repos: Repos,
@@ -928,7 +861,6 @@ export async function rejectMetaOverlay(
   return { metaEventId, created: false };
 }
 
-/** Resolves whichever of the three targets a standings overlay carries. */
 async function eventIdForPlayerOverlay(
   repos: Repos,
   overlay: {

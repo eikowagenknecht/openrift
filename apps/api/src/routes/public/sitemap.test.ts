@@ -43,7 +43,7 @@ describe("GET /api/v1/sitemap-data", () => {
     vi.resetAllMocks();
   });
 
-  it("returns 200 with card, set, and product sitemap entries", async () => {
+  it("returns 200 with card, set, and product sitemap entries, keying legends by champion-led name", async () => {
     mockCatalogRepo.allCardSitemapEntries.mockResolvedValue([
       { slug: "jinx-rebel", updatedAt: "2026-04-01T12:00:00.000Z" },
     ]);
@@ -84,7 +84,6 @@ describe("GET /api/v1/sitemap-data", () => {
     expect(json.metaDecks).toEqual([
       { slug: "aB3dE5gH7jK9", updatedAt: "2026-01-02T12:00:00.000Z" },
     ]);
-    // The route key is the champion-led name, not the card slug the repo selects.
     expect(json.metaLegends).toEqual([
       { slug: "kennen-heart-of-the-tempest", updatedAt: "2026-01-03T12:00:00.000Z" },
     ]);

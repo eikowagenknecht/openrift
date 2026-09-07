@@ -17,10 +17,6 @@ const TOURNAMENT_ID = "b0000000-0001-4000-a000-000000000001";
 
 const now = new Date("2026-06-01T00:00:00Z");
 
-/**
- * A stored tournament row.
- * @returns The row with the overrides applied.
- */
 function tournamentRow(overrides: Partial<Tournament> = {}): Tournament {
   return {
     id: TOURNAMENT_ID,
@@ -59,11 +55,8 @@ function tournamentRow(overrides: Partial<Tournament> = {}): Tournament {
   } as Tournament;
 }
 
-/**
- * Mounts the router over repos that return the given row and empty everything
- * else, so a successful request still assembles a schema-valid detail payload.
- * @returns The test app and its repo mocks.
- */
+// Repos return the given row and empty everything else, so a successful
+// request still assembles a schema-valid detail payload.
 function makeApp(tournament: Tournament) {
   const tournaments = {
     findById: vi.fn(() => Promise.resolve(tournament)),
@@ -106,7 +99,6 @@ function makeApp(tournament: Tournament) {
   return { app, repos };
 }
 
-/** @returns A JSON request for the tournaments surface. */
 function req(method: string, path: string, body?: unknown): Request {
   return new Request(`http://test/api/v1${path}`, {
     method,
@@ -132,7 +124,6 @@ describe("POST /tournaments", () => {
 
     expect(res.status).toBe(422);
     expect(((await res.json()) as { message: string }).message).toContain("free-for-all pods");
-    // The invariant runs before any write, so nothing was created.
     expect(repos.tournaments.create).not.toHaveBeenCalled();
   });
 

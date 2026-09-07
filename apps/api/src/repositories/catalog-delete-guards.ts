@@ -16,9 +16,8 @@ export interface CardDeleteBlockers {
 }
 
 /**
- * Per-source counts of rows that block a single printing's deletion (the
- * RESTRICT FKs on printings; deck_cards is card-scoped and its
- * preferred_printing_id is ON DELETE SET NULL, so it never blocks here).
+ * deck_cards is card-scoped and its preferred_printing_id is ON DELETE SET
+ * NULL, so it never blocks a printing deletion here.
  */
 export interface PrintingDeleteBlockers {
   copies: number;
@@ -30,22 +29,8 @@ export interface PrintingDeleteBlockers {
   productPrintings: number;
 }
 
-/**
- * Read-only guards run before a card or printing is deleted from the catalog.
- * Every method is a pure count over the RESTRICT FKs that would reject the
- * delete, so callers can report which user-owned data is in the way instead of
- * surfacing a raw constraint violation.
- *
- * @returns An object with delete-blocker count methods bound to the given `db`.
- */
 export function catalogDeleteGuardsRepo(db: Kysely<Database>) {
   return {
-    /**
-     * Count rows that reference a card (directly or via its printings) and
-     * block deletion: user-owned data plus marketplace product mappings.
-     * Cascading / SET NULL children are not counted.
-     * @returns Per-source blocker counts, all zero when the card is deletable.
-     */
     async countForCard(cardId: string): Promise<CardDeleteBlockers> {
       const result = await sql<CardDeleteBlockers>`
         SELECT
@@ -69,7 +54,6 @@ export function catalogDeleteGuardsRepo(db: Kysely<Database>) {
       return result.rows[0];
     },
 
-    /** @returns Per-source counts of rows that block deleting this printing. */
     async countForPrinting(printingId: string): Promise<PrintingDeleteBlockers> {
       const result = await sql<PrintingDeleteBlockers>`
         SELECT

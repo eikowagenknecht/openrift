@@ -20,7 +20,6 @@ describe("isRequestGroupDue", () => {
   });
 
   it("is not due while a timed burst is still inside its window", () => {
-    // Last request 2 min ago, window 5 min → the burst is still settling.
     expect(isRequestGroupDue("5min", [minutesAgo(4), minutesAgo(2)], NOW)).toBe(false);
   });
 
@@ -29,8 +28,6 @@ describe("isRequestGroupDue", () => {
   });
 
   it("fires at the 2x-window cap even when requests keep arriving", () => {
-    // Newest request is only 1 min old (not quiet), but the oldest is 11 min old,
-    // past the 2 x 5 = 10 min cap → due so the burst can't defer forever.
     expect(isRequestGroupDue("5min", [minutesAgo(11), minutesAgo(1)], NOW)).toBe(true);
   });
 
@@ -77,8 +74,6 @@ describe("isTradeRequestFlushNoop", () => {
   });
 });
 
-/** One due pair (instant cadence) with two queued requests, all claimable.
- *  @returns Stubbed repos covering only what the flush reads. */
 function flushRepos(): Repos {
   const rows = [1, 2].map((n) => ({
     id: `trade-${n}`,
@@ -135,7 +130,6 @@ describe("flushCoalescedTradeRequests", () => {
     );
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
-    // The rows stay claimed (at-most-once), so both requests are lost, not retried.
     expect(result).toEqual({
       pairs: 1,
       emailsSent: 0,

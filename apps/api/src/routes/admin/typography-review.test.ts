@@ -6,10 +6,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminTypographyReviewRouter } from "./typography-review";
 
-// ---------------------------------------------------------------------------
-// Mock repos
-// ---------------------------------------------------------------------------
-
 const mockCatalog = {
   cards: vi.fn(),
   cardErrata: vi.fn(),
@@ -221,10 +217,6 @@ describe("POST /api/admin/v1/typography-review/accept", () => {
   });
 
   it("carries a set effective date through the errata upsert unchanged", async () => {
-    // Regression: `effective_date` is a `date` column, so the driver returns the
-    // day string. The accept path used to call `.toISOString()` on it, which
-    // threw a TypeError on every errata that actually had a date — only errata
-    // with a NULL date could be edited at all.
     mockCardErrata.getByCardId.mockResolvedValue({
       cardId: CARD_ID,
       correctedRulesText: "old",
@@ -270,10 +262,6 @@ describe("POST /api/admin/v1/typography-review/accept", () => {
     });
   });
 
-  // Regression: `field` used to be a free `z.string()` forwarded straight into
-  // the printings SET clause, so any column (card_id, set_id, id) was writable
-  // and an unknown name surfaced as a Postgres 42703 500. The entity/field pair
-  // is now a discriminated union, so a mismatch is rejected before any query.
   it("rejects a card field submitted against a printing", async () => {
     const res = await app.request("/api/admin/v1/typography-review/accept", {
       method: "POST",

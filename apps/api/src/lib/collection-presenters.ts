@@ -15,17 +15,7 @@ import type { CollectionValue } from "../repositories/marketplace.js";
  * caller's group role.
  */
 export type CollectionViewRow = Selectable<CollectionsTable> & {
-  /**
-   * The viewer's effective deck-building availability. Derived per-viewer
-   * (`COALESCE(pref.available, group_id IS NULL)`), not stored on the
-   * collection — callers must supply it.
-   */
   availableForDeckbuilding: boolean;
-  /**
-   * The viewer's sidebar visibility choice (`COALESCE(sidebar.hidden, false)`).
-   * Per-viewer like `availableForDeckbuilding`; callers that don't join the
-   * prefs table leave it unset and the collection presents as visible.
-   */
   sidebarHidden?: boolean;
   copyCount?: number;
   groupSlug?: string | null;
@@ -63,8 +53,7 @@ export function toCollection(
     groupSlug: row.groupSlug ?? null,
     groupName: row.groupName ?? null,
     viewerCanAdmin: row.viewerCanAdmin ?? row.userId !== null,
-    // Callers that don't resolve deck boxes present the collection as holding
-    // none, rather than claiming a deck it can't confirm.
+    // Unresolved deck boxes present as no decks, not an unconfirmed claim.
     homeDecks: homeDecks ? [...homeDecks] : [],
   };
 }

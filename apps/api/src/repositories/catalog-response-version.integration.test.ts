@@ -9,24 +9,12 @@ import { catalogRepo } from "./catalog.js";
 const ctx = createDbContext("a0000000-0042-4000-a000-000000000001");
 
 /**
- * `catalogResponseVersion` is the ETag of `GET /catalog`, and a request whose
- * `?v=` matches it is answered `Cache-Control: immutable, max-age=1y` (see
- * `orpc/cache-policy.ts`). So a change to the catalog response that does NOT
- * roll this token pins every client holding that URL to stale data for up to a
- * year. There is no longer a `current_date` term to bound that: carrying one
- * threw away every client's cache entry nightly, so it now lives only on the
- * rule token. Completeness here is the whole guarantee.
+ * `catalogResponseVersion` is the ETag of `GET /catalog`, cached `immutable, max-age=1y`.
+ * Nothing in the type system ties it to `assembleCatalogResponse`'s source tables: a field
+ * sourced from a new table must be added to both the token and this suite.
  *
- * The token is assembled by hand from aggregates over the tables
- * `assembleCatalogResponse` reads, and nothing in the type system ties the two
- * together. These tests are that tie: every source table is mutated and the
- * token must move. If you add a field to `CatalogResponse` sourced from a new
- * table, add it to the token AND to the list here.
- *
- * Each case takes the token, mutates, and takes it again inside ONE
- * transaction that is then rolled back — the integration database is shared
- * across files and never reset, so nothing may escape, and reading both tokens
- * in the same transaction keeps the comparison free of outside interference.
+ * Each case mutates and re-reads the token inside one rolled-back transaction: the
+ * integration database is shared across files and never reset.
  */
 class RollbackError extends Error {
   override name = "RollbackError";
@@ -150,9 +138,7 @@ describe.skipIf(!ctx)("catalogResponseVersion (integration)", () => {
     expect(after).not.toBe(before);
   });
 
-  // The two junctions that motivated content-hashing rather than counting:
-  // both are timestamp-less, so a swap that preserves cardinality is invisible
-  // to `count(*)` while changing what the affected printings report.
+  // Both junctions below have no updated_at/timestamp column.
   const SWAPS: { table: string; other: string; column: string }[] = [
     { table: "printing_markers", other: "markers", column: "marker_id" },
     {
@@ -174,8 +160,7 @@ describe.skipIf(!ctx)("catalogResponseVersion (integration)", () => {
          )
          LIMIT 1`,
       ];
-      // One row out, one row in — or this stops testing the content hash and
-      // starts testing count(*).
+      // Must stay 1-for-1, or this stops testing the content hash and tests count(*) instead.
       expect(await affectedRows(swap)).toBe(2);
 
       const { before, after } = await tokenAround(swap);
@@ -183,9 +168,7 @@ describe.skipIf(!ctx)("catalogResponseVersion (integration)", () => {
     },
   );
 
-  // printing_citations has no `updated_at` either, and unlike the junctions it
-  // is edited in place: fixing a typo in a label, or repointing a dead link,
-  // changes what every client reads while leaving count(*) alone.
+  // printing_citations also has no `updated_at`.
   it("rolls when a citation is edited in place", async () => {
     const edit = [
       ...ADD_CITATION,
@@ -203,10 +186,7 @@ describe.skipIf(!ctx)("catalogResponseVersion (integration)", () => {
     expect(after).toBe(before);
   });
 
-  // Postgres derives `current_date` from the session time zone. These two are
-  // 25 hours apart, so they are ALWAYS on different calendar dates whatever the
-  // instant — which makes this a deterministic stand-in for "midnight passed"
-  // rather than a test that only fails between 00:00 and 01:00 UTC.
+  // These two zones are always 25 hours apart, so they never share a calendar date.
   const AHEAD = "Pacific/Kiritimati"; // UTC+14
   const BEHIND = "Pacific/Midway"; // UTC-11
 

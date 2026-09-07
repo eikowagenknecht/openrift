@@ -7,19 +7,11 @@ import { describe, expect, it, vi } from "vitest";
 import type { Repos } from "../../deps.js";
 import { createMarketplaceConfigs } from "./marketplace-configs.js";
 
-// ---------------------------------------------------------------------------
-// Mock repo
-// ---------------------------------------------------------------------------
-
 function createMockTransferRepo() {
   return {
     pricesByMarketplace: vi.fn().mockResolvedValue([]),
   };
 }
-
-// ---------------------------------------------------------------------------
-// Test data
-// ---------------------------------------------------------------------------
 
 const priceRow = {
   marketCents: 500,
@@ -31,10 +23,6 @@ const priceRow = {
   avg7Cents: 495,
   avg30Cents: 498,
 };
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("createMarketplaceConfigs", () => {
   it("returns tcgplayer, cardmarket, and cardtrader configs", () => {

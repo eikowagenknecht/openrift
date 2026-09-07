@@ -40,10 +40,6 @@ export function distributionChannelsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /**
-     * Max sort order among siblings of a given parent (NULL = root level).
-     * Scoped per-parent so new roots and new children don't collide on ordering.
-     */
     async getMaxSortOrderForParent(parentId: string | null): Promise<number> {
       let query = db
         .selectFrom("distributionChannels")
@@ -131,10 +127,6 @@ export function distributionChannelsRepo(db: Kysely<Database>) {
       return Number(row?.count ?? 0);
     },
 
-    /**
-     * Printing counts grouped by channel id. Channels with zero printings are
-     * omitted — callers should default missing entries to 0.
-     */
     async usageCountsByChannel() {
       const rows = await db
         .selectFrom("printingDistributionChannels")
@@ -182,13 +174,7 @@ export function distributionChannelsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Replace a printing's channel links. The delete and the insert share a
-     * transaction, so a failure between them cannot strip a printing of every
-     * channel. Two of the callers in `printing-admin.ts` hand in a
-     * non-transactional repo set, hence the guard rather than a bare
-     * `db.transaction()` — an already-open transaction is reused.
-     */
+    // Some callers already hold a transaction open; do not nest db.transaction() here.
     async setForPrinting(
       printingId: string,
       links: readonly { channelId: string; distributionNote?: string | null }[],

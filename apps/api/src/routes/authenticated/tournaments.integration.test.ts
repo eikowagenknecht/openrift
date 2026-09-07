@@ -50,10 +50,7 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
           })
           .execute();
       }
-      // An org hosted by OTHER (OTHER is the only member) for the host-authz
-      // test, and a second one owned by HOST as the reassignment target HOST may
-      // host into. Each org commits with its owner's membership row, because
-      // `fk_organizations_owner_membership` is deferred to commit.
+      // `fk_organizations_owner_membership` is deferred to commit, so both inserts run in one transaction.
       await host.db.transaction().execute(async (trx) => {
         await trx
           .insertInto("organizations")
@@ -81,8 +78,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
     });
 
     it("allows an empty tournament (no pairings, no decks) on create", async () => {
-      // A roster/schedule-only event is valid: no pairing engine and no
-      // decklist is not a CHECK violation.
       const empty = await host.app.fetch(
         req("POST", "/tournaments", {
           name: "Just a meetup",
@@ -155,7 +150,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
     });
 
     it("enforces org-host authorization", async () => {
-      // HOST is not a member of ORG → 403.
       const denied = await host.app.fetch(
         req("POST", "/tournaments", {
           name: "Org Event",
@@ -167,7 +161,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       );
       expect(denied.status).toBe(403);
 
-      // OTHER owns ORG → 201.
       const ok = await other.app.fetch(
         req("POST", "/tournaments", {
           name: "Org Event",
@@ -190,10 +183,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       expect(hidden.status).toBe(404);
     });
 
-    // The detail response must never hand the staff-invite tokens to a viewer
-    // who is merely a participant (or a `requested` one). Without the gate,
-    // anyone who self-registered could harvest `judgeInviteToken`, claim it, and
-    // escalate to judge/organizer.
     it("hides staff/share tokens from non-staff viewers in detail", async () => {
       const create = await host.app.fetch(
         req("POST", "/tournaments", {
@@ -207,7 +196,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       );
       const gateId = ((await readJson(create)) as { id: string }).id;
 
-      // Pin all four tokens to known values regardless of which endpoint mints each.
       await host.db
         .updateTable("tournaments")
         .set({
@@ -228,8 +216,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
         staff: { userId: string | null }[];
       }
 
-      // OTHER self-registers via the public token → a `requested` participant that
-      // passes `hasRelationship` and can read the detail.
       const join = await other.app.fetch(
         req("POST", "/tournaments/submit/gate-submission/request"),
       );
@@ -245,12 +231,8 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       expect(participantBody.judgeInviteToken).toBeNull();
       expect(participantBody.submissionToken).toBeNull();
       expect(participantBody.reportToken).toBeNull();
-      // The staff roster is manage-gated, so a participant gets an empty list
-      // rather than the organizers' identities (matches the `listStaff` route).
       expect(participantBody.staff).toEqual([]);
 
-      // A judge sees the operational share links but never the staff-invite tokens
-      // (a judge must not be able to mint more staff).
       await host.app.fetch(
         req("POST", `/tournaments/${gateId}/participants`, { displayName: "J" }),
       );
@@ -266,7 +248,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       expect(judgeBody.reportToken).toBe("gate-report");
       expect(judgeBody.organizerInviteToken).toBeNull();
       expect(judgeBody.judgeInviteToken).toBeNull();
-      // The roster stays organizer-gated even for a judge (mirrors `listStaff`).
       expect(judgeBody.staff).toEqual([]);
 
       const asHost = await host.app.fetch(req("GET", `/tournaments/${gateId}`));
@@ -286,8 +267,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
     });
 
     it("orders the list by tournament date, most recent first (not creation order)", async () => {
-      // Create the earlier-dated tournament second so creation order is the
-      // reverse of the expected (tournament-date) order.
       const later = await host.app.fetch(
         req("POST", "/tournaments", {
           name: "Sort Later",
@@ -328,9 +307,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       expect(body.byePoints).toBe(2);
     });
 
-    // Leaving the pod engine must revoke both follow-along tokens. Otherwise a
-    // now-meaningless link keeps resolving and renders a pod shell for a
-    // tournament that no longer has pairings or standings.
     it("revokes the report and follow tokens when the pairing engine leaves pod", async () => {
       const created = await host.app.fetch(
         req("POST", "/tournaments", {
@@ -353,7 +329,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       const followEnabledBody = (await readJson(followEnabled)) as { followToken: string | null };
       expect(followEnabledBody.followToken).not.toBeNull();
 
-      // Switching to no-pairings (allowed because no round exists yet) clears both.
       const switched = await host.app.fetch(
         req("PATCH", `/tournaments/${switchId}`, { pairingStyle: "none" }),
       );
@@ -366,8 +341,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       expect(switchedBody.followToken).toBeNull();
     });
 
-    // The read-only follow token is independently enable/disable-able and is
-    // gated to staff in the detail payload (mirrors the report token's gating).
     it("enables and disables the read-only follow token", async () => {
       const created = await host.app.fetch(
         req("POST", "/tournaments", {
@@ -391,7 +364,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
     });
 
     it("reassigns the host in any direction, host-only and gated on target membership", async () => {
-      // A fresh personal tournament owned by HOST, so the shared `id` is untouched.
       const created = await host.app.fetch(
         req("POST", "/tournaments", {
           name: "Reassign Me",
@@ -404,7 +376,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       expect(created.status).toBe(201);
       const reassignId = ((await readJson(created)) as { id: string }).id;
 
-      // A non-host (unrelated user) cannot reassign — the manage gate rejects first.
       const byStranger = await other.app.fetch(
         req("PATCH", `/tournaments/${reassignId}`, {
           host: { type: "organization", orgId: ORG2_ID },
@@ -412,7 +383,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       );
       expect(byStranger.status).toBe(403);
 
-      // HOST cannot hand it to an org they don't belong to.
       const toForeignOrg = await host.app.fetch(
         req("PATCH", `/tournaments/${reassignId}`, {
           host: { type: "organization", orgId: ORG_ID },
@@ -420,7 +390,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       );
       expect(toForeignOrg.status).toBe(403);
 
-      // personal → an org HOST owns.
       const toOrg = await host.app.fetch(
         req("PATCH", `/tournaments/${reassignId}`, {
           host: { type: "organization", orgId: ORG2_ID },
@@ -431,7 +400,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       expect(toOrgBody.host.type).toBe("organization");
       expect(toOrgBody.host.orgId).toBe(ORG2_ID);
 
-      // org → personal binds the host back to the caller.
       const toPersonal = await host.app.fetch(
         req("PATCH", `/tournaments/${reassignId}`, { host: { type: "user" } }),
       );
@@ -446,14 +414,12 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
     });
 
     it("surfaces org owners/managers as implicit staff, deduped against grants", async () => {
-      // OTHER becomes a manager of ORG2 (HOST already owns it).
       await host.db
         .insertInto("organizationMembers")
         .values({ orgId: ORG2_ID, userId: OTHER_ID, role: "manager" })
         .onConflict((oc) => oc.columns(["orgId", "userId"]).doUpdateSet({ role: "manager" }))
         .execute();
 
-      // An org-hosted tournament. HOST is seeded as an explicit organizer on create.
       const created = await host.app.fetch(
         req("POST", "/tournaments", {
           name: "Org Staffed",
@@ -466,8 +432,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       expect(created.status).toBe(201);
       const orgTid = ((await readJson(created)) as { id: string }).id;
 
-      // A judge with no org membership, added explicitly. They must be an
-      // eligible candidate (a linked participant here), so seed that first.
       await host.db
         .insertInto("tournamentParticipants")
         .values({ tournamentId: orgTid, userId: JUDGE_ID, displayName: "Judge", status: "active" })
@@ -486,7 +450,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       const staff = await host.app.fetch(req("GET", `/tournaments/${orgTid}/staff`));
       const items = ((await readJson(staff)) as { items: StaffMember[] }).items;
 
-      // HOST is an org owner AND a seeded grant → shown once, from the org.
       const hostRows = items.filter((member) => member.userId === HOST_ID);
       expect(hostRows).toHaveLength(1);
       expect(hostRows[0]).toMatchObject({
@@ -507,7 +470,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
     });
 
     it("treats an org judge as a judge only — no manage, no host", async () => {
-      // JUDGE becomes a judge member of ORG2 (HOST owns it).
       await host.db
         .insertInto("organizationMembers")
         .values({ orgId: ORG2_ID, userId: JUDGE_ID, role: "judge" })
@@ -563,7 +525,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
     });
 
     it("manages staff (host only, added by candidate id)", async () => {
-      // JUDGE is eligible because they are a linked participant of this event.
       await host.db
         .insertInto("tournamentParticipants")
         .values({ tournamentId: id, userId: JUDGE_ID, displayName: "Judge", status: "active" })
@@ -579,8 +540,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       );
       expect(add.status).toBe(200);
 
-      // A user with no relationship to the event is not a candidate (no email,
-      // no enumeration) and is rejected even for the host.
       const stranger = await host.app.fetch(
         req("POST", `/tournaments/${id}/staff`, { userId: LINK_ID, role: "judge" }),
       );
@@ -595,8 +554,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
     });
 
     it("lists eligible staff candidates and excludes existing staff", async () => {
-      // OTHER is a linked participant → a candidate. HOST is already organizer
-      // staff (seeded on create) → excluded.
       await host.db
         .insertInto("tournamentParticipants")
         .values({ tournamentId: id, userId: OTHER_ID, displayName: "Other", status: "active" })
@@ -670,7 +627,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       );
       const closedId = ((await readJson(created)) as { id: string }).id;
 
-      // A running tournament still takes late walk-ins.
       await host.db
         .updateTable("tournaments")
         .set({ status: "running" })
@@ -681,7 +637,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       );
       expect(running.status).toBe(200);
 
-      // Once completed, walk-ins are refused with a 409.
       await host.db
         .updateTable("tournaments")
         .set({ status: "completed" })
@@ -753,7 +708,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       expect(deny.status).toBe(200);
       expect(await findParticipant("ReqDeny")).toBeUndefined();
 
-      // Approving a non-pending participant is a conflict.
       const alice = await findParticipant("Alice");
       const conflict = await host.app.fetch(
         req("POST", `/tournaments/${id}/participants/${alice!.id}/approve`),
@@ -766,7 +720,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
         req("POST", `/tournaments/${id}/participants`, { displayName: "LinkA" }),
       );
       const linkA = await findParticipant("LinkA");
-      // Linking only happens via the player's own claim; seed a linked entry directly.
       await host.db
         .updateTable("tournamentParticipants")
         .set({ userId: LINK_ID, claimSource: "claim_link", claimedAt: new Date() })
@@ -782,7 +735,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
     });
 
     it("re-issues a claim link after an unlink, unblocking the spot", async () => {
-      // A fresh tournament so the unlink -> reissue -> claim cycle is isolated.
       const created = await host.app.fetch(
         req("POST", "/tournaments", {
           name: "Reissue Claim",
@@ -815,7 +767,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
         return items.find((participant) => participant.displayName === "Wrongly Linked")!;
       };
 
-      // Seed a (wrong) account link, then unlink it the way a judge would.
       const seeded = await findHere();
       await host.db
         .updateTable("tournamentParticipants")
@@ -827,8 +778,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       );
       expect(unlink.status).toBe(200);
 
-      // Unlink leaves the spot blocked: the dead token is withheld and the
-      // claim flow would refuse it — the dead-end the re-issue exists to undo.
       const blocked = await findHere();
       expect(blocked.claimBlocked).toBe(true);
       expect(blocked.claimToken).toBeNull();
@@ -847,7 +796,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
     });
 
     it("claims a participant by its link in a tournament without deck check", async () => {
-      // A fresh user-hosted tournament with no deck check at all.
       const created = await host.app.fetch(
         req("POST", "/tournaments", {
           name: "Claim No Deck Check",
@@ -868,7 +816,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
         (await readJson(list)) as { items: { displayName: string; claimToken: string | null }[] }
       ).items;
       const claimable = items.find((participant) => participant.displayName === "Claimable");
-      // Every participant gets a claim token, with or without deck check.
       expect(claimable?.claimToken).toBeTruthy();
 
       const claim = await other.app.fetch(
@@ -882,7 +829,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       };
       expect(result.status).toBe("claimed");
       expect(result.tournamentId).toBe(claimTournamentId);
-      // No deck check, so there is no deck entry to route to.
       expect(result.entryId).toBeNull();
     });
 
@@ -928,7 +874,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       );
       expect(guarded.status).toBe(409);
 
-      // A participant with no pod membership removes cleanly.
       await host.app.fetch(req("POST", `/tournaments/${id}/participants`, { displayName: "Free" }));
       const free = await findParticipant("Free");
       const removed = await host.app.fetch(
@@ -984,7 +929,6 @@ describe.skipIf(!hostCtx || !otherCtx || !judgeCtx)(
       );
       const reschedId = ((await readJson(created)) as { id: string }).id;
 
-      // Patching only endsAt is validated against the unchanged stored startsAt.
       const bad = await host.app.fetch(
         req("PATCH", `/tournaments/${reschedId}`, { endsAt: "2026-05-01T12:00:00Z" }),
       );

@@ -138,16 +138,7 @@ export async function updateCopies(
   });
 }
 
-/**
- * Re-checks the actor's live pending trades for every printing whose copies just
- * moved or vanished, closing the ones their supply can no longer fill.
- *
- * Only the actor's own supply can change here. Trade supply is built from
- * personally-owned copies, and a personal collection only passes
- * `filterWritableByViewer` for its owner, so a group-owned source belongs to
- * nobody's supply and the sweep simply finds nothing to cancel. Runs inside the
- * caller's transaction so the copy change and the cancellations commit together.
- */
+/** Must run inside the caller's transaction so the copy change and the cancellations commit together. */
 async function sweepUnfillableTrades(
   trxRepos: Repos,
   userId: string,
@@ -235,9 +226,8 @@ export async function moveCopies(
       await trxRepos.lists.deleteTradeEntriesForCopies(copyIds, userId);
     }
 
-    // A move can take a copy out of the supply a group can see (into a group
-    // collection, or out of a collection a trade rule is scoped to), so the
-    // owner's pending trades for those printings may no longer be fillable.
+    // A move can take a copy out of the supply a group can see, so the owner's
+    // pending trades for those printings may no longer be fillable.
     await sweepUnfillableTrades(
       trxRepos,
       userId,
@@ -247,10 +237,8 @@ export async function moveCopies(
 }
 
 /**
- * Rejects copies still pinned by a trade reservation, live or held by a
- * completed trade whose giver has not resolved their sync. Trade-sync's giver
- * path releases its reservation rows first and then disposes within the same
- * transaction via {@link disposeCopiesInTransaction} with the guard skipped.
+ * Rejects copies pinned by a live or unresolved-sync trade reservation.
+ * Trade-sync's giver path releases the reservation first, then disposes with the guard skipped via {@link disposeCopiesInTransaction}.
  */
 export async function disposeCopies(
   transact: Transact,
@@ -334,8 +322,8 @@ export async function disposeCopiesInTransaction(
   // Hard-delete copies (collection_events.copy_id → SET NULL via FK)
   await trxRepos.copies.deleteBatchById(copies.map((row) => row.id));
 
-  // The copies are gone, so any pending trade that was counting on them is
-  // dead. Close it here rather than leaving it to 409 on accept for a week.
+  // Close now: a pending trade counting on a deleted copy would otherwise
+  // 409 only when accepted, possibly a week later.
   await sweepUnfillableTrades(
     trxRepos,
     userId,

@@ -10,12 +10,10 @@ import type { UvsClient, UvsPage, UvsQuery } from "./uvsgames-client.js";
 
 const NOW = new Date("2026-08-20T12:00:00Z");
 
-/** What the admin is watching, as the poll reads it out of the database. */
 const WATCHED_TEMPLATES: [string, string][] = [
   ["0cbcab3e-be80-4d1d-a450-9485e584906d", "Regional Qualifier"],
 ];
 
-/** What the source's template endpoint publishes, as the sync reads it. */
 const TEMPLATE_VOCABULARY = [
   { id: "0cbcab3e-be80-4d1d-a450-9485e584906d", name: "Riftbound Regional Qualifier" },
   { id: "f0c650f5-ab18-4d69-8112-19e5cff8b7b2", name: "Summoners' League" },
@@ -38,7 +36,6 @@ function listingRow(id: number, startAt: string): Record<string, unknown> {
   };
 }
 
-/** The bounds a request carried, as the assertions read them. */
 function bounds(request: PageRequest): [string, string] {
   return [String(request.query.start_date_after), String(request.query.start_date_before)];
 }
@@ -57,7 +54,6 @@ function fakeClient(respond: (request: PageRequest) => UvsPage<unknown>): {
   const gets: { path: string; query: UvsQuery | undefined }[] = [];
   let count = 0;
   const client: UvsClient = {
-    // The template vocabulary is the only thing a crawl fetches unpaged.
     get: <T>(path: string, query?: UvsQuery) => {
       gets.push({ path, query });
       count++;
@@ -116,7 +112,6 @@ function fakeDeps(
       markMissingCalls.push({ from: params.from, to: params.to });
       return Promise.resolve(2);
     },
-    // Every rule off, so the sweep short-circuits before reading any row.
     settings: () =>
       Promise.resolve({
         autoAcceptMinPlayers: null,
@@ -157,16 +152,7 @@ function pageOf(results: unknown[], count = results.length): UvsPage<unknown> {
   return { results, count, nextPage: null };
 }
 
-/**
- * A source holding `events` at fixed instants, answering any range query the
- * way the real listing does: the matching rows, capped at the page size, with
- * the unfiltered total alongside.
- *
- * A `poison` id is a row the source cannot serialize. Every page that would
- * contain it answers 500 and every page that would not answers normally, which
- * is exactly how the live listing behaves and the reason a crawl can read past
- * one at all.
- */
+// Matches the real listing: any page containing a poison id 500s, others answer normally.
 function fakeSource(
   events: { id: number; at: string }[],
   poison: number[] = [],
@@ -211,8 +197,6 @@ describe("sliceRange", () => {
 
 describe("isResumableCheckpoint", () => {
   it("reads a run from before this shape as no checkpoint at all", () => {
-    // The old result carried page counters and nothing about coverage, so
-    // resuming from it would invent a point the run never reached.
     expect(isResumableCheckpoint({ pages: 366, rows: 91_500, inserted: 947 })).toBe(false);
     expect(isResumableCheckpoint(null)).toBe(false);
   });
@@ -260,7 +244,6 @@ describe("syncCatalog", () => {
 
     expect(new Set(upserted.map((row) => row.externalId)).size).toBe(events.length);
     expect(result.complete).toBe(true);
-    // Every request is page one of its own range; nothing walks an offset.
     expect(requests.every((request) => request.page === 1)).toBe(true);
   });
 
@@ -274,8 +257,6 @@ describe("syncCatalog", () => {
 
     const result = await syncCatalog(deps);
 
-    // The first page of an oversized range is read again inside the slices, so
-    // absorbing it before the split reported those rows twice.
     expect(result.rows).toBe(events.length);
     expect(result.inserted).toBe(events.length);
     expect(upserted).toHaveLength(events.length);
@@ -289,8 +270,6 @@ describe("syncCatalog", () => {
 
     expect(markMissingCalls).toHaveLength(1);
     expect(markMissingCalls[0].from.toISOString()).toBe("2026-08-13T12:00:00.000Z");
-    // The flagging stops at now: a vanished future listing is a cancellation,
-    // not a dropped row.
     expect(markMissingCalls[0].to.toISOString()).toBe(NOW.toISOString());
     expect(result.missing).toBe(2);
   });
@@ -467,7 +446,6 @@ describe("backfillCatalog", () => {
 });
 
 describe("crawl heartbeats", () => {
-  /** Enough events, spread thinly, to force the crawl well past one beat. */
   function manyRanges() {
     return fakeSource(
       Array.from({ length: 4000 }, (_, i) => ({
@@ -508,7 +486,6 @@ describe("crawl heartbeats", () => {
     expect(result.cancelRequested).toBe(true);
     expect(result.complete).toBe(false);
     expect(result.coveredThrough).not.toBeNull();
-    // It stopped at a beat rather than walking the whole archive.
     expect(requests.length).toBeLessThan(200);
   });
 });

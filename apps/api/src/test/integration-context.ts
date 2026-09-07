@@ -1,10 +1,5 @@
 /**
- * Shared integration test context.
- *
- * Each test file calls `createTestContext(userId)` once at the top level
- * to get a Hono app wired to the shared integration database with mocked
- * auth for the given user. The shared DB is created by run-integration.ts
- * and its URL is passed via INTEGRATION_DB_URL.
+ * Assumes the shared integration DB has already been created by run-integration.ts.
  */
 
 import { createLogger } from "@openrift/shared/logger";
@@ -19,10 +14,6 @@ import type { Io } from "../io.js";
 
 export type { Io } from "../io.js";
 export type { Services } from "../deps.js";
-
-// ---------------------------------------------------------------------------
-// Shared Kysely instance — created once per process, reused across files
-// ---------------------------------------------------------------------------
 
 type Db = Kysely<Database>;
 
@@ -127,16 +118,8 @@ export function createDbContext(userId: string): DbContext | null {
 
 export { adminReq, req } from "./integration-helper.js";
 
-/**
- * Integration test files share one database, so fixed user IDs create hidden
- * cross-file coupling: a plain insert collides with a pre-seeded row, and a
- * teardown `DELETE FROM users` breaks any later file that still needs the
- * row. A random UUID per file removes the coupling entirely — the file can
- * insert without `onConflict` and delete its user freely in `afterAll`.
- *
- * Pass `id` when the value must exist at module scope (e.g. for
- * `createTestContext`) — generate it there with `crypto.randomUUID()`.
- */
+/** Integration test files share one database; a random per-file UUID avoids
+ *  insert/teardown collisions between files using a fixed id. */
 export async function seedTestUser(
   db: Db,
   opts?: { id?: string; isAdmin?: boolean; emailVerified?: boolean },
@@ -159,32 +142,18 @@ export async function seedTestUser(
   return { id, email };
 }
 
-/**
- * The integration harness refreshes `mv_card_aggregates` once at startup, but
- * test files that insert their own cards + card_domains need to refresh again
- * so INNER JOINs on the MV (e.g. in unified-mappings queries) see the new rows.
- */
+/** Refresh again after inserting cards/card_domains, or MV-joined queries won't see them. */
 export async function refreshCardAggregates(db: Db): Promise<void> {
   await sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_card_aggregates`.execute(db);
 }
 
-/**
- * Test files that insert their own printings must call this before asserting
- * on `printings_ordered` order — an unranked printing coalesces to the
- * sentinel and sorts last.
- */
+/** Call before asserting `printings_ordered` order; an unranked printing sorts last. */
 export async function refreshCanonicalRank(db: Db): Promise<void> {
   await sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_printings_canonical_rank`.execute(db);
 }
 
-/**
- * Mirrors `cards.type` into the `card_card_types` junction for any card
- * missing junction rows. Test files that insert cards directly (instead of
- * going through the repos, which write both) must call this before anything
- * refreshes the MV — a card with an empty type set violates the catalog
- * response contract, and because the parallel files share one database, one
- * file's bare insert can 500 another file's catalog test.
- */
+/** Call before refreshing the MV when inserting cards directly (bypassing the repos),
+ *  or the missing junction rows can 500 another file's catalog test. */
 export async function syncCardCardTypes(db: Db): Promise<void> {
   await sql`
     INSERT INTO card_card_types (card_id, type_slug, position)

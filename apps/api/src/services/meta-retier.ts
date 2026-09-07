@@ -18,9 +18,7 @@ import { promoteEach } from "./meta-repromote.js";
  */
 
 export interface MetaRetierResult extends MetaRepromoteResult {
-  /** Events the scan classified. */
   scanned: number;
-  /** Of those, the ones whose tier the rules now put somewhere else. */
   moved: number;
 }
 
@@ -94,7 +92,7 @@ export async function retierMetaEvents(repos: Repos): Promise<MetaRetierResult> 
   return { ...promoted, scanned: events.length, moved: movers.length };
 }
 
-/** @returns The tier the citations would promote, in priority order, or the live tier if none speak. */
+/** Returns the tier the citations would promote, in priority order, or the live tier if none speak. */
 function expectedTier(
   sources: readonly MetaEventSourceRow[],
   live: MetaEventTier,

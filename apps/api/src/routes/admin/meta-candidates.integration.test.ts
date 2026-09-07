@@ -165,8 +165,6 @@ describe.skipIf(!ctx)("meta overlay review", () => {
     expect(body).toMatchObject({ created: true });
     createdMetaEventIds.push(body.metaEventId as string);
 
-    // The player proposed under it now targets the live event rather than the
-    // proposal, so a re-promote keeps applying it.
     const players = await ctx!.db
       .selectFrom("metaEventPlayerOverlays")
       .select(["metaEventId", "eventOverlayId"])
@@ -256,8 +254,6 @@ describe.skipIf(!ctx)("meta overlay review", () => {
       .select(["id", "status", "name"])
       .where("id", "=", first.id)
       .executeTakeFirstOrThrow();
-    // Same row, so the source key stays unique; back to pending, because the
-    // provider changed its mind and the old decision no longer stands.
     expect(after).toMatchObject({ status: "pending", name: "MCD Renamed" });
   });
 
@@ -296,8 +292,6 @@ describe.skipIf(!ctx)("meta overlay review", () => {
     const body = await readJson(response);
 
     expect(response.status).toBe(200);
-    // The push provider has no crawler, so its citation is listed with nothing
-    // to read behind it rather than left out of the drift view entirely.
     expect(body.sources).toMatchObject([
       { provider: PROVIDER, externalId: "mcd-1", hasMirror: false },
     ]);

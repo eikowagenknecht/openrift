@@ -14,21 +14,13 @@ import { siteHostFromOrigin } from "../../services/list-image.js";
 import type { Variables } from "../../types.js";
 
 /**
- * Owner-authenticated download of a deck's share image (ADR-031). The export
- * dialog's "Image" tab uses this so the download works whether or not the deck
- * is publicly shared: the public og:image route resolves by share token, this
- * one resolves the caller's own deck by id. `?size=hq` renders the 2× variant
- * and `?aspect=vertical` the 9:16 one. Owner-only, served `no-store` (the deck
- * is mutable and this is an on-demand, low-traffic download).
+ * Owner-authenticated download of a deck's share image, resolving the deck by
+ * id (the public og:image route resolves by share token instead).
  */
 export const deckImageRoute = new Hono<{ Variables: Variables }>()
   .basePath("/decks")
-  // `requireAuth` is scoped to this one route, not mounted as `.use()` on the
-  // whole `/decks` sub-app: a bare `.use(requireAuth)` would 401 anonymous
-  // callers of the public `/decks/share/{token}` og:image and encode routes
-  // (see list-image.ts for the same hazard on `/lists`). The `/:id/image.png`
-  // pattern is two segments deep, so it never collides with the three-segment
-  // public `/decks/share/{token}/image.png`.
+  // requireAuth is scoped to this one route: a bare `.use(requireAuth)` on the
+  // sub-app would 401 the public `/decks/share/{token}` routes it doesn't collide with.
   .get("/:id/image.png", requireAuth, async (c) => {
     const repos = c.get("repos");
     const config = c.get("config");
@@ -43,9 +35,7 @@ export const deckImageRoute = new Hono<{ Variables: Variables }>()
     assertFound(deck, "Not found");
 
     const cards = await buildDeckImageCards(repos, deck.id, userId);
-    // Only a publicly shared deck has a viewable link, so the QR is dropped for
-    // private decks — and `qr=0` drops it for a caller who wants the image
-    // without one. The first CORS origin is the canonical site origin.
+    // QR is only meaningful for a publicly shared deck; `qr=0` opts out.
     const firstOrigin = config.corsOrigin?.split(",")[0]?.trim();
     const shareUrl =
       includeQr && deck.isPublic && deck.shareToken && firstOrigin

@@ -13,8 +13,7 @@ const mockCardBans = {
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
 // Mount the oRPC router directly (without the requireAdmin gate). AppErrors are
-// bridged to ORPCErrors inside the router, so 4xx/5xx responses carry
-// `{ message }`.
+// bridged to ORPCErrors inside the router, so 4xx/5xx responses carry `{ message }`.
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);

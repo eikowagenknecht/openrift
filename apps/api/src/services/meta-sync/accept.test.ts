@@ -17,7 +17,6 @@ vi.mock("../meta-promote.js", () => ({
 
 const NOW = new Date("2026-08-20T12:00:00Z");
 
-/** The vocabulary the source files events under, mapped to the archive's slugs. */
 const FORMAT_MAPPINGS = new Map([["constructed", "constructed"]]);
 
 function catalogRow(overrides: Partial<UvsgamesListRow> = {}): UvsgamesListRow {
@@ -59,7 +58,6 @@ interface RecheckWrite {
 
 function fakeDeps(
   options: {
-    /** The candidate the mirror already holds for the key, if any. */
     existing?: { id: string; format: string };
     settings?: {
       autoAcceptMinPlayers: number | null;

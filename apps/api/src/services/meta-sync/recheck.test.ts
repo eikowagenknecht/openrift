@@ -25,7 +25,6 @@ vi.mock("./deep-fetch.js", () => ({
 
 const NOW = new Date("2026-08-20T12:00:00Z");
 const HOUR_MS = 60 * 60 * 1000;
-/** When an earlier pass completed this event's results fetch. */
 const FETCHED_AT = new Date("2026-08-19T18:00:00Z");
 
 function dueRow(overrides: Partial<UvsgamesListRow> = {}): UvsgamesListRow {
@@ -68,16 +67,11 @@ interface RecheckWrite {
 function fakeDeps(options: {
   due: UvsgamesListRow[];
   detail: (externalId: string) => unknown;
-  /** Standings this event's mirror already holds. */
   mirroredStandings?: Record<string, unknown>[];
-  /** Deck ids the mirror still owes. */
   outstandingDecks?: string[];
-  /** Live standings, for the promotion-lag check. */
   livePlayers?: Record<string, unknown>[];
   source?: { metaEventId: string };
-  /** The run row the pass reads its Stop flag back out of. */
   stored?: Record<string, unknown>;
-  /** Template ids an admin is watching, which earn the quarter-hourly poll. */
   watchedTemplates?: string[];
 }): { deps: MetaSyncDeps; writes: RecheckWrite[]; progress: unknown[] } {
   const writes: RecheckWrite[] = [];
@@ -106,7 +100,6 @@ function fakeDeps(options: {
     formatMappings: () => Promise.resolve(new Map<string, string>()),
   };
 
-  // Every "have we got this yet" the ladder asks is a mirror query now.
   const uvsgamesResults = {
     standings: () => Promise.resolve(options.mirroredStandings ?? []),
     deckCoverage: () => Promise.resolve({ outstanding: options.outstandingDecks ?? [], held: 0 }),
@@ -226,7 +219,6 @@ describe("processRechecks", () => {
       due: [dueRow({ displayStatus: "complete", checkStage: 2, resultsFetchedAt: FETCHED_AT })],
       detail: () =>
         detailRow({ display_status: "complete", start_datetime: "2026-08-19T09:00:00Z" }),
-      // Two mirrored standings, one live row: promotion has work left.
       mirroredStandings: [{ registrationId: "reg-1" }, { registrationId: "reg-2" }],
       livePlayers: [{ id: "row-1" }],
     });
@@ -242,7 +234,6 @@ describe("processRechecks", () => {
       due: [dueRow({ displayStatus: "complete", checkStage: 2, resultsFetchedAt: FETCHED_AT })],
       detail: () =>
         detailRow({ display_status: "complete", start_datetime: "2026-08-19T09:00:00Z" }),
-      // Promotion has caught up: one mirrored standing, one live row.
       mirroredStandings: [{ registrationId: "reg-1" }],
       livePlayers: [{ id: "row-1" }],
     });
@@ -257,8 +248,6 @@ describe("processRechecks", () => {
       due: [dueRow({ displayStatus: "complete", checkStage: 2, resultsFetchedAt: FETCHED_AT })],
       detail: () =>
         detailRow({ display_status: "complete", start_datetime: "2026-08-19T09:00:00Z" }),
-      // A cancelled event: the fetch completed and mirrored nobody. Reading
-      // "fetched" off the row count would revisit it to the end of the ladder.
       mirroredStandings: [],
     });
 
@@ -345,8 +334,6 @@ describe("processRechecks", () => {
     const result = await processRechecks(deps);
 
     expect(result.errors[0]).toContain("MAX_PARAMETERS_EXCEEDED");
-    // The failed event is rescheduled rather than left due, and the pass went
-    // on to the row queued behind it.
     expect(writes).toEqual([
       { externalId: "4821", nextCheckAt: new Date(NOW.getTime() + HOUR_MS), checkStage: 2 },
       { externalId: "4822", nextCheckAt: new Date("2026-08-25T09:00:00Z"), checkStage: 0 },

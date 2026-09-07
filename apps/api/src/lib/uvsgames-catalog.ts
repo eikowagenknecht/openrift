@@ -2,13 +2,11 @@
 import { createHash } from "node:crypto";
 
 /**
- * Reading the official source's event listing into the slim projection
- * `uvsgames_events` stores (ADR-014). The source publishes no schema and
- * changes shape without notice, so every field is probed defensively and a row
- * that carries no id, name, or start time is dropped rather than guessed at.
+ * Reads the official source's event listing into `uvsgames_events`. The
+ * source publishes no schema and changes shape without notice; every field
+ * is probed defensively. A row missing id, name, or start time is dropped.
  */
 
-/** The one catalogued source. A second one needs its own crawl scheduler first. */
 export const UVSGAMES_PROVIDER = "uvsgames";
 
 /** The source's own page for an event, which becomes the citation's URL. */
@@ -30,7 +28,6 @@ const NOTABLE_EVENT_NAMES = [
   "circuit",
 ] as const;
 
-/** Whether an event name carries one of {@link NOTABLE_EVENT_NAMES}. */
 export function isNotableEventName(name: string): boolean {
   const haystack = name.toLowerCase();
   return NOTABLE_EVENT_NAMES.some((needle) => haystack.includes(needle));
@@ -47,10 +44,8 @@ export function normalizeFormatKey(value: string): string {
 
 /**
  * Resolves one of the source's format strings against the admin-curated
- * mappings, which the caller loads once per run or request.
- *
- * @returns The `deck_formats` slug, or null when nothing maps it — an event the
- * archive is never allowed to file automatically.
+ * mappings, which the caller loads once per run or request. Returns null when
+ * nothing maps it, an event the archive is never allowed to file automatically.
  */
 export function mapSourceFormat(
   mappings: ReadonlyMap<string, string>,
@@ -77,13 +72,10 @@ export interface UvsgamesCatalogProjection {
   playerCount: number | null;
   eventType: string | null;
   eventFormat: string | null;
-  /** The store's own id, which the upsert normalizes into `uvsgames_stores`. */
   storeId: number | null;
-  /** Kept as the fallback for a row whose store the source did not key. */
   storeName: string | null;
   location: string | null;
   timezone: string | null;
-  /** The source's template uuid, curated in `uvsgames_event_templates`. */
   eventConfigurationTemplate: string | null;
   contentHash: string;
 }
@@ -105,7 +97,6 @@ function text(value: unknown): string | null {
   return null;
 }
 
-/** The source's own integer keys, which arrive as numbers and must stay whole. */
 function sourceId(value: unknown): number | null {
   if (typeof value === "number" && Number.isInteger(value) && value > 0) {
     return value;
@@ -130,9 +121,8 @@ function instant(value: unknown): Date | null {
 }
 
 /**
- * The store an event is held at. The source has moved this between a nested
- * object and a flat field, so both shapes are read; only the nested one carries
- * the id, and the flat fields are null on every row the listing serves today.
+ * The source has moved this between a nested object and a flat field; both
+ * shapes are read, but only the nested one carries the id.
  */
 function store(row: Record<string, unknown>): { id: number | null; name: string | null } {
   const nested = record(row.store);
@@ -142,12 +132,6 @@ function store(row: Record<string, unknown>): { id: number | null; name: string 
   };
 }
 
-/**
- * Stable over the projection's own field order, so a source that reorders its
- * JSON keys never reads as a change. Truncated: 32 hex characters is 128 bits
- * of a SHA-256, which is far past collision territory for a quarter-million
- * rows and keeps the column small.
- */
 export function catalogContentHash(fields: Omit<UvsgamesCatalogProjection, "contentHash">): string {
   const parts = [
     fields.name,
@@ -190,8 +174,7 @@ export function projectCatalogRow(raw: unknown): UvsgamesCatalogProjection | nul
   const venue = store(row);
   const fields = {
     externalId,
-    // The live column CHECKs 1..120 and the candidate the same, so a source
-    // name past that is truncated here rather than failing every ingest.
+    // The live column and the candidate both CHECK the name length at 120.
     name: name.slice(0, 120),
     startAt,
     endAtEstimate: instant(row.heuristic_end_datetime),
@@ -217,17 +200,11 @@ export interface UvsgamesTemplateProjection {
   sourceName: string;
 }
 
-/** The column's CHECK, so a source that publishes an essay is stored, not refused. */
 const MAX_TEMPLATE_NAME = 200;
 
 /**
- * The template endpoint answers with a bare array rather than the listing's
- * page envelope, and its rows carry far more than a name (the scheduling,
- * registration and structure policies each template applies). Only the id and
- * the name are projected; the policies describe how the source runs an event,
- * which the archive has no use for.
- *
- * @returns Every readable entry, in the order the source returned them.
+ * The template endpoint returns a bare array, not the listing's page
+ * envelope. Rows carry far more than a name; only id and name are projected.
  */
 export function projectTemplateRows(body: unknown): UvsgamesTemplateProjection[] {
   if (!Array.isArray(body)) {
@@ -246,18 +223,15 @@ export function projectTemplateRows(body: unknown): UvsgamesTemplateProjection[]
 }
 
 /**
- * The venue-local calendar day of an instant, which is what `meta_events`
- * stores. Taking the UTC day instead files an evening event in the Americas
- * under the next day. An unusable zone falls back to UTC rather than throwing:
- * the source omits it for online events, and a day that is off by one beats no
- * event at all.
+ * The UTC day would file an evening Americas event under the next day.
+ * Falls back to UTC when the zone is unusable; the source omits it for online events.
  */
 export function venueLocalDay(startAt: Date, timezone: string | null): string {
   if (timezone !== null) {
     try {
       return formatInZone(startAt, timezone);
     } catch {
-      // Unknown or malformed zone; UTC below.
+      // empty
     }
   }
   return startAt.toISOString().slice(0, 10);

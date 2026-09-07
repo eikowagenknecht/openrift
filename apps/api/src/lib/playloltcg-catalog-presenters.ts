@@ -3,11 +3,6 @@ import type { PlayloltcgCatalogRow } from "@openrift/shared/contracts/admin/meta
 import type { PlayloltcgListRow } from "../repositories/playloltcg-events.js";
 import { playloltcgEventUrl } from "./playloltcg-catalog.js";
 
-/**
- * One playloltcg catalogue row as the admin triage table reads it. The store's
- * current name wins over the row's own fallback (via `shopDisplayName`), and the
- * venue city stands in for uvsgames' location line.
- */
 export function toPlayloltcgCatalogRow(row: PlayloltcgListRow): PlayloltcgCatalogRow {
   return {
     activityShopId: row.activityShopId,

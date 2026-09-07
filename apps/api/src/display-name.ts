@@ -28,10 +28,6 @@ export function validateDisplayName(input: unknown): ValidateResult {
   return { ok: true, value: trimmed };
 }
 
-// For OAuth-provided names (Google/Discord display name): be permissive — strip
-// disallowed characters and truncate rather than rejecting, so signup never
-// fails on unusual but harmless display names. Falls back to `fallback` if the
-// sanitized result is empty.
 export function sanitizeDisplayName(raw: unknown, fallback: string): string {
   const source = typeof raw === "string" ? raw : "";
   const cleaned = source

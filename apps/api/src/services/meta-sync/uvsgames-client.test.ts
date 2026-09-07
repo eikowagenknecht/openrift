@@ -34,8 +34,7 @@ function harness(responses: (() => Response)[]) {
       return Promise.resolve();
     },
     random: () => 0,
-    // A realistic clock: the pacing window has long since elapsed before the
-    // first request, which is what production sees.
+    // Comfortably past the pacing window, so the first request never waits.
     now: () => 1_000_000,
   });
 
@@ -94,7 +93,6 @@ describe("createUvsClient", () => {
     await client.get("/api/v2/events/1/");
     await client.get("/api/v2/events/2/");
 
-    // The first request is free; the second waits out the spacing window.
     expect(sleeps).toEqual([600]);
   });
 

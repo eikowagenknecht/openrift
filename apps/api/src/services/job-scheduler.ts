@@ -13,8 +13,6 @@ import { toJobScheduleView } from "../lib/job-schedule-presenters.js";
 import { runJob, runJobAsync } from "./run-job.js";
 
 export interface JobDefinition<T = unknown> extends JobScheduleMeta {
-  /** Reason to skip this tick, or null to run. Cron ticks only; a manual run
-   *  ignores it. */
   skipCronTick?: () => Promise<string | null>;
   execute: (runId: string) => Promise<T>;
   summarize?: (result: T) => unknown;

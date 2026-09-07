@@ -21,29 +21,15 @@ import type { Variables } from "../types.js";
 const tracer = trace.getTracer("openrift-api/http");
 
 /**
- * Hono middleware that opens an `http.server` span per request and activates
- * it as the OTel context for the `next()` chain. Child spans created during
- * request handling (notably the Kysely `db.query` spans) automatically
- * inherit it as their parent.
- *
- * Reads `routePath(c, -1)` so the most-specific matched route template is
- * used (e.g. `/api/v1/cards/:cardSlug`), not the parent wildcard. When no
- * route matched (404), the span is still emitted with route="<unmatched>"
- * so unrouted traffic remains visible without exploding cardinality.
+ * Falls back to route="<unmatched>" on a 404 so unrouted traffic stays
+ * visible without exploding route cardinality.
  */
 export const otelRequestMiddleware: MiddlewareHandler<{ Variables: Variables }> = async (
   c,
   next,
 ) => {
-  // routePath(c, -1) returns the most-specific matched route. When only the
-  // wildcard middleware mounts itself match (no leaf handler), the result
-  // contains a `*` — treat that as unmatched so 404 traffic doesn't pollute
-  // the http.route attribute with shapes like "/api/*".
-  //
-  // Exception: better-auth mounts as a single `/api/auth/*` wildcard
-  // handler but its endpoint set is bounded and stable (~20 paths). Use
-  // the raw path under `/api/auth/` so each better-auth endpoint shows up
-  // separately in metrics and traces.
+  // A route containing "*" is a wildcard mount, not a real match, except
+  // better-auth's, whose bounded and stable endpoint set is kept as-is.
   const matched = routePath(c, -1);
   let route: string;
   if (matched && !matched.includes("*")) {
@@ -54,9 +40,6 @@ export const otelRequestMiddleware: MiddlewareHandler<{ Variables: Variables }> 
     route = "<unmatched>";
   }
 
-  // Extract any incoming W3C traceparent so the span links to the upstream
-  // trace (e.g. the web SSR span that issued this request). Falls back to
-  // ROOT_CONTEXT (a fresh trace) when no header is present.
   const parentCtx = propagation.extract(ROOT_CONTEXT, headersToRecord(c.req.raw.headers));
 
   const span = tracer.startSpan(

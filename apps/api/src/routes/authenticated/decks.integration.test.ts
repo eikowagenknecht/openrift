@@ -143,16 +143,13 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       const res = await app.fetch(req("GET", `/decks/${deckId}`));
       const json = await readJson(res);
       expect(json.cards.length).toBe(2);
-      // Authenticated deck-card rows carry { cardId, zone, quantity,
-      // preferredPrintingId } — no denormalized cardName (that lives on the
-      // public deck-share shape).
+      // No denormalized cardName here; that lives on the public deck-share shape.
       expect(json.cards[0].cardId).toBeTypeOf("string");
       expect(json.cards[0].zone).toBe("main");
     });
 
-    // Deck-size rules are advisory, not enforced at save time: PUT /cards saves
-    // any composition (so work-in-progress decks persist) and the constructed
-    // deck-validation rules surface as the `isValid` flag on GET /decks.
+    // Deck-size rules are advisory: PUT /cards saves any composition, and
+    // validation surfaces only as the `isValid` flag on GET /decks.
     async function isDeckValid(): Promise<boolean> {
       const listRes = await app.fetch(req("GET", "/decks"));
       const list = (await readJson(listRes)) as {
@@ -296,7 +293,6 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       const newTokenGet = await app.fetch(req("GET", `/decks/share/${json.shareToken}`));
       expect(newTokenGet.status).toBe(200);
 
-      // Track the live token for the remaining tests in this flow.
       shareToken = json.shareToken;
     });
 
@@ -323,7 +319,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       const otherUser = createTestContext("a0000000-0008-4000-a000-000000000002");
       if (!otherUser) {
         return;
-      } // guarded by outer skipIf
+      }
       return (async () => {
         const res = await otherUser.app.fetch(req("POST", `/decks/share/${shareToken}/clone`));
         expect(res.status).toBe(201);
@@ -346,8 +342,6 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       const get = await app.fetch(req("GET", `/decks/share/${shareToken}`));
       expect(get.status).toBe(404);
 
-      // GET /decks/:id/share reflects the now-unshared state (still owner-only,
-      // not a 404 for an owned deck).
       const state = await app.fetch(req("GET", `/decks/${shareDeckId}/share`));
       expect(state.status).toBe(200);
       const stateJson = await readJson(state);
@@ -420,8 +414,6 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       expect(json.isPublic).toBe(false);
       firstVariantId = json.id;
 
-      // The source keeps its id, fronts the new family, and keeps its own
-      // (empty) chain.
       const live = await readJson(await app.fetch(req("GET", `/decks/${liveDeckId}`)));
       expect(live.deck.familyId).toBe(json.familyId);
       expect(live.deck.isPrimary).toBe(true);
@@ -534,7 +526,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       const otherUser = createTestContext("a0000000-0008-4000-a000-000000000002");
       if (!otherUser) {
         return;
-      } // guarded by outer skipIf
+      }
       return (async () => {
         const theirs = await readJson(
           await otherUser.app.fetch(req("POST", "/decks", { name: "Theirs", format: "freeform" })),
@@ -549,7 +541,6 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
           req("POST", `/decks/${theirs.id}/link`, { otherDeckId: liveDeckId }),
         );
         expect(linkRes.status).toBe(404);
-        // Their deck as the other side is just as invisible.
         const linkOtherRes = await app.fetch(
           req("POST", `/decks/${liveDeckId}/link`, { otherDeckId: theirs.id }),
         );

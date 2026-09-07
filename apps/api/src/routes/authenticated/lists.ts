@@ -38,9 +38,7 @@ export const listsRouter = {
   create: os.create.handler(async ({ input, context }): Promise<ListResponse> => {
     const { lists } = context.repos;
     const userId = context.userId;
-    // Trade defaults only apply to wish/trade lists. The DB CHECK constraint
-    // rejects non-null prefs on organize lists; we strip here so the API
-    // never round-trips a 500.
+    // A DB CHECK rejects non-null trade prefs on organize lists.
     const supportsPrefs = input.intent !== "organize";
     const tradeDefaults = supportsPrefs ? input.tradeDefaults : undefined;
     const row = await lists.create({
@@ -52,14 +50,9 @@ export const listsRouter = {
       defaultPriceAbsoluteCents: tradeDefaults?.priceAbsoluteCents ?? null,
       defaultTradeType: tradeDefaults?.tradeType ?? null,
       currency: supportsPrefs ? (input.currency ?? null) : null,
-      // Every intent may carry rules; each rule's kind and the combine mode
-      // must match the list *kind*, both enforced by createListSchema's
-      // refinements.
       rules: input.rules ?? [],
       ruleCombine: input.ruleCombine ?? null,
     });
-    // Group visibility is opt-in: a new list is private and the owner shares
-    // it with specific groups from the create dialog or the manage page.
     return toList(row);
   }),
 
@@ -82,17 +75,13 @@ export const listsRouter = {
     const { lists } = context.repos;
     const userId = context.userId;
 
-    // Trade defaults/currency only apply to wish/trade lists; the DB CHECK
-    // rejects non-null prefs on organize lists. Look up the list's intent
-    // and strip those fields for organize lists (mirroring create), so a PATCH
-    // that carries them is a no-op for those fields instead of a 500.
+    // A DB CHECK rejects non-null trade prefs on organize lists.
     const existing = await lists.getByIdForUser(input.id, userId);
     assertFound(existing, "Not found");
     const supportsPrefs = existing.intent !== "organize";
 
-    // Build updates manually so a tradeDefaults- or currency-only patch
-    // doesn't trip the generic patch helper's "no fields" guard. (Same
-    // pattern as the entry PATCH handler.)
+    // Built manually: the generic patch helper's "no fields" guard would
+    // reject a tradeDefaults/currency-only patch.
     const updates: ListUpdate = {};
     if (input.name !== undefined) {
       updates.name = input.name;
@@ -108,19 +97,14 @@ export const listsRouter = {
     if (supportsPrefs && input.currency !== undefined) {
       updates.currency = input.currency;
     }
-    // Validate the rules against the (immutable) list kind: the rule shape
-    // follows kind, not intent, so organize lists carry rules too. The create
-    // schema can self-check (it has the kind); update can't, so the route
-    // gates it here. An empty array clears all rules.
+    // Unlike create, the update payload carries no list kind, so this schema check runs here instead.
     if (input.rules !== undefined) {
       if (input.rules.some((rule) => rule.kind !== ruleKindForListKind(existing.kind))) {
         throw new AppError(400, ERROR_CODES.BAD_REQUEST, "rule kind must match the list kind");
       }
       updates.rules = input.rules;
     }
-    // The combine mode must belong to the list kind (same
-    // update-can't-self-check reasoning as rules). null = back to the kind's
-    // default.
+    // null resets the combine mode to the list kind's default.
     if (input.ruleCombine !== undefined) {
       if (input.ruleCombine !== null && !ruleCombineMatchesKind(input.ruleCombine, existing.kind)) {
         throw new AppError(
@@ -153,9 +137,7 @@ export const listsRouter = {
     const list = await lists.getIdKindIntent(listId, userId);
     assertFound(list, "List not found");
 
-    // Trade/wish lists may only reference copies the user personally owns — a
-    // card you merely have group access to isn't yours to trade away or wish
-    // for. Organize lists may reference shared group copies too.
+    // Trade/wish lists may reference only copies the user personally owns; organize lists may reference shared group copies too.
     const personalOnly = list.intent !== "organize";
     const target = await resolveEntryTarget(list.kind, input, userId, copies, personalOnly);
 
@@ -174,9 +156,7 @@ export const listsRouter = {
         tradeType: input.tradeOverride.tradeType,
       });
     } catch (error) {
-      // 23505 = unique_violation: this exact target is already in the list. The
-      // bulk endpoint merges duplicates; the single-add path reports a clean 409
-      // instead of letting the partial unique index throw a 500.
+      // 23505 (unique_violation): the partial unique index rejects a duplicate target.
       if (error instanceof Error && "code" in error && error.code === "23505") {
         throw new AppError(409, ERROR_CODES.CONFLICT, "That item is already in the list");
       }
@@ -196,9 +176,6 @@ export const listsRouter = {
       const list = await lists.getIdKindIntent(listId, userId);
       assertFound(list, "List not found");
 
-      // Reject the whole batch if any entry's target column doesn't match the
-      // list's kind — the partial-index ON CONFLICT (and the FK) would fail on
-      // a mismatch anyway. A clean 400 here avoids a confusing DB-level error.
       for (const entry of entries) {
         if (!targetMatchesKind(list.kind, entry)) {
           throw new AppError(
@@ -209,12 +186,8 @@ export const listsRouter = {
         }
       }
 
-      // Copy-kind lists: filter to copies the user may reference; drop the rest
-      // silently rather than 400-ing the whole batch. Trade lists are restricted
-      // to the user's own collections (a copy you merely have group access to
-      // isn't yours to trade away); organize-copy lists may reference shared
-      // group collections too. Card/printing kinds pass through (FK enforces
-      // target row existence).
+      // Copy-kind entries not accessible to the user are dropped, not rejected.
+      // Trade lists see only the user's own collections; organize lists also see shared group collections.
       const personalOnly = list.intent !== "organize";
       let usableEntries = entries;
       if (list.kind === "copy") {
@@ -246,10 +219,7 @@ export const listsRouter = {
 
       const result = await lists.bulkCreateEntries(list.kind, usable);
 
-      // `skipped` captures both the ownership filter (copy-kind only) and any
-      // copy-kind dupes that took the DO NOTHING branch. Card/printing-kind
-      // dupes merge into existing rows via quantity bump and surface as
-      // `updated`, not `skipped`.
+      // Card/printing-kind dupes merge via quantity bump and count as `updated`, not `skipped`.
       return {
         added: result.inserted,
         updated: result.updated,
@@ -258,13 +228,7 @@ export const listsRouter = {
     },
   ),
 
-  // Drag-from-collections sugar. Front-end passes copy IDs from a drag; the
-  // repo derives the right target shape based on the list's kind:
-  //   kind = copy     → one entry per owned copy
-  //   kind = printing → one entry per distinct printing across the copies
-  //   kind = card     → one entry per distinct card across the copies
-  // Non-owned copies and existing duplicates are skipped silently and
-  // reflected in `skipped`.
+  // Non-owned copies and existing duplicates are skipped silently and reflected in `skipped`.
   bulkAddFromCopies: os.bulkAddFromCopies.handler(
     async ({ input, context }): Promise<ListBulkAddResponse> => {
       const { lists } = context.repos;
@@ -287,10 +251,7 @@ export const listsRouter = {
     },
   ),
 
-  // Move entries from this list to another list owned by the same user. The
-  // destination must match the source on kind + intent: a different kind
-  // would reshape every entry, a different intent would silently re-purpose
-  // them (turning a wishlist into a tradelist row).
+  // The destination list must match the source on kind and intent.
   moveEntries: os.moveEntries.handler(async ({ input, context }): Promise<ListMoveResponse> => {
     const { moveListEntries } = context.services;
     const repos = context.repos;
@@ -303,9 +264,7 @@ export const listsRouter = {
   updateEntry: os.updateEntry.handler(async ({ input, context }): Promise<ListEntryResponse> => {
     const { lists } = context.repos;
     const userId = context.userId;
-    // Build the updates manually so we can mix two field categories
-    // (scalar `quantity` and the nested `tradeOverride` triple) without the
-    // generic patch helper rejecting a tradeOverride-only patch as empty.
+    // Built manually: the generic patch helper would reject a tradeOverride-only patch as empty.
     const updates: ListEntryUpdate = {};
     if (input.quantity !== undefined) {
       updates.quantity = input.quantity;
@@ -331,9 +290,7 @@ export const listsRouter = {
     assertDeleted(result, "Not found");
   }),
 
-  // Owner-only. Reports the current share state. An owned-but-unshared list
-  // resolves to { shareToken: null, isPublic: false } rather than 404 — 404 is
-  // reserved for lists the caller doesn't own.
+  // An owned-but-unshared list resolves to { shareToken: null, isPublic: false }; 404 means not owned.
   getShare: os.getShare.handler(async ({ input, context }): Promise<ListShareResponse> => {
     const { lists } = context.repos;
     const userId = context.userId;
@@ -344,9 +301,7 @@ export const listsRouter = {
     return state;
   }),
 
-  // Bulk-remove from select mode. deleteEntriesByIds is scoped to the list +
-  // owner, so entry ids from another list (or another user) are filtered out
-  // rather than erroring. We still 404 a missing list so a stale URL is loud.
+  // deleteEntriesByIds silently drops ids not owned by this list/user; a missing list still 404s.
   bulkDeleteEntries: os.bulkDeleteEntries.handler(async ({ input, context }): Promise<void> => {
     const { lists } = context.repos;
     const userId = context.userId;
@@ -358,9 +313,6 @@ export const listsRouter = {
     await lists.deleteEntriesByIds(input.entryIds, listId, userId);
   }),
 
-  // Idempotent enable: if the list already has a token, return the existing
-  // share state unchanged (no token churn). Otherwise mint a token and flip
-  // is_public=true. Token rotation lives in the dedicated /share/rotate route.
   share: os.share.handler(async ({ input, context }): Promise<ListShareResponse> => {
     const { lists } = context.repos;
     const userId = context.userId;
@@ -380,10 +332,7 @@ export const listsRouter = {
     return { shareToken: token, isPublic: true };
   }),
 
-  // Owner-only. Mints a NEW token (the previous URL stops resolving) and
-  // ensures is_public=true. Treats rotate-while-unshared as "share now" rather
-  // than 409 — setShareToken supports it cleanly, so a client that rotates
-  // before sharing just ends up shared, matching the bundle-share precedent.
+  // Rotating an unshared list shares it.
   rotateShare: os.rotateShare.handler(async ({ input, context }): Promise<ListShareResponse> => {
     const { lists } = context.repos;
     const userId = context.userId;
@@ -405,17 +354,13 @@ export const listsRouter = {
     assertFound(updated, "Not found");
   }),
 
-  // Bulk reorder for the user's lists in a single intent bucket. Lists in
-  // other intents are silently ignored so the client only needs to send the
-  // current bucket's view.
+  // Lists outside the given intent bucket are silently ignored.
   reorder: os.reorder.handler(async ({ input, context }): Promise<void> => {
     const { lists } = context.repos;
     const userId = context.userId;
     await lists.reorder(userId, input.intent, input.orderedIds);
   }),
 
-  // The "shared with N groups" badge on the list page. Scoped to lists the
-  // viewer owns; non-owned lists 404.
   groupShares: os.groupShares.handler(
     async ({ input, context }): Promise<ListGroupSharesResponse> => {
       const { lists, friendGroups } = context.repos;

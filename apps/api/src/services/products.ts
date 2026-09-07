@@ -6,13 +6,8 @@ import { assertFound } from "../lib/assertions.js";
 import type { ProductContentRow, ProductWithCounts } from "../repositories/products.js";
 
 /**
- * Resolves the list an admin wants to snapshot into product contents
- * (ADR-015). The list must be the caller's own and printing-kind (card-kind
- * entries have no printing identity; copy-kind lists are trade binders, not
- * kit definitions). Resolved entries include rule-produced ones (ADR-034);
- * duplicates merge by printing with summed quantities.
- *
- * @returns The content rows to persist.
+ * List must be printing-kind: card-kind entries have no printing identity,
+ * copy-kind lists are trade binders, not kit definitions.
  */
 async function resolveListContents(
   repos: Repos,
@@ -44,12 +39,7 @@ async function resolveListContents(
   return [...byPrinting].map(([printingId, quantity]) => ({ printingId, quantity }));
 }
 
-/**
- * Creates a product and snapshots the given list as its contents in one
- * transaction. The product keeps no reference to the source list.
- *
- * @returns The created product with content counts.
- */
+/** The created product keeps no reference to the source list. */
 export async function createProductFromList(
   repos: Repos,
   transact: Transact,
@@ -90,10 +80,6 @@ export async function createProductFromList(
   });
 }
 
-/**
- * Wholesale-replaces a product's contents from a fresh list snapshot
- * (ADR-015: the only way contents change). Bumps the product's `updated_at`.
- */
 export async function resyncProductContents(
   repos: Repos,
   transact: Transact,

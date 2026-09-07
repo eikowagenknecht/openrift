@@ -3,27 +3,15 @@ import { extractBracketedTerms } from "@openrift/shared";
 import type { keywordsRepo } from "../repositories/keywords.js";
 
 interface DiscoveryResult {
-  /** Number of card-language pairs examined. */
   candidatesExamined: number;
-  /** Translation pairs discovered with sufficient confidence. */
   discovered: { keyword: string; language: string; label: string }[];
-  /** New translations inserted (excludes already-existing rows). */
   inserted: number;
-  /** Pairs with conflicting mappings that need manual review. */
   conflicts: { keyword: string; language: string; labels: string[] }[];
 }
 
 /**
- * Discovers keyword translations by positionally correlating bracketed terms
- * between English and non-English printings of the same card.
- *
- * For each card that has both EN and other-language printings, extracts
- * bracketed terms from both and zips them by position. Aggregates across
- * all cards and keeps pairs that appear consistently (2+ cards). Conflicts
- * (same EN keyword mapping to multiple labels in the same language) are
- * reported for manual review.
- *
- * @returns Discovery results including inserted count and any conflicts.
+ * Correlates bracketed terms positionally between a card's EN and other-language
+ * printings; keeps pairs agreeing across 2+ cards, flags the rest as conflicts.
  */
 export async function discoverKeywordTranslations(repos: {
   keywords: ReturnType<typeof keywordsRepo>;
@@ -35,7 +23,6 @@ export async function discoverKeywordTranslations(repos: {
 
   const knownKeywords = new Set(existingKeywords.map((k) => k.name));
 
-  // Aggregate: (enKeyword, language) → Map<translatedLabel, count>
   const pairCounts = new Map<string, Map<string, number>>();
 
   for (const candidate of candidates) {
@@ -48,7 +35,6 @@ export async function discoverKeywordTranslations(repos: {
       ...extractBracketedTerms(candidate.otherEffectText ?? ""),
     ];
 
-    // Only correlate if both printings have the same number of bracketed terms
     if (enTerms.length === 0 || enTerms.length !== otherTerms.length) {
       continue;
     }
@@ -57,12 +43,10 @@ export async function discoverKeywordTranslations(repos: {
       const enKeyword = enTerms[i];
       const otherLabel = otherTerms[i];
 
-      // Only map keywords we have styles for
       if (!knownKeywords.has(enKeyword)) {
         continue;
       }
 
-      // Skip if the translated term is the same as English (no translation needed)
       if (enKeyword === otherLabel) {
         continue;
       }
@@ -77,14 +61,12 @@ export async function discoverKeywordTranslations(repos: {
     }
   }
 
-  // Extract confident translations (seen on 2+ cards) and flag conflicts
   const discovered: DiscoveryResult["discovered"] = [];
   const conflicts: DiscoveryResult["conflicts"] = [];
 
   for (const [key, labelCounts] of pairCounts) {
     const [keyword, language] = key.split("\0");
 
-    // Find labels with 2+ occurrences
     const confidentLabels = [...labelCounts.entries()]
       .filter(([, count]) => count >= 2)
       .sort((a, b) => b[1] - a[1]);

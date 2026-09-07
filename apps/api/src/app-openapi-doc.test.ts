@@ -3,12 +3,6 @@ import { describe, expect, it } from "vitest";
 
 import { createApp } from "./app.js";
 
-// ---------------------------------------------------------------------------
-// Doc split: the public spec (/api/doc) must exclude the admin surface,
-// and the admin spec (/api/admin/doc) must contain only it. Doc generation only
-// reads static route metadata, so minimal mock deps are enough to boot the app.
-// ---------------------------------------------------------------------------
-
 const mockAuth = {
   handler: () => new Response("ok"),
   api: { getSession: () => null },
@@ -52,14 +46,9 @@ describe("OpenAPI doc split", () => {
     expect(doc.info.title).toBe("OpenRift API");
     expect(paths.length).toBeGreaterThan(0);
     expect(paths.some((p) => p.startsWith("/api/admin/"))).toBe(false);
-    // A migrated oRPC endpoint (from the contract-derived spec) is present...
     expect(paths).toContain("/api/v1/catalog");
-    // ...alongside a second migrated endpoint (the deck-check provider push).
     expect(paths).toContain("/api/v1/ingest/deck-check");
 
-    // Per-operation security is derived from each contract's auth meta: the doc
-    // defaults to the session cookie, public reads opt out, and the provider
-    // push declares its bearer key.
     expect(doc.security).toEqual([{ cookieAuth: [] }]);
     expect(doc.components?.securitySchemes).toHaveProperty("cookieAuth");
     expect(doc.components?.securitySchemes).toHaveProperty("bearerAuth");
@@ -73,14 +62,8 @@ describe("OpenAPI doc split", () => {
     expect(doc.info.title).toBe("OpenRift Admin API");
     expect(paths.length).toBeGreaterThan(0);
     expect(paths.every((p) => p.startsWith("/api/admin/"))).toBe(true);
-    // A representative migrated oRPC admin endpoint (from the contract spec).
-    // The sentry smoke test is a plain Hono route and intentionally not documented.
     expect(paths).toContain("/api/admin/v1/users");
 
-    // The document defaults to cookieAuth, but admin ops are stamped with the
-    // adminAuth marker by path — the requireAdmin middleware gates the whole
-    // /api/admin/v1/* prefix, so the spec reflects that role requirement
-    // instead of advertising a bare session cookie.
     expect(doc.security).toEqual([{ cookieAuth: [] }]);
     expect(doc.components?.securitySchemes).toHaveProperty("adminAuth");
     expect(doc.paths["/api/admin/v1/users"]?.get?.security).toEqual([{ adminAuth: [] }]);

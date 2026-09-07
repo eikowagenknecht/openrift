@@ -16,7 +16,6 @@ function scheduler(context: ApiContext): JobScheduler {
   return context.scheduler;
 }
 
-/** Any thrown `AppError` is mapped by the handler's {@link appErrorInterceptor}. */
 export const adminJobSchedulesRouter = {
   list: os.list.handler(async ({ context }) => ({ jobs: await scheduler(context).list() })),
 

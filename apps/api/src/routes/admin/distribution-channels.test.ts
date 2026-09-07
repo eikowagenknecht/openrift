@@ -21,10 +21,6 @@ const mockRepo = {
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-// Mount the oRPC router directly (without the requireAdmin gate, which needs a
-// resolved session + admins repo) so the tests exercise the handler logic.
-// AppErrors are bridged to ORPCErrors inside the router, so the OpenAPIHandler
-// returns the bridged 4xx status with `{ message }` in the body.
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
@@ -67,9 +63,6 @@ describe("GET /distribution-channels", () => {
 
 const PARENT_ID = "019d4999-4219-72f6-b7bb-64004e1b1d00";
 
-/**
- * @returns The response to a PATCH carrying `body` as JSON.
- */
 async function patchChannel(body: Record<string, unknown>): Promise<Response> {
   return await app.request(`/api/admin/v1/distribution-channels/${baseRow.id}`, {
     method: "PATCH",

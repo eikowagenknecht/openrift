@@ -25,7 +25,6 @@ describe.skipIf(!ctx)("adminsRepo (integration)", () => {
   });
 
   it("autoPromote is a no-op for already-admin user", async () => {
-    // Should not throw
     await repo.autoPromote(userId);
     const result = await repo.isAdmin(userId);
     expect(result).toBe(true);

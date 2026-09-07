@@ -842,8 +842,6 @@ describe("friendGroupMatchesRepo — dynamic rules (ADR-034)", () => {
   });
 
   it("applies a trade rule's price bound through the providers' price lookup", async () => {
-    // Seller auto-offers everything worth at least 5 on Cardmarket. prt-1
-    // quotes 7 (offered), prt-2 quotes 2 (kept), prt-3 has no price (skipped).
     const priceLookup: PriceLookup = {
       get: (printingId, marketplace) =>
         marketplace === "cardmarket" ? { "prt-1": 7, "prt-2": 2 }[printingId] : undefined,
@@ -1131,9 +1129,6 @@ describe("friendGroupMatchesRepo — dynamic rules (ADR-034)", () => {
         [wishShare({ ownerUserId: "viewer" })],
       ],
       listEntries: [[], [demandEntry({ id: "e-w", cardId: "crd-1" })]],
-      // Copy meta is available for BOTH copies, so a scoping regression (offering
-      // the col-2 copy too) would surface as a second match rather than being
-      // masked by missing meta.
       copies: [
         [
           copyRow({ id: "cp-col1", printingId: "prt-1", cardId: "crd-1" }),

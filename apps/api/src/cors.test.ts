@@ -3,8 +3,6 @@ import { describe, expect, it } from "vitest";
 import { isLocalDevOrigin, matchOrigin } from "./cors";
 
 describe("matchOrigin", () => {
-  // -- No restriction --
-
   it("returns origin when allowed is undefined", () => {
     expect(matchOrigin("https://example.com")).toBe("https://example.com");
   });
@@ -17,8 +15,6 @@ describe("matchOrigin", () => {
     expect(matchOrigin("https://example.com", "")).toBe("https://example.com");
   });
 
-  // -- Exact match --
-
   it("returns origin for exact match", () => {
     expect(matchOrigin("https://openrift.app", "https://openrift.app")).toBe(
       "https://openrift.app",
@@ -28,8 +24,6 @@ describe("matchOrigin", () => {
   it("returns undefined when origin does not match", () => {
     expect(matchOrigin("https://evil.com", "https://openrift.app")).toBeUndefined();
   });
-
-  // -- Comma-separated --
 
   it("matches any origin in a comma-separated list", () => {
     const allowed = "https://openrift.app,https://staging.openrift.app";
@@ -48,8 +42,6 @@ describe("matchOrigin", () => {
     expect(matchOrigin("https://c.com", allowed)).toBeUndefined();
   });
 
-  // -- Wildcard subdomains --
-
   it("matches wildcard subdomain pattern", () => {
     const allowed = "https://*.openrift-web.workers.dev";
     expect(matchOrigin("https://abc123.openrift-web.workers.dev", allowed)).toBe(
@@ -59,7 +51,6 @@ describe("matchOrigin", () => {
 
   it("wildcard does not match nested subdomains", () => {
     const allowed = "https://*.workers.dev";
-    // [^.]+ means single subdomain segment only
     expect(matchOrigin("https://a.b.workers.dev", allowed)).toBeUndefined();
   });
 
@@ -72,8 +63,6 @@ describe("matchOrigin", () => {
     const allowed = "https://openrift.app,https://*.workers.dev";
     expect(matchOrigin("https://preview.workers.dev", allowed)).toBe("https://preview.workers.dev");
   });
-
-  // -- Edge cases --
 
   it("does not partial-match without wildcard", () => {
     expect(matchOrigin("https://openrift.app.evil.com", "https://openrift.app")).toBeUndefined();

@@ -39,22 +39,8 @@ export interface TradeCopyRow {
 }
 
 /**
- * Orders candidates plainest-first, then by collection name, id as the final
- * tiebreak. The first `quantity` entries are what an accept without an explicit
- * choice pins.
- *
- * Weighs by `copyMetadataWeight` (shared with the web app's move palette in
- * `apps/web/src/lib/move-sources.ts`, so a default pin and a default move
- * reach for the same copy) with no loan term: a loaned copy never enters the
- * trade supply in the first place.
- *
- * The collection term is what the picker reads as grouping: six equally plain
- * copies spread over two binders would otherwise interleave in id order, which
- * is effectively random to the giver scanning the list. It also decides the
- * default pin among copies that are alike in every other way, which lands on
- * the alphabetically first collection. That is arbitrary but stable, and a
- * stable answer is the point: the accept picker does not even open for copies
- * that differ only by collection, so nobody is being asked to ratify it.
+ * Weighs by `copyMetadataWeight`, shared with the web app's
+ * `apps/web/src/lib/move-sources.ts`, so a default pin and a default move pick the same copy.
  */
 export function sortCopiesForPinning(copies: readonly TradeCopyRow[]): TradeCopyRow[] {
   return copies.toSorted(
@@ -115,13 +101,6 @@ function distinguishingKey(copy: TradeCopyRow, byCollection: boolean): string {
   ]);
 }
 
-/**
- * Whether the giver has a choice worth surfacing: more candidates than the
- * trade needs, and at least two of them differ in something a person cares
- * about. A stack of identical unrecorded copies from one binder is not a
- * decision. `byCollection` is the settle picker's stricter reading of
- * "differ" (see {@link distinguishingKey}).
- */
 export function cardTradeChoiceMatters(
   copies: readonly TradeCopyRow[],
   quantity: number,
@@ -424,10 +403,8 @@ export function toCardTradeResponse(row: CardTradeDtoRow, userId: string): CardT
     id: row.id,
     groupId: row.groupId,
     groupSlug: row.groupSlug,
-    // `chk_card_trades_group_shape` allows exactly one of the group id and the
-    // name snapshot, and `friend_groups.name` is NOT NULL, so one of these two
-    // is always there. The empty string is unreachable; it exists so a bad row
-    // would render an unlabelled chip rather than break a history page.
+    // `chk_card_trades_group_shape` guarantees one of these is set; the "" fallback
+    // is unreachable and exists only so a corrupt row renders an unlabelled chip.
     groupName: row.groupLiveName ?? row.groupSnapshotName ?? "",
     role,
     initiator: row.initiator,

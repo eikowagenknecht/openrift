@@ -11,9 +11,7 @@ describe("expandRuleListCounts", () => {
     ]);
 
     expect(counts.get("rule-1")).toBe(3);
-    // Manual rows are never expanded, so they're absent from the map.
     expect(counts.has("manual-1")).toBe(false);
-    // One call for the whole page, not one per list.
     expect(expandedCounts).toHaveBeenCalledTimes(1);
     expect(expandedCounts).toHaveBeenCalledWith(["rule-1"]);
   });
@@ -44,8 +42,6 @@ describe("expandRuleListCounts", () => {
       { listId: "rule-empty", hasRule: true },
     ]);
 
-    // Present with 0 — distinct from "absent" (a manual row), so callers can
-    // still override the materialized count.
     expect(counts.get("rule-empty")).toBe(0);
     expect(counts.has("rule-empty")).toBe(true);
   });

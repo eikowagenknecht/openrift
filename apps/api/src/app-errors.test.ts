@@ -7,10 +7,6 @@ import { createApp } from "./app.js";
 import { AppError } from "./errors.js";
 import { readJson } from "./test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Mock deps — minimal stubs to boot the app
-// ---------------------------------------------------------------------------
-
 const mockAuth = {
   handler: () => new Response("ok"),
   api: { getSession: () => null },
@@ -68,10 +64,6 @@ function buildApp(isDev: boolean) {
 const app = buildApp(true);
 const prodApp = buildApp(false);
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe("onError handler", () => {
   let consoleSpy: ReturnType<typeof vi.spyOn>;
 
@@ -116,7 +108,6 @@ describe("onError handler", () => {
     const res = await app.fetch(new Request("http://localhost/api/test-error/http-exception"));
     expect(res.status).toBe(403);
     const json = (await readJson(res)) as Record<string, unknown>;
-    // 403 maps to FORBIDDEN via codeForStatus — never the old un-enumerated "HTTP_ERROR".
     expect(json.code).toBe("FORBIDDEN");
     expect(json.error).toBe("Forbidden");
   });
@@ -155,8 +146,6 @@ describe("onError handler", () => {
     expect(json.error).toBe("Not found");
   });
 
-  // The catch-all replays a HEAD as a GET so it can match oRPC's GET routes.
-  // A path that matches nothing must still 404 rather than being swallowed.
   it("still 404s a HEAD on an unmatched API route", async () => {
     const res = await app.fetch(
       new Request("http://localhost/api/v1/does-not-exist", { method: "HEAD" }),
@@ -229,7 +218,6 @@ describe("onError handler (5xx AppError)", () => {
 
 describe("auth rate limit middleware", () => {
   it("does not rate-limit non-sensitive auth paths", async () => {
-    // /api/auth/session is not in the rate-limited list, so it hits the auth handler directly
     const authHandlerSpy = vi.fn(() => new Response("ok"));
     const testApp = createApp({
       db: {} as any,
@@ -251,14 +239,12 @@ describe("auth rate limit middleware", () => {
       log: createLogger("test", "silent"),
     });
 
-    // Make requests to a rate-limited path — should succeed but go through rate limiter
     const res = await testApp.fetch(
       new Request("http://localhost/api/auth/sign-in", {
         method: "POST",
         headers: { "x-real-ip": "1.2.3.4" },
       }),
     );
-    // The auth handler returns "ok" (200) — rate limit is 10/min so first request succeeds
     expect(res.status).toBe(200);
   });
 
@@ -271,7 +257,6 @@ describe("auth rate limit middleware", () => {
       log: createLogger("test", "silent"),
     });
 
-    // Request without x-real-ip header
     const res = await testApp.fetch(
       new Request("http://localhost/api/auth/sign-up", { method: "POST" }),
     );
@@ -289,7 +274,6 @@ describe("custom services injection", () => {
       log: createLogger("test", "silent"),
       services: { ensureInbox: customEnsureInbox } as any,
     });
-    // App should boot without errors with partial services override
     expect(testApp).toBeDefined();
   });
 });

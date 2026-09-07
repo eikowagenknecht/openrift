@@ -64,11 +64,7 @@ function mapAllSections(entries: IngestEntry[]): DeckCheckCardLine[][] {
   return mapped;
 }
 
-/**
- * Recomputes an entry's content hash from its stored card lines, after a
- * manual card edit, so a later provider re-push diffs against what the judge
- * actually sees.
- */
+/** Recomputes from stored lines after a manual edit, so a later provider re-push diffs against what the judge sees. */
 export async function recomputeEntryHash(repos: Repos, entryId: string): Promise<void> {
   const cards = await repos.deckCheck.listCardsForEntry(entryId);
   await repos.deckCheck.updateEntry(entryId, {
@@ -77,11 +73,8 @@ export async function recomputeEntryHash(repos: Repos, entryId: string): Promise
 }
 
 /**
- * Applies one provider push: upserts the entries it lists into an existing
- * event (partial semantics — absent entries are untouched), honors explicit
- * withdrawal, and invalidates checks whose card list changed. Pushes never
- * create events; the event is created in OpenRift and addressed by its uuid.
- * Run inside a transaction so a failed push imports nothing.
+ * Upserts the pushed entries into an existing event; absent entries are
+ * untouched. Pushes never create events.
  */
 export async function ingestDeckCheckPush(
   repos: Repos,
@@ -193,9 +186,8 @@ export async function ingestDeckCheckPush(
 
     const existing = await repos.deckCheck.getEntryByExternalId(event.id, entry.externalId);
     if (!existing) {
-      // Each pushed entry creates its own walk-in participant. Players link
-      // themselves later through the claim link; the push carries no identity
-      // that could auto-match an account.
+      // Each pushed entry creates its own walk-in participant; players link
+      // themselves later through the claim link.
       const participant = await repos.tournaments.resolveOrCreateParticipant({
         tournamentId: event.id,
         riotId: identity.riotId,
@@ -217,10 +209,8 @@ export async function ingestDeckCheckPush(
       continue;
     }
 
-    // Withdrawal is a state transition: the flag moves the entry to
-    // 'withdrawn'; a push without it returns a withdrawn entry to 'submitted'
-    // (the pre-withdrawal state is not preserved — the push is a fresh
-    // submission), and leaves any other state alone.
+    // A push without the withdrawn flag returns a withdrawn entry to
+    // 'submitted'; it does not restore the pre-withdrawal state.
     const wasWithdrawn = existing.state === "withdrawn";
     const withdrawalChange = entry.withdrawn
       ? wasWithdrawn
@@ -250,10 +240,8 @@ export async function ingestDeckCheckPush(
       continue;
     }
 
-    // Changed list: the provider always wins. The push lands the
-    // entry in 'submitted' from any state — discarding a player's in-progress
-    // edit and pending unlock request, and invalidating a review with a
-    // stored diff for the judge.
+    // The provider always wins: a changed list lands in 'submitted' from
+    // any state, discarding an in-progress edit or pending unlock request.
     const previousCards = await repos.deckCheck.listCardsForEntry(existing.id);
     const wasReviewed = existing.state === "approved" || existing.state === "checked";
     await repos.deckCheck.updateEntry(existing.id, {
@@ -285,13 +273,8 @@ export async function ingestDeckCheckPush(
 export type CreateDeckCheckEntryPayload = z.infer<typeof createDeckCheckEntrySchema>;
 
 /**
- * Creates a deck for an existing roster participant by hand (judge+) for when
- * the organizer push isn't available. Resolves card names and computes the
- * content hash exactly like a push so a later provider push diffs correctly. The
- * entry is stamped with a `manual:`-prefixed external id, which never collides
- * with a provider id — note a later push for the same player (under the
- * provider's own id) lands as a separate entry rather than merging into this
- * one. The caller owns the one-deck-per-participant check.
+ * External id is `manual:`-prefixed, so a later provider push for the same
+ * player creates a separate entry.
  */
 export async function createManualDeckCheckEntry(
   repos: Repos,

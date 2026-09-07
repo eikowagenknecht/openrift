@@ -2,10 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { toCopy, toPublicCopy } from "./copy-presenters.js";
 
-// ---------------------------------------------------------------------------
-// toCopy
-// ---------------------------------------------------------------------------
-
 const COPY_METADATA = {
   condition: "near-mint",
   grader: null,

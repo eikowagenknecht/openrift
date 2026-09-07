@@ -3,10 +3,6 @@ import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
 
-/**
- * Shared SELECT projection: joins the categories table so callers see the
- * category slug + label alongside each tag without a second round-trip.
- */
 function selectWithCategory(db: Kysely<Database>) {
   return db
     .selectFrom("customTags as ct")
@@ -45,10 +41,6 @@ export function customTagsRepo(db: Kysely<Database>) {
       return selectWithCategory(db).where("ct.slug", "=", slug).executeTakeFirst();
     },
 
-    /**
-     * Batched slug lookup. Used by deck-format validation so a deck with
-     * several region tags doesn't fan out into N round-trips.
-     */
     listBySlugs(slugs: readonly string[]) {
       if (slugs.length === 0) {
         return Promise.resolve([]);
@@ -99,15 +91,13 @@ export function customTagsRepo(db: Kysely<Database>) {
         description?: string | null;
       },
     ): Promise<void> {
-      // Plain `.execute()` here: UPDATE without RETURNING always produces one
-      // UpdateResult, so `executeTakeFirstOrThrow` wouldn't actually catch
-      // "row not found". The route checks existence before calling.
+      // UPDATE without RETURNING always produces one UpdateResult, so
+      // executeTakeFirstOrThrow wouldn't catch "row not found".
       await db.updateTable("customTags").set(updates).where("id", "=", id).execute();
     },
 
     async deleteById(id: string): Promise<void> {
-      // Same reasoning as `update`: DELETE without RETURNING never throws on
-      // empty match. Existence is checked at the route boundary.
+      // DELETE without RETURNING never throws on an empty match.
       await db.deleteFrom("customTags").where("id", "=", id).execute();
     },
 
@@ -130,12 +120,6 @@ export function customTagsRepo(db: Kysely<Database>) {
       return out;
     },
 
-    /**
-     * Scoped variant of {@link assignmentsByCard} for endpoints that only
-     * need tag data for a known set of cards (e.g. the public share endpoint
-     * denormalizing assignments for one deck's worth of cards). Cards with no
-     * tags are simply absent from the returned map.
-     */
     async assignmentsForCardIds(cardIds: readonly string[]): Promise<Map<string, string[]>> {
       if (cardIds.length === 0) {
         return new Map();
@@ -168,11 +152,6 @@ export function customTagsRepo(db: Kysely<Database>) {
       return rows.map((r) => r.customTagId);
     },
 
-    /**
-     * Replace the set of custom tags for a card. Atomic: the clear and the
-     * insert share a transaction, so a failure between them can never leave the
-     * card with its old tags gone and the new ones unwritten.
-     */
     async setForCard(cardId: string, customTagIds: readonly string[]): Promise<void> {
       const run = async (trx: Kysely<Database>): Promise<void> => {
         await trx.deleteFrom("cardCustomTags").where("cardId", "=", cardId).execute();
@@ -187,11 +166,6 @@ export function customTagsRepo(db: Kysely<Database>) {
       await (db.isTransaction ? run(db) : db.transaction().execute(run));
     },
 
-    /**
-     * Attach one tag to many cards. Idempotent: re-importing the same list
-     * leaves untouched assignments alone and returns the count of newly added
-     * (card, tag) pairs so the bulk-import UI can report what changed.
-     */
     async addToCards(customTagId: string, cardIds: readonly string[]): Promise<number> {
       if (cardIds.length === 0) {
         return 0;
@@ -205,11 +179,6 @@ export function customTagsRepo(db: Kysely<Database>) {
       return inserted.length;
     },
 
-    /**
-     * Remove every card assignment for one tag while keeping the tag itself.
-     * Used by the admin "clear" action so a tag can be re-populated from
-     * scratch without recreating it.
-     */
     async clearAssignments(customTagId: string): Promise<number> {
       const result = await db
         .deleteFrom("cardCustomTags")

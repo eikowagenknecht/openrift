@@ -14,25 +14,10 @@ import { sourceEventKeyPrefix } from "../repositories/meta-overlays.js";
 import { loadCardNameIndex, resolveCardIdByName } from "./candidate-links.js";
 
 /**
- * The push endpoint's ingest (ADR-014 revision 3).
- *
- * A push provider has no crawler, so it has no mirror to promote from. Its
- * payload becomes overlays instead: one event overlay keyed `(provider,
- * externalId)` and one player overlay per standings row keyed
- * `(provider, sourcePlayerKey)`, so a re-upload updates both rather than
- * duplicating either.
- *
- * A re-upload that changes nothing is left entirely alone; one that does
- * re-opens review, because a producer that changed its mind must not have the
- * old decision stand. Everything else stays `pending`: these are proposals,
- * and the ADR's curation rule only exempts the official source's own published
- * standings under an admin-set auto-accept rule, which is a fetcher path and
- * not this one.
- *
- * Card names are resolved here so the reviewer sees what will and will not
- * match, but an unresolved name is recorded rather than rejected: the row still
- * carries the name the producer wrote, and promotion re-resolves it if an alias
- * lands later.
+ * Push uploads become overlays: one event overlay keyed `(provider, externalId)`,
+ * one player overlay per standings row keyed `(provider, sourcePlayerKey)`. A
+ * re-upload updates the existing rows. An unresolved card name is recorded,
+ * not rejected; promotion re-resolves it once an alias lands.
  */
 
 interface MetaIngestUnresolved {
@@ -168,9 +153,6 @@ export async function ingestMetaOverlays(
       eventOverlayId = prior.id;
       result.unchangedEvents++;
     } else {
-      // A re-upload that moved something restates the whole event, so it also
-      // re-opens review: a producer that changed its mind must not have the
-      // old decision stand.
       await repos.metaOverlays.updateEventOverlay(prior.id, {
         ...values,
         status: "pending",
@@ -198,19 +180,12 @@ export async function ingestMetaOverlays(
   return result;
 }
 
-/**
- * The composite key one pushed standings row is stored under.
- *
- * External ids may contain any character the producer likes, so the halves are
- * not joined on a separator: PostgreSQL text cannot hold a NUL, and every
- * character it can hold is one an id is allowed to contain. Length-prefixing
- * the event id keeps the pair recoverable whatever either half holds.
- */
+/** No separator: any character valid in an external id is also valid in PostgreSQL
+ * text, so the event id is length-prefixed instead to stay recoverable. */
 export function playerSourceKey(eventExternalId: string, playerExternalId: string): string {
   return `${sourceEventKeyPrefix(eventExternalId)}${playerExternalId}`;
 }
 
-/** The two provider keys back out of a stored {@link playerSourceKey}. */
 export function splitSourcePlayerKey(key: string | null): {
   eventExternalId: string | null;
   playerExternalId: string | null;
@@ -255,7 +230,6 @@ interface OverlayCardLine {
   cardId: string | null;
 }
 
-/** The card a list files in one singleton zone, resolved. */
 function zoneCardId(cards: readonly OverlayCardLine[], zone: string): string | null {
   return cards.find((card) => card.zone === zone)?.cardId ?? null;
 }
@@ -263,7 +237,6 @@ function zoneCardId(cards: readonly OverlayCardLine[], zone: string): string | n
 interface PlayerIngestContext {
   event: MetaIngestEvent;
   eventOverlayId: string;
-  /** Set once the event overlay has been accepted, so players target live. */
   metaEventId: string | null;
   provider: string;
   submittedByUserId: string;
@@ -349,10 +322,8 @@ async function ingestPlayers(repos: Repos, ctx: PlayerIngestContext): Promise<vo
       };
     });
 
-    // The list's own zones stand in for the two fields a source rarely names
-    // beside the standings: no adapter publishes a champion, and every archived
-    // list carries one in its champion zone. Without this the deck tiles and
-    // the legend pages read a null the list itself disproves.
+    // Falls back to the list's own zones: no adapter names a champion, but every
+    // archived list carries one in its champion zone.
     const legendCardId = namedLegendCardId ?? zoneCardId(cards, WellKnown.deckZone.LEGEND);
     const championCardId = namedChampionCardId ?? zoneCardId(cards, WellKnown.deckZone.CHAMPION);
 
@@ -370,8 +341,7 @@ async function ingestPlayers(repos: Repos, ctx: PlayerIngestContext): Promise<vo
       entryStatus: asEntryStatus(player.entryStatus),
       legendCardId,
       championCardId,
-      // The mask CHECK refuses an unclaimed value, and a standings-only row
-      // claims no list, so its status column stays NULL rather than "none".
+      // The mask CHECK refuses an unclaimed value; a standings-only row claims no list, so its status stays NULL.
       listStatus: player.cards === null ? null : player.listStatus,
     };
     const values = {

@@ -55,11 +55,6 @@ export function assertValidReorder<Row>(
   }
 }
 
-/**
- * Turns a repository's "did the row exist" boolean into the 404 the contract
- * declares, for write methods that report existence rather than returning the
- * row.
- */
 export function assertExisted(existed: boolean, message: string): void {
   if (!existed) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, message);

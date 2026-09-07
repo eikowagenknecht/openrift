@@ -56,11 +56,9 @@ describe.skipIf(!ctx)("listGroupJoinRequestRecipients (integration)", () => {
     await db.deleteFrom("users").where("id", "in", USER_IDS).execute();
   });
 
-  it("includes owners and admins with no preferences row at all", async () => {
+  it("opts in admins by default, whether they have no preferences row or one that doesn't mention this channel", async () => {
     const recipients = await preferences.listGroupJoinRequestRecipients(groupId);
 
-    // OWNER_ID has never stored a preference; ADMIN_ID has one that says
-    // nothing about this channel. Both are opted in by default.
     expect(recipients.map((row) => row.userId).toSorted()).toEqual([OWNER_ID, ADMIN_ID].toSorted());
   });
 

@@ -47,13 +47,7 @@ function userHost(userId: string): DeckCheckHost {
 
 const os = implement(deckCheckKeysContract).$context<ApiContext>().use(requireAuthedUser);
 
-/**
- * Host-scoped deck-check integration keys, mounted at
- * `/api/v1/me/deck-check-keys` and `/api/v1/organizations/{orgId}/deck-check-keys`.
- * Keys belong to a host (the current user or an organization) rather than a
- * friend group, so any host can mint provider push credentials. The plaintext
- * token is returned only once at mint time.
- */
+/** The plaintext token is returned only once, at mint time. */
 export const deckCheckKeysRouter = {
   listMine: os.listMine.handler(async ({ context }): Promise<DeckCheckKeysResponse> => {
     const repos = context.repos;

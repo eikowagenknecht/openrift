@@ -40,11 +40,7 @@ function isPrivateIpv4(ip: string): boolean {
   );
 }
 
-/**
- * Whether an IP literal points at a non-public network: loopback, RFC-1918,
- * link-local (cloud metadata), CGNAT, ULA, multicast, or unspecified.
- * @returns True when the address must not be fetched server-side.
- */
+/** Whether an IP literal points at a non-public network. */
 export function isPrivateIp(ip: string): boolean {
   const bare = ip.includes("%") ? ip.slice(0, ip.indexOf("%")) : ip;
   if (isIP(bare) === 4) {
@@ -74,13 +70,8 @@ export function isPrivateIp(ip: string): boolean {
 }
 
 /**
- * Rejects URLs the server must never fetch: non-http(s) schemes, and hosts
- * that resolve to loopback / private / link-local addresses. Image source
- * URLs are user-supplied (in-app card contributions, ADR-036), so without
- * this every admin "accept" would let a submitter aim the server's fetch at
- * internal services. DNS is checked post-resolution; the subsequent fetch
- * re-resolves, so an attacker rotating DNS between the check and the fetch
- * (rebinding) is out of scope — this guards against direct internal targets.
+ * DNS is checked post-resolution; the subsequent fetch re-resolves, so an
+ * attacker rotating DNS between check and fetch (rebinding) is out of scope.
  */
 async function assertPublicImageUrl(io: Io, url: string): Promise<void> {
   const parsed = new URL(url);
@@ -104,8 +95,7 @@ async function assertPublicImageUrl(io: Io, url: string): Promise<void> {
 }
 
 export async function downloadImage(io: Io, url: string): Promise<{ buffer: Buffer; ext: string }> {
-  // Redirects are followed manually so every hop gets the SSRF check — a
-  // public URL redirecting to an internal address must be blocked too.
+  // Redirects are followed manually: every hop must get the SSRF check.
   let current = url;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     await assertPublicImageUrl(io, current);

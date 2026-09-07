@@ -1,21 +1,8 @@
 /**
  * The single implementation of "which live card and printing does this
- * candidate row point at?".
- *
- * Three services resolve the same links: the batch provider ingest
- * (`ingest-candidates.ts`), the in-app user-submission ingest
- * (`ingest-user-submission.ts`) and the relink pass (`relink-candidates.ts`).
- * They were once three separate copies and drifted: a change that uppercased
- * short codes on both sides of the key and dropped the rarity requirement from
- * the gate touched only two of the three, so a user submission with a lowercase
- * `public_code` or without a rarity stayed permanently unlinked. Keeping the
- * key and the gate here is what stops that recurring.
- *
- * The name→card half is also what the meta archive's promotion and overlay
- * ingest resolve against (`meta-promote.ts`, `ingest-meta-overlays.ts`), so an
- * alias added once applies to every pipeline. Those consumers need no printing
- * lookups, hence the narrower {@link CardNameIndex} they load instead of the
- * full index.
+ * candidate row point at?". Used by the batch provider ingest, the in-app
+ * user-submission ingest, the relink pass, and the meta archive's promotion
+ * and overlay ingest; the key and gate must not be duplicated elsewhere.
  */
 import { normalizeNameForIdentity } from "@openrift/shared/utils";
 

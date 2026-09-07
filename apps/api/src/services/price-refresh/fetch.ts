@@ -3,9 +3,8 @@ import type { Fetch } from "../../io.js";
 const TIMEOUT_MS = 10_000;
 
 /**
- * Fetch JSON from a URL and return the parsed body along with the `Last-Modified`
- * header (used as `recorded_at` for price snapshots). Throws on non-2xx responses.
- * @returns The parsed JSON body and the `Last-Modified` date (if present).
+ * Fetches JSON, returning the parsed body and `Last-Modified` header (used as
+ * `recorded_at` for price snapshots). Throws on non-2xx responses.
  */
 export async function fetchJson<T>(
   fetchFn: Fetch,

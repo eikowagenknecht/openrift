@@ -62,11 +62,8 @@ const mockEnumsRepo = {
 const DEFAULT_CORS_ORIGIN = "https://openrift.app,https://preview.example";
 
 /**
- * A fresh app per test: the route's index memo is scoped to one app instance.
- * `config` is passed whole rather than as an optional string so a test can
- * assert the unset-`CORS_ORIGIN` path (`{}`) instead of getting the default.
- *
- * @returns A Hono app with the chat route mounted.
+ * A test can pass `{}` to exercise the unset-`CORS_ORIGIN` path; the
+ * default only applies when `config` is omitted entirely.
  */
 function makeApp(config: { corsOrigin?: string } = { corsOrigin: DEFAULT_CORS_ORIGIN }) {
   return new Hono<{ Variables: Variables }>()
@@ -86,7 +83,6 @@ async function lookup(
   return await app.request(path);
 }
 
-/** @returns The response body of a lookup, which is all most cases assert on. */
 async function lookupText(
   query: string | undefined,
   app: ReturnType<typeof makeApp> = makeApp(),
@@ -176,9 +172,7 @@ describe("GET /api/v1/chat/card", () => {
   });
 
   it("refreshes the labels but keeps the card index when only an enum label changes", async () => {
-    // The card index is shared with deck-check resolution and memoized on the
-    // catalog version alone, so a renamed type label reloads the labels without
-    // refolding every card name.
+    // The card index is shared with deck-check resolution and memoized on the catalog version alone.
     const app = makeApp();
     await lookup("viktor", app);
     mockEnumsRepo.contentVersion.mockResolvedValue("enums-v2");

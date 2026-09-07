@@ -6,10 +6,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { metaRouter } from "./meta";
 
-// ---------------------------------------------------------------------------
-// Mock repos
-// ---------------------------------------------------------------------------
-
 const mockMeta = {
   allEvents: vi.fn(),
   topFinishesForEvents: vi.fn(),
@@ -48,7 +44,6 @@ app.use("*", async (c, next) => {
 });
 registerRouterForTest(app, metaRouter);
 
-/** @returns An event row with its standings and deck counts, as the repo hands it back. */
 function eventRow(overrides: Record<string, unknown> = {}) {
   return {
     id: EVENT_ID,
@@ -70,7 +65,6 @@ function eventRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** @returns A standings row with no list attached, which is most of a real field. */
 function playerRow(overrides: Record<string, unknown> = {}) {
   return {
     id: "p0000000-0001-4000-a000-000000000001",
@@ -99,7 +93,6 @@ function playerRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** @returns A stored citation row. */
 function sourceRow(overrides: Record<string, unknown> = {}) {
   return {
     id: "c0000000-0001-4000-a000-000000000001",
@@ -156,7 +149,6 @@ describe("GET /meta/events/{slug}", () => {
       "uvsgames",
       "Twitch VOD",
     ]);
-    // The single `sourceUrl` column is gone (migration 255).
     expect(json.event.sourceUrl).toBeUndefined();
   });
 
@@ -175,8 +167,6 @@ describe("GET /meta/events/{slug}", () => {
   });
 
   it("shows no contributor line when everyone who helped is hidden", async () => {
-    // The repo drops anyone on `hidden`, so an empty list is the normal answer
-    // for an event nobody has opted in for.
     mockMeta.eventBySlug.mockResolvedValue(eventRow());
 
     const res = await app.request("/api/v1/meta/events/summoner-skirmish-2026");
@@ -369,8 +359,6 @@ describe("GET /meta/events/{slug}", () => {
 
     const json = await readJson(res);
     expect(mockCanonicalPrintings.resolvePrintingMetaForRows).toHaveBeenCalledTimes(1);
-    // Deduplicated, and asking for each card's canonical default rather than a
-    // particular printing of it.
     expect(mockCanonicalPrintings.resolvePrintingMetaForRows).toHaveBeenCalledWith([
       { cardId: LEGEND_ID, preferredPrintingId: null },
       { cardId: CHAMPION_ID, preferredPrintingId: null },
@@ -573,7 +561,6 @@ describe("GET /meta/activity", () => {
   });
 });
 
-/** @returns One legend the archive holds results for, as the repo groups it. */
 function legendRow(overrides: Record<string, unknown> = {}) {
   return {
     cardId: LEGEND_ID,
@@ -586,7 +573,6 @@ function legendRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** @returns One archived finish for a legend, as the repo returns it. */
 function finishRow(overrides: Record<string, unknown> = {}) {
   return {
     playerId: "p0000000-0001-4000-a000-000000000001",
@@ -851,7 +837,6 @@ describe("GET /meta/legends/{slug}", () => {
   });
 });
 
-/** @returns One archived finish for a player, as the repo returns it. */
 function playerFinishRow(overrides: Record<string, unknown> = {}) {
   return {
     playerId: "p0000000-0001-4000-a000-000000000001",
@@ -946,7 +931,6 @@ describe("GET /meta/players/{key}", () => {
   });
 });
 
-/** @returns One archived deck as the browser lists it, as the repo returns it. */
 function deckSummaryRow(overrides: Record<string, unknown> = {}) {
   return {
     playerId: "p0000000-0001-4000-a000-000000000001",

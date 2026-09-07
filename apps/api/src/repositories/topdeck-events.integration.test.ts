@@ -7,9 +7,8 @@ import { metaRepo } from "./meta.js";
 import type { TopdeckUpsertInput } from "./topdeck-events.js";
 import { topdeckEventsRepo } from "./topdeck-events.js";
 
-// The mirror is one source's table with no provider column, so isolation is by
-// key: every tid this file writes carries the `tdi-` prefix, and the citations
-// it links carry the real provider, since the mirror's joins pin it.
+// The mirror table has no provider column, so isolation is by key: every tid
+// this file writes carries the `tdi-` prefix.
 
 const ctx = createDbContext(crypto.randomUUID());
 

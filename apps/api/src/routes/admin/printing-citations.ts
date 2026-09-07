@@ -17,9 +17,8 @@ function toCitation(row: { id: string; label: string; sourceUrl: string | null }
 }
 
 /**
- * Turns the partial unique index's violation into a 409 and leaves anything
- * else alone. Caught rather than pre-read on purpose: two admins pasting the
- * same link at once would both pass a check-then-act.
+ * Turns the partial unique index's violation into a 409 and leaves anything else alone.
+ * Do not replace this with a check-then-act: two admins pasting the same link at once would both pass it.
  */
 function asDuplicateLinkConflict(error: unknown): unknown {
   if (isUniqueViolationOn(error, "uq_printing_citations_url")) {
@@ -46,11 +45,8 @@ async function assertOwnedByPrinting(
 
 /**
  * Source citations on a promo printing: the videos and posts backing what the
- * catalog claims about where a card came from.
- *
- * Every citation here is hand-entered, which is what makes this router smaller
- * than the meta archive's equivalent — there is no ingest that owns rows, so no
- * delete has to be refused.
+ * catalog claims about where a card came from. Every citation is hand-entered;
+ * no ingest owns rows, so delete is unrestricted.
  */
 export const adminPrintingCitationsRouter = {
   list: os.list.handler(async ({ input, context }) => {

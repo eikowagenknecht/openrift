@@ -7,10 +7,7 @@ import { rowBatches } from "../lib/bind-batches.js";
 
 export function rulesRepo(db: Kysely<Database>) {
   return {
-    /**
-     * Rows are sorted by natural rule-number order in JS — `sort_order` is
-     * per-version and collides across versions, so it can't be used here.
-     */
+    /** Sorted by natural rule-number order in JS: `sort_order` is per-version and collides across versions. */
     async listLatest(kind: RuleKind) {
       const rows = await db
         .selectFrom("rules")
@@ -59,12 +56,6 @@ export function rulesRepo(db: Kysely<Database>) {
       return rows.toSorted((a, b) => compareRuleNumbers(a.ruleNumber, b.ruleNumber));
     },
 
-    /**
-     * Returns the diff metadata for a specific version: which rule numbers
-     * were added, modified, or removed in this version, plus the previous
-     * content for modified and removed rules (looked up from the most recent
-     * earlier version that still had the rule).
-     */
     async listChangesAtVersion(kind: RuleKind, version: string) {
       const changeRows = await db
         .selectFrom("rules")

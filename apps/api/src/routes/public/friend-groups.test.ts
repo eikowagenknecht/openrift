@@ -37,11 +37,8 @@ const enrichedOwner = {
 };
 
 /**
- * Mounts the public router with `user` pre-set, which short-circuits
+ * Mounts the public router with `user` pre-set, short-circuiting
  * `resolveSession` so `loadUser()` returns exactly what the test asked for.
- * `null` is the anonymous visitor the route exists to serve.
- *
- * @returns The test app.
  */
 function makeApp(overrides: {
   user?: { id: string } | null;

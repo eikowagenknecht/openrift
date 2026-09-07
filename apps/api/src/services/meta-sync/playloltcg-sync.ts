@@ -20,15 +20,6 @@ import { clock } from "./playloltcg-deps.js";
 import type { MetaSyncResultBase } from "./result.js";
 import { emptyMetaSyncResult } from "./result.js";
 
-/**
- * The scheduled playloltcg crawls. Discovery is the global date-window listing,
- * so a week is one page and the whole shape mirrors uvsgames: a windowed sync,
- * a recheck queue, and a manual date-chunked backfill.
- *
- * A refusal from the source's WAF holds for hours, so a blocked run records a
- * cool-down instant in its result and the next run waits until it passes.
- */
-
 const EVENTS_PATH = "/xcx/activityShop/page";
 const SHOPS_PATH = "/xcx/shop/searchShop";
 
@@ -36,52 +27,22 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const SYNC_LOOKBACK_DAYS = 7;
 const FUTURE_HORIZON_DAYS = 730;
 const BACKFILL_CHUNK_DAYS = 14;
-/** The first day the backfill asks about, comfortably before the CN launch. */
 const ARCHIVE_START = new Date("2025-06-01T00:00:00Z");
 
-/** How long a refusal stands the source down. */
 const COOLDOWN_HOURS = 6;
 const HOUR_MS = 60 * 60 * 1000;
 
-/** The ceiling on collected error lines, so one bad run cannot fill `job_runs`. */
 const MAX_ERRORS = 50;
 
 export const PLAYLOLTCG_RECHECK_BATCH_SIZE = 30;
 
-/**
- * Deck bodies one recheck run may read, shared across its whole batch.
- *
- * There is no per-event cap: an event owes every deck its field submitted, and
- * the ladder that was meant to collect the overflow retires after its last rung,
- * so a cap silently abandoned the tail of any large field. The budget bounds the
- * run instead, and an event that outruns it resumes on the next run rather than
- * decaying, so a field of any size is finished whatever the budget is.
- *
- * It is not what sets the pace. The client spaces requests ~500ms apart, so this
- * is about five minutes of fetching against a recheck cron measured in tens of
- * minutes: what the number really picks is how much of each interval the source
- * spends under load. Raising it buys catch-up speed by holding the source busy
- * for more of the time, which is a trade against a WAF that answers bursts with
- * hours of refusal, not free throughput.
- */
 const PLAYLOLTCG_DECK_BUDGET = 600;
 
-/**
- * How soon a run returns to an event whose decks outran the budget.
- *
- * Short on purpose: it means "the next run", since anything longer than the cron
- * interval wastes a tick. It cannot starve the rest of the queue, because a row
- * that is genuinely due carries a `next_check_at` in the past and so still sorts
- * ahead of this one.
- */
 const DECK_CONTINUE_MS = 60 * 1000;
 
 export interface PlayloltcgSyncResult extends MetaSyncResultBase {
-  /** Registry shops upserted this run. */
   shops: number;
-  /** True when the WAF blocked the run. */
   blocked: boolean;
-  /** ISO instant the next run should wait until, set when blocked. */
   blockedUntil: string | null;
 }
 
@@ -105,7 +66,6 @@ export interface PlayloltcgRecheckResult {
   requests: number;
   fetched: number;
   players: number;
-  /** Deck bodies read this run, bounded by {@link PLAYLOLTCG_DECK_BUDGET}. */
   decks: number;
   acceptedPlayers: number;
   blocked: boolean;
@@ -125,12 +85,11 @@ function shift(from: Date, days: number): Date {
   return new Date(from.getTime() + days * DAY_MS);
 }
 
-/** The instant the source is left alone until, after a refusal at `now`. */
 function cooldownUntil(now: Date): string {
   return new Date(now.getTime() + COOLDOWN_HOURS * HOUR_MS).toISOString();
 }
 
-/** Collected up to a ceiling: a run that fails per event must not fill `job_runs`. */
+/** Caps collected errors so a failing run can't fill `job_runs`. */
 function record(errors: string[], messages: readonly string[]): void {
   for (const message of messages) {
     if (errors.length >= MAX_ERRORS) {
@@ -140,10 +99,6 @@ function record(errors: string[], messages: readonly string[]): void {
   }
 }
 
-/**
- * Whether the last run of this kind left a cool-down that has not passed. Read
- * from `job_runs`, the same place the backfill reads its resume point.
- */
 export async function playloltcgCoolingDown(
   deps: PlayloltcgSyncDeps,
   kind: string,
@@ -162,17 +117,8 @@ function markBlocked(result: PlayloltcgSyncResult, now: Date): void {
 }
 
 /**
- * One date window, upserted, halved whenever the source cut it short.
- *
- * The listing will not return more than {@link MAX_PAGE_SIZE} rows for one
- * query however it is paged, and it sorts the oldest day last, so a full page
- * is not the end of the window but the start of a silent gap at its beginning.
- * Narrowing the dates is the only way to see past that, and it costs a request
- * only for a window that actually overflowed: a normal one is a single call.
- *
- * The overflowing page is still upserted before the split. Its rows are real,
- * and the source answers a wide window with stragglers outside it that neither
- * half would ask for.
+ * The source caps a page at {@link MAX_PAGE_SIZE} and sorts oldest day last:
+ * a full page means a gap at the window's start, not its end.
  */
 async function crawlWindow(
   deps: PlayloltcgSyncDeps,
@@ -223,7 +169,6 @@ async function crawlWindow(
   await crawlWindow(deps, result, shift(mid, 1), to, seenAt, touched);
 }
 
-/** Refreshes the store directory from the registry — one call for all ~1,515. */
 async function syncShops(deps: PlayloltcgSyncDeps, result: PlayloltcgSyncResult): Promise<void> {
   const body = await deps.client.postList<unknown>(SHOPS_PATH, {
     pageNum: 1,
@@ -253,11 +198,6 @@ async function finish(
   result.requests = deps.client.requests;
 }
 
-/**
- * The daily sync: refresh the store registry, then crawl `[now − 7d, now +
- * horizon]`. The past slice flags rows a covering crawl dropped; the future
- * slice discovers new listings. One page unless a window ever exceeds 10k.
- */
 export async function syncPlayloltcgCatalog(
   deps: PlayloltcgSyncDeps,
 ): Promise<PlayloltcgSyncResult> {
@@ -268,8 +208,8 @@ export async function syncPlayloltcgCatalog(
   try {
     await syncShops(deps, result);
     await crawlWindow(deps, result, from, shift(now, FUTURE_HORIZON_DAYS), now, touched);
-    // Only a run that covered the whole window may call a stored row dropped: a
-    // gap in coverage is indistinguishable from a row the source stopped listing.
+    // A gap in coverage looks identical to a row the source stopped listing, so
+    // only a run that covered the whole window may mark a stored row missing.
     if (result.complete) {
       result.missing = await deps.repos.playloltcgEvents.markMissing({
         from: day(from),
@@ -289,12 +229,7 @@ export async function syncPlayloltcgCatalog(
   return result;
 }
 
-/**
- * An hour's grace after a pass the source could not answer, leaving the ladder
- * where it stands. Advancing it on a failure would decay a finished event's
- * revisits, and rewinding it to stage 0 would put a completed event back on the
- * event-day poll.
- */
+/** Advances the ladder on neither success nor decay: that would either decay a finished event's revisits or rewind a completed one to the event-day poll. */
 async function grace(
   deps: PlayloltcgSyncDeps,
   activityShopId: number,
@@ -307,11 +242,7 @@ async function grace(
   });
 }
 
-/**
- * The same hold for a pass that succeeded but ran out of budget. The ladder
- * must not advance here: its rungs reach 90 days, and decaying an event that
- * still owes decks is what left large fields permanently short.
- */
+/** Holds the ladder: advancing it while decks are still owed left large fields permanently short. */
 async function resumeSoon(
   deps: PlayloltcgSyncDeps,
   activityShopId: number,
@@ -324,7 +255,6 @@ async function resumeSoon(
   });
 }
 
-/** The source's lifecycle read in the shared ladder's vocabulary. */
 function displayStatusOf(detail: PlayloltcgDetailFacts, status: number | null): string {
   if (detail.isPublishResult || status === PLAYLOLTCG_STATUS_FINISHED) {
     return "complete";
@@ -332,16 +262,10 @@ function displayStatusOf(detail: PlayloltcgDetailFacts, status: number | null): 
   return status === PLAYLOLTCG_STATUS_IN_PROGRESS ? "inProgress" : "upcoming";
 }
 
-/** The event's start as an instant, from the `YYYY-MM-DD` the source publishes. */
 function startInstant(startAt: string | null, fallback: Date): Date {
   return startAt === null ? fallback : new Date(`${startAt}T00:00:00Z`);
 }
 
-/**
- * The recheck ladder for accepted events. Each visit reads the cheap detail
- * first; only a published event pays for the full standings-and-decks fetch,
- * after which the decaying ladder revisits for late changes.
- */
 export async function processPlayloltcgRechecks(
   deps: PlayloltcgSyncDeps,
   limit = PLAYLOLTCG_RECHECK_BATCH_SIZE,
@@ -366,8 +290,6 @@ export async function processPlayloltcgRechecks(
   try {
     for (const row of due) {
       deckBudget -= await visitContained(deps, row, now, result, deckBudget);
-      // The rest of the batch is still due, so the next run picks it up with a
-      // fresh budget rather than reading standings it could not act on anyway.
       if (deckBudget <= 0) {
         break;
       }
@@ -384,13 +306,7 @@ export async function processPlayloltcgRechecks(
   return result;
 }
 
-/**
- * One event's failure is that event's alone. An unhandled throw used to end the
- * pass before the visit set the next check, so the row stayed due, sorted first
- * into the next pass, and failed there too while the events behind it went
- * unvisited. A block still ends the pass: the source is telling the whole crawl
- * to stop.
- */
+/** Catches everything but a block, so one event's failure can't end the pass and starve the rows behind it in the batch. */
 async function visitContained(
   deps: PlayloltcgSyncDeps,
   row: PlayloltcgListRow,
@@ -411,7 +327,7 @@ async function visitContained(
   }
 }
 
-/** @returns The deck requests this visit spent, which the run deducts from its budget. */
+/** Returns the deck requests this visit spent, deducted by the caller from its remaining budget. */
 async function visitPlayloltcgEvent(
   deps: PlayloltcgSyncDeps,
   row: PlayloltcgListRow,
@@ -433,10 +349,8 @@ async function visitPlayloltcgEvent(
     });
   }
   const coverage = await deps.repos.playloltcgResults.deckCoverage(row.activityShopId);
-  // The same ladder as uvsgames, through the shared decision. The source's
-  // `isPublishResult` is its "complete", since results are final once it is
-  // set, and it publishes standings and decks in one act, so the decklists
-  // are published exactly when the results are.
+  // isPublishResult means both results and decklists are final: the source
+  // publishes them together.
   const decision = nextRecheck({
     now,
     checkStage: row.checkStage,
@@ -478,15 +392,9 @@ async function visitPlayloltcgEvent(
 }
 
 /**
- * Pulls one accepted event out of turn, for the catalogue's Fetch now. It reads
- * the detail the ladder would have read and then deep-fetches whatever the
- * source has, without touching the recheck queue: a manual pull answers "what
- * does the source hold right now", and pushing the ladder forward on the back of
- * it would skip the visit that catches a late correction.
- *
- * @param deps - The source's sync dependencies.
- * @param row - The accepted catalogue row.
- * @returns The deep fetch's counters, with `complete` false when the detail was unreadable.
+ * A manual out-of-turn fetch for the catalogue's Fetch now. Skips the recheck
+ * queue: advancing the ladder here would skip the real visit that catches a
+ * late correction.
  */
 export async function fetchPlayloltcgEvent(
   deps: PlayloltcgSyncDeps,
@@ -510,8 +418,8 @@ export async function fetchPlayloltcgEvent(
       errors,
     };
   }
-  // No budget: a manual pull runs as a background job the panel tracks, and
-  // stopping it partway would answer "what does the source hold" with half of it.
+  // Unbounded: this runs as a tracked background job, and stopping partway
+  // would answer "what does the source hold" with half of it.
   const result = await playloltcgDeepFetch(deps, row, detail, Number.POSITIVE_INFINITY);
   return { ...result, errors: [...errors, ...result.errors] };
 }
@@ -520,12 +428,7 @@ export interface PlayloltcgBackfillOptions {
   resumeFrom?: Date;
 }
 
-/**
- * The manual date-chunked catalogue backfill. Cheap — the whole archive's
- * events are a couple of dozen page reads — because standings and decks come
- * later through the recheck ladder once an event is accepted. Checkpoints per
- * chunk so a block resumes from the last day covered.
- */
+/** Checkpoints per chunk, so a block resumes from the last day covered. */
 export async function backfillPlayloltcg(
   deps: PlayloltcgSyncDeps,
   runId?: string,
@@ -549,8 +452,6 @@ export async function backfillPlayloltcg(
       await crawlWindow(deps, result, from, windowTo, now, touched);
       result.coveredThrough = day(windowTo);
       from = shift(windowTo, 1);
-      // Between chunks, write progress and honor a Stop from the admin panel —
-      // the same cooperative-cancel the uvsgames backfill uses.
       if (runId !== undefined) {
         result.requests = deps.client.requests;
         if (await runCancelRequested(deps.repos.jobRuns, runId)) {

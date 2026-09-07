@@ -75,7 +75,6 @@ describe("POST /api/v1/sentry-tunnel", () => {
     });
 
     expect(res.status).toBe(200);
-    // The response is independent of upstream; no upstream headers can leak.
     expect(res.headers.get("set-cookie")).toBeNull();
     expect(res.headers.get("x-upstream-secret")).toBeNull();
   });
@@ -180,8 +179,6 @@ describe("POST /api/v1/sentry-tunnel", () => {
   });
 
   it("responds 200 without waiting for the upstream forward", async () => {
-    // An upstream that never resolves within the test — if the route awaited
-    // it, app.request would hang and the test would time out.
     const { promise: upstreamPending, resolve: resolveUpstream } =
       Promise.withResolvers<Response>();
     mockFetch.mockReturnValue(upstreamPending);

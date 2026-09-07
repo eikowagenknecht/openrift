@@ -233,12 +233,6 @@ export function toMetaEventDetail(
   };
 }
 
-/**
- * One row of an event's standings table. Legend and champion artwork is looked
- * up rather than joined, so the caller resolves every card's canonical printing
- * in a single batch instead of once per row. The legend is named the way
- * players say it; the champion's own name already is.
- */
 export function toMetaEventPlayer(row: MetaEventPlayerRow, images: ImageIds): MetaEventPlayer {
   return {
     id: row.id,
@@ -459,15 +453,7 @@ export function toMetaPlayerFinish(row: MetaPlayerFinishRow, images: ImageIds): 
   };
 }
 
-/**
- * Pools the archive's deck-card rows into the browser's card index: one array of
- * distinct card ids, and per deck `[cardIndex, quantity]` runs for the sideboard
- * and for every other zone, indexing the same pool.
- *
- * Rows are expected grouped by deck, which is the order the repo returns them
- * in; a deck whose rows arrive split would present as two entries, so the
- * grouping is done by id rather than by adjacency.
- */
+/** Groups by deck id, not row adjacency: deck rows are not guaranteed contiguous. */
 export function toMetaDeckCardIndex(rows: readonly MetaDeckCardRow[]): MetaDeckCardIndexResponse {
   const cardIndexes = new Map<string, number>();
   const cards: string[] = [];
@@ -499,16 +485,7 @@ export function toMetaDeckCardIndex(rows: readonly MetaDeckCardRow[]): MetaDeckC
   };
 }
 
-/**
- * The archive panel appended to the public share-deck payload on an archived
- * deck's page.
- *
- * Contributors arrive resolved and pre-filtered, exactly as they do on the
- * event page: the repo has already dropped anyone on `hidden` and anyone whose
- * chosen profile field is blank, so a user id never reaches the wire. This is
- * the entry's own credit line rather than its event's — one names whoever typed
- * in this list, the other everyone who fed the tournament.
- */
+/** Contributors must arrive already filtered by the repo (hidden, blank profile field); this does not re-filter. */
 export function toMetaDeckContext(
   row: MetaDeckContextRow,
   contributors: readonly MetaContributorRow[],
@@ -562,10 +539,7 @@ export function toAdminMetaEvent(
   };
 }
 
-/**
- * Everything but `claimedFields`, which is overlay state rather than row
- * state: the route joins it in from the accepted overlays.
- */
+/** Omits `claimedFields`: the route joins it in from the accepted overlays. */
 export function toAdminMetaPlayer(row: AdminMetaPlayerRow): Omit<AdminMetaPlayer, "claimedFields"> {
   return {
     id: row.id,

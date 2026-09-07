@@ -1,8 +1,4 @@
-/**
- * The URL a fetch call was made with. A `Request` has no useful `toString`,
- * so stringifying the argument yields "[object Request]".
- * @returns The request URL.
- */
+/** A `Request` has no useful `toString`; stringifying it yields "[object Request]". */
 export function requestUrl(input: string | URL | Request): string {
   if (typeof input === "string") {
     return input;

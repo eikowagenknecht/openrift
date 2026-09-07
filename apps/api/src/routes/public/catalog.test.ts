@@ -6,10 +6,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { catalogRouter } from "./catalog";
 
-// ---------------------------------------------------------------------------
-// Mock repos
-// ---------------------------------------------------------------------------
-
 const mockCatalogRepo = {
   sets: vi.fn(() => Promise.resolve([] as unknown[])),
   cards: vi.fn(() => Promise.resolve([] as unknown[])),
@@ -19,8 +15,6 @@ const mockCatalogRepo = {
   cardErrata: vi.fn(() => Promise.resolve([])),
   totalCopies: vi.fn(() => Promise.resolve(0)),
   markersList: vi.fn(() => Promise.resolve([])),
-  // The handler sets this as the response ETag (see the route doc for why the
-  // tag is a content version rather than a body hash).
   catalogResponseVersion: vi.fn(() => Promise.resolve("test-catalog-version")),
 };
 
@@ -37,9 +31,6 @@ const mockCustomTagsRepo = {
   assignmentsByCard: vi.fn(() => Promise.resolve(new Map<string, string[]>())),
 };
 
-// Mount the catalog router the way production does (one OpenAPIHandler behind a
-// catch-all). Cache-Control + `etag()` are app-level concerns (orpc/cache-policy.ts
-// and its test), so they are not asserted here.
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("repos", {
@@ -52,12 +43,6 @@ app.use("*", async (c, next) => {
 });
 registerRouterForTest(app, catalogRouter);
 
-// ---------------------------------------------------------------------------
-// Test data
-// ---------------------------------------------------------------------------
-
-// `releases` (the per-language release periods) and `setType` are part of the
-// catalog output schema, so the fixture carries them too.
 const dbSet = {
   id: "OGS",
   slug: "OGS",
@@ -105,8 +90,6 @@ const dbPrintingRow = {
   printedName: null,
   printedYear: null,
   language: "EN",
-  // `comment` + `canonicalRank` ride through from the `printings_ordered` view;
-  // the catalog output schema requires both.
   comment: null,
   canonicalRank: 1,
 };
@@ -135,10 +118,6 @@ function seedDefaults(overrides?: {
   mockDistributionChannelsRepo.listForPrintingIds.mockResolvedValue([]);
   mockCustomTagsRepo.assignmentsByCard.mockResolvedValue(new Map());
 }
-
-// ---------------------------------------------------------------------------
-// GET /api/v1/catalog
-// ---------------------------------------------------------------------------
 
 describe("GET /api/v1/catalog", () => {
   beforeEach(() => {
@@ -337,8 +316,6 @@ describe("GET /api/v1/catalog", () => {
     expect(await readJson(versioned)).toEqual(await readJson(plain));
   });
 
-  // The language split: `?langs=` is the critical-path half (core + the user's
-  // languages), `?exceptLangs=` the tail the client merges in later.
   describe("language split", () => {
     const scPrintingRow = {
       ...dbPrintingRow,
@@ -381,7 +358,6 @@ describe("GET /api/v1/catalog", () => {
       expect(Object.keys(json.printings)).toEqual(["OGS-001:rare:normal::SC"]);
       expect(json.cards).toEqual({});
       expect(json.customTagAssignments).toEqual({});
-      // Sets stay so the tail response is self-contained.
       expect(json.sets).toHaveLength(1);
     });
 

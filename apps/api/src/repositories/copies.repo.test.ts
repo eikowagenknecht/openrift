@@ -27,12 +27,7 @@ describe("copiesRepo", () => {
     ).toEqual([]);
   });
 
-  // Regression: the cursor parser used to pass an unparseable cursor straight
-  // into `new Date(...)` and let the resulting Invalid Date reach the Kysely
-  // query, producing an INTERNAL_ERROR 500. The query schema now rejects
-  // malformed cursors before they get this far, but keysetCursorPredicate also
-  // guards, so any unvalidated caller fails with a 400 AppError instead.
-  it("listForAccessibleCollections rejects an unparseable cursor", () => {
+  it("listForAccessibleCollections rejects an unparseable cursor with a 400 AppError instead of an Invalid Date reaching the query", () => {
     const db = createMockDb([]);
     const repo = copiesRepo(db);
     expect(() => repo.listForAccessibleCollections("u1", 20, "not-a-date")).toThrow(AppError);
@@ -128,8 +123,6 @@ describe("copiesRepo", () => {
   });
 
   it("ownedRowsForUser short-circuits on an empty printing scope without querying", async () => {
-    // A rule set that can consult no printing needs no copies at all: the mock
-    // would return a row if the query ran, so an empty result proves it did not.
     const db = createMockDb([{ copyId: "cp-1" }]);
     expect(await copiesRepo(db).ownedRowsForUser("u1", [])).toEqual([]);
   });

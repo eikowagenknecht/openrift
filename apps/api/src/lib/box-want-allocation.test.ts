@@ -88,7 +88,6 @@ describe("allocateBoxWants", () => {
   });
 
   it("never hands the same physical copy to a card want and a printing want", () => {
-    // One copy in the box, wanted twice over. The total must stay 1.
     const rows = allocateBoxWants(
       [cardWant("crd-1", 1), printingWant("prt-1", 1)],
       [box("col-1", [{ printingId: "prt-1", cardId: "crd-1", quantity: 1 }])],
@@ -163,7 +162,6 @@ describe("allocateBoxWants", () => {
   });
 
   it("allocates each box independently — one want fills from both", () => {
-    // Deliberate: standing in front of either box, the answer is "yes, take one".
     const rows = allocateBoxWants(
       [cardWant("crd-1", 1)],
       [

@@ -38,11 +38,9 @@ export const adminCardBansRouter = {
     const { cardBans, catalog } = context.repos;
     const { id, formatId, bannedAt, reason } = input;
 
-    // Verify card exists
     const card = await catalog.cardById(id);
     assertFound(card, "Card not found");
 
-    // Check for duplicate active ban
     const existing = await cardBans.findActiveBan(id, formatId);
     if (existing) {
       throw new AppError(409, ERROR_CODES.CONFLICT, `Card is already banned in ${formatId}`);
@@ -118,9 +116,7 @@ export const adminCardBansRouter = {
 
     const before = await cardBans.findActiveBan(id, formatId);
 
-    // `unban` returns a boolean (not a row), so use an explicit check rather
-    // than `assertFound` (which only catches null/undefined) — this 404s when
-    // no active ban matched, consistent with the PATCH handler above.
+    // `unban` returns a boolean, not a row, so assertFound (null/undefined only) can't be used here.
     const removed = await cardBans.unban(id, formatId);
     if (!removed) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, `No active ban found for format ${formatId}`);

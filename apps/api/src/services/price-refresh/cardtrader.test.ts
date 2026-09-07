@@ -16,8 +16,6 @@ import * as upsertMod from "./upsert.js";
 /** The `globalThis.fetch` spy these tests drive, typed so `mock.calls` indexes. */
 type FetchSpy = MockInstance<typeof globalThis.fetch>;
 
-// ── Mock data ───────────────────────────────────────────────────────────
-
 const EXPANSION_A = { id: 1001, game_id: 22, code: "OGN", name: "Origins" };
 const EXPANSION_B = { id: 1002, game_id: 22, code: "EXP", name: "Expansion" };
 const EXPANSION_OTHER_GAME = { id: 9999, game_id: 99, code: "OTHER", name: "Other Game" };
@@ -53,8 +51,6 @@ const ZERO_COUNTS: UpsertCounts = {
   prices: { total: 0, new: 0, updated: 0, unchanged: 0 },
 };
 
-// ── Helpers ─────────────────────────────────────────────────────────────
-
 function makeMockLogger(): { log: Logger; messages: string[] } {
   const messages: string[] = [];
   const log = {
@@ -87,13 +83,6 @@ interface MockReposConfig {
     groupId: number;
     productName: string;
   }[];
-  /**
-   * Printings to return from `allPrintingsForPriceMatch`. When a test wires
-   * up `existingSources` whose `printingId` is present here, the sibling
-   * lookup can find Chinese (or other-language) counterparts. Defaults to
-   * the printings referenced by `existingSources` as English printings so
-   * legacy tests keep working without each having to declare printings.
-   */
   printings?: MockPrinting[];
 }
 
@@ -109,17 +98,14 @@ function createMockRepos(config: MockReposConfig = {}) {
   }
   const ignoredKeys = { productIds, variantKeys };
 
-  // Expand defaults on existing sources (new shape has finish + language).
   const existingSources = (config.existingSources ?? []).map((s) => ({
     finish: "normal",
     language: "EN",
     ...s,
   }));
 
-  // If no printings were declared, synthesize an English printing for every
-  // cross-ref source so the sibling lookup has something to anchor on. Each
-  // synthesized printing gets a unique identity so siblings don't accidentally
-  // collide across cross-refs.
+  // Each synthesized printing gets a unique identity so siblings don't
+  // accidentally collide across cross-refs.
   const declared = config.printings;
   const synthesized: MockPrinting[] =
     declared ??
@@ -196,8 +182,6 @@ function setupMockFetch(fetchSpy: FetchSpy, config: MockFetchConfig = {}) {
   });
 }
 
-// ── Tests ───────────────────────────────────────────────────────────────
-
 describe("refreshCardtraderPrices", () => {
   let fetchSpy: FetchSpy;
   let upsertSpy: ReturnType<typeof vi.spyOn>;
@@ -214,8 +198,6 @@ describe("refreshCardtraderPrices", () => {
     upsertSpy.mockRestore();
     logUpsertSpy.mockRestore();
   });
-
-  // ── API fetch ────────────────────────────────────────────────────────
 
   describe("API fetch", () => {
     it("filters expansions to Riftbound game_id only", async () => {
@@ -244,7 +226,6 @@ describe("refreshCardtraderPrices", () => {
 
       await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
 
-      // Should NOT fetch blueprints for the other game expansion
       const urls = fetchSpy.mock.calls.map((call) => requestUrl(call[0]));
       expect(urls.some((url) => url.includes("expansion_id=9999"))).toBe(false);
     });
@@ -261,8 +242,6 @@ describe("refreshCardtraderPrices", () => {
       expect(result.transformed.prices).toBe(0);
     });
   });
-
-  // ── Staging rows ─────────────────────────────────────────────────────
 
   describe("staging rows", () => {
     it("creates normal and foil staging rows from marketplace listings", async () => {
@@ -407,7 +386,6 @@ describe("refreshCardtraderPrices", () => {
       await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
 
       const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
-      // Normal is ignored, foil is kept
       expect(staging).toHaveLength(1);
       expect(staging[0].finish).toBe("foil");
     });
@@ -450,8 +428,6 @@ describe("refreshCardtraderPrices", () => {
       expect(staging[0].lowCents).toBe(50);
     });
   });
-
-  // ── Auto-matching ────────────────────────────────────────────────────
 
   describe("auto-matching", () => {
     it("auto-matches blueprints via TCGplayer cross-reference", async () => {
@@ -533,8 +509,6 @@ describe("refreshCardtraderPrices", () => {
     });
 
     it("skips a (blueprint, finish, language) combo that already has a variant", async () => {
-      // Blueprint 5001 already has a CT normal/EN variant. The refresh sees
-      // the same EN listing again and must not re-emit a duplicate.
       const { repos } = createMockRepos({
         existingSources: [
           {
@@ -581,11 +555,6 @@ describe("refreshCardtraderPrices", () => {
     });
 
     it("emits a new-language variant even when another-language variant already exists", async () => {
-      // Regression: the auto-matcher used to skip a blueprint entirely once
-      // any variant existed, which permanently orphaned later-appearing
-      // languages (e.g. SC stock showing up months after the EN variant was
-      // already wired up). The skip must be per (blueprint, finish, language),
-      // not per blueprint.
       const enPrinting: MockPrinting = {
         id: "p-en",
         cardId: "card-flame",
@@ -611,8 +580,6 @@ describe("refreshCardtraderPrices", () => {
             groupId: 101,
             productName: "Flame Striker",
           },
-          // Pre-existing CT EN variant — pre-fix this blocked any further
-          // auto-match on blueprint 5001, including the SC listing below.
           {
             marketplace: "cardtrader",
             externalId: 5001,
@@ -657,7 +624,6 @@ describe("refreshCardtraderPrices", () => {
       const insertCall = (
         repos.priceRefresh.batchInsertProductVariants as unknown as ReturnType<typeof vi.fn>
       ).mock.calls[0][0] as { printingId: string; finish: string; language: string }[];
-      // Only the SC variant is new; the EN one is already in existingSources.
       expect(insertCall).toHaveLength(1);
       expect(insertCall[0]).toMatchObject({
         printingId: "p-sc",
@@ -681,10 +647,8 @@ describe("refreshCardtraderPrices", () => {
     });
 
     it("resolves zh-CN listings to the SC sibling printing", async () => {
-      // The EN printing and its SC sibling share the same identity tuple
-      // (card, set, short_code, finish, art_variant, is_signed, marker_slugs)
-      // but differ on language. The TCG cross-reference lands on the EN
-      // printing; the matcher walks across the sibling lookup to the SC one.
+      // EN and SC printings share the same identity tuple but differ on
+      // language; the matcher walks the sibling lookup from EN to SC.
       const enPrinting: MockPrinting = {
         id: "p-en",
         cardId: "card-flame",
@@ -823,8 +787,6 @@ describe("refreshCardtraderPrices", () => {
     });
 
     it("skips SC listings when no SC sibling printing exists", async () => {
-      // Only an EN printing exists in the catalog — the SC listing from
-      // cardtrader should be silently dropped from auto-match.
       const enPrinting: MockPrinting = {
         id: "p-en",
         cardId: "card-flame",
@@ -878,7 +840,6 @@ describe("refreshCardtraderPrices", () => {
       const { repos } = createMockRepos();
       const { log } = makeMockLogger();
 
-      // Make the expansions endpoint return an error
       fetchSpy.mockResolvedValueOnce(
         new Response("Server Error", { status: 500, statusText: "Internal Server Error" }),
       );
@@ -892,7 +853,6 @@ describe("refreshCardtraderPrices", () => {
       const { repos } = createMockRepos();
       const { log } = makeMockLogger();
 
-      // Return expansions wrapped in {array: [...]}
       fetchSpy.mockImplementation(async (url: string | URL | Request) => {
         const urlStr =
           typeof url === "string" ? url : url instanceof URL ? url.toString() : url.url;
@@ -1029,8 +989,6 @@ describe("refreshCardtraderPrices", () => {
     });
 
     it("excludes on_vacation listings from pricing", async () => {
-      // The cheaper listing is on vacation and must be dropped; the NM non-vacation
-      // listing should become the low price instead.
       const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupMockFetch(fetchSpy, {
@@ -1112,8 +1070,6 @@ describe("refreshCardtraderPrices", () => {
     });
 
     it("populates zeroLowCents with the cheapest Zero-eligible listing", async () => {
-      // Cheapest overall is a non-Zero seller at 80; cheapest Zero is 150.
-      // Expect lowCents=80 and zeroLowCents=150.
       const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupMockFetch(fetchSpy, {
@@ -1235,8 +1191,6 @@ describe("refreshCardtraderPrices", () => {
     });
   });
 
-  // ── Return value ─────────────────────────────────────────────────────
-
   describe("return value", () => {
     it("returns transformed and upserted counts", async () => {
       const { repos } = createMockRepos();
@@ -1273,8 +1227,6 @@ describe("refreshCardtraderPrices", () => {
       expect(result.upserted).toBe(ZERO_COUNTS);
     });
   });
-
-  // ── Logging ──────────────────────────────────────────────────────────
 
   describe("logging", () => {
     it("logs expansion and price counts", async () => {
@@ -1318,8 +1270,6 @@ describe("refreshCardtraderPrices", () => {
     });
   });
 
-  // ── Group upsert ─────────────────────────────────────────────────────
-
   describe("group upsert", () => {
     it("upserts expansion groups with code and name", async () => {
       const { repos } = createMockRepos();
@@ -1333,7 +1283,6 @@ describe("refreshCardtraderPrices", () => {
       await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
 
       const upsertGroupsSpy = vi.spyOn(upsertMod, "upsertMarketplaceGroups" as any);
-      // Verify that upsertMarketplaceGroups was called (it's in the module)
       expect(repos.priceRefresh.upsertGroups).toHaveBeenCalled();
       upsertGroupsSpy.mockRestore();
     });

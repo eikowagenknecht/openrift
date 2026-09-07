@@ -54,7 +54,6 @@ describe("GET /api/v1/deck-check/claim/:token", () => {
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json.tournamentName).toBe("Regional Qualifier");
-    // The Date is serialized to an ISO string for the response.
     expect(json.startsAt).toBe("2026-06-01T12:00:00.000Z");
     expect(json.hostName).toBe("Demacia Esports");
     expect(json.groupName).toBe("Demacia Cardists");

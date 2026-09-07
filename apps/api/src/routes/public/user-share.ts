@@ -10,11 +10,7 @@ import type { ApiContext } from "../../orpc/context.js";
 
 const os = implement(publicUserShareContract).$context<ApiContext>().use(requireUser);
 
-/**
- * Public user-share bundle reads (ADR-018). An unknown token / unknown list
- * returns a typed `errors.NOT_FOUND()`. The viewer-dependent `Cache-Control`
- * is set in the mount (it knows `loadSession`'s result).
- */
+/** The viewer-dependent `Cache-Control` is set in the mount, not here. */
 export const publicUserShareRouter = {
   bundle: os.bundle.handler(
     async ({ input, context, errors }): Promise<PublicUserBundleResponse> => {
@@ -28,15 +24,12 @@ export const publicUserShareRouter = {
 
       const [lists, collections] = await Promise.all([
         userShares.listsForOwner(owner.userId, viewerUserId),
-        // Group-shared collections only appear for authenticated viewers who
-        // share at least one friend group with the owner.
         viewerUserId
           ? friendGroups.collectionsBundleForViewer(owner.userId, viewerUserId)
           : Promise.resolve([]),
       ]);
 
-      // Rule-based lists materialize 0 rows; expand their real counts so a smart
-      // wishlist/tradelist doesn't read as "0 cards" on the public bundle (ADR-034).
+      // Rule-based lists materialize 0 rows; expand their real counts here.
       const expandedCounts = await expandRuleListCounts(
         listsRepo,
         lists.map(({ list }) => ({

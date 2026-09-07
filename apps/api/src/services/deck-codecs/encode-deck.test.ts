@@ -4,8 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 import type { EncodeDeckRow } from "./encode-deck.js";
 import { encodeDeck } from "./encode-deck.js";
 
-// A fake short-code resolver: maps each row to `CODE-<index>`, or null for rows
-// whose cardId is listed in `missing`.
 function fakeResolver(missing = new Set<string>()) {
   return {
     shortCodesForRows: vi.fn(
@@ -49,12 +47,11 @@ describe("encodeDeck", () => {
     expect(result.code).toBeTruthy();
 
     const decoded = getDeckFromCode(result.code);
-    // Champion is encoded into mainDeck (+1) and marked as the chosen champion.
     expect(decoded.chosenChampion).toBe("OGN-002");
     const mainCounts = new Map(decoded.mainDeck.map((card) => [card.cardCode, card.count]));
-    expect(mainCounts.get("OGN-001")).toBe(1); // legend
-    expect(mainCounts.get("OGN-002")).toBe(1); // champion marker
-    expect(mainCounts.get("OGN-003")).toBe(3); // unit A x3
+    expect(mainCounts.get("OGN-001")).toBe(1);
+    expect(mainCounts.get("OGN-002")).toBe(1);
+    expect(mainCounts.get("OGN-003")).toBe(3);
   });
 
   it("emits a human-readable text export grouped by zone", async () => {
@@ -68,7 +65,6 @@ describe("encodeDeck", () => {
 
   it("emits repeated short codes for TTS", async () => {
     const result = await encodeDeck(fakeResolver(), sampleRows, "tts");
-    // unit A (OGN-003) x3 plus legend + champion.
     expect(result.code.split(" ").filter((code) => code === "OGN-003-1")).toHaveLength(3);
     expect(result.code).toContain("OGN-001-1");
   });
@@ -80,8 +76,6 @@ describe("encodeDeck", () => {
   });
 });
 
-// A resolver with per-card codes: `pinned` when the row carries a
-// preferredPrintingId, `fallback` when it doesn't (the default printing).
 function mappedResolver(
   codes: Record<string, { pinned?: string | null; fallback: string | null }>,
 ) {
@@ -101,10 +95,7 @@ function mappedResolver(
 }
 
 describe("encodeDeck piltover degradation", () => {
-  // The installed Piltover library knows OGN/OGS/ARC/SFD/UNL/VEN and throws for
-  // anything else (Founders, tokens, future sets). These tests pin down that
-  // one unsupported printing degrades to a warning instead of a 500.
-
+  // The installed Piltover library only knows OGN/OGS/ARC/SFD/UNL/VEN; other sets throw.
   it("falls back to the default printing when a pinned printing can't be encoded", async () => {
     const rows = [
       row({ cardId: "legend", zone: "legend", cardName: "The Legend" }),

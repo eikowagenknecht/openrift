@@ -16,14 +16,8 @@ interface UserWithCounts {
   lastActiveAt: Date | null;
 }
 
-/**
- * Queries for the users table (admin-facing user listing).
- *
- * @returns An object with user query methods bound to the given `db`.
- */
 export function usersRepo(db: Kysely<Database>) {
   return {
-    /** @returns Whether a user with the given id exists. */
     async existsById(userId: string): Promise<boolean> {
       const row = await db
         .selectFrom("users")
@@ -33,7 +27,6 @@ export function usersRepo(db: Kysely<Database>) {
       return row !== undefined;
     },
 
-    /** @returns All users with aggregate card, deck, collection, and list counts. */
     async listWithCounts(): Promise<UserWithCounts[]> {
       const rows = await db
         .selectFrom("users as u")
@@ -46,9 +39,8 @@ export function usersRepo(db: Kysely<Database>) {
           eb
             .exists(eb.selectFrom("admins").select("userId").whereRef("admins.userId", "=", "u.id"))
             .as("isAdmin"),
-          // Copies no longer carry an owner; ownership derives from the
-          // collection. "Cards" for a user = copies in their personal
-          // collections (group-owned copies belong to the group, not a person).
+          // Copies carry no owner; a user's cards are copies in their own
+          // collections, not group-owned copies.
           eb
             .selectFrom("copies")
             .innerJoin("collections", "collections.id", "copies.collectionId")
@@ -94,7 +86,6 @@ export function usersRepo(db: Kysely<Database>) {
       }));
     },
 
-    /** @returns The user's id, display name, and email matched by id, or `undefined`. */
     findById(id: string): Promise<{ id: string; name: string | null; email: string } | undefined> {
       return db
         .selectFrom("users")
@@ -103,7 +94,6 @@ export function usersRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns The user row matched by email (case-sensitive), or `undefined`. */
     getByEmail(
       email: string,
     ): Promise<{ id: string; name: string | null; image: string | null } | undefined> {
@@ -114,11 +104,6 @@ export function usersRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /**
-     * Resolve an exact account email to its id, case-insensitively. Used to add
-     * staff by the email the host already knows — not a name search.
-     * @returns The user id matched by email, or `undefined`.
-     */
     findIdByEmail(email: string): Promise<{ id: string } | undefined> {
       return db
         .selectFrom("users")

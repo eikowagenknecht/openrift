@@ -22,7 +22,6 @@ describe.skipIf(!ctx)("userPreferencesRepo (integration)", () => {
   it("upsert creates preferences for new user with only the provided field", async () => {
     const result = await repo.upsert(userId, { showImages: false });
     expect(result.showImages).toBe(false);
-    // Only explicitly-set fields are stored; missing fields resolve to defaults client-side
     expect(Object.keys(result)).toEqual(["showImages"]);
   });
 
@@ -34,7 +33,6 @@ describe.skipIf(!ctx)("userPreferencesRepo (integration)", () => {
     // oxlint-disable-next-line typescript/no-non-null-assertion -- asserted above
     const data = row!.data;
     expect(data.showImages).toBe(false);
-    // theme is not stored (using default), so it should be absent
     expect(data.theme).toBeUndefined();
   });
 
@@ -57,11 +55,8 @@ describe.skipIf(!ctx)("userPreferencesRepo (integration)", () => {
     expect(result.showImages).toBe(false);
   });
 
-  // Regression: the merge used to happen in JS between a read and a write, so
-  // concurrent PATCHes each wrote the snapshot they had read and the last one
-  // in dropped every key the others had added. Merging in SQL leaves no window.
   it("keeps every key when concurrent patches overlap", async () => {
-    // A real user row: user_preferences.user_id is FK-enforced (migration 245).
+    // user_preferences.userId is FK-enforced, so this needs a real user row.
     const concurrentUserId = crypto.randomUUID();
     await seedTestUser(db, { id: concurrentUserId });
     await repo.upsert(concurrentUserId, { showImages: true });

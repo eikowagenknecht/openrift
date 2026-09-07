@@ -167,9 +167,6 @@ function makeRepos() {
     cardsWithDetails: stub([] as unknown[]),
   };
   const enums = { all: stub({ cardTypes: [] as unknown[], domains: [] as unknown[] }) };
-  // The card lookup index the resolution service builds; an empty catalogue
-  // means every written name resolves as unmatched, which is what these tests
-  // want unless they override it.
   const catalog = {
     championIdentifierTags: stub([] as string[]),
     cards: stub([] as unknown[]),
@@ -376,9 +373,6 @@ describe("PUT /deck-check/mine/{entryId}/list (editList)", () => {
   });
 
   it("resolves to an empty preview when a deck's only cards sit in the overflow zone", async () => {
-    // linesFromOwnDeck filters out WellKnown.deckZone.OVERFLOW before it ever
-    // builds a line, so a deck that is entirely overflow previews as empty
-    // rather than 422ing or crashing.
     const repos = makeRepos();
     const deckId = "d0000000-0001-4000-a000-000000000001";
     repos.deckCheck.getEntryForPlayer.mockResolvedValue(entryRow({ state: "editable" }));

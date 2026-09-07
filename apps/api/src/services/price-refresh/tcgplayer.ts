@@ -1,11 +1,7 @@
 /**
  * Refreshes TCGPlayer price data from the TCGCSV API.
- *
- * Fetches groups, products, and prices, writes snapshots for already-mapped
- * sources into marketplace_product_prices, and stages all products in
- * marketplace_staging for manual admin mapping.
- *
- * Usage: bun scripts/refresh-tcgplayer-prices.ts
+ * Writes snapshots for already-mapped sources and stages the rest for
+ * manual admin mapping.
  */
 
 import { WellKnown } from "@openrift/shared";
@@ -26,7 +22,7 @@ const UPSERT_CONFIG: PriceUpsertConfig = {
 };
 
 const TCGCSV_BASE = "https://tcgcsv.com/tcgplayer";
-const TCGCSV_CATEGORY = 89; // Riftbound
+const TCGCSV_CATEGORY = 89;
 const TCGCSV_HEADERS = { "User-Agent": "OpenRift/1.0.0" };
 
 interface TcgcsvGroup {

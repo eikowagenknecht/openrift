@@ -1,32 +1,21 @@
 import type { Fetch } from "../../io.js";
 import { metaSyncUserAgent } from "./user-agent.js";
 
-/**
- * The HTTP half of the official source's sync. One request at a time, spaced
- * and jittered: the source serves a global event locator and the archive's
- * whole budget is a few hundred requests a week.
- *
- * Only v2 endpoints are reachable through this client. That boundary is a PII
- * guarantee, not a style choice: the legacy endpoints hand back players' real
- * names and email addresses. Narrower is not clean, though: the event detail
- * still carries the store's contact address, which the deep fetch strips before
- * anything is stored.
- */
-
-/** The listing's own cap. `tv/` endpoints allow 500, which nothing here needs. */
+// Only v2 endpoints are reachable through this client: the legacy endpoints
+// hand back players' real names and email addresses. The event detail still
+// carries the store's contact address, which the deep fetch strips before
+// anything is stored.
 export const MAX_PAGE_SIZE = 250;
 
-/** Minimum spacing between two request starts. */
 const REQUEST_SPACING_MS = 600;
 
-/** Added on top of the spacing so a long crawl does not beat like a metronome. */
 const REQUEST_JITTER_MS = 200;
 
 const MAX_ATTEMPTS = 3;
 const RETRY_BASE_DELAY_MS = 1000;
 const REQUEST_TIMEOUT_MS = 30_000;
 
-/** DRF's page-number envelope. Only the fields the crawl reads are declared. */
+/** DRF's page-number envelope. */
 export interface UvsPage<T> {
   results: T[];
   count: number;
@@ -35,7 +24,6 @@ export interface UvsPage<T> {
 
 export type UvsQuery = Record<string, string | number | boolean | undefined>;
 
-/** A status the source answered with, kept structured so callers can branch on it. */
 export class UvsHttpError extends Error {
   readonly status: number;
 
@@ -49,9 +37,7 @@ export class UvsHttpError extends Error {
 export interface UvsClientOptions {
   fetch: Fetch;
   baseUrl: string;
-  /** Overridden only by tests; production uses {@link metaSyncUserAgent}. */
   userAgent?: string;
-  /** Injected so tests neither wait nor jitter. */
   sleep?: (ms: number) => Promise<void>;
   random?: () => number;
   now?: () => number;
@@ -60,7 +46,6 @@ export interface UvsClientOptions {
 export interface UvsClient {
   get: <T>(path: string, query?: UvsQuery) => Promise<T>;
   page: <T>(path: string, query: UvsQuery, page: number, pageSize?: number) => Promise<UvsPage<T>>;
-  /** Every request this client has made, for the job summary's honesty. */
   readonly requests: number;
 }
 
@@ -74,16 +59,12 @@ function buildUrl(baseUrl: string, path: string, query: UvsQuery | undefined): s
   return url.toString();
 }
 
-/**
- * Whether a failed attempt is worth repeating. A 5xx or a dropped connection is
- * the source having a moment; a 404 is an event that no longer exists, so
- * repeating the request cannot change the answer.
- */
+// A 5xx or a 429 is the source having a moment; a 404 means the event no
+// longer exists, so repeating the request cannot change the answer.
 function isRetryableStatus(status: number): boolean {
   return status >= 500 || status === 429;
 }
 
-/** Waits for a queued call to finish either way: each caller owns its own failure. */
 async function settled(promise: Promise<unknown>): Promise<void> {
   try {
     await promise;
@@ -103,11 +84,8 @@ function readPage<T>(body: unknown): UvsPage<T> {
   };
 }
 
-/**
- * A single-flight, paced JSON client. Sequential by construction: every call
- * awaits the previous one's spacing, so two concurrent callers still produce one
- * request at a time.
- */
+// Sequential by construction: every call awaits the previous one's spacing,
+// so two concurrent callers still produce one request at a time.
 export function createUvsClient(options: UvsClientOptions): UvsClient {
   const baseUrl = options.baseUrl;
   const userAgent = options.userAgent ?? metaSyncUserAgent();
@@ -161,13 +139,10 @@ export function createUvsClient(options: UvsClientOptions): UvsClient {
       }
       return { body: await response.json() };
     } catch (error) {
-      // A network failure, a timeout, or a body that is not JSON. All three are
-      // worth one more try before the run gives up on the event.
       return { error: error instanceof Error ? error : new Error(String(error)), retryable: true };
     }
   }
 
-  /** Serializes callers onto one chain, so pacing holds under concurrent use. */
   async function enqueue<T>(work: () => Promise<T>): Promise<T> {
     const previous = queue;
     const current = (async () => {

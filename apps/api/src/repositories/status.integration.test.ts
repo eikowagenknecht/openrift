@@ -9,10 +9,8 @@ const ctx = createDbContext("a0000000-0034-4000-a000-000000000001");
 describe.skipIf(!ctx)("statusRepo (integration)", () => {
   const { db } = ctx!;
   const repo = statusRepo(db);
-  // The marketplace vocabulary is a closed CHECK (migration 247), so the
-  // fixtures live under a real marketplace and isolate through this file's own
-  // group/external id range; assertions compare before/after deltas instead of
-  // absolute totals.
+  // The marketplace vocabulary is a closed CHECK, so fixtures live under a
+  // real marketplace and isolate via this file's own group/external id range.
   const marketplace = "tcgplayer" as const;
   const groupId = 91_001;
   const externalId = 87_001;
@@ -41,7 +39,7 @@ describe.skipIf(!ctx)("statusRepo (integration)", () => {
       .execute();
   });
 
-  /** @returns The pricing stats for this file's marketplace (zeros when absent). */
+  /** Zeros when this file's marketplace has no rows yet. */
   async function marketplaceStats(): Promise<{
     products: number;
     variants: number;
@@ -57,10 +55,6 @@ describe.skipIf(!ctx)("statusRepo (integration)", () => {
   }
 
   it("counts price rows once per (product, recorded_at), not once per variant", async () => {
-    // Regression: variants and prices both hang off a product. Counting them
-    // in one join multiplied each product's price rows by its variant count —
-    // on the dev database cardmarket reported 519354 rows against 270817 real
-    // ones. Two variants and three price rows must add 2 and 3, not 2 and 6.
     const before = await marketplaceStats();
 
     await db
@@ -103,7 +97,6 @@ describe.skipIf(!ctx)("statusRepo (integration)", () => {
     expect(after.products - before.products).toBe(1);
     expect(after.variants - before.variants).toBe(2);
     expect(after.prices - before.prices).toBe(3);
-    // The far-future recorded_at guarantees this file's newest row wins.
     const stats = await repo.getPricingStats();
     const source = stats.sources.find((s) => s.marketplace === marketplace);
     expect(source?.latestPrice).toContain("2126-01-03");

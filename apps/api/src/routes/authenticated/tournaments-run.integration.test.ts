@@ -3,13 +3,6 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createTestContext, req } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// Route-level integration tests for the unified tournaments running surface
-// (ADR-033): the pod pairings/standings run state, round-running mutations, and
-// the report token, mounted under `/tournaments/{id}`. These are the regression
-// tests for the org-host / staff / participant authorization model — the retired
-// pod route was owner-only, which 403'd everyone (including the org host) on an
-// org-hosted tournament. Auth is mocked; the shared DB is real.
-
 const HOST_ID = crypto.randomUUID();
 const ORGOWNER_ID = crypto.randomUUID();
 const ORGJUDGE_ID = crypto.randomUUID();
@@ -29,10 +22,6 @@ const strangerCtx = createTestContext(STRANGER_ID, `test-${STRANGER_ID}@test.com
 const ready =
   hostCtx && orgOwnerCtx && orgJudgeCtx && participantCtx && strangerCtx ? hostCtx : null;
 
-/**
- * Creates a pod tournament via the given context.
- * @returns The new tournament's id.
- */
 async function createPodTournament(
   ctx: NonNullable<typeof hostCtx>,
   body: Record<string, unknown>,
@@ -69,9 +58,8 @@ describe.skipIf(!ready)("Tournament running surface (integration)", () => {
         })
         .execute();
     }
-    // An org owned by ORGOWNER with ORGJUDGE as a judge member. One transaction:
     // `fk_organizations_owner_membership` is deferred, so the org and its
-    // owner's membership row have to commit together.
+    // owner's membership row must commit in one transaction.
     await host.db.transaction().execute(async (trx) => {
       await trx
         .insertInto("organizations")
@@ -125,7 +113,6 @@ describe.skipIf(!ready)("Tournament running surface (integration)", () => {
     const view = await participant.app.fetch(req("GET", `/tournaments/${id}/run`));
     expect(view.status).toBe(200);
 
-    // Read-only: a manage-only mutation (the report token) is refused.
     const manage = await participant.app.fetch(req("POST", `/tournaments/${id}/report-token`));
     expect(manage.status).toBe(403);
   });
@@ -155,14 +142,12 @@ describe.skipIf(!ready)("Tournament running surface (integration)", () => {
     const pods = body.rounds[0].pods;
     const podOfA = pods.find((pod) => pod.members.some((member) => member.displayName === "A"));
     expect(podOfA?.podNumber).toBe(5);
-    // The other two matches fill the free numbers from 1, leaving the gap.
     const otherNumbers = pods
       .filter((pod) => pod !== podOfA)
       .map((pod) => pod.podNumber)
       .toSorted((a, b) => a - b);
     expect(otherNumbers).toEqual([1, 2]);
 
-    // Every member is written with a seat, unique within its pod.
     const seatRows = await host.db
       .selectFrom("podMembers as m")
       .innerJoin("pods as p", "p.id", "m.podId")
@@ -183,8 +168,6 @@ describe.skipIf(!ready)("Tournament running surface (integration)", () => {
       host: { type: "organization", orgId: ORG_ID },
     });
 
-    // The bug: the owner-only pod route 403'd everyone here. The org owner now
-    // reads the run state and manages it.
     const ownerView = await orgOwner.app.fetch(req("GET", `/tournaments/${id}/run`));
     expect(ownerView.status).toBe(200);
 
@@ -196,17 +179,14 @@ describe.skipIf(!ready)("Tournament running surface (integration)", () => {
     const followAlong = await orgOwner.app.fetch(req("GET", `/pod-tournaments/report/${token}`));
     expect(followAlong.status).toBe(200);
 
-    // An org judge has a relationship (can follow) but no manage authority.
     const judgeView = await orgJudge.app.fetch(req("GET", `/tournaments/${id}/run`));
     expect(judgeView.status).toBe(200);
     const judgeManage = await orgJudge.app.fetch(req("POST", `/tournaments/${id}/report-token`));
     expect(judgeManage.status).toBe(403);
 
-    // An unrelated user sees nothing.
     const strangerView = await stranger.app.fetch(req("GET", `/tournaments/${id}/run`));
     expect(strangerView.status).toBe(404);
 
-    // Disabling the token revokes the follow-along.
     const disable = await orgOwner.app.fetch(req("DELETE", `/tournaments/${id}/report-token`));
     expect(disable.status).toBe(200);
     const afterDisable = await orgOwner.app.fetch(req("GET", `/pod-tournaments/report/${token}`));

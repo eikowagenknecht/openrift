@@ -3,11 +3,7 @@ import { PREFERENCE_DEFAULTS } from "@openrift/shared/types";
 
 import type { Repos } from "../deps.js";
 
-/**
- * Resolves the user's favorite marketplace from their preferences.
- * Pass `null` for shared collections that have no personal owner; the default is returned.
- * @returns The first marketplace in the user's preferred order, or the default.
- */
+/** Pass `null` for shared collections that have no personal owner; the default is returned. */
 export async function getFavoriteMarketplace(
   repos: Repos,
   userId: string | null,

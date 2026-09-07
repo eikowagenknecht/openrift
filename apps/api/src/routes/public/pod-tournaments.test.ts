@@ -111,14 +111,10 @@ describe("GET /api/v1/pod-tournaments/report/:token", () => {
     expect(json.standings).toHaveLength(1);
     expect(json.standings[0].playerId).toBe(playerIds[0]);
     expect(json.rounds).toEqual([]);
-    // Reached via the report token, so result entry is allowed.
     expect(json.canSubmit).toBe(true);
   });
 
-  // Regression: the column was typed to the three pod statuses while the CHECK
-  // and the cancel endpoint both allow 'cancelled', so a cancelled tournament
-  // failed oRPC output validation and 500'd every follower's report link.
-  it("serves the report for a cancelled tournament", async () => {
+  it("serves the report for a cancelled tournament, even though it isn't one of the three primary pod statuses", async () => {
     mockTournamentsRepo.findByShareToken.mockResolvedValue({
       ...dbTournament,
       status: "cancelled",
@@ -195,8 +191,6 @@ describe("GET /api/v1/pod-tournaments/report/:token", () => {
   });
 
   it("returns NOT_FOUND when the token resolves a non-pod tournament", async () => {
-    // A live report token on a tournament whose pairing engine is no longer pod
-    // must not render an (empty) pod report shell.
     mockTournamentsRepo.findByShareToken.mockResolvedValue({
       ...dbTournament,
       pairingStyle: "none",
@@ -326,10 +320,7 @@ describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/players/:playerI
     expect(callArgs[4]).toBe(3);
   });
 
-  it("accepts per-player entry on a Swiss tournament", async () => {
-    // Swiss seats players in pods too, so a participant must be able to enter
-    // their own score. Guarding on `pairingStyle !== "pod"` 404'd every Swiss
-    // event while the pod-wide endpoint on the same token still worked.
+  it("accepts per-player entry on a Swiss tournament, since Swiss also seats players in pods", async () => {
     mockTournamentsRepo.findByShareToken.mockResolvedValue({
       ...dbTournament,
       pairingStyle: "swiss",

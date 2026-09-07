@@ -36,7 +36,6 @@ describe.skipIf(!ctx)("keywordsRepo (integration)", () => {
       expect(costKeywords).toContain("KW-CostFlag");
       expect(costKeywords).not.toContain("KW-PlainFlag");
 
-      // Flipping the flag off via upsert removes it from the list.
       await repo.upsertStyle({
         name: "KW-CostFlag",
         color: "#123456",
@@ -51,12 +50,6 @@ describe.skipIf(!ctx)("keywordsRepo (integration)", () => {
   });
 
   it("keyword style mutations leave cards.keywords alone", async () => {
-    // The review asked whether create/delete on the `keywords` table needs a
-    // recompute hook. It does not, and this pins the reason: `cards.keywords`
-    // is derived from the `[...]` spans in card text, never from this table, so
-    // a style row appearing or disappearing cannot make the cache wrong. If a
-    // future change makes the extractor consult `keywords`, this test breaks
-    // and a hook becomes genuinely required.
     const before = await db.selectFrom("cards").select(["id", "keywords"]).orderBy("id").execute();
 
     await repo.createStyle({

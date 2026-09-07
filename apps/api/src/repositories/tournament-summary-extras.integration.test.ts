@@ -7,8 +7,6 @@ import { createDbContext } from "../test/integration-context.js";
 const OWNER_ID = crypto.randomUUID();
 const ctx = createDbContext(OWNER_ID);
 
-// Covers the batched summary-extras lookups behind the group events lens:
-// the facepile preview, the card-fan cover legends, and the winner legend.
 describe.skipIf(!ctx)("tournament summary extras (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { db } = ctx!;
@@ -95,7 +93,6 @@ describe.skipIf(!ctx)("tournament summary extras (integration)", () => {
     return participant.id;
   }
 
-  /** @returns The ids of a fresh legend card, one printing, and its front image. */
   async function makeLegend(): Promise<{ cardId: string; printingId: string }> {
     counter += 1;
     const card = await db
@@ -166,7 +163,7 @@ describe.skipIf(!ctx)("tournament summary extras (integration)", () => {
       submittedAt: options.submittedAt ?? new Date("2026-07-01T12:00:00Z"),
       allowDeckPublishing: options.publish ?? true,
       contentHash: `hash-${counter}`,
-      // The withdrawn-shape CHECK (migration 246) couples state and timestamp.
+      // A DB CHECK requires state and withdrawnAt to agree.
       state: options.withdrawn ? "withdrawn" : undefined,
       withdrawnAt: options.withdrawn ? new Date("2026-07-02T12:00:00Z") : null,
     });
@@ -208,7 +205,6 @@ describe.skipIf(!ctx)("tournament summary extras (integration)", () => {
       image: "https://images.example.com/ava.png",
     });
     expect(rows[0]!.email).toContain("@test.com");
-    // An account-less participant has no avatar chain data.
     expect(rows[2]).toMatchObject({ image: null, email: null });
 
     expect(await repos.tournaments.participantPreviewAcross([], 5)).toEqual([]);
@@ -235,7 +231,6 @@ describe.skipIf(!ctx)("tournament summary extras (integration)", () => {
     await submitLegendDeck(tournamentId, p2, second, {
       submittedAt: new Date("2026-07-01T11:00:00Z"),
     });
-    // A later duplicate of the first legend must not fill a second fan slot.
     await submitLegendDeck(tournamentId, p3, first, {
       submittedAt: new Date("2026-07-01T11:30:00Z"),
     });

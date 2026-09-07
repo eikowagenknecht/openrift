@@ -8,11 +8,8 @@ import { applyUnsubscribe, previewUnsubscribe } from "../../services/unsubscribe
 const os = implement(unsubscribeContract).$context<ApiContext>().use(requireUser);
 
 /**
- * Public unsubscribe procedures (ADR-030). Both are token-authed, not
- * session-authed: the HMAC token is the only credential. `preview` is a safe,
- * read-only GET the web confirmation page renders from; `confirm` is the POST
- * that flips the channel off. The RFC 8058 mail-client one-click is a separate
- * plain route (see `unsubscribe-one-click.ts`).
+ * Both procedures are token-authed, not session-authed: the HMAC token
+ * is the only credential.
  */
 export const unsubscribeRouter = {
   preview: os.preview.handler(({ input, context }) =>

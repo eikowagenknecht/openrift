@@ -73,11 +73,7 @@ export interface MetaSyncEnv {
   baseUrl: string;
 }
 
-/**
- * One client per run rather than one per process: the request counter is what
- * the job summary reports, and a shared counter would make every run's budget
- * unreadable.
- */
+/** Create one client per run: a shared client's request counter would mix budgets across runs. */
 export function createMetaSyncDeps(env: MetaSyncEnv): MetaSyncDeps {
   return {
     repos: env.repos,

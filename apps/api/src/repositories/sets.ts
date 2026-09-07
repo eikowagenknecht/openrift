@@ -108,11 +108,6 @@ export function setsRepo(db: Kysely<Database>) {
       return bySet;
     },
 
-    /**
-     * Replaces a set's release rows with exactly the given languages. Languages
-     * absent from `releases` are deleted, which is how a set is marked as not
-     * announced in a language again.
-     */
     async replaceReleases(setId: string, releases: SetReleases): Promise<void> {
       const languages = Object.keys(releases);
       await db.transaction().execute(async (trx) => {
@@ -199,12 +194,8 @@ export function setsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * One atomic statement, like {@link createIfNotExists}: the check-then-insert
-     * this replaced read the slug in its own query, so two ingests naming the
-     * same new set both saw it missing and the loser threw on `sets_slug_key`.
-     * Two ingests naming *different* new sets can still read the same
-     * `max(sort_order)` and tie — `sort_order` has no unique constraint, and a
-     * tie is a display-order wobble the admin reorder fixes, not a failure.
+     * `sort_order` has no unique constraint: two ingests naming different new
+     * sets can tie on `max(sort_order)`, which the admin reorder fixes.
      */
     async upsert(slug: string, name: string): Promise<void> {
       await db

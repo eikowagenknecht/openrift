@@ -6,10 +6,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminMarketplaceGroupsRouter } from "./marketplace-groups";
 
-// ---------------------------------------------------------------------------
-// Mock repo
-// ---------------------------------------------------------------------------
-
 const mockMktAdmin = {
   listAllGroups: vi.fn(),
   stagingCountsByMarketplaceGroup: vi.fn(),
@@ -17,11 +13,8 @@ const mockMktAdmin = {
   updateGroup: vi.fn(),
 };
 
-// ---------------------------------------------------------------------------
-// Test app — mount the oRPC router directly (without the requireAdmin gate).
-// AppErrors are bridged to ORPCErrors inside the router, so 4xx responses
-// carry `{ message }`.
-// ---------------------------------------------------------------------------
+// Mounts the oRPC router directly, skipping requireAdmin; AppErrors are bridged
+// to ORPCErrors inside the router, so 4xx responses carry `{ message }`.
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
@@ -32,10 +25,6 @@ app.use("*", async (c, next) => {
   await next();
 });
 registerRouterForTest(app, adminMarketplaceGroupsRouter);
-
-// ---------------------------------------------------------------------------
-// Test data
-// ---------------------------------------------------------------------------
 
 const dbGroup1 = {
   marketplace: "tcgplayer",
@@ -54,10 +43,6 @@ const dbGroup2 = {
   groupKind: "basic" as const,
   setId: null,
 };
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("GET /marketplace-groups", () => {
   beforeEach(() => {

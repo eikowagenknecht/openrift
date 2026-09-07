@@ -85,8 +85,6 @@ describe("buildDiscordPayloads", () => {
   });
 
   it("splits entries into multiple payloads when description would exceed Discord's 4096 limit", () => {
-    // Regression: 2026-04-18 in real changelog had ~4449 chars and Discord
-    // returned 400 because embed[0].description exceeded 4096.
     const longEntry = {
       date: "2026-04-18",
       type: "feat" as const,
@@ -260,10 +258,8 @@ ${longBlock}
       readFile: async () => longChangelog,
     });
 
-    // The 10 long lines should chunk into more than one webhook post.
     const callCount = (fetcher as never as { mock: { calls: unknown[][] } }).mock.calls.length;
     expect(callCount).toBeGreaterThan(1);
-    // But the watermark only advances once, after all chunks for the date.
     expect(updateResult).toHaveBeenCalledTimes(1);
     expect(updateResult).toHaveBeenCalledWith("run-1", {
       posted: 1,

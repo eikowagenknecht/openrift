@@ -10,16 +10,12 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { publicShareImagesRoute } from "./share-images";
 
-// The render pipeline (satori + sharp + fonts) is exercised separately; here we
-// only verify the route's data flow, headers, and projection choices.
 vi.mock("../../services/share-image.js", () => ({
   renderShareImage: vi.fn(() =>
     Promise.resolve(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
   ),
 }));
 
-// Mock only the heavy renderer; keep buildDeckImageCards real so the route's
-// enrichment data flow is exercised.
 vi.mock("../../services/deck-image.js", async (importOriginal) => ({
   ...(await importOriginal<typeof DeckImageModule>()),
   renderDeckImage: vi.fn(() =>
@@ -71,8 +67,6 @@ const app = new Hono<{ Variables: Variables }>()
       meta: mockMetaRepo,
     } as never);
     c.set("io", {} as never);
-    // Comma-separated allow-list (as CORS_ORIGIN really is) to guard the footer
-    // host parsing: the first origin's host must be used, not the whole string.
     c.set("config", { corsOrigin: "https://openrift.app,https://preview.openrift.app" } as never);
     await next();
   })
@@ -244,8 +238,6 @@ describe("GET /api/v1/lists/share/:token/image.png", () => {
 
     await app.request("/api/v1/lists/share/tok-abc/image.png");
 
-    // The og:image URL carries neither param, so its cached entry must keep
-    // rendering exactly what it did before the two were added.
     expect(renderMock.mock.calls[0]![3]).toEqual({ aspect: "landscape", qr: true });
   });
 
@@ -265,7 +257,7 @@ describe("GET /api/v1/lists/share/:token/image.png", () => {
 });
 
 describe("GET /api/v1/users/share/:token/image.png", () => {
-  it("renders the bundle from the owner's anonymous (public-only) projection", async () => {
+  it("renders the bundle from the owner's anonymous projection, with a null viewerUserId", async () => {
     mockUserSharesRepo.findOwnerByShareToken.mockResolvedValue({
       userId: "u1",
       displayName: "Alice",
@@ -281,8 +273,6 @@ describe("GET /api/v1/users/share/:token/image.png", () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/png");
-    // Anonymous projection: viewerUserId must be null so the image never varies
-    // by viewer.
     expect(mockUserSharesRepo.listsForOwner).toHaveBeenCalledWith("u1", null);
     expect(renderMock.mock.calls[0]![1]).toMatchObject({
       ownerName: "Alice",
@@ -334,7 +324,6 @@ describe("GET /api/v1/collections/share/:token/image.png", () => {
         { cardName: "Teemo, Scout", quantity: 3, imageId: "img-1" },
         { cardName: "Jinx, Rebel", quantity: 1, imageId: null },
       ],
-      // Larger than the returned cards array so "+N more" overflow is exercised.
       totalDistinct: 14,
     });
 
@@ -443,7 +432,6 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
       siteHost: "openrift.app",
       shareUrl: "https://openrift.app/decks/share/tok-deck",
     });
-    // Cards are enriched with zone, art id, energy, and domains for the layout.
     expect(input.cards).toEqual([
       {
         cardName: "Scorn of the Moon",
@@ -659,8 +647,7 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
 });
 
 describe("POST /api/v1/decks/image", () => {
-  // The rate limiter keys on x-real-ip and its counters live for the whole
-  // test file, so every test uses its own IP to get an isolated bucket.
+  // The rate limiter's counters live for the whole test file; each test needs its own IP.
   function postRender(ip: string, body: unknown) {
     return app.request("/api/v1/decks/image", {
       method: "POST",
@@ -701,7 +688,7 @@ describe("POST /api/v1/decks/image", () => {
     expect(input.ownerName).toHaveLength(200);
   });
 
-  it("rejects bodies over 256 KB with 413 before parsing", async () => {
+  it("rejects bodies over 256 KB with 413 and the standard error envelope, before parsing", async () => {
     const res = await postRender("10.0.0.3", {
       ...validBody,
       deckName: "x".repeat(300 * 1024),
@@ -709,8 +696,6 @@ describe("POST /api/v1/decks/image", () => {
 
     expect(res.status).toBe(413);
     expect(renderDeckMock).not.toHaveBeenCalled();
-    // Rejecting through `onError` must still produce the standard envelope,
-    // not a hand-built body — this route's other errors all carry `error`.
     expect(await readJson(res)).toStrictEqual({
       error: "Render payload exceeds 256 KB",
       code: ERROR_CODES.PAYLOAD_TOO_LARGE,

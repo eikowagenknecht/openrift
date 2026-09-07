@@ -12,20 +12,8 @@ class HealthTimeoutError extends Error {
   }
 }
 
-/**
- * Generic database health checks, decoupled from any domain table.
- * @returns Health repository with check methods.
- */
 export function healthRepo(db: Kysely<Database>) {
   return {
-    /**
-     * Verifies database connectivity, migration state, and data presence.
-     *
-     * 1. `SELECT 1` — can we reach the database at all?
-     * 2. Check `information_schema.tables` for the `sets` table — have migrations run?
-     * 3. `SELECT id FROM sets LIMIT 1` — is there any data?
-     * @returns The current health status of the database.
-     */
     async healthCheck(timeoutMs: number): Promise<HealthStatus> {
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
@@ -33,10 +21,8 @@ export function healthRepo(db: Kysely<Database>) {
         timer = setTimeout(() => reject(new HealthTimeoutError()), timeoutMs);
 
         const check = async (): Promise<HealthStatus> => {
-          // 1. Connectivity
           await sql`SELECT 1`.execute(db);
 
-          // 2. Migration state — check for a core table
           const [table] = await sql<{ exists: boolean }>`
             SELECT EXISTS (
               SELECT 1 FROM information_schema.tables
@@ -50,7 +36,6 @@ export function healthRepo(db: Kysely<Database>) {
             return "db_not_migrated";
           }
 
-          // 3. Data presence
           const rows = await db.selectFrom("sets").select("id").limit(1).execute();
           return rows.length > 0 ? "ok" : "db_empty";
         };

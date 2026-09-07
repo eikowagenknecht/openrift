@@ -5,17 +5,11 @@ import type { Fetch } from "../../io.js";
 import type { PlayloltcgClient } from "./playloltcg-client.js";
 import { createPlayloltcgClient } from "./playloltcg-client.js";
 
-/**
- * What the playloltcg jobs run against. Parallel to {@link MetaSyncDeps} but
- * with the source's own POST/GET client, since its API shape differs from
- * uvsgames. Repos are shared: both sources feed the one candidate pipeline.
- */
 export interface PlayloltcgSyncDeps {
   repos: Repos;
   transact: Transact;
   client: PlayloltcgClient;
   log: Logger;
-  /** Injected in tests; production reads the wall clock. */
   now?: () => Date;
 }
 

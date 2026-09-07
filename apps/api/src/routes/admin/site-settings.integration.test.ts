@@ -3,30 +3,17 @@ import { describe, expect, it } from "vitest";
 import { adminReq, createTestContext } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Admin site-settings CRUD
-//
-// Uses the shared integration database. Requires INTEGRATION_DB_URL.
-// Uses prefix iss- for setting keys to avoid collisions with other tests.
-// ---------------------------------------------------------------------------
-
 const ADMIN_ID = "a0000000-0047-4000-a000-000000000001";
 const NON_ADMIN_ID = "a0000000-0049-4000-a000-000000000001";
 
 const adminCtx = createTestContext(ADMIN_ID);
 const nonAdminCtx = createTestContext(NON_ADMIN_ID);
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe.skipIf(!adminCtx)("Admin site-settings routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app } = adminCtx!;
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app: nonAdminApp } = nonAdminCtx!;
-
-  // ── Non-admin access control ──────────────────────────────────────────────
 
   describe("admin-only access control (non-admin)", () => {
     it("GET /admin/site-settings returns 403 for non-admin", async () => {
@@ -42,8 +29,6 @@ describe.skipIf(!adminCtx)("Admin site-settings routes (integration)", () => {
     });
   });
 
-  // ── GET /admin/site-settings (initial) ────────────────────────────────────
-
   describe("GET /admin/site-settings (initial)", () => {
     it("returns 200 with a list (no iss- entries yet)", async () => {
       const res = await app.fetch(adminReq("GET", "/site-settings"));
@@ -55,8 +40,6 @@ describe.skipIf(!adminCtx)("Admin site-settings routes (integration)", () => {
       expect(issSettings).toHaveLength(0);
     });
   });
-
-  // ── POST /admin/site-settings ─────────────────────────────────────────────
 
   describe("POST /admin/site-settings", () => {
     it("creates a setting with default scope (web)", async () => {
@@ -117,8 +100,6 @@ describe.skipIf(!adminCtx)("Admin site-settings routes (integration)", () => {
     });
   });
 
-  // ── GET /admin/site-settings (after creation) ────────────────────────────
-
   describe("GET /admin/site-settings (after creation)", () => {
     it("returns both iss- settings with full shape", async () => {
       const res = await app.fetch(adminReq("GET", "/site-settings"));
@@ -142,8 +123,6 @@ describe.skipIf(!adminCtx)("Admin site-settings routes (integration)", () => {
     });
   });
 
-  // ── PATCH /admin/site-settings/:key ──────────────────────────────────────
-
   describe("PATCH /admin/site-settings/:key", () => {
     it("updates value only", async () => {
       const res = await app.fetch(
@@ -153,7 +132,6 @@ describe.skipIf(!adminCtx)("Admin site-settings routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify updated value
       const listRes = await app.fetch(adminReq("GET", "/site-settings"));
       const json = await readJson(listRes);
       const updated = json.settings.find((s: { key: string }) => s.key === "iss-analytics-url");
@@ -204,8 +182,6 @@ describe.skipIf(!adminCtx)("Admin site-settings routes (integration)", () => {
       expect(res.status).toBe(400);
     });
   });
-
-  // ── DELETE /admin/site-settings/:key ─────────────────────────────────────
 
   describe("DELETE /admin/site-settings/:key", () => {
     it("deletes iss-rate-limit", async () => {

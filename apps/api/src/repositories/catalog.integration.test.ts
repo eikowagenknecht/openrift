@@ -25,14 +25,12 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
     // so this must be an object, not text.
     expect(typeof origins!.releases).toBe("object");
     expect(origins!.releases.EN).toEqual({ releasedAt: "2025-08-01", precision: "day" });
-    // A language announced without a date.
     expect(origins!.releases.KR).toEqual({ releasedAt: null, precision: null });
   });
 
   it("setBySlug carries the same release map as the list", async () => {
     const set = await repo.setBySlug("UNL");
     expect(set).toBeDefined();
-    // Coarse precision survives the round trip.
     expect(set!.releases.FR).toEqual({ releasedAt: "2026-07-01", precision: "quarter" });
   });
 
@@ -55,11 +53,9 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
     expect(first).toHaveProperty("superTypes");
     expect(first).toHaveProperty("domains");
     expect(first).toHaveProperty("keywords");
-    // Should not include normName or timestamps
     expect(first).not.toHaveProperty("normName");
     expect(first).not.toHaveProperty("createdAt");
 
-    // Verify ordering by name
     const names = cards.map((c) => c.name);
     expect(names).toEqual([...names].sort());
   });
@@ -77,7 +73,6 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
     expect(Array.isArray(first.markerSlugs)).toBe(true);
     expect(first).toHaveProperty("canonicalRank");
     expect(typeof first.canonicalRank).toBe("number");
-    // Should not include timestamps
     expect(first).not.toHaveProperty("createdAt");
     expect(first).not.toHaveProperty("promoType");
     expect(first).not.toHaveProperty("promoTypeId");
@@ -164,8 +159,7 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
       expect(section.path.length).toBeLessThanOrEqual(2);
       expect(section.printings).toHaveLength(2);
       expect(section.printingCount).toBeGreaterThanOrEqual(section.printings.length);
-      // Leaf labels repeat across branches ("Origins" sits under two parents),
-      // so the link only has to land on one channel carrying that label.
+      // Leaf labels repeat across branches (e.g. "Origins" sits under two parents).
       const channels = await db
         .selectFrom("distributionChannels")
         .select("id")
@@ -302,9 +296,8 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
   });
 
   it("printingsByCardId orders English printings before other languages", async () => {
-    // Find a card that has both an EN printing and at least one non-EN printing
-    // (e.g. a localized SC version) so the sort key is exercised. SSR meta tags
-    // and the UI's default selected printing both rely on `printings[0]` being EN.
+    // SSR meta tags and the UI's default selected printing both rely on
+    // `printings[0]` being EN.
     const allPrintings = await repo.printings();
     const cardLanguages = new Map<string, Set<string>>();
     for (const p of allPrintings) {
@@ -316,8 +309,6 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
       ([, langs]) => langs.has("EN") && langs.size > 1,
     )?.[0];
     if (!multiLangCardId) {
-      // Seed data may not contain a multilingual card; skip in that case rather
-      // than fail noisily — the unit-level guarantee still holds via the SQL.
       return;
     }
     const printings = await repo.printingsByCardId(multiLangCardId);

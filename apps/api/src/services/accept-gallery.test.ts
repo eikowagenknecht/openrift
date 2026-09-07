@@ -9,17 +9,11 @@ import type { Transact } from "../deps.js";
 import type { Io } from "../io.js";
 import { acceptFavoriteNewCard } from "./accept-gallery.js";
 
-// ── Mock the imported services so they don't pull in real deps ──────────
-// acceptPrinting owns the per-image rehost now, so this suite mocks it and
-// verifies io is threaded through rather than observing rehost directly (that
-// behavior is covered in printing-admin.test.ts).
 vi.mock("./printing-admin.js", () => ({
   acceptPrinting: vi.fn(async () => "printing-slug"),
 }));
 
 import { acceptPrinting } from "./printing-admin.js";
-
-// ── Helpers ─────────────────────────────────────────────────────────────
 
 const FAVORITE_PROVIDERS = new Set(["gallery", "tcgplayer"]);
 
@@ -93,8 +87,6 @@ function createMockRepos(
   const distributionChannels = {} as any;
   const markers = {} as any;
 
-  // Only the handful of methods the service actually calls are stubbed; the
-  // cast stands in for the rest of each repo's surface.
   const repos = {
     candidateCards,
     catalogMutations,
@@ -105,8 +97,6 @@ function createMockRepos(
 
   return { repos, candidateCards, catalogMutations };
 }
-
-// ── Tests ───────────────────────────────────────────────────────────────
 
 describe("acceptFavoriteNewCard", () => {
   beforeEach(() => {
@@ -268,7 +258,6 @@ describe("acceptFavoriteNewCard", () => {
 
     await acceptFavoriteNewCard(transact, {} as Io, repos, "flame-striker", FAVORITE_PROVIDERS);
 
-    // Only the two favorite providers should be checked, not "unknown"
     expect(candidateCards.checkCandidateCard).toHaveBeenCalledTimes(2);
     expect(candidateCards.checkCandidateCard).toHaveBeenCalledWith("cand-1");
     expect(candidateCards.checkCandidateCard).toHaveBeenCalledWith("cand-2");
@@ -281,7 +270,6 @@ describe("acceptFavoriteNewCard", () => {
 
     await acceptFavoriteNewCard(transact, io, repos, "flame-striker", FAVORITE_PROVIDERS);
 
-    // io is the 6th arg to acceptPrinting, which owns the per-image rehost.
     expect(vi.mocked(acceptPrinting).mock.calls[0][5]).toBe(io);
   });
 
@@ -306,9 +294,7 @@ describe("acceptFavoriteNewCard", () => {
 
     await acceptFavoriteNewCard(transact, {} as Io, repos, "flame-striker", FAVORITE_PROVIDERS);
 
-    // Two printings in the same group → only one acceptPrinting call
     expect(acceptPrinting).toHaveBeenCalledTimes(1);
-    // Both candidate printing IDs should be passed
     const cpIds = vi.mocked(acceptPrinting).mock.calls[0][4];
     expect(cpIds).toEqual(["cp-1", "cp-2"]);
   });

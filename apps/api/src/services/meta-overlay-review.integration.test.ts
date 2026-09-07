@@ -35,7 +35,6 @@ const createdDeckIds: string[] = [];
 
 let repos: Repos;
 let otherAdminId: string;
-/** The card the mirrored decklists name, and one an admin's list can add. */
 let sourceCardId: string;
 let addedCardId: string;
 let addedPrintingId: string;
@@ -165,11 +164,8 @@ describe.skipIf(!ctx)("overlay review", () => {
     return metaEventId;
   }
 
-  /**
-   * A mirrored event with one standings row the source gives a deck and a
-   * win count, promoted once — so every field under test has a source value
-   * an overlay can take and a release can hand back.
-   */
+  // One standings row the source gives a deck and a win count, promoted once,
+  // so every field under test has a source value to take and release.
   async function seedMirroredPlayer(
     slug: string,
   ): Promise<{ metaEventId: string; metaEventPlayerId: string; deckId: string }> {
@@ -343,8 +339,6 @@ describe.skipIf(!ctx)("overlay review", () => {
       );
       await promoteMetaEvent(repos, metaEventId);
 
-      // The source still publishes 4 on every pass; the claim is what makes
-      // the correction stick instead of being overwritten.
       const [player] = await repo.rawStandingsForEvent(metaEventId);
       expect(player).toMatchObject({ id: metaEventPlayerId, wins: 9 });
     });
@@ -414,8 +408,6 @@ describe.skipIf(!ctx)("overlay review", () => {
       );
       await promoteMetaEvent(repos, metaEventId);
 
-      // The source keeps serving the deck, so "there is no list" has to be a
-      // claim promotion re-applies rather than a one-off delete.
       const [player] = await repo.rawStandingsForEvent(metaEventId);
       expect(player).toMatchObject({ deckId: null, listStatus: "none" });
     });
@@ -569,7 +561,6 @@ describe.skipIf(!ctx)("overlay review", () => {
       const overlays = await repos.metaOverlays.acceptedPlayerOverlays(metaEventId);
       expect(overlays).toHaveLength(1);
       expect(overlays[0]).toMatchObject({ claimedFields: ["wins"], listStatus: null });
-      // The scalar it still claims keeps winning.
       const [player] = await repo.rawStandingsForEvent(metaEventId);
       expect(player.wins).toBe(9);
     });
@@ -618,7 +609,6 @@ describe.skipIf(!ctx)("overlay review", () => {
 
       await releaseEventOverlayField(repos, metaEventId, "organizer");
 
-      // The row's last claim went, so there is nothing left for it to say.
       expect(await repos.metaOverlays.acceptedEventOverlays(metaEventId)).toEqual([]);
       expect(await repo.eventById(metaEventId)).toMatchObject({ organizer: "MOR Mirror Shop" });
     });
@@ -660,8 +650,6 @@ describe.skipIf(!ctx)("overlay review", () => {
 
       await releaseEventOverlayField(repos, metaEventId, "organizer");
 
-      // The claim list must stay non-empty by CHECK, and the submitter still
-      // needs to see what happened to what they sent.
       expect(await repos.metaOverlays.eventOverlayById(overlayId)).toMatchObject({
         status: "rejected",
         claimedFields: ["organizer"],
@@ -727,8 +715,6 @@ describe.skipIf(!ctx)("overlay review", () => {
         metaEventId,
         status: "accepted",
       });
-      // The field the proposal carried comes with it, rather than being
-      // stranded under an event overlay nothing points at any more.
       expect(await repos.metaOverlays.playerOverlayById(playerOverlayId)).toMatchObject({
         metaEventId,
         eventOverlayId: null,

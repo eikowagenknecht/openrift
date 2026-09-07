@@ -328,8 +328,6 @@ describe("ingestCandidates", () => {
   });
 
   it("resolves printingId when the source omits rarity", async () => {
-    // Rarity is not part of the composite key; requiring it left sources that
-    // report finish but no rarity permanently unlinked.
     const repos = createMockRepos({
       allCardNorms: vi.fn().mockResolvedValue([{ normName: "fireball", id: "card-uuid" }]),
       allPrintingKeys: vi.fn().mockResolvedValue([
@@ -354,8 +352,6 @@ describe("ingestCandidates", () => {
   });
 
   it("resolves printingId case-insensitively on short code", async () => {
-    // Sources drift on casing ("VEN-sp3" vs "VEN-SP3"); both sides of the key
-    // are uppercased so they still link.
     const repos = createMockRepos({
       allCardNorms: vi.fn().mockResolvedValue([{ normName: "fireball", id: "card-uuid" }]),
       allPrintingKeys: vi.fn().mockResolvedValue([
@@ -380,9 +376,6 @@ describe("ingestCandidates", () => {
   });
 
   it("does not resolve a card when the name normalizes to nothing", async () => {
-    // A name with no letters or digits normalizes to "". That key identifies
-    // nothing, so it must not match a card that also normalized to "" —
-    // otherwise unrelated candidates get silently linked to one another.
     const repos = createMockRepos({
       allCardNorms: vi.fn().mockResolvedValue([{ normName: "", id: "unrelated-card-uuid" }]),
       allPrintingKeys: vi.fn().mockResolvedValue([
@@ -408,9 +401,6 @@ describe("ingestCandidates", () => {
   });
 
   it("resolves a card whose name is written in a non-Latin script", async () => {
-    // Before the normalizer preserved non-Latin letters this key was "", so
-    // the candidate never linked to its accepted printing and sat in the
-    // review queue forever even though the printing already existed.
     const repos = createMockRepos({
       allCardNorms: vi.fn().mockResolvedValue([{ normName: "影流之主", id: "card-uuid" }]),
       allPrintingKeys: vi.fn().mockResolvedValue([
@@ -1165,11 +1155,6 @@ describe("ingestCandidates", () => {
   });
 
   it("sets extraData to null on update when extra_data is undefined", async () => {
-    // The upload contract's `extra_data` field defaults to `null` (never
-    // `undefined`) once it clears zod validation, so this only exercises the
-    // update path's fallback for a hand-built IngestCard missing the field —
-    // same as the insert path (buildCandidateCardFields), which both branches
-    // now share.
     const repos = createMockRepos({
       allCandidateCardsForProvider: vi.fn().mockResolvedValue([
         {
@@ -1201,9 +1186,6 @@ describe("ingestCandidates", () => {
   });
 
   it("normalizes non-empty object values through camelCaseKeys during comparison", async () => {
-    // When comparing existing extraData (camelCase from DB) against incoming
-    // extra_data (snake_case from provider), normalize() calls camelCaseKeys()
-    // on the incoming object to ensure consistent comparison.
     const repos = createMockRepos({
       allCandidateCardsForProvider: vi.fn().mockResolvedValue([
         {
@@ -1231,8 +1213,6 @@ describe("ingestCandidates", () => {
     });
     const result = await ingestCandidates(transact, "gallery", [card]);
 
-    // camelCaseKeys converts {some_key: "new"} to {someKey: "new"} for comparison,
-    // which differs from {someKey: "old"}, so update is detected
     expect(result.updates).toBe(1);
     expect(result.updatedCards).toHaveLength(1);
   });
@@ -1263,7 +1243,6 @@ describe("ingestCandidates", () => {
     const card = makeCard({ extra_data: {} });
     const result = await ingestCandidates(transact, "gallery", [card]);
 
-    // normalize({}) returns null (empty object case), which differs from {someKey: "val"}
     expect(result.updates).toBe(1);
   });
 
@@ -1330,8 +1309,6 @@ describe("ingestCandidates", () => {
     });
     const result = await ingestCandidates(transact, "gallery", [card]);
 
-    // Only the first printing is inserted; the duplicate is dropped, not upserted
-    // over the top of it (which would be the non-deterministic flip).
     expect(result.newPrintings).toBe(1);
     expect((repos.ingest as any).insertCandidatePrinting).toHaveBeenCalledTimes(1);
     const insertCall = (repos.ingest as any).insertCandidatePrinting.mock.calls[0][0];
@@ -1360,10 +1337,6 @@ describe("ingestCandidates", () => {
   });
 
   it("two same-key printings yield a stable result independent of which value is 'last'", async () => {
-    // Same payload, but with the two colliding printings' distinguishing field
-    // swapped. A last-write-wins upsert would let the trailing value decide the
-    // stored row; the guard makes the *first* occurrence win in both orders, so
-    // the outcome is deterministic rather than order-dependent.
     const ingest = async (firstArtist: string, secondArtist: string) => {
       const repos = createMockRepos();
       const card = makeCard({
@@ -1381,8 +1354,6 @@ describe("ingestCandidates", () => {
     const a = await ingest("Alpha", "Beta");
     const b = await ingest("Beta", "Alpha");
 
-    // Exactly one write per run, always the first-listed printing, never an
-    // update layered on top of the insert.
     expect(a.inserts).toHaveLength(1);
     expect(b.inserts).toHaveLength(1);
     expect(a.updates).toHaveLength(0);

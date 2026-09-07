@@ -202,7 +202,7 @@ describe("GET /api/v1/cards/:cardSlug", () => {
     });
   });
 
-  it("maps product back-references onto the response", async () => {
+  it("maps product back-references flat onto the response, not nested under the printing", async () => {
     mockCatalogRepo.cardBySlug.mockResolvedValue(dbCard);
     mockCatalogRepo.printingsByCardId.mockResolvedValue([dbPrinting]);
     mockCatalogRepo.setsByIds.mockResolvedValue([dbSet]);
@@ -213,8 +213,6 @@ describe("GET /api/v1/cards/:cardSlug", () => {
     const res = await app.request("/api/v1/cards/jinx-rebel");
     expect(res.status).toBe(200);
     const json = await readJson(res);
-    // Flat on the response, not nested under the printing: the printing schema
-    // is shared with the synced catalog, which must not carry product data.
     expect(json.products).toEqual([
       { printingId: PRINTING_ID, slug: "prerift-jinx", name: "Pre-Rift Kit - Jinx", quantity: 2 },
     ]);

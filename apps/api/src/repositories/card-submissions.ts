@@ -44,10 +44,7 @@ export function cardSubmissionsRepo(db: Kysely<Database>) {
       return row.id;
     },
 
-    /**
-     * Always scoped by `userId` here rather than at the call site. Returns up
-     * to `limit + 1` rows, so the caller can detect a next page.
-     */
+    // Returns up to `limit + 1` rows so the caller can detect a next page.
     listByUser(
       userId: string,
       options: { cursor?: string | null; limit: number },
@@ -179,13 +176,8 @@ export function cardSubmissionsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * The live card a submission's name resolves to, checked at review time
-     * rather than trusting the slug stored at submission time (a new-card
-     * submission had no card then and may have one now).
-     *
-     * Same two-step rule as `resolveCardIdByName` in candidate-links.ts —
-     * `cards.norm_name` first, then `card_name_aliases` — done as two indexed
-     * lookups instead of loading the whole catalog index for one submission.
+     * Checked live at review time, not the slug stored at submission (a new-card submission may now have a card).
+     * Same two-step lookup as `resolveCardIdByName` in candidate-links.ts: `cards.normName` first, then `card_name_aliases`.
      */
     async liveCardByNormName(normName: string): Promise<{ id: string; slug: string } | null> {
       const direct = await db
@@ -294,11 +286,7 @@ export function cardSubmissionsRepo(db: Kysely<Database>) {
       return { snapshot: { card, printings }, cardSlug: cardRow?.slug ?? null };
     },
 
-    /**
-     * Count a user's submissions since a cutoff, for the daily cap. Counts the
-     * ledger rather than `candidate_cards` so purging staging can never hand a
-     * spammer a fresh allowance.
-     */
+    // Counts the submissions ledger, not `candidate_cards`: purging staging must not reset a user's daily cap.
     async countRecentByUser(userId: string, since: Date): Promise<number> {
       const row = await db
         .selectFrom("cardSubmissions")

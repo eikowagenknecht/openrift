@@ -11,10 +11,10 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(adminOrganizationsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
- * Admin organization provisioning (ADR-033 decision 4). Mounted under
- * `/api/admin/v1/organizations`, admin-gated by the `requireAdmin` middleware on
- * that prefix. Conflict / not-found states are thrown as `AppError` and mapped
- * by the handler's interceptor.
+ * Admin organization provisioning. Mounted under `/api/admin/v1/organizations`,
+ * admin-gated by the `requireAdmin` middleware on that prefix. Conflict /
+ * not-found states are thrown as `AppError` and mapped by the handler's
+ * interceptor.
  */
 export const adminOrganizationsRouter = {
   list: os.list.handler(async ({ context }): Promise<OrganizationListResponse> => {

@@ -84,8 +84,6 @@ describe("resolvePrintingLink", () => {
   });
 
   it("links without a rarity — rarity is not part of the gate", () => {
-    // The candidate shape carries no rarity at all: requiring one left sources
-    // that report a finish but no rarity permanently unlinked.
     expect(resolvePrintingLink(makeIndex(), candidate())).toBe("printing-uuid");
   });
 
@@ -131,9 +129,6 @@ describe("resolvePrintingLink", () => {
   });
 
   it("scopes an override to its provider, with '' as the legacy wildcard", () => {
-    // Regression (migration 253): two providers reusing the same external id
-    // must not hijack each other's pins; pre-scoping rows keep applying to
-    // every provider, and a provider-scoped row beats the wildcard.
     const index = makeIndex({
       linkOverrides: [
         { externalId: "ext-1", finish: "normal", provider: "", printingId: "wildcard-uuid" },

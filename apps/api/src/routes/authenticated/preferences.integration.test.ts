@@ -7,14 +7,8 @@ import {
 } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// The upsert merges by reading `existing?.data` and spreading it. That is a
-// plain object round-trip: the jsonb column is typed as its parsed shape and
-// postgres.js does the serializing on both legs, so a merge over several
-// PATCHes composes as written.
-
 const USER_ID = "a0000000-0044-4000-a000-000000000001";
-// A dedicated user so the emailNotifications round-trip runs as a clean first
-// PATCH, independent of whatever the shared user's preferences already hold.
+// Dedicated user so the emailNotifications round-trip runs as a clean first PATCH.
 const EMAIL_PREF_USER_ID = "a0000000-0044-4000-a000-000000000002";
 
 const ctx = createTestContext(USER_ID);
@@ -103,9 +97,6 @@ describe.skipIf(!ctx)("Preferences routes (integration)", () => {
       expect(res.status).toBe(400);
     });
 
-    // Fails without `tradeStatus` in emailNotificationPreferenceSchema: if the
-    // schema omits it, zod strips it from both the PATCH input and the
-    // response output and the profile toggle never round-trips.
     it.skipIf(!emailPrefCtx)("round-trips emailNotifications.tradeStatus", async () => {
       // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
       const emailApp = emailPrefCtx!.app;

@@ -12,12 +12,7 @@ describe("adminEventsRepo", () => {
     expect(await repo.list({}, 20)).toEqual([]);
   });
 
-  // The `action` filter is free text from the client and the column is plain
-  // `text`, so it is compared as text rather than through the AdminEventAction
-  // union. The value must stay a bound parameter, and an action outside the
-  // union must still reach the query (it simply matches nothing) rather than
-  // being dropped.
-  it("list compares the action filter as a bound text parameter", async () => {
+  it("list compares the action filter as a bound text parameter, not the AdminEventAction union", async () => {
     const { db, queries, parameters } = createRecordingDb();
 
     await adminEventsRepo(db).list({ action: "card.retired-long-ago" }, 20);
@@ -41,12 +36,7 @@ describe("adminEventsRepo", () => {
     expect(await repo.list({}, 20, "2026-01-01T00:00:00.000Z_ae-last")).toEqual([]);
   });
 
-  // Regression: the cursor parser used to pass an unparseable cursor straight
-  // into `new Date(...)` and let the resulting Invalid Date reach the Kysely
-  // query, producing an INTERNAL_ERROR 500. The query schema now rejects
-  // malformed cursors before they get this far, but keysetCursorPredicate also
-  // guards, so any unvalidated caller fails with a 400 AppError instead.
-  it("list rejects an unparseable cursor", async () => {
+  it("list rejects an unparseable cursor with a 400 AppError instead of reaching the query as an Invalid Date", async () => {
     const db = createMockDb([]);
     const repo = adminEventsRepo(db);
     await expect(repo.list({}, 20, "not-a-date")).rejects.toBeInstanceOf(AppError);

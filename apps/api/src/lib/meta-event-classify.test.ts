@@ -6,7 +6,6 @@ import {
   suggestTierForTemplateName,
 } from "./meta-event-classify.js";
 
-/** The stored default of `meta_sync_settings.competitive_player_floor`. */
 const FLOOR = 128;
 
 describe("classifyMetaEventTier", () => {

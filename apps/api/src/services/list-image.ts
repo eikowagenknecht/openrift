@@ -12,14 +12,10 @@ import { renderShareImage } from "./share-image.js";
  * the rendering and the work-bounding stay in one place.
  */
 
-/** Max entries whose art we resolve per render; the grid only shows a dozen. */
 const RENDER_ENTRY_CAP = 60;
 
-/**
- * Keeps the entries most likely to be shown (the renderer leads with the
- * highest quantities) and drops the long tail before the batched art lookup and
- * the render, so an oversized list can't force unbounded per-request work.
- */
+/** Drops the long tail before art lookup and render, so an oversized list can't
+ * force unbounded per-request work. */
 export function topByQuantity(entries: readonly ListEntryRow[]): readonly ListEntryRow[] {
   if (entries.length <= RENDER_ENTRY_CAP) {
     return entries;
@@ -29,11 +25,7 @@ export function topByQuantity(entries: readonly ListEntryRow[]): readonly ListEn
     .slice(0, RENDER_ENTRY_CAP);
 }
 
-/**
- * Maps enriched entries to render cards, resolving a representative printing's
- * art for card-kind entries (which carry no specific printing) the same way the
- * card grids pick a canonical printing.
- */
+/** Resolves art for card-kind entries via the canonical printing, same as the card grids. */
 export async function buildCards(
   entries: readonly ListEntryRow[],
   canonicalPrintings: Repos["canonicalPrintings"],
@@ -60,11 +52,8 @@ export async function buildCards(
   }));
 }
 
-/**
- * Derives the footer host (e.g. "openrift.app") from `CORS_ORIGIN`. That env var
- * is a comma-separated allow-list (see cors.ts), so we take the first origin;
- * running `new URL()` on the whole string mis-parses the authority.
- */
+/** CORS_ORIGIN is a comma-separated allow-list; new URL() on the whole string
+ * mis-parses the authority, so only the first origin is used. */
 export function siteHostFromOrigin(corsOrigin: string | undefined): string | undefined {
   const firstOrigin = corsOrigin?.split(",")[0]?.trim();
   if (!firstOrigin) {
@@ -77,11 +66,7 @@ export function siteHostFromOrigin(corsOrigin: string | undefined): string | und
   }
 }
 
-/**
- * Builds an absolute share URL for a QR from `CORS_ORIGIN` and a site-relative
- * path. Same first-origin rule as `siteHostFromOrigin`: the first entry of the
- * allow-list is the canonical site origin.
- */
+/** Same first-origin rule as {@link siteHostFromOrigin}. */
 export function shareUrlFromOrigin(
   corsOrigin: string | undefined,
   path: string,
@@ -102,14 +87,12 @@ function intentLabel(intent: string): string {
 
 // Mirrors the share text's KIND_NOUN.
 function unitForKind(kind: string): { one: string; many: string } {
-  // Copy (trade) lists merge to one tile per printing, so they count printings.
   if (kind === "printing" || kind === "copy") {
     return { one: "printing", many: "printings" };
   }
   return { one: "card", many: "cards" };
 }
 
-/** Everything needed to render a single list's share image. */
 export interface ListImageData {
   ownerName: string;
   listName: string;
@@ -117,16 +100,12 @@ export interface ListImageData {
   kind: string;
   entries: readonly ListEntryRow[];
   siteHost?: string;
-  /** Absolute share URL for the QR; absent when the list isn't shared. */
   shareUrl?: string;
   canonicalPrintings: Repos["canonicalPrintings"];
 }
 
-/**
- * Renders one list's share image from its enriched entries. `scale` renders the
- * same layout at N× for the HQ download; `options` picks the canvas and whether
- * the mark carries a scannable code.
- */
+/** `scale` renders the same layout at N× for the HQ download; `options` picks the
+ * canvas and whether the mark carries a scannable code. */
 export async function renderListImage(
   io: Io,
   data: ListImageData,

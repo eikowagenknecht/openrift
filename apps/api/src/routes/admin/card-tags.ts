@@ -15,13 +15,10 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(adminCardTagsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
- * Admin classification of the printed card tags: categories plus a tag →
- * category mapping. The tags themselves are card data; only the mapping is
- * editable here. Conflict / not-found / bad-request states are thrown as
- * `AppError` and mapped by the handler's appErrorInterceptor.
+ * The tags themselves are card data; only the tag → category mapping is
+ * editable here.
  */
 export const adminCardTagsRouter = {
-  // ── Categories ────────────────────────────────────────────────────────────
   listCategories: os.listCategories.handler(
     async ({ context }): Promise<AdminTagCategoryListResponse> => {
       const { tagCategories: catRepo, tagDefinitions: defRepo } = context.repos;
@@ -96,7 +93,6 @@ export const adminCardTagsRouter = {
     await repo.deleteById(id);
   }),
 
-  // ── Tag classification ────────────────────────────────────────────────────
   listTags: os.listTags.handler(async ({ context }): Promise<AdminCardTagListResponse> => {
     const { tagDefinitions: repo } = context.repos;
     const tags = await repo.distinctCardTags();
@@ -122,9 +118,7 @@ export const adminCardTagsRouter = {
     if (!category) {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, `Unknown category id: ${categoryId}`);
     }
-    // Every tag printed on a Legend card names that Legend, so the distinct
-    // set is the legend-tag vocabulary. Tags the admin already classified
-    // (e.g. a deliberate re-categorization) are left untouched.
+    // Tags the admin already classified are left untouched.
     const allLegendTags = await catalog.championIdentifierTags();
     const legendTags = allLegendTags.filter((tag) => tag !== "" && tag === tag.trim());
     const assigned = await repo.classifyMissing(legendTags, categoryId);

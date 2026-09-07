@@ -32,21 +32,11 @@ const PRICE_EXCLUDED_SET = {
 };
 
 export interface LoadedIgnoredKeys {
-  /** Level 2: whole upstream products (keyed by externalId). */
   productIds: Set<number>;
-  /**
-   * Level 3: per-SKU ignores keyed by `externalId::finish::language`, where
-   * `language` is the empty string when the marketplace stores NULL (CM/TCG).
-   */
   variantKeys: Set<string>;
 }
 
-/**
- * Build the canonical staging→SKU lookup key. Cardmarket and TCGPlayer store
- * NULL language; CT stores the real language. The empty-string fallback keeps
- * Map lookups consistent with what the database returns.
- * @returns `${externalId}::${finish}::${language ?? ""}`
- */
+/** Cardmarket and TCGPlayer store NULL language; CT stores the real language. */
 export function skuKey(externalId: number, finish: string, language: string | null): string {
   return `${externalId}::${finish}::${language ?? ""}`;
 }
@@ -72,12 +62,7 @@ export function priceRefreshRepo(db: Db) {
         .execute();
     },
 
-    /**
-     * @returns Both L2 (whole-product) and L3 (per-variant) ignored keys for a
-     *          marketplace. Staging ingest should skip a row if its externalId
-     *          is in `productIds` OR its `externalId::finish::language` tuple
-     *          is in `variantKeys`.
-     */
+    /** Staging ingest should skip a row if its externalId is in `productIds` OR its key is in `variantKeys`. */
     async loadIgnoredKeys(marketplace: Marketplace): Promise<LoadedIgnoredKeys> {
       const [productRows, variantRows] = await Promise.all([
         db
@@ -125,15 +110,7 @@ export function priceRefreshRepo(db: Db) {
         .execute();
     },
 
-    /**
-     * Upsert `marketplace_products` rows for a batch of SKUs and return their
-     * IDs. Every fetched SKU gets a product row so
-     * `marketplace_product_prices` has a FK target. `group_id` and
-     * `product_name` update on conflict — they legitimately change over time
-     * (renames, category moves).
-     *
-     * @returns One row per input SKU with its product id.
-     */
+    /** `group_id` and `product_name` update on conflict: they legitimately change over time. */
     upsertProductsForMarketplace(
       marketplace: Marketplace,
       skus: {
@@ -151,12 +128,8 @@ export function priceRefreshRepo(db: Db) {
       for (const sku of skus) {
         dedupByKey.set(skuKey(sku.externalId, sku.finish, sku.language), sku);
       }
-      // `doUpdateSet` (rather than `doNothing`) is what makes RETURNING cover
-      // conflicting rows as well as inserted ones — the caller needs an id for
-      // every input SKU, and most of them already exist by the second refresh.
-      // The conflict target is inferred from the column list; the index it
-      // resolves to (`marketplace_products_sku_key`) is NULLS NOT DISTINCT, so
-      // CM/TCG's NULL language still collapses onto the existing row.
+      // `doUpdateSet` makes RETURNING cover conflicting rows too; the resolved
+      // index is NULLS NOT DISTINCT, so CM/TCG's NULL language still matches.
       return db
         .insertInto("marketplaceProducts")
         .values(
@@ -189,12 +162,7 @@ export function priceRefreshRepo(db: Db) {
       return result.count;
     },
 
-    /**
-     * Batch-upsert marketplace_product_prices with IS DISTINCT FROM filtering.
-     * Rows are keyed on (marketplaceProductId, recordedAt) — one row per SKU
-     * per fetch cycle, regardless of how many printings are bound to that SKU.
-     * @returns The number of affected rows.
-     */
+    /** Rows are keyed on (marketplaceProductId, recordedAt): one per SKU per fetch cycle. */
     async upsertProductPrices(
       batch: {
         marketplaceProductId: string;
@@ -225,11 +193,7 @@ export function priceRefreshRepo(db: Db) {
       return rows.length;
     },
 
-    /**
-     * @returns One row per variant for the given marketplaces. A single
-     *          external_id can now resolve to multiple rows (e.g. foil + normal
-     *          SKUs of the same upstream product).
-     */
+    /** A single external_id can resolve to multiple rows (e.g. foil + normal SKUs). */
     existingSourcesByMarketplaces(marketplaces: Marketplace[]): Promise<
       {
         marketplace: Marketplace;
@@ -257,12 +221,7 @@ export function priceRefreshRepo(db: Db) {
         .execute();
     },
 
-    /**
-     * Batch-insert product + variant rows. Upserts the per-SKU product by
-     * `(marketplace, external_id, finish, language)` then upserts the variant
-     * by `(marketplaceProductId, printingId)`. No-ops on conflict (used by
-     * auto-match where we don't want to overwrite existing mappings).
-     */
+    /** No-ops on conflict: auto-match must not overwrite an existing mapping. */
     async batchInsertProductVariants(
       values: {
         marketplace: Marketplace;
@@ -271,7 +230,6 @@ export function priceRefreshRepo(db: Db) {
         productName: string;
         printingId: string;
         finish: string;
-        /** `null` for marketplaces that don't expose language as a SKU dimension (CM/TCG). */
         language: string | null;
       }[],
     ): Promise<void> {
@@ -308,11 +266,8 @@ export function priceRefreshRepo(db: Db) {
         )
         .execute();
 
-      // Keyed with the marketplace, unlike the single-marketplace `skuKey`.
-      // `values` spans marketplaces and the re-select above matches on
-      // `(marketplace, externalId)` pairs, so two marketplaces handing out the
-      // same external id would otherwise collapse onto one key and bind every
-      // variant to whichever product landed in the map last.
+      // Keyed with the marketplace, unlike `skuKey`: two marketplaces can hand
+      // out the same external id, which would otherwise collapse onto one key.
       const productKey = (v: {
         marketplace: Marketplace;
         externalId: number;

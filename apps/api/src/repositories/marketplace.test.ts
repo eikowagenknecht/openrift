@@ -57,8 +57,8 @@ describe("marketplaceRepo (generated SQL)", () => {
   });
 
   it("sourcesForPrinting reads only the variants bound to that printing", async () => {
-    // Migration 107 materialised cross-language aggregates as their own
-    // variant rows, so there is no sibling fan-out left to replay here.
+    // Cross-language aggregates are materialised as their own variant rows,
+    // so there is no sibling fan-out left to replay here.
     await marketplaceRepo(captured.db).sourcesForPrinting("pr-1");
 
     const { sql, parameters } = onlyStatement(captured);

@@ -6,14 +6,8 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminCoreRouter } from "./core";
 
-// ---------------------------------------------------------------------------
-// Test app — mount the oRPC router directly (without the requireAdmin gate).
-// `me` never errors, so no AppError bridging is exercised here. It resolves
-// access via getAdminAccess, so admins/adminGrants are stubbed. getAdminAccess
-// caches positive results per user id for 30s (module-level), so each test uses
-// a distinct user id.
-// ---------------------------------------------------------------------------
-
+// getAdminAccess caches positive results per user id for 30s (module-level),
+// so each test uses a distinct user id.
 const mockAdminsRepo = { isAdmin: vi.fn() };
 const mockAdminGrantsRepo = { sectionsForUser: vi.fn() };
 
@@ -26,10 +20,6 @@ app.use("*", async (c, next) => {
   await next();
 });
 registerRouterForTest(app, adminCoreRouter);
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("GET /api/admin/v1/me", () => {
   beforeEach(() => {

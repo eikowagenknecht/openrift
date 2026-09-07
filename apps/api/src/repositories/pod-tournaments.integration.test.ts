@@ -22,8 +22,6 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
   const repos = createRepos(db);
   const podRepo = repos.podTournaments;
   const tournamentsRepo = repos.tournaments;
-  // The defaults a freshly created tournament carries; the derived reads take
-  // the scoring knobs explicitly, so pass the same values the repo would store.
   const scoring: PodScoring = {
     scheme: "standard",
     byePoints: 3,
@@ -72,8 +70,7 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
     return { tournament, players };
   }
 
-  // Report every pod in the open round with strictly descending game points in
-  // member order, so the derived placements come out 1..size (member 0 wins).
+  // Strictly descending game points in member order, so derived placements come out 1..size.
   async function reportOpenRound(tournamentId: string) {
     const rounds = await loadRounds(tournamentId, scoring);
     const open = rounds.find((round) => round.status === "reporting");
@@ -111,12 +108,10 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
 
     const standings = await podRepo.computeStandings(tournament.id, scoring);
     expect(standings).toHaveLength(8);
-    // Two 4-pods scored [3,2,1,0]: the field total is 12, everyone played one 4-pod.
     expect(standings.reduce((sum, row) => sum + row.score, 0)).toBe(12);
     expect(standings.every((row) => row.roundsPlayed === 1)).toBe(true);
     expect(standings.every((row) => row.pods4Count === 1 && row.pods3Count === 0)).toBe(true);
 
-    // The pairing snapshot now carries opponent history: each player met 3 others once.
     const snapshot = await podRepo.loadPairingSnapshot(tournament.id, scoring);
     expect(snapshot).toHaveLength(8);
     for (const player of snapshot) {
@@ -137,8 +132,6 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
     const memberOf = (state: Awaited<ReturnType<typeof podAfter>>, playerId: string) =>
       state.members.find((member) => member.playerId === playerId)!;
 
-    // Three of four players report their own scores: the pod stays pending, the
-    // entered points are visible, and no placements are derived yet.
     for (const [index, member] of pod.members.slice(0, 3).entries()) {
       await submitPodPlayerResult(repos, tournament.id, pod.id, member.playerId, 4 - index);
     }
@@ -147,14 +140,12 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
     expect(state.members.filter((member) => member.gamePoints !== null)).toHaveLength(3);
     expect(state.members.every((member) => member.placement === null)).toBe(true);
 
-    // The last score completes the pod: placements derive and the status flips.
     await submitPodPlayerResult(repos, tournament.id, pod.id, pod.members[3]!.playerId, 1);
     state = await podAfter();
     expect(state.resultStatus).toBe("reported");
     expect(memberOf(state, pod.members[0]!.playerId).placement).toBe(1);
     expect(memberOf(state, pod.members[3]!.playerId).placement).toBe(4);
 
-    // A player correcting their own score re-derives the placements.
     await submitPodPlayerResult(repos, tournament.id, pod.id, pod.members[3]!.playerId, 9);
     state = await podAfter();
     expect(state.resultStatus).toBe("reported");
@@ -197,7 +188,6 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
       secondOpen.roundNumber,
     );
 
-    // A tournament with no finalized rounds has no winner.
     const { tournament: unplayed } = await freshTournament(4);
 
     const winners = await podRepo.winnersAcross(
@@ -231,7 +221,6 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
     const afterReroll = await loadRounds(tournament.id, scoring);
     expect(afterReroll).toHaveLength(1);
     expect(afterReroll[0]!.roundNumber).toBe(1);
-    // Re-roll replaces the pods (fresh ids).
     expect(afterReroll[0]!.pods.map((pod) => pod.id)).not.toEqual(podIdsBefore);
   });
 
@@ -274,8 +263,6 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
     expect(scoreOf(before, first)).toBe(3);
     expect(scoreOf(before, second)).toBe(2);
 
-    // Swap 1st and 2nd in that pod (owner edit of a finalized round): now `second`
-    // has the most game points, so the derived placements flip.
     await submitPodResult(
       repos,
       tournament.id,
@@ -301,13 +288,11 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
     const reloaded = await tournamentsRepo.findById(tournament.id);
     await finalizeRound(repos, reloaded!, open.roundNumber);
 
-    // Drop one player after round 1.
     const dropped = players[0]!;
     await podRepo.dropPlayer(dropped.id, 1);
 
     const standings = await podRepo.computeStandings(tournament.id, scoring);
     expect(standings.find((row) => row.playerId === dropped.id)!.status).toBe("dropped");
-    // 7 active players pair into 1x4 + 1x3 (the dropped player is not seated).
     const afterDrop = await tournamentsRepo.findById(tournament.id);
     const snapshot = await podRepo.loadPairingSnapshot(tournament.id, scoring);
     expect(snapshot.map((player) => player.id)).not.toContain(dropped.id);
@@ -322,11 +307,6 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
   });
 
   it("excludes non-roster participants (requested/invited/no_show) from the run surface", async () => {
-    // Regression: a self-registration through the open
-    // submission link creates a `requested` participant, and the run surface
-    // (players, standings, winners) must not serve it — the pod response
-    // schemas only accept the active/dropped roster, so a leaked row 500s
-    // `runState` on output validation.
     const { tournament, players } = await freshTournament(4);
     await repos.tournaments.createParticipant({
       tournamentId: tournament.id,
@@ -375,7 +355,6 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
     const snapshot = await podRepo.loadPairingSnapshot(tournament.id, scoring);
     const lateSnapshot = snapshot.find((player) => player.id === late.id)!;
     expect(lateSnapshot.opponents.size).toBe(0);
-    // Round 1's pods do not include the late joiner.
     const reloadedRounds = await loadRounds(tournament.id, scoring);
     const round1 = reloadedRounds[0]!;
     const round1Players = round1.pods.flatMap((pod) =>
@@ -430,13 +409,12 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
 
     const standings = await podRepo.computeStandings(tournament.id, scoring);
     const byeRow = standings.find((row) => row.playerId === sittingOut.id)!;
-    expect(byeRow.score).toBe(3); // the tournament's bye points (default 3)
+    expect(byeRow.score).toBe(3);
     expect(byeRow.byeCount).toBe(1);
     expect(byeRow.roundsPlayed).toBe(1);
     expect(byeRow.pods3Count).toBe(0);
     expect(byeRow.pods4Count).toBe(0);
-    expect(byeRow.gamePoints).toBe(0); // a bye plays no game, so no game points
-    // The bye player has no opponent history.
+    expect(byeRow.gamePoints).toBe(0);
     const snapshot = await podRepo.loadPairingSnapshot(tournament.id, scoring);
     expect(snapshot.find((player) => player.id === sittingOut.id)!.opponents.size).toBe(0);
     expect(snapshot.find((player) => player.id === sittingOut.id)!.byes).toBe(1);
@@ -461,21 +439,18 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
       byePoints: 0,
     });
     const byeRow = standings.find((row) => row.playerId === sittingOut.id)!;
-    expect(byeRow.score).toBe(0); // sat out earns nothing
+    expect(byeRow.score).toBe(0);
     expect(byeRow.byeCount).toBe(1);
     expect(byeRow.roundsPlayed).toBe(1);
   });
 
   it("breaks a score tie by total game points, then average opponent game points", async () => {
-    // Two 4-pods. We hand-report game points so two players tie on tournament
-    // score (both placed 2nd in their pod -> 2 pts) but differ on raw game points.
     const { tournament } = await freshTournament(8);
     await pairNextRound(repos, tournament);
     const rounds = await loadRounds(tournament.id, scoring);
     const open = rounds[0]!;
     const runnersUp: string[] = [];
     for (const pod of open.pods) {
-      // Member order finishes 1st..4th, but the runner-up's game points differ by pod.
       const runnerUpPoints = runnersUp.length === 0 ? 7 : 6;
       runnersUp.push(pod.members[1]!.playerId);
       await submitPodResult(
@@ -497,7 +472,6 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
     const standings = await podRepo.computeStandings(tournament.id, scoring);
     const [firstRunnerUp, secondRunnerUp] = runnersUp;
     const rowOf = (id: string) => standings.find((row) => row.playerId === id)!;
-    // Both runners-up scored 2 tournament points, but the 7-game-point one ranks higher.
     expect(rowOf(firstRunnerUp!).score).toBe(2);
     expect(rowOf(secondRunnerUp!).score).toBe(2);
     expect(rowOf(firstRunnerUp!).gamePoints).toBe(7);
@@ -518,23 +492,17 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
   });
 
   it("orders standings by score, then pod wins, then average opponent score", async () => {
-    // Two finalized 4-pods. In pod A players tie so scores collide; pod wins and
-    // opponent strength then separate them.
     const { tournament, players } = await freshTournament(8);
     await pairNextRound(repos, tournament);
     const rounds = await loadRounds(tournament.id, scoring);
     const open = rounds[0]!;
-    // Give everyone a 1st (sole win) vs a shared lower finish in their pod so we
-    // get a spread of pod wins; placements 1..4 in member order = one sole win each.
     await reportOpenRound(tournament.id);
     const reloaded = await tournamentsRepo.findById(tournament.id);
     await finalizeRound(repos, reloaded!, open.roundNumber);
 
     const standings = await podRepo.computeStandings(tournament.id, scoring);
-    // Sorted by score desc; the two pod winners (3 pts, 1 win) lead.
     expect(standings[0]!.score).toBe(3);
     expect(standings[0]!.podWins).toBe(1);
-    // Monotonic non-increasing on the composite key.
     for (let i = 1; i < standings.length; i++) {
       const previous = standings[i - 1]!;
       const current = standings[i]!;
@@ -557,13 +525,11 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
     await finalizeRound(repos, reloaded!, open.roundNumber);
 
     const standard = await podRepo.computeStandings(tournament.id, scoring);
-    // Standard 3-pod scores [3,2,1]: field total across two 3-pods is 12.
     expect(standard.reduce((sum, row) => sum + row.score, 0)).toBe(12);
 
     await tournamentsRepo.updateSettings(tournament.id, { scoringScheme: "three_pod_reduced" });
     const after = await tournamentsRepo.findById(tournament.id);
     const reduced = await podRepo.computeStandings(tournament.id, scoringOf(after!));
-    // Reduced 3-pod scores [3,1.5,0]: field total is 9.
     expect(reduced.reduce((sum, row) => sum + row.score, 0)).toBe(9);
   });
 
@@ -575,7 +541,6 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
     const everyone = open.pods.flatMap((pod) => pod.members.map((member) => member.playerId));
     const reloaded = await tournamentsRepo.findById(tournament.id);
 
-    // Re-partition the same 8 players into a fresh 4+4 split.
     await replaceRoundPairing(
       repos,
       reloaded!,
@@ -592,7 +557,6 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
       after[0]!.pods.flatMap((pod) => pod.members.map((member) => member.playerId)).toSorted(),
     ).toEqual(everyone.toSorted());
 
-    // An invalid partition (a 5-pod) is rejected.
     await expect(
       replaceRoundPairing(
         repos,
@@ -615,7 +579,6 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
     const everyone = open.pods.flatMap((pod) => pod.members.map((member) => member.playerId));
     const reloaded = await tournamentsRepo.findById(tournament.id);
 
-    // Sit one player out: 7 seated -> 4 + 3, one bye.
     await replaceRoundPairing(
       repos,
       reloaded!,
@@ -630,8 +593,6 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
     expect(after[0]!.byes.map((bye) => bye.playerId)).toEqual([everyone[7]!]);
     expect(after[0]!.pods.map((pod) => pod.size).toSorted()).toEqual([3, 4]);
   });
-
-  // ── Swiss (1v1 matches as 2-player pods) ─────────────────────────────────
 
   async function freshSwissTournament(playerCount: number) {
     const { tournament, players } = await freshTournament(playerCount);
@@ -648,9 +609,8 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
     const open = rounds[0]!;
     expect(open.pods).toHaveLength(2);
     expect(open.pods.every((pod) => pod.size === 2)).toBe(true);
-    expect(open.byes).toHaveLength(1); // the auto-bye
+    expect(open.byes).toHaveLength(1);
 
-    // Match 1: member 0 wins 2-0. Match 2: a 1-1 draw.
     const [first, second] = open.pods;
     await submitPodResult(
       repos,
@@ -681,16 +641,15 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
     const loser = rowOf(first!.members[1]!.playerId);
     const drawnA = rowOf(second!.members[0]!.playerId);
     const byeRow = rowOf(open.byes[0]!.playerId);
-    expect(winner.score).toBe(3); // win points
+    expect(winner.score).toBe(3);
     expect(winner.wins).toBe(1);
     expect(winner.losses).toBe(0);
     expect(loser.score).toBe(0);
     expect(loser.losses).toBe(1);
-    expect(drawnA.score).toBe(1); // draw points
+    expect(drawnA.score).toBe(1);
     expect(drawnA.draws).toBe(1);
-    expect(byeRow.score).toBe(3); // bye points
+    expect(byeRow.score).toBe(3);
     expect(byeRow.byeCount).toBe(1);
-    // 2-pods never count toward the pod tallies.
     expect(standings.every((row) => row.pods3Count === 0 && row.pods4Count === 0)).toBe(true);
   });
 
@@ -759,13 +718,10 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
     const standings = await podRepo.computeStandings(tournament.id, scoring);
     expect(standings.find((row) => row.playerId === players[1]!.id)!.region).toBe("noxus");
 
-    // Pairing rejects a seated player without a region, so give the other two
-    // theirs before generating.
+    // Pairing rejects a seated player without a region.
     await repos.tournaments.updateParticipant(players[2]!.id, { region: "demacia" });
     await repos.tournaments.updateParticipant(players[3]!.id, { region: "demacia" });
 
-    // The engine avoids the noxus mirror: 4 players, two of them noxus, so a
-    // region-clean perfect matching exists and must be found.
     const reloaded = await tournamentsRepo.findById(tournament.id);
     await pairNextRound(repos, reloaded!);
     const pairedRounds = await loadRounds(tournament.id, scoring);
@@ -783,7 +739,6 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
     const everyone = open.pods.flatMap((pod) => pod.members.map((member) => member.playerId));
     const reloaded = await tournamentsRepo.findById(tournament.id);
 
-    // A 4-pod is invalid in a swiss tournament...
     await expect(
       replaceRoundPairing(
         repos,
@@ -793,7 +748,6 @@ describe.skipIf(!ctx)("podTournamentsRepo (integration)", () => {
         [],
       ),
     ).rejects.toMatchObject({ status: 400 });
-    // ...while swapping the two matches manually is fine.
     await replaceRoundPairing(
       repos,
       reloaded!,

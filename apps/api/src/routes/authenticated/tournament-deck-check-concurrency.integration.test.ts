@@ -6,13 +6,8 @@ import type { TestContext } from "../../test/integration-context.js";
 import { createTestContext, req } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// Integration counterpart to the mocked concurrency regression test in
-// tournament-deck-check.test.ts: setEntryState re-loads the entry under a
-// `FOR UPDATE` lock inside the transaction (deckCheck.getEntryForUpdate), so
-// two near-simultaneous judge transitions serialize instead of both
-// validating against the same pre-transaction snapshot and the later commit
-// silently overwriting the earlier one. This drives the race through the
-// real app and two real, concurrently-committing Postgres transactions.
+// Drives the tournament-deck-check.test.ts concurrency case through the real
+// app with two real, concurrently-committing Postgres transactions.
 
 const HOST_ID = crypto.randomUUID();
 const JUDGE_A_ID = crypto.randomUUID();
@@ -59,9 +54,7 @@ describe.skipIf(!hostCtx)("setEntryState concurrent judge transitions (integrati
     tournamentId = ((await readJson(created)) as { id: string }).id;
     await repos.tournaments.addStaff(tournamentId, JUDGE_A_ID, "judge");
     await repos.tournaments.addStaff(tournamentId, JUDGE_B_ID, "judge");
-    // The deck-check event view treats only a "running" tournament as active
-    // (tournamentToEvent maps status running -> active); judging happens once
-    // the tournament is under way, so move it out of "setup".
+    // tournamentToEvent maps status running -> active; deck-check only treats an active event.
     await repos.tournaments.updateSettings(tournamentId, { status: "running" });
   });
 
@@ -94,19 +87,12 @@ describe.skipIf(!hostCtx)("setEntryState concurrent judge transitions (integrati
         }),
       );
 
-    // Both judges approve the same submitted entry at (nearly) the same time.
-    // Only a submitted entry can be approved (applyJudgeTransition), so
-    // whichever request's transaction commits first flips the entry to
-    // "approved"; the other's row-locked re-load sees that committed state
-    // and the guard rejects its own approve as no longer valid.
     const [resultA, resultB] = await Promise.all([approve(judgeA), approve(judgeB)]);
     const statuses = [resultA.status, resultB.status].toSorted((left, right) => left - right);
     expect(statuses).toEqual([200, 409]);
 
     const winnerId = resultA.status === 200 ? JUDGE_A_ID : JUDGE_B_ID;
 
-    // The final row reflects exactly the winner's transition — never a mix of
-    // both requests, and never silently overwritten by the loser.
     const finalEntry = await repos.deckCheck.getEntry(tournamentId, entryId);
     expect(finalEntry?.state).toBe("approved");
     expect(finalEntry?.reviewOutcome).toBe("ok");

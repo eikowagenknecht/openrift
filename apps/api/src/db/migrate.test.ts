@@ -6,10 +6,8 @@ import { describe, expect, it, vi } from "vitest";
 import { migrate, rollback } from "./migrate.js";
 import type { Database } from "./types.js";
 
-// migrate()/rollback() run normalizeMigrationTimestamps, which issues a raw
-// `sql` query through the db's executor. These unit tests mock the Migrator, so
-// the db only needs an executor that returns no rows — normalizeMigrationTimestamps
-// then treats the migration table as absent and no-ops.
+// migrate()/rollback() run normalizeMigrationTimestamps against the executor;
+// an executor returning no rows makes it treat the migration table as absent.
 const fakeExecutor = {
   transformQuery: (node: unknown) => node,
   compileQuery: () => ({ sql: "", parameters: [] }),

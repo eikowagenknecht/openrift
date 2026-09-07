@@ -141,12 +141,10 @@ describe("printingImagesRepo", () => {
     expect(await printingImagesRepo(db).getPrintingById("p-1")).toEqual({ id: "p-1" });
   });
 
-  // ── rehostStatusBySet (lines 233-247 — needs real DB for callback coverage) ──
-
   it("rehostStatusBySet returns per-set stats via real DB", async () => {
     const ctx = createDbContext("a0000000-0034-4000-a000-000000000001");
     if (!ctx) {
-      return; // skip when no DB available
+      return;
     }
     const repo = printingImagesRepo(ctx.db);
     const result = await repo.rehostStatusBySet();

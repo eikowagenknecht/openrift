@@ -10,8 +10,7 @@ import { createTrade } from "./card-trades.js";
 import { flushCoalescedTradeRequests } from "./trade-notifications.js";
 import type { TradeEmailDeps } from "./trade-notifications.js";
 
-// Random per-file users, self-inserted below. This file keeps its own upsert
-// (rather than seedTestUser) because it toggles emailVerified per-case.
+// Own upsert, not seedTestUser: emailVerified toggles per-case.
 const GIVER_ID = crypto.randomUUID();
 const RECEIVER_ID = crypto.randomUUID();
 const ALL_USER_IDS = [GIVER_ID, RECEIVER_ID];
@@ -27,7 +26,6 @@ describe.skipIf(!ctx)("trade-request coalescing (integration)", () => {
   const createdGroupIds: string[] = [];
   const log = createLogger("test", "silent");
 
-  // Captures every email a createTrade / flush call would send.
   function makeSink() {
     const sent: { to: string; subject: string }[] = [];
     // oxlint-disable-next-line require-await -- mock matches the async sender shape
@@ -116,7 +114,6 @@ describe.skipIf(!ctx)("trade-request coalescing (integration)", () => {
     return created.id;
   }
 
-  // Giver shares one trade copy of each printing; receiver wishes one of each.
   async function setupMatch() {
     const slug = `co-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`;
     const group = await groupsRepo.createWithOwner(
@@ -180,8 +177,6 @@ describe.skipIf(!ctx)("trade-request coalescing (integration)", () => {
     );
   }
 
-  // Backdates every queued request from GIVER↔RECEIVER so a trailing-debounce
-  // window counts it as settled.
   async function backdateRequests(minutesAgo: number) {
     await db
       .updateTable("cardTrades")
@@ -202,7 +197,6 @@ describe.skipIf(!ctx)("trade-request coalescing (integration)", () => {
   }
 
   it("sends every request immediately on the instant cadence", async () => {
-    // The recipient is the non-initiator (GIVER); give them the instant cadence.
     await repos.userPreferences.upsert(GIVER_ID, {
       emailNotifications: { tradeRequestCadence: "instant" },
     });
@@ -210,28 +204,24 @@ describe.skipIf(!ctx)("trade-request coalescing (integration)", () => {
     const { sent, sendEmail } = makeSink();
 
     await requestAsReceiver(group, PRINTING_1.id, emailDeps(sendEmail));
-    expect(sent).toHaveLength(1); // sent right away
+    expect(sent).toHaveLength(1);
 
     await requestAsReceiver(group, PRINTING_2.id, emailDeps(sendEmail));
-    expect(sent).toHaveLength(2); // instant = no coalescing, every request emails
+    expect(sent).toHaveLength(2);
   });
 
   it("queues a burst on a timed cadence and folds it into one email once it settles", async () => {
-    // Default cadence (5 min) — nothing is sent instantly.
     const group = await setupMatch();
     const instant = makeSink();
     await requestAsReceiver(group, PRINTING_1.id, emailDeps(instant.sendEmail));
     await requestAsReceiver(group, PRINTING_2.id, emailDeps(instant.sendEmail));
     expect(instant.sent).toHaveLength(0);
 
-    // A flush while the burst is still fresh leaves the rows queued (not due).
     const early = makeSink();
     const earlyResult = await flushCoalescedTradeRequests(flushDeps(early.sendEmail));
     expect(earlyResult.emailsSent).toBe(0);
     expect(early.sent).toHaveLength(0);
 
-    // Once the last request is older than the window, the burst is due and both
-    // requests fold into a single email.
     await backdateRequests(6);
     const flush = makeSink();
     const result = await flushCoalescedTradeRequests(flushDeps(flush.sendEmail));
@@ -242,7 +232,6 @@ describe.skipIf(!ctx)("trade-request coalescing (integration)", () => {
     expect(flush.sent[0].subject).toContain("wants 2 of your cards");
     expect(flush.sent[0].subject).not.toContain("more");
 
-    // A second flush has nothing left to send (the rows are now claimed).
     const flush2 = makeSink();
     const result2 = await flushCoalescedTradeRequests(flushDeps(flush2.sendEmail));
     expect(result2.emailsSent).toBe(0);
@@ -254,16 +243,13 @@ describe.skipIf(!ctx)("trade-request coalescing (integration)", () => {
     const group = await setupMatch();
     const { sent, sendEmail } = makeSink();
 
-    // Opted out: nothing sent instantly, and both requests sit queued (NULL).
     await requestAsReceiver(group, PRINTING_1.id, emailDeps(sendEmail));
     await requestAsReceiver(group, PRINTING_2.id, emailDeps(sendEmail));
     expect(sent).toHaveLength(0);
 
-    // Suppressed pairs are claimed-and-skipped even while fresh, so they aren't
-    // reconsidered every tick.
     const flush = makeSink();
     const result = await flushCoalescedTradeRequests(flushDeps(flush.sendEmail));
-    expect(flush.sent).toHaveLength(0); // suppressed, no email
+    expect(flush.sent).toHaveLength(0);
     expect(result.emailsSent).toBe(0);
 
     const remaining = await repos.cardTrades.listPendingRequestEmails();

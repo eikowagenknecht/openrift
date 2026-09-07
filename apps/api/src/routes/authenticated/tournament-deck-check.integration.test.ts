@@ -5,11 +5,6 @@ import { CARD_FURY_RUNE, CARD_FURY_UNIT } from "../../test/fixtures/constants.js
 import { createTestContext, req } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// Route-level integration tests for the additive deck-check surfaces: the
-// tournament-scoped judge API (host + staff authorization, with a 403 for an
-// unrelated user), the host-scoped integration keys (a user host and an org
-// host), and the group "Events" tournament lens.
-
 const HOST_ID = crypto.randomUUID();
 const JUDGE_ID = crypto.randomUUID();
 const STRANGER_ID = crypto.randomUUID();
@@ -66,9 +61,8 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
         .execute();
     }
 
-    // An organization owned by ORG_OWNER, for the org-scoped key tests. One
-    // transaction: `fk_organizations_owner_membership` is deferred, so the org
-    // and its owner's membership row have to commit together.
+    // `fk_organizations_owner_membership` is deferred, so the org and its
+    // owner's membership row must commit in one transaction.
     await host.db.transaction().execute(async (trx) => {
       await trx
         .insertInto("organizations")
@@ -81,14 +75,12 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
         .execute();
     });
 
-    // A friend group owned by HOST with MEMBER as a plain member, for the lens.
     const group = await repos.friendGroups.createWithOwner(
       { slug: GROUP_SLUG, name: "TDC Group", description: null, code: null },
       HOST_ID,
     );
     await repos.friendGroups.addMember(group.id, MEMBER_ID, "member");
 
-    // A deck-check tournament hosted by HOST inside the group; JUDGE is staff.
     const created = await host.app.fetch(
       req("POST", "/tournaments", {
         name: "Deck Check Cup",
@@ -101,9 +93,7 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
     );
     tournamentId = ((await readJson(created)) as { id: string }).id;
     await repos.tournaments.addStaff(tournamentId, JUDGE_ID, "judge");
-    // The deck-check event view treats only a "running" tournament as active
-    // (tournamentToEvent maps status running -> active); judging happens once the
-    // tournament is under way, so move it out of "setup".
+    // tournamentToEvent maps status running -> active; deck-check only treats an active event.
     await repos.tournaments.updateSettings(tournamentId, { status: "running" });
   });
 
@@ -150,7 +140,6 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
       entryId = body.entry.id;
       expect(body.cards).toHaveLength(1);
 
-      // A second deck for the same participant is rejected (one deck per player).
       const dup = await judge.app.fetch(
         req("POST", `/tournaments/${tournamentId}/deck-check/entries`, {
           participantId: participant.id,
@@ -184,7 +173,6 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
       );
       expect(tick.status).toBe(204);
 
-      // An unrelated user cannot tick.
       const denied = await stranger.app.fetch(
         req("PUT", `/tournaments/${tournamentId}/deck-check/entries/${entryId}/cards/${cardId}`, {
           copyIndex: 0,
@@ -205,8 +193,7 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
         return ((await readJson(res)) as Summary).event;
       };
 
-      // entryId was driven to "approved" by the prior test; it must show up in
-      // the approved bucket, not the checked one (the two stages are distinct).
+      // entryId was driven to "approved" by the prior test.
       const before = await fetchSummary();
       expect(before.approvedCount).toBeGreaterThanOrEqual(1);
 
@@ -218,8 +205,6 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
       );
       expect(checked.status).toBe(200);
 
-      // Moving one entry approved -> checked shifts it between buckets without
-      // changing the active total.
       const after = await fetchSummary();
       expect(after.checkedCount).toBe(before.checkedCount + 1);
       expect(after.approvedCount).toBe(before.approvedCount - 1);
@@ -246,7 +231,6 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
         const created = await judge.app.fetch(
           req("POST", `/tournaments/${tournamentId}/deck-check/entries`, {
             participantId: participant.id,
-            // A multi-copy line with no ticks set, so an auto-fill is observable.
             cards: [{ name: CARD_FURY_UNIT.name, quantity: 3, section: "main" }],
           }),
         );
@@ -255,18 +239,15 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
         return entry;
       };
 
-      // A clean "Mark checked" verifies the whole list, so all three copies tick.
       const cleanEntry = await driveToApproved("Auto Aria");
       await setState(cleanEntry, { state: "checked", reviewOutcome: "ok" });
       const checkedCards = await fetchCards(cleanEntry);
       expect(checkedCards[0]!.foundCopies).toEqual([true, true, true]);
 
-      // Re-opening that entry clears the auto-filled ticks back to a clean slate.
       await setState(cleanEntry, { state: "submitted" });
       const reopenedCards = await fetchCards(cleanEntry);
       expect(reopenedCards[0]!.foundCopies ?? []).not.toContain(true);
 
-      // A flagged check leaves the ticks untouched (still all unfound here).
       const flaggedEntry = await driveToApproved("Flagged Fae");
       await setState(flaggedEntry, { state: "checked", reviewOutcome: "issue" });
       const flaggedCards = await fetchCards(flaggedEntry);
@@ -293,7 +274,6 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
       );
       expect(removed.ok).toBe(true);
 
-      // The deck-check entry is deleted, not left orphaned with a null participant.
       const gone = await host.app.fetch(
         req("GET", `/tournaments/${tournamentId}/deck-check/entries/${newEntryId}`),
       );
@@ -322,7 +302,6 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
         return body.entries.find((entry) => entry.participantId === participant.id);
       };
 
-      // While the player is active, the deck carries an active status (no flag).
       const whileActive = await findEntry();
       expect(whileActive?.participantStatus).toBe("active");
 
@@ -331,8 +310,6 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
       );
       expect(dropped.ok).toBe(true);
 
-      // Dropping the participant leaves the deck in place but flips the status the
-      // judge list reads, so it can flag the deck without the entry being deleted.
       const after = await findEntry();
       expect(after).toBeDefined();
       expect(after?.participantStatus).toBe("dropped");
@@ -368,7 +345,6 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
       const items = ((await readJson(list)) as { items: { id: string }[] }).items;
       expect(items.some((item) => item.id === keyId)).toBe(true);
 
-      // A personal key is private to its host.
       const otherList = await stranger.app.fetch(req("GET", "/me/deck-check-keys"));
       const otherItems = ((await readJson(otherList)) as { items: { id: string }[] }).items;
       expect(otherItems.some((item) => item.id === keyId)).toBe(false);
@@ -412,9 +388,8 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
   });
 
   describe("resolveOrCreateParticipant (deck attach + match)", () => {
-    // Its own tournament so the roster starts empty — MEMBER/STRANGER already
-    // have participants in the shared tournament from the judge-API tests, which
-    // would collide with the one-per-account index here.
+    // A fresh tournament: MEMBER/STRANGER already have participants in the
+    // shared tournament, which would collide with the one-per-account index.
     let rpId = "";
     beforeAll(async () => {
       const created = await host.app.fetch(
@@ -436,8 +411,7 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
       });
       expect(created.displayName).toBe("Fresh Walkin");
       expect(created.userId).toBeNull();
-      // Walk-ins are not de-duped (matching is by linked account only, never
-      // by name or email): a second account-less call is a distinct person.
+      // Walk-ins are matched only by linked account, never by name or email.
       const again = await repos.tournaments.resolveOrCreateParticipant({
         tournamentId: rpId,
         displayName: "Another Walkin",
@@ -486,11 +460,8 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
     });
   });
 
-  // The happy transitions live in "tournament-scoped judge API" above; these
-  // pin the rejections, the negative half of the state machine.
+  // The happy transitions live in "tournament-scoped judge API" above.
   describe("lifecycle transition guards", () => {
-    // A fresh participant + submitted manual entry per case, so the transitions
-    // never bleed across tests sharing the one tournament.
     const newSubmittedEntry = async (displayName: string): Promise<string> => {
       const participant = await repos.tournaments.createParticipant({
         tournamentId,
@@ -519,30 +490,24 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
     it("rejects approving an entry that is not submitted", async () => {
       const entry = await newSubmittedEntry("Guard Garen");
       await expectState(entry, { state: "approved" }, 200);
-      // A second approve, now from "approved", violates the submitted-only guard.
       await expectState(entry, { state: "approved" }, 409);
     });
 
     it("rejects checking an entry that has not been approved", async () => {
       const entry = await newSubmittedEntry("Guard Lux");
-      // Still "submitted": the physical check needs an approved list first, so
-      // the state guard fires before the outcome is even considered.
       await expectState(entry, { state: "checked", reviewOutcome: "ok" }, 409);
     });
 
     it("requires a review outcome to mark an approved entry checked", async () => {
       const entry = await newSubmittedEntry("Guard Yi");
       await expectState(entry, { state: "approved" }, 200);
-      // Approved but no outcome on the check -> 422 from the transition validator.
       await expectState(entry, { state: "checked" }, 422);
     });
 
     it("locks a withdrawn entry to everything but the restore to submitted", async () => {
       const entry = await newSubmittedEntry("Guard Annie");
       await expectState(entry, { state: "withdrawn" }, 200);
-      // Any non-restore transition on a withdrawn entry is refused.
       await expectState(entry, { state: "approved" }, 409);
-      // The restore back to submitted is the one move that is allowed.
       await expectState(entry, { state: "submitted" }, 200);
     });
   });
@@ -564,9 +529,7 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
     });
 
     it("rejects adding a deck to an archived tournament with 409", async () => {
-      // A throwaway archived deck-check tournament, so the shared one keeps
-      // running. Built while "setup", staffed, then completed (status completed
-      // maps to the event's "archived").
+      // status completed maps to the deck-check event's "archived".
       const created = await host.app.fetch(
         req("POST", "/tournaments", {
           name: "Archived Cup",
@@ -595,8 +558,6 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
     });
   });
 
-  // moveCardCopies (split + merge), removeCardCopy (tick splice), and the
-  // server-re-derived zone-fix apply — the trickiest array logic in the repo.
   describe("on-site repair", () => {
     const fetchCards = async (entry: string): Promise<CardLine[]> => {
       const res = await host.app.fetch(
@@ -629,8 +590,6 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
       ]);
       const created = await fetchCards(entry);
       const mainLine = created.find((card) => card.zone === "main")!;
-      // Move 2 of the 3 main copies to the sideboard, where the same card already
-      // sits: the moved copies merge into that line, not a third one.
       const res = await judge.app.fetch(
         req(
           "PATCH",
@@ -651,7 +610,6 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
       ]);
       const initial = await fetchCards(entry);
       const line = initial[0]!;
-      // Tick copies 0 and 2, leaving the middle copy (index 1) unfound.
       for (const copyIndex of [0, 2]) {
         await judge.app.fetch(
           req("PUT", `/tournaments/${tournamentId}/deck-check/entries/${entry}/cards/${line.id}`, {
@@ -660,7 +618,6 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
           }),
         );
       }
-      // Remove the middle copy: its tick cell is spliced out, not the outer two.
       const res = await judge.app.fetch(
         req(
           "DELETE",
@@ -673,9 +630,6 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
     });
 
     it("applies only a currently-suggested zone fix, ignoring forged ids", async () => {
-      // A Rune dumped in main is type-locked to the runes zone, so the server
-      // suggests the move; a forged id in the same request is silently ignored
-      // (the destination is re-derived server-side, never sent by the client).
       const entry = await newEntry("Repair Ryze", [
         { name: CARD_FURY_RUNE.name, quantity: 1, section: "main" },
       ]);
@@ -713,16 +667,12 @@ describe.skipIf(!hostCtx)("Tournament-scoped deck-check + host keys (integration
         return ((await readJson(res)) as { entry: { claimToken: string | null } }).entry.claimToken;
       };
 
-      // Unclaimed and unblocked: the judge detail exposes the token to share.
       const token = await entryToken();
       expect(token).toBeTruthy();
 
-      // The stranger claims the spot through that link.
       const claim = await stranger.app.fetch(req("POST", `/deck-check/claim/${token}`));
       expect(claim.status).toBe(200);
 
-      // Claimed: the token is suppressed (claimedUserId set -> hidden), so it
-      // can't be reused to hand the spot to someone else.
       expect(await entryToken()).toBeNull();
     });
   });

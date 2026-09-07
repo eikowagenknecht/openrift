@@ -3,13 +3,6 @@ import { afterAll, describe, expect, it } from "vitest";
 import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import { deckFoldersRepo } from "./deck-folders.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: deck folders (migration 231).
-//
-// Uses the shared integration database. Requires INTEGRATION_DB_URL.
-// Seeds its own users and decks and deletes only those in afterAll.
-// ---------------------------------------------------------------------------
-
 const ctx = createDbContext(crypto.randomUUID());
 
 let userId: string;
@@ -17,7 +10,6 @@ let otherUserId: string;
 let deckA: string;
 let deckB: string;
 
-/** @returns The inserted deck's id. */
 async function seedDeck(owner: string, name: string): Promise<string> {
   const [deck] = await ctx!.db
     .insertInto("decks")

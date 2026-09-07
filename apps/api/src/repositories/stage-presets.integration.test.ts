@@ -5,20 +5,14 @@ import { afterAll, describe, expect, it } from "vitest";
 import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import { stagePresetsRepo } from "./stage-presets.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: stage_presets repository (migration 242).
-//
-// Uses the shared integration database. Requires INTEGRATION_DB_URL. Seeds its
-// own users with per-file random ids and deletes only those in afterAll — the
-// preset rows go with them via the ON DELETE CASCADE.
-//
-// The reason this file exists is the write shape: a plain string parameter
-// bound to a jsonb column lands as a jsonb *string scalar*, which the table's
-// `chk_stage_presets_config_object` check refuses outright. Nothing above the
-// repository can see that, because a round trip through JSON.parse looks
-// identical either way — so the assertions read `jsonb_typeof` from the
-// database rather than trusting the parsed value.
-// ---------------------------------------------------------------------------
+/**
+ * Requires INTEGRATION_DB_URL; seeds its own users, deleted (cascading their
+ * presets) in afterAll.
+ *
+ * A plain string bound to a jsonb column lands as a string scalar, which
+ * `chk_stage_presets_config_object` rejects; a JSON.parse round trip looks
+ * identical either way, so assertions read `jsonb_typeof` from the database.
+ */
 
 const OWNER = crypto.randomUUID();
 const OTHER = crypto.randomUUID();
@@ -51,7 +45,6 @@ describe.skipIf(!ctx)("stagePresetsRepo (integration)", () => {
     await db.deleteFrom("users").where("id", "in", [OWNER, OTHER]).execute();
   });
 
-  /** @returns What the database calls the row's stored config: "object", "string", … */
   async function storedType(id: string): Promise<string> {
     const row = await db
       .selectFrom("stagePresets")

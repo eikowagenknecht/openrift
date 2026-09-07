@@ -15,7 +15,6 @@ function membership(role: FriendGroupRole): GroupMember {
 }
 
 describe("hasRole", () => {
-  // ADR-033 retired the friend-group `judge` role; judging is tournament staff.
   it("orders the hierarchy owner > admin > member", () => {
     expect(ROLE_RANK.owner).toBeGreaterThan(ROLE_RANK.admin);
     expect(ROLE_RANK.admin).toBeGreaterThan(ROLE_RANK.member);

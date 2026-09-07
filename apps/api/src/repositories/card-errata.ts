@@ -2,7 +2,6 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";
 
-/** Columns every errata read in this repo selects. */
 const ERRATA_COLUMNS = [
   "correctedRulesText",
   "correctedEffectText",
@@ -12,18 +11,11 @@ const ERRATA_COLUMNS = [
 ] as const;
 
 /**
- * Admin write path for card errata (the corrected rules/effect text that
- * overrides what is printed on a card).
- *
- * Read-side errata used by catalog assembly and the candidate-review detail
- * views stay in `catalogRepo` / `candidateCardsRepo`, because those return
- * catalog- and candidate-shaped rows rather than the errata row itself.
- *
- * @returns An object with card-errata methods bound to the given `db`.
+ * Write path only: read-side errata for catalog assembly and candidate-review
+ * detail lives in `catalogRepo` / `candidateCardsRepo` instead.
  */
 export function cardErrataRepo(db: Kysely<Database>) {
   return {
-    /** Upsert card errata (insert or update on conflict by cardId). */
     async upsert(
       cardId: string,
       data: {
@@ -48,15 +40,10 @@ export function cardErrataRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Delete card errata by card ID. */
     async deleteByCardId(cardId: string): Promise<void> {
       await db.deleteFrom("cardErrata").where("cardId", "=", cardId).execute();
     },
 
-    /**
-     * Get card errata by card ID.
-     * @returns Errata fields, or null if no errata exists.
-     */
     async getByCardId(cardId: string) {
       return (
         (await db
@@ -67,7 +54,6 @@ export function cardErrataRepo(db: Kysely<Database>) {
       );
     },
 
-    /** @returns Existing errata rows for the given card ids. */
     getByCardIds(cardIds: string[]) {
       if (cardIds.length === 0) {
         return Promise.resolve([]);

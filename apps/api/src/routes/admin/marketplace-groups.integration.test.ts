@@ -3,26 +3,15 @@ import { describe, expect, it } from "vitest";
 import { adminReq, createTestContext } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Admin marketplace-groups routes (unified)
-//
-// Uses the shared integration database. Requires INTEGRATION_DB_URL.
-// Uses group_id range 10100-10199 to avoid collisions.
-// ---------------------------------------------------------------------------
+// Uses group_id range 10100-10199 to avoid collisions with other integration tests.
 
 const USER_ID = "a0000000-0012-4000-a000-000000000001";
 
 const ctx = createTestContext(USER_ID);
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe.skipIf(!ctx)("Admin marketplace-groups routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app, db } = ctx!;
-
-  // ── Seed marketplace groups for this test file ──────────────────────────
 
   describe("GET /admin/marketplace-groups (after seeding)", () => {
     it("returns both tcgplayer and cardmarket groups", async () => {
@@ -90,8 +79,6 @@ describe.skipIf(!ctx)("Admin marketplace-groups routes (integration)", () => {
       }
     });
   });
-
-  // ── PATCH /admin/marketplace-groups/:marketplace/:id ──────────────────────
 
   describe("PATCH /admin/marketplace-groups/:marketplace/:id", () => {
     it("updates a group name", async () => {

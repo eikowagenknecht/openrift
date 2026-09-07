@@ -384,10 +384,6 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
     });
 
     it("rejects moves to a different intent", async () => {
-      // Same kind (card), different intent (wish vs organize) — both are
-      // allowed intent/kind combos, but the move must be rejected because the
-      // intents differ. (trade+card is itself a disallowed combo, so it can't
-      // be used as the destination here.)
       const source = await createList("Intent source", "wish", "card");
       const dest = await createList("Intent dest", "organize", "card");
       const createRes = await app.fetch(
@@ -493,7 +489,6 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
       const second = await app.fetch(req("POST", `/lists/${id}/share`));
       expect(second.status).toBe(200);
       const secondBody = (await readJson(second)) as { shareToken: string; isPublic: boolean };
-      // POST /share must not rotate an existing token.
       expect(secondBody.shareToken).toBe(firstBody.shareToken);
       expect(secondBody.isPublic).toBe(true);
 
@@ -504,7 +499,6 @@ describe.skipIf(!ctx)("Lists routes (integration)", () => {
     it("GET /share reflects unshared then shared state for an owned list", async () => {
       const id = await createList("Share state", "organize", "card");
 
-      // Owned but unshared: token null, not a 404.
       const unshared = await app.fetch(req("GET", `/lists/${id}/share`));
       expect(unshared.status).toBe(200);
       const unsharedBody = (await readJson(unshared)) as {

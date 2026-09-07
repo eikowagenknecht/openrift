@@ -7,17 +7,7 @@ import type { UvsgamesCoverageRow, UvsgamesTemplateRow } from "../repositories/u
 import { suggestTierForTemplateName } from "./meta-event-classify.js";
 import { mapSourceFormat, uvsgamesEventUrl } from "./uvsgames-catalog.js";
 
-/**
- * The catalogue mirror as the admin triage list reads it. Three fields are
- * derived rather than stored: the format mapping, so the list can grey out an
- * event that cannot be accepted without a manual pick; the source URL, which is
- * a function of the key; and the official label, which is the watched
- * template's name as the source publishes it — the uuid itself stays
- * server-side, since it means nothing to a reader.
- *
- * Both curated vocabularies arrive as maps the caller loaded once for the whole
- * page, rather than being looked up per row.
- */
+/** `officialLabel` resolves the template uuid to its watched name; the uuid itself never reaches the client. */
 export function toMetaCatalogRow(
   row: UvsgamesCoverageRow,
   vocabulary: {
@@ -59,11 +49,7 @@ export function toMetaCatalogRow(
   };
 }
 
-/**
- * One template row as the admin vocabulary screen reads it. `suggestedTier` is
- * derived rather than stored: it is what the name rules would guess, offered as
- * a prefill for a template nobody has mapped yet.
- */
+/** `suggestedTier` is a name-rule guess, not stored, for prefilling an unmapped template. */
 export function toMetaSourceTemplate(row: UvsgamesTemplateRow): MetaSourceTemplate {
   return {
     templateId: row.templateId,

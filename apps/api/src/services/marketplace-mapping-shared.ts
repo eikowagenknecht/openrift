@@ -6,13 +6,6 @@ import type {
   StagingRow,
 } from "../routes/admin/marketplace-configs.js";
 
-/**
- * Fetch latest prices for already-bound printings and build the staged-row →
- * response mapper. Shared by `getMappingOverview` (marketplace-mapping.ts)
- * and the per-card overview builder (unified-mapping-merge.ts) — both need
- * the same price lookup and staged-row shaping per marketplace.
- * @returns The keyed price lookup plus a `mapStagedRow` closure over it.
- */
 export async function buildStagedRowMapping(
   config: MarketplaceConfig,
   mappedPrintingIds: Set<string>,
@@ -23,11 +16,8 @@ export async function buildStagedRowMapping(
   mappedProductInfo: Map<string, ProductInfo>;
   mapStagedRow: (row: StagingRow, extra?: { isOverride?: boolean }) => StagedProductResponse;
 }> {
-  // Key by the full SKU tuple (printingId, externalId, finish, language). The
-  // SKU key on `marketplace_products` is `(externalId, finish, language)` —
-  // CM regularly imports one externalId as multiple finishes, and both can be
-  // bound to the same printing, so dropping `finish`/`language` from the key
-  // would silently let one finish's price overwrite the other.
+  // Full SKU tuple: one externalId can be imported as multiple finishes bound
+  // to the same printing, so dropping finish/language would overwrite one price with the other's.
   const mappedProductInfo = new Map<string, ProductInfo>();
   if (mappedPrintingIds.size > 0) {
     const mappedRows = await config.priceQuery([...mappedPrintingIds]);

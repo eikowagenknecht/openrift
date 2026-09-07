@@ -7,18 +7,9 @@ import { keyBatches, rowBatches } from "../lib/bind-batches.js";
 import { normalizeFormatKey, UVSGAMES_PROVIDER } from "../lib/uvsgames-catalog.js";
 
 /**
- * The uvsgames listing mirror, the two vocabularies the source publishes, and
- * the sync settings row (ADR-014). The live archive tables stay in `metaRepo`
- * and the fetched results in `uvsgamesResultsRepo`; this repo owns one source's
- * crawl bookkeeping.
- *
- * Triage state is derived here rather than stored: an event is "new" when no
- * `meta_event_sources` row links its key and it is not ignored. Storing it
- * would mean a second place that can disagree with the citation table.
- *
- * The mirror has no provider column: it is one source's listing, field for
- * field. The citation and ignore tables it joins against do, because those
- * really are multi-source, so every join here pins {@link UVSGAMES_PROVIDER}.
+ * Owns one source's crawl bookkeeping; live archive tables stay in `metaRepo`.
+ * Triage state is derived from `meta_event_sources` and the ignore table, never stored.
+ * The mirror has no provider column: every join pins {@link UVSGAMES_PROVIDER}.
  */
 
 type UvsgamesEventRow = Selectable<UvsgamesEventsTable>;
@@ -45,23 +36,17 @@ export interface UvsgamesUpsertInput {
 export interface UvsgamesIdProbeInput {
   externalId: number;
   outcome: UvsgamesProbeOutcome;
-  /** The source's game name, kept only for an `other_game` id. */
   gameType: string | null;
 }
 
 export interface UvsgamesUpsertResult {
-  /** Keys the listing had never shown before. */
   inserted: string[];
-  /** Keys whose projection moved, so their hash no longer matches. */
   changed: string[];
-  /** Keys the source repeated verbatim; only their `last_seen_at` was touched. */
   unchanged: string[];
 }
 
-/** Triage state, derived from the citation and the ignore table. */
 export type UvsgamesTriage = "new" | "accepted" | "dismissed";
 
-/** What {@link classifyMetaEventTier} needs from one mirrored listing, plus its live event. */
 export interface UvsgamesTierInputRow {
   metaEventId: string;
   externalId: string;
@@ -72,27 +57,14 @@ export interface UvsgamesTierInputRow {
 
 export interface UvsgamesListRow extends UvsgamesEventRow {
   triage: UvsgamesTriage;
-  /** The live event this key feeds, through its citation row. */
   metaEventId: string | null;
   metaEventSlug: string | null;
-  /**
-   * The store's current name, falling back to the one the listing left on the
-   * row when it named no keyed store. Every caller reads this rather than
-   * {@link UvsgamesEventRow.storeName}, which is only that fallback.
-   */
   storeDisplayName: string | null;
-  /** From the recheck queue; null both for an unaccepted event and an exhausted ladder. */
   nextCheckAt: Date | null;
-  /** Zero for an event that was never accepted, so it has no queue row. */
   checkStage: number;
 }
 
-/**
- * What the deep fetch mirrored for the row. Only the triage list reads it, so
- * the sync paths keep the narrower row and pay for none of it. The counts are
- * zero, never null, for a row nothing was fetched for yet; `fetchedAt` is what
- * says whether a fetch happened.
- */
+/** The counts are zero, never null, for a row nothing was fetched for yet. */
 export interface UvsgamesCoverageRow extends UvsgamesListRow {
   fetchedAt: Date | null;
   stagedPlayerCount: number;
@@ -101,23 +73,17 @@ export interface UvsgamesCoverageRow extends UvsgamesListRow {
 }
 
 export interface UvsgamesListFilters {
-  /** Case-insensitive substring of the event name. */
   search?: string;
   displayStatus?: string;
-  /** True keeps only events whose organizer published decklists. */
   decklistPublished?: boolean;
   minPlayers?: number;
-  /** Inclusive bounds on `start_at`. */
   dateFrom?: Date;
   dateTo?: Date;
   triage?: UvsgamesTriage;
-  /** True keeps only rows a covering crawl stopped returning. */
   missing?: boolean;
-  /** True keeps only accepted rows whose results were never fetched. */
   awaitingResults?: boolean;
 }
 
-/** How one page of the catalogue is ordered. Defaults to newest events first. */
 export interface UvsgamesListOrder {
   sort?: "startAt" | "name" | "playerCount";
   direction?: "asc" | "desc";
@@ -144,47 +110,34 @@ export interface MetaSyncSettingsPatch {
   competitivePlayerFloor?: number;
 }
 
-/** One event-configuration template, as the vocabulary list shows it. */
 export interface UvsgamesTemplateRow {
   templateId: string;
   sourceName: string | null;
   watched: boolean;
-  /** The admin-mapped tier; null until an admin maps the template. */
   tier: MetaEventTier | null;
   eventCount: number;
-  /**
-   * Mean players over {@link ranEventCount} alone, so a template whose events
-   * are still filling up is not judged on empty registrations. Null when none
-   * of its events have run yet.
-   */
   avgPlayers: number | null;
-  /** Events that started before today and published a player count. */
   ranEventCount: number;
-  /** The newest event running it, which is all an unnamed template has. */
   sampleEventName: string | null;
   lastStartAt: Date | null;
 }
 
-/** One of the source's format strings, with whatever it maps to. */
 export interface UvsgamesFormatRow {
   sourceFormat: string;
   eventCount: number;
   mappedFormat: string | null;
 }
 
-/** One player the source published, as a deep fetch read them off a registration. */
 export interface UvsgamesPlayerInput {
   id: number;
   displayName: string;
 }
 
-/** One template as the source's own vocabulary endpoint publishes it. */
 export interface UvsgamesTemplateInput {
   templateId: string;
   sourceName: string;
 }
 
-/** The one row `meta_sync_settings` is CHECKed down to. */
 const SETTINGS_ID = 1;
 
 const CATALOG_ORDER_COLUMNS = {
@@ -193,23 +146,14 @@ const CATALOG_ORDER_COLUMNS = {
   playerCount: sql`c.player_count`,
 };
 
-/**
- * How one page of the list is ordered. Nulls sort last whichever way the column
- * runs: an event the source gave no player count is not the answer to "biggest
- * first", and it is not the answer to "smallest first" either.
- */
+/** Nulls always sort last, whichever direction the column runs. */
 function catalogOrderBy(order: UvsgamesListOrder) {
   const column = CATALOG_ORDER_COLUMNS[order.sort ?? "startAt"];
   return order.direction === "asc" ? sql`${column} asc nulls last` : sql`${column} desc nulls last`;
 }
 
 export function uvsgamesEventsRepo(db: Kysely<Database>) {
-  /**
-   * Joined once and reused by the list, the counts, and the by-key read, so the
-   * three can never disagree about what "accepted" means. `meta_event_sources`
-   * is the link, and it is provider-keyed, so both joins pin this source's own
-   * key.
-   */
+  /** Reused by the list, the counts, and the by-key read so all three agree on "accepted". */
   function triagedQuery() {
     return db
       .selectFrom("uvsgamesEvents as c")
@@ -226,11 +170,6 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       .leftJoin("uvsgamesEventChecks as ck", "ck.externalId", "c.externalId");
   }
 
-  /**
-   * The three joined columns every row read carries: the store's current name
-   * over the row's own fallback, and the queue's two fields, which live on
-   * their own table now.
-   */
   const joinedColumns = [
     sql<string | null>`coalesce(s.name, c.store_name)`.as("storeDisplayName"),
     sql<Date | null>`ck.next_check_at`.as("nextCheckAt"),
@@ -269,8 +208,6 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
   const pagedNew = sql<SqlBool>`${notDismissed} and ${notLinked}`;
   const pagedAccepted = sql<SqlBool>`${notDismissed} and src.meta_event_id is not null`;
 
-  // Correlated against the mirror, so each one is an index lookup on the page's
-  // rows rather than an aggregate over every event the archive has fetched.
   const stagedPlayerCount = sql<number>`(
     select count(*)::int from uvsgames_event_standings st where st.external_id = c.external_id
   )`;
@@ -285,19 +222,10 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
      where dl.external_id = c.external_id and dl.fetch_status = 'fetched'
   )`;
 
-  /**
-   * An event whose attendance is settled: it started before today and the
-   * source published a count. Today's and future events are still taking
-   * registrations, so averaging them in reads every new template as tiny.
-   */
+  // Today's and future events are still taking registrations, so counting
+  // them in would read every new template as averaging near zero.
   const RAN_EVENT = sql`e.player_count is not null and e.start_at < date_trunc('day', now())`;
 
-  /**
-   * The table is the row set, not the mirror: the sync writes a row for every
-   * template the source publishes, so one the crawl has not met yet still shows
-   * up with its name and a count of zero. Events join in for the counts, served
-   * by the partial index on the template column.
-   */
   function templateQuery(templateId?: string) {
     let base = db
       .selectFrom("uvsgamesEventTemplates as t")
@@ -324,7 +252,6 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       .orderBy("templateId", "asc");
   }
 
-  /** The source's format strings and how many events carry each. */
   function formatCounts(sourceFormat?: string) {
     let base = db.selectFrom("uvsgamesEvents as e").where("e.eventFormat", "is not", null);
     if (sourceFormat !== undefined) {
@@ -370,14 +297,8 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
   }
 
   return {
-    /**
-     * Hash-gated batch upsert. An unchanged row costs one `last_seen_at` write
-     * and nothing else, which is the difference between a 250-page crawl being
-     * cheap and it rewriting a quarter-million rows a week.
-     *
-     * `xmax = 0` distinguishes an insert from an update in the same statement:
-     * Postgres leaves the transaction id zero on a freshly inserted tuple.
-     */
+    // `xmax = 0` distinguishes an insert from an update in the same
+    // statement: Postgres leaves the transaction id zero on a fresh tuple.
     async upsertBatch(
       rows: readonly UvsgamesUpsertInput[],
       seenAt: Date,
@@ -386,8 +307,8 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
         return { inserted: [], changed: [], unchanged: [] };
       }
 
-      // The store rows have to exist before the events that reference them, and
-      // a repeated name is an update rather than a conflict: renames propagate.
+      // Store rows must exist before the events that reference them. A repeated
+      // name updates the store in place, so renames propagate.
       const stores = [
         ...new Map(
           rows
@@ -467,11 +388,8 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       return { inserted, changed, unchanged };
     },
 
-    /**
-     * Flags the rows a covering crawl no longer returned. The source deletes
-     * events, and the row is kept rather than removed so an accepted event that
-     * vanishes upstream stays visible in the archive's own history.
-     */
+    // Rows are kept, not deleted, so an accepted event that vanishes
+    // upstream stays visible in the archive's own history.
     async markMissing(params: {
       from: Date;
       to: Date;
@@ -489,7 +407,6 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       return Number(result.numUpdatedRows ?? 0n);
     },
 
-    /** The id range a sweep walks: the mirror's own min/max event id. */
     async sweepBounds(): Promise<{ fromId: number; toId: number } | undefined> {
       const row = await sql<{ fromId: string | null; toId: string | null }>`
         select min(external_id::bigint)::text as "fromId",
@@ -504,10 +421,8 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       return { fromId: Number(bounds.fromId), toId: Number(bounds.toId) };
     },
 
-    /**
-     * Ids in the range neither table has decided. Cast the id to text, not
-     * the column to bigint, or the anti-joins lose their primary-key index.
-     */
+    // Cast the id to text, not the column to bigint, or the anti-joins
+    // lose their primary-key index.
     async sweepCandidates(fromId: number, toId: number, limit: number): Promise<number[]> {
       const rows = await sql<{ id: string }>`
         select gs.id::text as id
@@ -523,7 +438,7 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       return rows.rows.map((row) => Number(row.id));
     },
 
-    /** Undecided ids left in the range. Assumes the two tables never overlap. */
+    // Assumes the two tables never overlap.
     async sweepRemaining(fromId: number, toId: number): Promise<number> {
       const rows = await sql<{ remaining: string }>`
         select (
@@ -589,12 +504,8 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       return row;
     },
 
-    /**
-     * The recheck queue: every armed event whose next visit is due. Only the
-     * accept path arms a row, so in practice these are accepted events, but the
-     * filter is the queue's own column. Ordered oldest-due first so a backlog
-     * drains in the order it built up.
-     */
+    // Filters on the queue's own column, not on triage: only the accept
+    // path ever arms a row, but that's not what's being checked here.
     async dueForRecheck(now: Date, limit: number): Promise<UvsgamesListRow[]> {
       const rows = await triagedQuery()
         .selectAll("c")
@@ -612,11 +523,7 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       return rows;
     },
 
-    /**
-     * Records that a results deep fetch completed, standings or no standings.
-     * The recheck ladder reads this rather than counting mirror rows, because a
-     * cancelled event legitimately has none.
-     */
+    // The recheck ladder reads this timestamp; a cancelled event legitimately has no mirror rows.
     async markResultsFetched(externalId: string, now: Date): Promise<void> {
       await db
         .updateTable("uvsgamesEvents")
@@ -625,12 +532,8 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Arms or advances one event's place in the queue. The row is written on the
-     * first accept and kept forever after: a null `nextCheckAt` is the ladder's
-     * terminal state, and the row still records that the event was accepted and
-     * how far its ladder got.
-     */
+    // The row is kept after a null nextCheckAt (the ladder's terminal
+    // state), so it still records that the event was accepted.
     async setRecheck(
       externalId: string,
       values: { nextCheckAt: Date | null; checkStage: number },
@@ -642,11 +545,8 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Every key still awaiting triage, newest event first, for the backlog
-     * sweep. Keys rather than rows: the catalogue holds six figures of them,
-     * and the sweep reads their rows a page at a time.
-     */
+    // Keys, not rows: the catalogue holds six figures of them, and the
+    // sweep reads their rows a page at a time.
     async newKeys(): Promise<string[]> {
       const rows = await triagedQuery()
         .select("c.externalId")
@@ -656,7 +556,6 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       return rows.map((row) => row.externalId);
     },
 
-    /** Rows whose triage state may have moved, for the auto-accept sweep. */
     async unacceptedByKeys(externalIds: string[]): Promise<UvsgamesListRow[]> {
       const rows: UvsgamesListRow[] = [];
       for (const batch of keyBatches(externalIds)) {
@@ -748,7 +647,6 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       return { rows, total: Number(countRow.total) };
     },
 
-    /** The three triage buckets, unfiltered, for the tab labels. */
     async triageCounts(): Promise<UvsgamesTriageCounts> {
       const row = await triagedQuery()
         .select([
@@ -764,12 +662,8 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       };
     },
 
-    /**
-     * Headline numbers for the admin sync panel. Joined rather than counted off
-     * the catalogue alone, because the accepted bucket's two problem states —
-     * results still missing, listing entry gone — are only visible against the
-     * candidate link.
-     */
+    // The accepted bucket's problem states are only visible against the candidate link,
+    // not off the catalogue alone.
     async syncOverview(): Promise<{
       total: number;
       completed: number;
@@ -815,11 +709,7 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       };
     },
 
-    /**
-     * Records the players a deep fetch just read. The display name is updated on
-     * conflict, so a rename reaches every standings row filed under that id
-     * rather than being snapshotted per event.
-     */
+    // Display name updates on conflict, so a rename reaches every standings row filed under that id.
     async upsertPlayers(players: readonly UvsgamesPlayerInput[]): Promise<number> {
       const unique = [...new Map(players.map((player) => [player.id, player])).values()];
       if (unique.length === 0) {
@@ -842,7 +732,6 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       return unique.length;
     },
 
-    /** Current display names, for callers holding raw standings rows where the name is still NULL. */
     async playerDisplayNames(ids: readonly number[]): Promise<Map<number, string>> {
       const unique = [...new Set(ids)];
       if (unique.length === 0) {
@@ -856,18 +745,8 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       return new Map(rows.map((row) => [row.id, row.displayName]));
     },
 
-    // ── The source's vocabularies ──────────────────────────────────────────
-    // Templates come from the source's own vocabulary endpoint and formats are
-    // discovered from the mirror, so the two lists are built differently: one
-    // reads its own table, the other is a GROUP BY over `uvsgames_events` with
-    // the mappings joined on. A format the listing has never carried has
-    // nothing to map, which is what its `undefined` return means.
-
-    /**
-     * Watched template ids to their names, for the badge and the auto-accept
-     * rule. The name is null for a template the source stopped publishing,
-     * which is a row the badge has nothing to print but the rule still matches.
-     */
+    // Name is null for a template the source stopped publishing: the badge
+    // has nothing to print, but the auto-accept rule still matches it.
     async watchedTemplates(): Promise<Map<string, string | null>> {
       const rows = await db
         .selectFrom("uvsgamesEventTemplates")
@@ -877,10 +756,7 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       return new Map(rows.map((row) => [row.templateId, row.sourceName]));
     },
 
-    /**
-     * Every template id to its admin-mapped tier, watched or not, for the
-     * classifier. Null for a template the admin has not mapped yet.
-     */
+    // Watched or not: the classifier needs every template's tier.
     async templateTiers(): Promise<Map<string, MetaEventTier | null>> {
       const rows = await db
         .selectFrom("uvsgamesEventTemplates")
@@ -889,7 +765,6 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       return new Map(rows.map((row) => [row.templateId, row.tier]));
     },
 
-    /** Normalized source format to `deck_formats` slug, for every mapping there is. */
     formatMappings(): Promise<Map<string, string>> {
       return loadFormatMappings();
     },
@@ -898,11 +773,8 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       return templateQuery().execute();
     },
 
-    /**
-     * Writes the fields an admin owns and reads the row back, so the caller
-     * gets the same shape the list returns. An unknown template updates nothing
-     * and returns undefined: rows are the sync's to create, never a click's.
-     */
+    // An unknown template updates nothing and returns undefined: rows are
+    // the sync's to create, never a click's.
     async updateTemplate(
       templateId: string,
       patch: { watched?: boolean; tier?: MetaEventTier | null },
@@ -921,11 +793,7 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       return await templateQuery(templateId).executeTakeFirst();
     },
 
-    /**
-     * The source's published vocabulary, as the sync read it. Names are
-     * refreshed on every run so a renamed template propagates; `watched` is
-     * never touched, because that is the admin's column alone.
-     */
+    // `watched` is never touched here; that column is the admin's alone.
     async upsertTemplates(templates: readonly UvsgamesTemplateInput[]): Promise<number> {
       if (templates.length === 0) {
         return 0;
@@ -946,11 +814,8 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       return Number(upserted);
     },
 
-    /**
-     * Template ids the mirror carries that the endpoint never published, given
-     * rows so the vocabulary list can show them at all. They stay nameless: the
-     * source retired them and nothing can say what they were called.
-     */
+    // Rows stay nameless: the source retired these templates, and nothing
+    // can say what they were called.
     async discoverTemplatesFromEvents(): Promise<number> {
       const result = await sql`
         INSERT INTO uvsgames_event_templates (template_id)
@@ -962,12 +827,7 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       return Number(result.numAffectedRows ?? 0n);
     },
 
-    /**
-     * Every format string the listing carries, with its mapping. The two sides
-     * are matched in TypeScript rather than SQL so the normalization is the one
-     * {@link normalizeFormatKey} defines, not a second copy of it inside a join
-     * predicate.
-     */
+    // Matched in TypeScript so normalization stays the one {@link normalizeFormatKey} defines.
     async listFormats(): Promise<UvsgamesFormatRow[]> {
       const [counts, mappings] = await Promise.all([formatCounts(), loadFormatMappings()]);
       return counts.map((row) => ({
@@ -980,14 +840,8 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       return readFormat(sourceFormat);
     },
 
-    /**
-     * A null mapping deletes the row, which is what un-mapping a format means.
-     *
-     * Stored under {@link normalizeFormatKey}'s key, the one the read side looks
-     * up by: mapping "Constructed" and then "CONSTRUCTED" must edit one row, not
-     * leave two for the lookup to pick a winner between. Rows written under an
-     * older spelling are cleared out on the way past.
-     */
+    // A null mapping deletes the row. Stored under {@link normalizeFormatKey}'s
+    // key so two spellings of the same format collapse to one row.
     async setFormatMapping(
       sourceFormat: string,
       mappedFormat: string | null,

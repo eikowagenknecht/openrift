@@ -5,9 +5,6 @@ import { deckCheckRepo, eventStatusForTournamentStatus } from "./deck-check.js";
 
 describe("eventStatusForTournamentStatus", () => {
   it("treats setup and running as active (submissions are handed in before start)", () => {
-    // Regression: a wizard-created deck-check tournament sits in `setup` until
-    // round 1 is generated, which never happens when OpenRift is used only for
-    // deck check. That must not archive the event or the provider push 409s.
     expect(eventStatusForTournamentStatus("setup")).toBe("active");
     expect(eventStatusForTournamentStatus("running")).toBe("active");
   });
@@ -19,11 +16,7 @@ describe("eventStatusForTournamentStatus", () => {
 });
 
 describe("deckCheckRepo.deleteEntryCardCopy", () => {
-  // Regression: the quantity was read on the bare db and the branch decided in
-  // JS. Two judges removing a copy of the same quantity-2 line both read 2, both
-  // took the decrement branch, and the second write drove quantity to 0 —
-  // surfacing as a 500 from the `quantity > 0` CHECK instead of a no-op.
-  it("locks the line for update inside a transaction", async () => {
+  it("locks the line for update inside a transaction to serialize concurrent decrements", async () => {
     const { db, queries, events } = createRecordingDb([[{ quantity: 2 }], { numAffectedRows: 1n }]);
 
     const removed = await deckCheckRepo(db).deleteEntryCardCopy("entry-1", "card-1", 0);
@@ -64,9 +57,6 @@ describe("deckCheckRepo.deleteEntryCardCopy", () => {
 });
 
 describe("deckCheckRepo.updateEntry", () => {
-  // Regression: one patch spans tournament_participants and deck_check_entries,
-  // and the two writes ran without a transaction — a failure between them left
-  // the player renamed on a decklist that kept its old review state.
   it("writes the participant and the entry in one transaction", async () => {
     const { db, events, queries } = createRecordingDb([
       [{ participant_id: "participant-1" }],
@@ -74,8 +64,6 @@ describe("deckCheckRepo.updateEntry", () => {
       [{ id: "entry-1" }],
     ]);
 
-    // The final read (loadEntryById) runs after the commit and finds nothing
-    // here, so the return value is undefined; the writes are what this asserts.
     await deckCheckRepo(db).updateEntry("entry-1", { playerName: "Ekko", state: "checked" });
 
     expect(events).toEqual(["begin", "commit"]);

@@ -4,7 +4,6 @@ import type { Kysely, Selectable } from "kysely";
 import type { CollectionEventsTable, Database, PrintingsTable } from "../db/index.js";
 import { imageId, joinFrontImage, keysetCursorPredicate } from "./query-helpers.js";
 
-/** Collection event row with printing, card, and image details. */
 type CollectionEventRow = Pick<
   Selectable<CollectionEventsTable>,
   | "id"
@@ -25,18 +24,8 @@ type CollectionEventRow = Pick<
     tags: string[];
   };
 
-/**
- * Queries for collection event history.
- *
- * @returns An object with collection event query methods bound to the given `db`.
- */
 export function collectionEventsRepo(db: Kysely<Database>) {
   return {
-    /**
-     * Cursor-paginated list of events with card details (newest first).
-     * Fetches `limit + 1` rows to detect `hasMore`.
-     * @returns Events enriched with printing, card, and image data.
-     */
     listForUser(userId: string, limit: number, cursor?: string): Promise<CollectionEventRow[]> {
       let query = joinFrontImage(
         db
@@ -79,7 +68,6 @@ export function collectionEventsRepo(db: Kysely<Database>) {
       return query.execute();
     },
 
-    /** Batch-insert collection events. No-op for empty array. */
     async insert(
       items: {
         userId: string;

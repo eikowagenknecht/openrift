@@ -39,12 +39,8 @@ export async function rehostSingleImage(
 }
 
 /**
- * Rehost by `image_files` ID rather than by printing image. Split out from
- * {@link rehostSingleImage} because substitute art pinned from a URL has an
- * image_files row and deliberately no printing image to reach it through. Also
- * best-effort — a caller that pinned the file has already committed the pin,
- * and a failed rehost leaves it un-servable, which the wire reports as "derive
- * a substitute for now" rather than as an error.
+ * Keyed by `image_files` ID, not printing image: substitute art pinned from a
+ * URL has no printing image to key by. Best-effort; a failed rehost leaves the file un-servable, not an error.
  */
 export async function rehostImageFile(
   io: Io,
@@ -250,9 +246,6 @@ interface RunRegenerateJobDeps {
 interface RunRegenerateJobOptions {
   resumeFrom?: { runId: string; checkpoint: RegenerateImagesCheckpoint };
   skipExisting?: boolean;
-  /** When true, snapshot only scans (`needs_trim` images) instead of the
-   * whole catalog — the only images whose variants the crop/contrast
-   * pipeline changes. Ignored on resume (the snapshot is carried over). */
   scansOnly?: boolean;
 }
 

@@ -64,8 +64,6 @@ describe("catalogMutationsRepo", () => {
     ).resolves.toBeUndefined();
   });
 
-  // ── Printing mutations ────────────────────────────────────────────────────
-
   it("deletePrintingById returns deleted id", async () => {
     const db = createMockDb([{ id: "p-1" }]);
     expect(await catalogMutationsRepo(db).deletePrintingById("p-1")).toEqual({
@@ -84,8 +82,6 @@ describe("catalogMutationsRepo", () => {
       catalogMutationsRepo(db).updatePrintingFieldById("p-1", "artist", "New"),
     ).resolves.toBeUndefined();
   });
-
-  // ── Accept printing ───────────────────────────────────────────────────────
 
   it("getSetIdBySlug returns set id", async () => {
     const db = createMockDb([{ id: "s-1" }]);
@@ -131,8 +127,6 @@ describe("catalogMutationsRepo", () => {
     expect(result).toBe("p-1");
   });
 
-  // ── Accept new card ───────────────────────────────────────────────────────
-
   it("acceptNewCardFromSources creates card and aliases", async () => {
     const db = createMockDb([{ id: "c-new" }]);
     await expect(
@@ -149,8 +143,6 @@ describe("catalogMutationsRepo", () => {
   });
 
   it("acceptNewCardFromSources writes an empty keyword set", async () => {
-    // Keywords are derived by the recompute pass, not on accept: the insert
-    // always writes `[]` and rules/effect text is no longer part of the input.
     const db = createMockDb([{ id: "c-new" }]);
     await expect(
       catalogMutationsRepo(db).acceptNewCardFromSources(
@@ -168,7 +160,6 @@ describe("catalogMutationsRepo", () => {
   });
 
   it("syncSelfAliasOnRename is a no-op when the normalized name is unchanged", async () => {
-    // Guard the early return: an unchanged normName must not touch the db at all.
     const throwingDb = new Proxy(
       {},
       {

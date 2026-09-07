@@ -5,18 +5,12 @@ import { createDbContext } from "../test/integration-context.js";
 import type { UvsgamesUpsertInput } from "./uvsgames-events.js";
 import { uvsgamesEventsRepo } from "./uvsgames-events.js";
 
-// The mirror is one source's table with no provider column, so isolation is by
-// key: every event this file writes is `mtc-`-prefixed, where the source's own
-// ids are numeric. `meta.integration.test.ts` writes a row of its own
-// (`mta-cls-1`), outside the window `markMissing` sweeps here, so the counts in
-// this file are asserted as deltas rather than as totals. The candidate rows
-// this file links do carry a provider, and it has to be the real one — the
-// mirror's joins pin it. `meta_sync_settings` is the migration's singleton and
-// is restored in afterAll.
+// The mirror has no provider column, so isolation is by key: every event
+// this file writes is `mtc-`-prefixed. `meta_sync_settings` is the
+// migration's singleton and is restored in afterAll.
 
 const ctx = createDbContext(crypto.randomUUID());
 
-/** Every mirror row this file writes, so cleanup names them rather than a provider. */
 const EXTERNAL_IDS = [
   "mtc-1",
   "mtc-gone",
@@ -46,7 +40,6 @@ const EXTERNAL_IDS = [
   "mtc-dismissed-after-accept",
 ];
 
-/** The store this file invents, well clear of the source's own id space. */
 const STORE_ID = 990_001;
 const SEEN = new Date("2026-08-20T12:00:00Z");
 
@@ -74,7 +67,6 @@ function row(overrides: Partial<UvsgamesUpsertInput> = {}): UvsgamesUpsertInput 
   };
 }
 
-/** A live event and a candidate linking the given catalogue key to it. */
 async function seedAcceptedEvent(
   externalId: string,
   values: { fetchedAt?: Date } = {},
@@ -102,7 +94,6 @@ async function seedAcceptedEvent(
     })
     .execute();
 
-  // "Fetched" is a mirror fact now: an event with standings has been read.
   if (values.fetchedAt !== undefined) {
     await ctx!.db
       .insertInto("uvsgamesEventStandings")
@@ -182,7 +173,7 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
     expect(reread?.displayStatus).toBe("inProgress");
   });
 
-  it("flags a row a covering crawl stopped returning, and never deletes it", async () => {
+  it("flags a row a covering crawl stopped returning, then clears the flag once seen again", async () => {
     await repo().upsertBatch([row({ externalId: "mtc-gone" })], SEEN);
 
     const flagged = await repo().markMissing({
@@ -196,7 +187,6 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
     const stored = await repo().byKey("mtc-gone");
     expect(stored?.missingSince).not.toBeNull();
 
-    // A crawl that sees it again clears the flag.
     await repo().upsertBatch([row({ externalId: "mtc-gone" })], new Date(SEEN.getTime() + 2000));
     const reseen = await repo().byKey("mtc-gone");
     expect(reseen?.missingSince).toBeNull();
@@ -256,8 +246,8 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
   });
 
   it("looks up more keys than one id list can bind", async () => {
-    // The auto-accept sweep is handed every key the run touched, one bind
-    // parameter each, so a long backfill overruns postgres's 65534 ceiling.
+    // One bind parameter per key, so a long backfill overruns postgres's
+    // 65534-parameter ceiling.
     const keys = [
       "mtc-new",
       ...Array.from({ length: 70_000 }, (_entry, index) => `mtc-absent-${index}`),
@@ -340,7 +330,6 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
   });
 
   describe("ordering one page of the triage list", () => {
-    /** The three seeded rows by player count, most first, with the null last. */
     const SORTED_KEYS = ["mtc-sort-b", "mtc-sort-a", "mtc-sort-c"];
 
     async function ordered(order: Parameters<ReturnType<typeof repo>["list"]>[2]) {
@@ -472,8 +461,6 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
     await seedAcceptedEvent("mtc-cover", { fetchedAt });
     await seedAcceptedEvent("mtc-empty", { fetchedAt });
 
-    // The coverage counts come off the mirror: three standings, two of which
-    // name a legend, and one deck the fetch actually read.
     await ctx!.db
       .insertInto("uvsgamesEventStandings")
       .values([
@@ -516,7 +503,6 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
     });
     expect(staged?.fetchedAt?.toISOString()).toBe(fetchedAt.toISOString());
 
-    // An event whose fetch read one standings row and no decks.
     expect(rows.find((entry) => entry.externalId === "mtc-empty")).toMatchObject({
       stagedPlayerCount: 1,
       stagedLegendCount: 0,
@@ -566,7 +552,6 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
     expect(updated).toMatchObject({
       autoAcceptMinPlayers: 64,
       autoAcceptOfficial: true,
-      // Untouched by a patch that does not name it.
       autoAcceptNotable: false,
     });
     expect(await repo().settings()).toMatchObject({
@@ -596,7 +581,6 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
     const stored = await repo().byKey("mtc-official");
     expect(stored?.eventConfigurationTemplate).toBe(template);
 
-    // The hash gate covers the template, so a row that changed it is rewritten.
     const moved = await repo().upsertBatch(
       [
         row({
@@ -656,7 +640,6 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
 
     const overview = await repo().syncOverview();
 
-    // Accepted with no deep fetch behind it, and gone from the listing.
     expect(overview.acceptedAwaitingResults).toBe(before.acceptedAwaitingResults + 1);
     expect(overview.acceptedMissing).toBe(before.acceptedMissing + 1);
     expect(overview.missing).toBeGreaterThanOrEqual(overview.acceptedMissing);
@@ -819,7 +802,6 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
     it("maps a format, matches it however the source cased it, and un-maps it again", async () => {
       const mapped = await repo().setFormatMapping("MTC Sealed", "freeform");
       expect(mapped).toMatchObject({ sourceFormat: "MTC Sealed", mappedFormat: "freeform" });
-      // Both sides normalize, so one row covers the source's other spellings.
       const mappings = await repo().formatMappings();
       expect(mappings.get("mtcsealed")).toBe("freeform");
 
@@ -890,7 +872,6 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
         SEEN,
       );
 
-      // The second event was not in that batch, and still reads the new name.
       const untouched = await repo().byKey("mtc-store-2");
       expect(untouched?.storeDisplayName).toBe("MTC Store Renamed");
     });
@@ -930,8 +911,6 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
 
       await repo().setRecheck("mtc-queue-1", { nextCheckAt: null, checkStage: 4 });
 
-      // The exhausted ladder keeps its row: it records that this event was
-      // accepted, and how far the ladder got.
       const exhausted = await repo().byKey("mtc-queue-1");
       expect(exhausted?.nextCheckAt).toBeNull();
       expect(exhausted?.checkStage).toBe(4);

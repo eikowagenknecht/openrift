@@ -10,32 +10,11 @@ import {
 } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// Optional-auth coupling guard.
-//
-// Every public read that returns a different body per auth state on the same
-// URL relies on app.ts wiring the `loadSession` middleware onto its path. That
-// middleware does two things: it resolves the session into `context.user`, and
-// it appends `Vary: Cookie` so a shared/edge cache keys on the cookie and can
-// never serve an anonymous body to a signed-in viewer or vice-versa.
-//
-// Two of them read `context.user` directly and so need both halves:
-// `GET /api/v1/feature-flags` and `GET /api/v1/users/share/{token}`. Without the
-// wiring they would silently treat a signed-in user as anonymous.
-//
-// The token-gated landings resolve the viewer themselves via
-// `context.loadUser()`, so for them only the `Vary` half is load-bearing:
-// `friend-groups/preview` (`viewerStatus`), `tournaments/submit/{token}`
-// (`viewerIsParticipant`) and `tournaments/staff-invite/{token}`
-// (`alreadyStaff`). None of them set `Cache-Control`, which per ADR-016 means
-// they fall through to Cloudflare's default heuristic rather than to a
-// guaranteed no-store — `Vary` is what keeps that fall-through safe.
-//
-// These tests fail closed if the wiring is dropped for any of them:
-//   - the `Vary: Cookie` header disappears, and
-//   - feature-flags stops honouring the signed-in viewer's per-user override.
-//
-// The ETag/304 + Cache-Control half of the same wiring is covered in
-// catalog.integration.test.ts.
+// Guards app.ts wiring the `loadSession` middleware onto every public read whose
+// body differs by auth state: it resolves `context.user` and appends
+// `Vary: Cookie`, without which a shared/edge cache could serve an anonymous
+// body to a signed-in viewer or vice versa. The token-gated landings resolve
+// the viewer via `context.loadUser()` instead, so only the `Vary` half matters there.
 
 // Random per-file user (seeded via seedTestUser in beforeAll) so this file
 // cannot collide with pre-seeded registry users or other files' fixtures.
@@ -55,8 +34,6 @@ describe.skipIf(!anonCtx || !authCtx)("Optional-auth public reads (integration)"
   beforeAll(async () => {
     // The override row FKs to users(id); seed a user to hang it off.
     await seedTestUser(auth.db, { id: USER_ID });
-    // Global default OFF, per-user override ON: the signed-in viewer only sees
-    // the flag enabled if `loadSession` resolved them onto `context.user`.
     await featureFlagsRepo(auth.db).create({ key: FLAG_KEY, enabled: false, description: null });
     await userFeatureFlagsRepo(auth.db).upsert(USER_ID, FLAG_KEY, true);
   });
@@ -83,8 +60,6 @@ describe.skipIf(!anonCtx || !authCtx)("Optional-auth public reads (integration)"
       expect(res.headers.get("Vary")).toContain("Cookie");
       expect(res.headers.get("Cache-Control")).toContain("private");
       const body = (await readJson(res)) as { flags: Record<string, boolean> };
-      // The per-user override wins over the global default only because
-      // loadSession resolved the viewer onto context.user.
       expect(body.flags[FLAG_KEY]).toBe(true);
     });
   });
@@ -97,9 +72,8 @@ describe.skipIf(!anonCtx || !authCtx)("Optional-auth public reads (integration)"
     });
   });
 
-  // The token-gated landings, checked against an unknown token so they need no
-  // fixtures: the wiring is on the path, so it applies before the handler
-  // decides the token matches nothing.
+  // Checked against an unknown token: the wiring is on the path, so it
+  // applies before the handler decides the token matches nothing.
   describe("token-gated landings", () => {
     it("runs loadSession on the group join preview", async () => {
       const res = await anon.app.request(req("GET", "/friend-groups/preview?code=NOSUCHCODE12"));

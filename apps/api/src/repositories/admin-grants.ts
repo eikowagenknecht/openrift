@@ -9,16 +9,9 @@ interface GrantWithUser {
   section: string;
 }
 
-/**
- * Queries for per-section admin grants (selective admin access without full
- * admin rights). Sections are slugs from the shared `ADMIN_SECTIONS` registry;
- * unknown slugs in the table are filtered out at the API layer, not here.
- *
- * @returns An object with admin-grant query methods bound to the given `db`.
- */
+/** Unknown section slugs in the table are filtered out at the API layer, not here. */
 export function adminGrantsRepo(db: Kysely<Database>) {
   return {
-    /** @returns The section slugs granted to the given user (sorted). */
     async sectionsForUser(userId: string): Promise<string[]> {
       const rows = await db
         .selectFrom("adminGrants")
@@ -29,7 +22,6 @@ export function adminGrantsRepo(db: Kysely<Database>) {
       return rows.map((r) => r.section);
     },
 
-    /** @returns All grants across all users, joined with user name/email for admin display. */
     async listAllWithUsers(): Promise<GrantWithUser[]> {
       const rows = await db
         .selectFrom("adminGrants")
@@ -55,7 +47,7 @@ export function adminGrantsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Delete result — check `numDeletedRows` to verify the grant existed. */
+    /** Check `numDeletedRows` on the result to verify the grant existed. */
     remove(userId: string, section: string): Promise<DeleteResult> {
       return db
         .deleteFrom("adminGrants")

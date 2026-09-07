@@ -9,28 +9,15 @@ import { promoteNewEvent } from "../meta-promote.js";
 import { errorText } from "./deps.js";
 import type { TopdeckSyncDeps } from "./topdeck-deps.js";
 
-/**
- * Turning a topdeck catalogue row into a live event. Field size is the whole
- * rule: the source publishes no template vocabulary. Nothing is armed
- * afterwards, since the catalogue pass already wrote the standings and lists.
- * Team events never auto-accept, because the archive has one row per player and
- * a trios field would read as individual results.
- */
-
 export interface TopdeckAcceptSummary {
-  /** Rows the threshold was run against. */
   considered: number;
   accepted: number;
-  /** Rows over the threshold that could not be accepted. */
   failed: number;
-  /** One line per failure, up to {@link MAX_SWEEP_ERRORS}. */
   errors: string[];
 }
 
-/** How many keys one page of a sweep reads rows for; see the uvsgames note. */
 const SWEEP_PAGE = 1000;
 
-/** The most failures one sweep spells out. Past this only the count grows. */
 const MAX_SWEEP_ERRORS = 50;
 
 const MAX_EVENT_NAME = 120;
@@ -69,6 +56,8 @@ async function sweep(
     const rows = await deps.repos.topdeckEvents.unacceptedByKeys(page);
     summary.considered += rows.length;
     for (const row of rows) {
+      // Team events have one archive row per player; a trios field would
+      // read as an individual result if auto-accepted.
       if (row.isTeamEvent || row.playerCount === null || row.playerCount < threshold) {
         continue;
       }
@@ -86,11 +75,6 @@ async function sweep(
   return summary;
 }
 
-/**
- * The rule-gated accept over the keys a crawl just touched. Player count only:
- * an event at or above the admin's threshold is accepted, everything else waits
- * for a human. Already-accepted or dismissed rows never reach here.
- */
 export async function autoAcceptTopdeckEvents(
   deps: TopdeckSyncDeps,
   tids: readonly string[],
@@ -106,12 +90,8 @@ export async function autoAcceptTopdeckEvents(
   return await sweep(deps, threshold, tids);
 }
 
-/**
- * The threshold over every row still awaiting triage, rather than over one
- * crawl's own keys. A crawl only judges what it wrote, so a threshold lowered
- * today never reaches the events already in the list; this is how those are
- * caught up.
- */
+// Sweeps every row still awaiting triage, not just one crawl's own keys, so
+// a threshold lowered today also catches up events already in the list.
 export async function autoAcceptTopdeckBacklog(
   deps: TopdeckSyncDeps,
 ): Promise<TopdeckAcceptSummary> {

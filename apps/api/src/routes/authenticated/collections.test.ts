@@ -7,10 +7,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { collectionsRouter } from "./collections";
 
-// ---------------------------------------------------------------------------
-// Mock repos and services
-// ---------------------------------------------------------------------------
-
 const mockCollectionsRepo = {
   listForUser: vi.fn(() => Promise.resolve([] as object[])),
   listAccessibleForUser: vi.fn(() => Promise.resolve([] as object[])),
@@ -44,8 +40,6 @@ const mockCopiesRepo = {
   listForCollection: vi.fn(() => Promise.resolve([] as object[])),
 };
 
-// Which of the caller's decks are stored in which collection — the source of
-// each response's `homeDecks`.
 const mockDecksRepo = {
   listHomeCollectionDecks: vi.fn(() =>
     Promise.resolve([] as { id: string; name: string; collectionId: string }[]),
@@ -66,10 +60,6 @@ const mockDeleteCollection = vi.fn(() => Promise.resolve());
 const mockClearCollection = vi.fn(() =>
   Promise.resolve({ removedCount: 0, keptCopyIds: [] as string[] }),
 );
-
-// ---------------------------------------------------------------------------
-// Test app
-// ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
@@ -99,10 +89,6 @@ app.onError((err, c) => {
   }
   throw err;
 });
-
-// ---------------------------------------------------------------------------
-// Test data
-// ---------------------------------------------------------------------------
 
 const now = new Date("2026-03-17T00:00:00Z");
 
@@ -171,10 +157,6 @@ const dbCopy = {
   links: [],
 };
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe("GET /api/v1/collections", () => {
   beforeEach(() => {
     mockCollectionsRepo.listAccessibleForUser.mockReset();
@@ -203,7 +185,6 @@ describe("GET /api/v1/collections", () => {
     expect(json.items[2].viewerCanAdmin).toBe(false);
   });
 
-  // A collection that is some deck's box says so, and only on that collection.
   it("names the decks stored in each collection", async () => {
     mockCollectionsRepo.listAccessibleForUser.mockResolvedValue([
       { ...dbInbox, groupSlug: null, groupName: null, viewerCanAdmin: true, copyCount: 0 },

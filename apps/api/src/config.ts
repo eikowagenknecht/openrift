@@ -3,9 +3,6 @@ import { parseAppEnv } from "@openrift/shared/app-env";
 export function createConfig(env: Record<string, string | undefined>) {
   const appEnv = parseAppEnv(env.APP_ENV);
   return {
-    // The deployment environment, reported verbatim to Sentry (see index.ts)
-    // so preview errors land in their own environment instead of polluting
-    // production.
     appEnv,
     isDev: appEnv === "development",
     port: Number(env.PORT ?? 3000),
@@ -57,13 +54,10 @@ export function createConfig(env: Record<string, string | undefined>) {
     logRequestBodies: env.LOG_REQUEST_BODIES === "true",
     logResponseBodies: env.LOG_RESPONSE_BODIES === "true",
 
-    // The meta sources. Overridable so a test deployment can point at a recorded
-    // fixture server instead of the live APIs.
     metaSync: {
       baseUrl: env.META_SYNC_BASE_URL ?? "https://api.riftbound.uvsgames.com",
       playloltcgBaseUrl: env.META_PLAYLOLTCG_BASE_URL ?? "https://lol-api.playloltcg.com",
       topdeckBaseUrl: env.META_TOPDECK_BASE_URL ?? "https://topdeck.gg/api/",
-      // The only meta source that authenticates. Unset disables its jobs.
       topdeckApiKey: env.TOPDECK_API_KEY ?? null,
     },
 
@@ -72,15 +66,10 @@ export function createConfig(env: Record<string, string | undefined>) {
       changelog: env.DISCORD_WEBHOOK_CHANGELOG ?? null,
     },
 
-    // Shared service secret authenticating the first-party Discord bot's
-    // privileged endpoints (group lookups). Unset disables them entirely.
     discordBotApiSecret: env.DISCORD_BOT_API_SECRET ?? null,
 
     changelogPath: env.CHANGELOG_PATH || "apps/web/src/CHANGELOG.md",
 
-    // Filenames under media/scan/ of the engine-versioned scanner assets.
-    // They are uploaded once per engine version (never committed) with a
-    // version in the name, because nginx serves /media/ as immutable.
     scan: {
       encoderFile: env.SCAN_ENCODER_FILE ?? "scan-encoder-v2.onnx",
       opencvFile: env.SCAN_OPENCV_FILE ?? "scan-opencv-v1.js",
@@ -90,8 +79,7 @@ export function createConfig(env: Record<string, string | undefined>) {
 
 export function validateConfig(env: Record<string, string | undefined>): void {
   const required = ["DATABASE_URL", "BETTER_AUTH_SECRET"] as const;
-  // Preview is a prod-style build on a non-canonical domain — enforce the
-  // same required vars as production.
+  // Preview is a prod-style build, so it needs the same required vars as production.
   const isProd = parseAppEnv(env.APP_ENV) !== "development";
   const requiredInProd = ["CORS_ORIGIN", "BETTER_AUTH_URL"] as const;
 
@@ -104,9 +92,8 @@ export function validateConfig(env: Record<string, string | undefined>): void {
     throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
   }
 
-  // CORS runs with credentials enabled, and matchOrigin reflects the request
-  // origin when CORS_ORIGIN is "*" — which would let any website make
-  // authenticated requests against a signed-in session. Fail at boot instead.
+  // Credentialed CORS with origin "*" reflects the request origin, letting any
+  // website make authenticated requests against a signed-in session.
   if (isProd && env.CORS_ORIGIN?.split(",").some((origin) => origin.trim() === "*")) {
     throw new Error(
       'CORS_ORIGIN must not be "*" outside development: credentialed CORS would reflect any origin. List explicit origins instead.',

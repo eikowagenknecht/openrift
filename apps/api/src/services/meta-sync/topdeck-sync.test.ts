@@ -58,11 +58,8 @@ interface MissingCall {
 }
 
 function fakeDeps(options: {
-  /** What one search answers with, keyed by format. */
   byFormat?: Record<string, unknown[]>;
-  /** Formats whose upsert reports the rows as unchanged rather than new. */
   unchanged?: boolean;
-  /** Makes every standings write throw, so the requeue path is exercised. */
   failWrites?: boolean;
   throttleOn?: string;
   cancelled?: boolean;
@@ -234,7 +231,6 @@ describe("syncTopdeckCatalog", () => {
     expect(requeued).toEqual(["summoner-skirmish-4"]);
     expect(result.complete).toBe(false);
     expect(result.errors[0]).toContain("summoner-skirmish-4");
-    // An incomplete pass may not call a stored row dropped.
     expect(missing.map((call) => call.format)).not.toContain("Constructed");
   });
 
@@ -311,7 +307,6 @@ describe("backfillTopdeck", () => {
     const result = await backfillTopdeck(deps);
 
     expect(result.coveredThrough).toBe(NOW.toISOString());
-    // One request per format per chunk, and the archive is over a year long.
     expect(searches.length).toBeGreaterThan(TOPDECK_FORMATS.length);
     expect(searches[0]?.start).toBe(Math.floor(Date.UTC(2025, 5, 1) / 1000));
   });

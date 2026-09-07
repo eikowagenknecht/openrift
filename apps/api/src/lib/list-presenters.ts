@@ -67,18 +67,12 @@ export function toList(row: Selectable<ListsTable> & { entryCount?: number }): L
     updatedAt: row.updatedAt.toISOString(),
     tradeDefaults: tradeDefaultsFromList(row),
     currency: row.currency,
-    // The summary only reports whether rules exist; the rules themselves ride
-    // only on detail responses (toListDetail).
     hasRule: parseListRules(row.rules).length > 0,
     sidebarHidden: row.sidebarHidden,
   };
 }
 
-/**
- * Delegates to the shared `hydrateListRules` so a rule saved before a newer
- * filter dimension existed backfills that dimension instead of emitting a
- * partial filter that fails response output validation.
- */
+/** Must backfill missing filter dimensions or response output validation rejects a rule saved before a newer dimension existed. */
 export function parseListRules(value: ListRules | null | undefined): ListRules {
   return hydrateListRules(value);
 }

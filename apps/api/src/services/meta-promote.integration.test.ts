@@ -80,11 +80,9 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
   const { db } = ctx!;
   const repo = metaRepo(db);
 
-  /** A live event carrying every field a re-promote could otherwise blank. */
   /**
-   * A hand-entered event, built the way the admin create route builds one: the
-   * row carries identity and the columns it cannot hold empty, and everything
-   * the human typed is claimed by their accepted overlay.
+   * A hand-entered event, built the way the admin create route builds one:
+   * everything the human typed is claimed by their accepted overlay.
    */
   async function seedLiveEvent(slug: string): Promise<string> {
     const event = await repo.createEvent({
@@ -161,8 +159,6 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
 
       await promoteMetaEvent(repos, metaEventId);
 
-      // Promotion rebuilds the row from nothing when no source describes it, so
-      // what a human filled in survives only because their overlay claims it.
       expect(await repo.eventById(metaEventId)).toMatchObject({
         name: "MPI Summoner Skirmish",
         playerCount: 41,
@@ -258,8 +254,6 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
         "pnMPI Riven#1",
         "pu5001",
       ]);
-      // Identity is load-bearing: decks, matches and share tokens hang off it,
-      // so a second promote has to land on the rows the first one wrote.
       expect(second.map((row) => row.id).toSorted()).toEqual(first.map((row) => row.id).toSorted());
     });
 
@@ -289,8 +283,6 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
 
     it("adopts a row written before the identity column existed instead of duplicating it", async () => {
       const { metaEventId } = await seedMirroredEvent("mpi-playloltcg-legacy", [TWO_PLAYERS[0]]);
-      // What a pre-repair promote left behind: the name it derived identity
-      // from, and no stored key.
       const legacyId = await seedStandingsOnlyPlayer(metaEventId, "MPI Ashe", 9);
 
       await promoteMetaEvent(repos, metaEventId);
@@ -312,9 +304,6 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
       await promoteMetaEvent(repos, metaEventId);
       const second = await repo.rawStandingsForEvent(metaEventId);
 
-      // Both standings share the legacy identity "n mpi twins". Letting each
-      // stamp the row in turn keyed it by whichever ran last, and the loser
-      // then inserted a duplicate on the next promote.
       expect(first).toHaveLength(2);
       expect(first.some((row) => row.id === legacyId)).toBe(true);
       expect(second.map((row) => row.id).toSorted()).toEqual(first.map((row) => row.id).toSorted());
@@ -527,7 +516,6 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
 
       const sources = await repo.sourcesForEvent(metaEventId);
       const rows = await repo.rawStandingsForEvent(metaEventId);
-      // Both citations print on the event page; only the first is read.
       expect(sources).toHaveLength(2);
       expect(sources.find((row) => row.provider === "topdeck")?.contributes).toBe(false);
       expect(rows.map((row) => row.sourceIdentity)).toEqual(["pu5001"]);
@@ -565,7 +553,6 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
       expect(rows.map((row) => row.sourceIdentity).toSorted()).toEqual(["pu5002", "tuacct-1"]);
     });
 
-    /** A playloltcg mirror holding one entrant, which the live event reads. */
     async function seedReadMirror(playerKey: string): Promise<number> {
       const activityShopId = takeShopId();
       await db
@@ -586,7 +573,6 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
       return activityShopId;
     }
 
-    /** Cites the topdeck mirror and lets it contribute. */
     async function readTopdeckMirror(metaEventId: string, tid: string): Promise<void> {
       await cite(metaEventId, "topdeck", tid);
       const sources = await repo.sourcesForEvent(metaEventId);
@@ -594,7 +580,6 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
       await repo.setEventSourceContributes(topdeck?.id ?? "", true);
     }
 
-    /** Cites both mirrors and lets the topdeck one contribute. */
     async function readBothMirrors(
       metaEventId: string,
       activityShopId: number,
@@ -625,8 +610,6 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
 
       const rows = await repo.rawStandingsForEvent(metaEventId);
       expect(rows).toHaveLength(1);
-      // The identity the live row already holds, so the read mirror still
-      // resolves it on the next promote.
       expect(rows[0].sourceIdentity).toBe("pu5010");
       expect(rows[0].id).toBe(live.id);
     });
@@ -658,7 +641,6 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
       const rows = await repo.rawStandingsForEvent(metaEventId);
       expect(rows).toHaveLength(1);
       expect(rows[0].legendCardId).toBe(spellCardId);
-      // The read mirror still wins the fields it does publish.
       expect(rows[0].wins).toBe(5);
     });
 
@@ -736,8 +718,6 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
       await promoteMetaEvent(repos, metaEventId);
       await promoteMetaEvent(repos, metaEventId);
 
-      // The source still publishes "MPI Typo" every pass, so the rename has to
-      // survive on the same row rather than minting a second one beside it.
       const after = await repo.rawStandingsForEvent(metaEventId);
       expect(after).toHaveLength(1);
       expect(after[0]).toMatchObject({ id: seeded.id, playerName: "MPI Corrected" });
@@ -758,7 +738,6 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
       const after = await repo.rawStandingsForEvent(metaEventId);
       expect(after).toHaveLength(1);
       expect(after[0]).toMatchObject({ id: playerId, wins: 6 });
-      // Written back, so the next promote applies it without re-matching.
       expect(await repos.metaOverlays.playerOverlayById(overlayId)).toMatchObject({
         metaEventPlayerId: playerId,
         metaEventId: null,
@@ -828,8 +807,6 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
 
       const result = await promoteMetaEvent(repos, metaEventId);
 
-      // Silence would read as data loss: the overlay is accepted and lands
-      // nowhere at all.
       expect(await repo.rawStandingsForEvent(metaEventId)).toEqual([]);
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0]).toContain("MPI Ghost");
@@ -880,8 +857,6 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
 
       await promoteMetaEvent(repos, metaEventId);
 
-      // The overlay pass runs whether or not a mirror produced a field, so a
-      // hand-entered event's corrections still land.
       expect(await repo.rawStandingsForEvent(metaEventId)).toMatchObject([
         { id: playerId, wins: 3, losses: 1 },
       ]);

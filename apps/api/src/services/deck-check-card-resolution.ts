@@ -9,11 +9,7 @@ interface CardResolutionInput {
   name: string;
 }
 
-/**
- * This is an identity key, not a search key: its only job is to collapse the
- * repeated spellings inside one batch onto a single lookup, and to let a caller
- * find its own line's result again. Matching itself is the ranked matcher's.
- */
+/** An identity key to collapse repeated spellings in a batch, not a search key. */
 export function cardResolutionKey(name: string): string {
   return normalizeNameForIdentity(name);
 }
@@ -44,10 +40,7 @@ const AMBIGUOUS: CardResolution = {
 
 /**
  * Runs against the shared in-memory lookup index, so a name that finds a card
- * in a picker, in chat or in the Discord bot finds the same card here. That
- * index carries the curated aliases and the colloquial Legend form. Exactly
- * one candidate is `matched`, several are `ambiguous`, none is `unmatched`.
- * For a match the canonical printing is read purely to source a thumbnail.
+ * in a picker, in chat or in the Discord bot finds the same card here.
  */
 export async function resolveDeckCheckCards(
   repos: Repos,

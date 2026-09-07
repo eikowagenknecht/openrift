@@ -1,28 +1,15 @@
 /**
  * What a user submission actually proposed to change, expressed as field paths.
  *
- * This exists because admin acceptance cannot be attributed to a column. The
- * compare grid puts every provider's value for a field side by side, and the
- * admin clicks whichever cell is nearest. Crediting a contributor by whose cell
- * was clicked would mark them rejected whenever a scraped provider happened to
- * carry the same correct value. So instead we record what differed from the
- * live catalog when they submitted, and ask at review time how much of that the
- * catalog now agrees with.
+ * Not compared: `domains`/`superTypes` (junction tables), `setId` (slug vs uuid),
+ * and rules/effect text (not `cards` columns).
  *
- * Deliberately not compared: `domains` and `superTypes` (junction tables, no
- * cheap read), `setId` (the candidate stores a set slug, the printing a uuid),
- * and card-level rules/effect text (not `cards` columns). A contributor
- * changing only those resolves as `not_applied`, which understates rather than
- * overstates their credit.
- *
- * Printings are identified by `buildPrintingLinkKey`, the same key the ingest
- * link resolution uses — never a hand-rolled copy of it.
+ * Printings are identified by `buildPrintingLinkKey`; do not hand-roll this key.
  */
 import { buildPrintingLinkKey } from "./printing-link-key.js";
 
 interface LiveCardSnapshot {
   name: string;
-  /** The denormalized primary type; the junction tables are not read. */
   type: string;
   might: number | null;
   energy: number | null;
@@ -43,7 +30,6 @@ export interface LivePrintingSnapshot {
   printedEffectText: string | null;
   printedName: string | null;
   language: string | null;
-  /** Whether an active front image already exists for this printing. */
   hasImage: boolean;
 }
 

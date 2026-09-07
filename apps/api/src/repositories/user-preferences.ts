@@ -43,18 +43,7 @@ export function userPreferencesRepo(db: Kysely<Database>) {
       return row;
     },
 
-    /**
-     * Applies a partial preferences patch: `null` removes a key (resetting it
-     * to the default), `undefined` leaves it alone, any other value replaces
-     * the whole top-level key.
-     *
-     * The merge happens in SQL, not in JS. Reading the row, merging, and
-     * writing the result back is a lost update: two PATCHes overlapping in
-     * time each wrote the snapshot they had read, so whichever committed last
-     * silently dropped the other's keys. `jsonb ||` is exactly the shallow
-     * top-level replace the JS merge did, and `jsonb - text[]` performs the
-     * null-means-reset deletes, so the semantics are unchanged.
-     */
+    /** The merge runs in SQL so two overlapping PATCHes cannot drop each other's keys. */
     async upsert(userId: string, incoming: PartialPreferences): Promise<UserPreferencesResponse> {
       const patch: Record<string, unknown> = {};
       const removedKeys: string[] = [];
@@ -74,8 +63,7 @@ export function userPreferencesRepo(db: Kysely<Database>) {
         .values({ userId, data: patch })
         .onConflict((oc) =>
           oc.column("userId").doUpdateSet({
-            // `excluded` is the row this statement proposed, i.e. the patch.
-            // The removals run last, though a key can never be in both halves.
+            // A key never appears in both `patch` and `removedKeys`.
             data: sql`(user_preferences.data || excluded.data) - ${removedKeys}::text[]`,
           }),
         )
@@ -85,7 +73,6 @@ export function userPreferencesRepo(db: Kysely<Database>) {
       return row.data;
     },
 
-    /** Verified-email users who have opted into the daily match digest. */
     async listMatchDigestRecipients(): Promise<MatchDigestRecipient[]> {
       const rows = await db
         .selectFrom("userPreferences as up")
@@ -98,10 +85,8 @@ export function userPreferencesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * The inner join on `admins` is the real gate: the preference is storable
-     * by anyone, but only an admin can ever be a recipient, so a demoted
-     * admin stops receiving these without their stored preference having to
-     * change.
+     * The inner join on `admins` is the real gate; a demoted admin stops
+     * receiving these without their stored preference changing.
      */
     async listCardSubmissionRecipients(): Promise<CardSubmissionRecipient[]> {
       const rows = await db
@@ -116,12 +101,8 @@ export function userPreferencesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * The owners and admins of one group who still receive its join-request
-     * alerts. Opt-out, so the join to preferences is a LEFT one and the filter
-     * excludes only an explicit `false`: a member who has never opened the
-     * profile page has no preferences row at all and must still be mailed.
-     * Membership is the real gate, so a demoted admin stops receiving these
-     * without their stored preference having to change.
+     * Opt-out: the join to preferences is LEFT so a member with no
+     * preferences row (never opened the profile page) still gets mailed.
      */
     async listGroupJoinRequestRecipients(groupId: string): Promise<GroupJoinRequestRecipient[]> {
       const rows = await db
@@ -139,10 +120,7 @@ export function userPreferencesRepo(db: Kysely<Database>) {
       return rows;
     },
 
-    /**
-     * Left-joins preferences so a user with no preferences row still resolves
-     * (empty `emailNotifications`, which reads as request-on / digest-off).
-     */
+    /** Left-joins preferences so a user with no preferences row still resolves with empty `emailNotifications`. */
     async getEmailNotificationContext(
       userId: string,
     ): Promise<EmailNotificationContext | undefined> {

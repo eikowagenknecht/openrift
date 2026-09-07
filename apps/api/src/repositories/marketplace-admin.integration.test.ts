@@ -9,16 +9,11 @@ const ctx = createDbContext("a0000000-0034-4000-a000-000000000001");
 describe.skipIf(!ctx)("marketplaceAdminRepo (integration)", () => {
   const { db } = ctx!;
   const repo = marketplaceAdminRepo(db);
-  // The marketplace vocabulary is a closed CHECK (migration 247), so these
-  // fixtures live under a real marketplace. Isolation comes from this file's
-  // own id ranges, not the marketplace value: seeded fixtures and other test
-  // files share "cardmarket", so every assertion and delete below is scoped
-  // to the ids this file owns.
+  // The marketplace vocabulary is a closed CHECK; other test files also use
+  // "cardmarket", so isolation comes from this file's own id ranges below.
   const marketplace = "cardmarket" as const;
 
   const groupId = 92_001;
-  // Every externalId this file writes, in one place so cleanup can target
-  // exactly these rows. Extend it when a test adds a new id.
   const fileExternalIds = [88_001, 88_002, 88_101, 88_102, 88_103, 88_201];
 
   afterAll(async () => {
@@ -106,10 +101,8 @@ describe.skipIf(!ctx)("marketplaceAdminRepo (integration)", () => {
   });
 
   describe("NULL language SKUs", () => {
-    // Cardmarket and TCGplayer don't expose language as a SKU axis, so their
-    // `marketplace_products.language` is NULL. Every lookup on the SKU tuple
-    // has to compare it with IS NOT DISTINCT FROM — `=` against NULL is never
-    // true, so an equality comparison deletes nothing for those marketplaces.
+    // Cardmarket/TCGplayer store NULL language; SKU lookups must use
+    // IS NOT DISTINCT FROM since `=` never matches NULL.
     const nullLangExternalId = 88_101;
     const enLangExternalId = 88_102;
 
@@ -225,10 +218,8 @@ describe.skipIf(!ctx)("marketplaceAdminRepo (integration)", () => {
   });
 
   it("clearPriceData reports the rows it deleted per table", async () => {
-    // clearPriceData wipes the entire marketplace — seeded fixture rows and
-    // this file's earlier rows included. Capture everything under the
-    // marketplace first, assert the counts as deltas over that baseline, and
-    // restore the captured rows so later test files still see the seed data.
+    // clearPriceData wipes the entire marketplace, so counts are asserted as
+    // deltas over a captured baseline, which is restored afterward.
     const baseProducts = await db
       .selectFrom("marketplaceProducts")
       .selectAll()
@@ -321,9 +312,8 @@ describe.skipIf(!ctx)("marketplaceAdminRepo (integration)", () => {
       await db.insertInto("marketplaceIgnoredVariants").values(baseIgnoredVariants).execute();
     }
 
-    // Two price rows against one variant — the counts are per table, so the
-    // variant must not multiply the price figure: exactly +2 / +1 / +1 over
-    // the baseline.
+    // Counts are per table: two price rows against one variant must not
+    // multiply the price figure.
     expect(counts).toEqual({
       prices: basePrices.length + 2,
       variants: baseVariants.length + 1,

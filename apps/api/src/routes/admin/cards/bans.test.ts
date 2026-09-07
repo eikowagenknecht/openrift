@@ -20,11 +20,9 @@ const mockCatalog = {
   cardById: vi.fn(),
 };
 
-// ban.add fetches name/slug for the audit label; audit inserts land here.
 const mockCatalogMutations = { getCardById: vi.fn() };
 const mockAdminEvents = { insert: vi.fn() };
 
-// Mount the oRPC router directly (without the requireAdmin gate).
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("repos", {

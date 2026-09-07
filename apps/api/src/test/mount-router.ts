@@ -8,20 +8,8 @@ import type { ApiContext } from "../orpc/context.js";
 import type { Variables } from "../types.js";
 
 /**
- * Registers an oRPC domain router on a test Hono app exactly as the production
- * catch-all does (one `OpenAPIHandler` + `appErrorInterceptor` + a context
- * built from `c` via `buildApiContext`), behind an `/api/*` catch-all so the
- * handler does its own path matching. Tests set their repos/user/etc. on a
- * `app.use("*", ...)` middleware before calling this; app-level concerns
- * (auth gating beyond `requireUser`, Cache-Control, `etag`) live in `app.ts`
- * and are covered separately, not here.
- *
- * The router is typed `Router<any, ApiContext>` — the same instantiation the
- * production handler infers. `ConstructorParameters<typeof OpenAPIHandler>[0]`
- * would collapse the context parameter to its `Context` constraint, which no
- * router built on our `ApiContext` base builder is assignable to.
- *
- * @returns Nothing; mounts the router on the passed app.
+ * App-level concerns (auth gating beyond `requireUser`, Cache-Control, `etag`)
+ * live in `app.ts` and are not covered here.
  */
 export function registerRouterForTest(
   app: Hono<{ Variables: Variables }>,

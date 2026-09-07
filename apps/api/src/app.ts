@@ -57,11 +57,9 @@ export interface AppDeps {
   io?: Io;
   services?: Partial<Services>;
   scheduler?: JobScheduler;
-  /** ADR-030: enables the instant trade-request email. Omitted in tests that don't assert mail. */
   sendEmail?: ReturnType<typeof createEmailSender>;
 }
 
-/** 10 requests per minute per IP for sensitive auth endpoints */
 const authRateLimit = rateLimiter<{ Variables: Variables }>({
   windowMs: 60_000,
   limit: 10,
@@ -79,8 +77,6 @@ const rateLimitedAuthPrefixes = [
 
 export function createApp(deps: AppDeps) {
   const { db, auth, config, log } = deps;
-  // ADR-030: bind the trade-request email deps into createTrade. Only when an
-  // SMTP sender is provided — tests and SMTP-less envs get the plain services.
   const built = createServices(
     deps.sendEmail
       ? {
@@ -95,23 +91,12 @@ export function createApp(deps: AppDeps) {
 
   const app = new Hono<{ Variables: Variables }>();
 
-  // Repos and the transaction helper are stateless given a fixed `db`, so build
-  // them once at app construction rather than re-instrumenting all ~50 repos on
-  // every request. Each instrumented repo method still opens its own OTel span
-  // per call; createTransact rebuilds repos against the trx handle inside each
-  // transaction, so writes stay transaction-scoped.
   const repos = createRepos(db);
   const transact = createTransact(db);
 
-  // The single oRPC handler for every migrated route. Bound to `log` so its
-  // reporting interceptor captures 5xx faults to Sentry + the structured error
-  // log (oRPC encodes handler throws into a Response, so they never reach the
-  // Hono `onError` below).
+  // oRPC encodes handler throws into a Response, so they never reach the Hono `onError` below.
   const apiHandler = createApiHandler(log);
 
-  // ── Global error handler ────────────────────────────────────────────────
-  // Normalizes all thrown errors into a consistent { error, code, details? } JSON shape.
-  // In dev mode, details (stack traces, Zod issues) are included for debugging.
   // oxlint-disable-next-line promise/prefer-await-to-callbacks -- Hono's onError API takes a callback
   app.onError((err, c) => {
     if (err instanceof AppError) {
@@ -136,8 +121,6 @@ export function createApp(deps: AppDeps) {
     }
 
     if (err instanceof HTTPException) {
-      // Framework-thrown HTTPExceptions carry a status but no code; map the
-      // status to the canonical code so the envelope stays uniform.
       const body: ApiErrorResponse = { error: err.message, code: codeForStatus(err.status) };
       return c.json(body, err.status);
     }
@@ -146,13 +129,7 @@ export function createApp(deps: AppDeps) {
       return c.json({ error: "Invalid JSON in request body", code: ERROR_CODES.BAD_REQUEST }, 400);
     }
 
-    // better-auth throws better-call's APIError, which extends plain Error and
-    // so matched none of the branches above — every API-key rate-limit denial
-    // and every invalid key came out of the catch-all below as a 500 plus an
-    // unhandled Sentry event. `resolveSession` reaches here for any Hono route
-    // that loads a session (`loadSession`, `requireAuth`, `requireAdmin`); the
-    // oRPC handler never reaches `onError`, so its own session lookup maps the
-    // same error in `buildApiContext`.
+    // better-auth throws better-call's APIError, a plain Error subclass matching none of the branches above.
     if (isAPIError(err)) {
       const { status, code, message, retryAfterSeconds } = mapAuthError(err);
       if (status >= 500) {
@@ -177,8 +154,6 @@ export function createApp(deps: AppDeps) {
     return c.json(body, 500);
   });
 
-  // Unmatched API routes return the same JSON envelope as every other error,
-  // not Hono's default text/plain 404. Non-API paths keep a plain 404.
   app.notFound((c) => {
     if (c.req.path.startsWith("/api/")) {
       return c.json(
@@ -189,28 +164,15 @@ export function createApp(deps: AppDeps) {
     return c.text("Not Found", 404);
   });
 
-  // Open an OTel `http.server` span per request and activate it in the OTel
-  // context, so child spans (notably the Kysely `db.query` spans) inherit it.
-  // Registered before metrics + deps + auth middlewares since they all run
-  // inside the span (metrics for exemplars, deps/auth for DB queries).
+  // Registered before metrics + deps + auth middlewares so they all run inside this span.
   app.use("/api/*", otelRequestMiddleware);
 
-  // ── Metrics ─────────────────────────────────────────────────────────────
-  // Prometheus scrapes /metrics from inside the openrift_default Docker network.
-  // The host port for the API is bound to 127.0.0.1 only, so /metrics is not
-  // exposed publicly. registerMetrics wraps every request so health checks and
-  // /metrics itself are counted; route labels use Hono's matched pattern
-  // (e.g. /api/v1/cards/:id) to keep cardinality bounded. Registered after
-  // otelRequestMiddleware so the active span is in scope and exemplars carry
-  // its trace ID — Grafana surfaces those as clickable jumps into Tempo.
+  // Registered after otelRequestMiddleware so exemplars carry the active span's trace ID.
   const { printMetrics, registerMetrics } = createMetricsMiddleware();
   app.use("*", registerMetrics);
   app.get("/metrics", printMetrics);
 
-  // ── Global middleware ───────────────────────────────────────────────────
   // CORS runs first so preflight OPTIONS requests are handled before any other work.
-  // exposeHeaders includes X-Build-Id so cross-origin clients (preview env) can
-  // read it for stale-bundle detection; same-origin clients see it regardless.
   app.use(
     "/api/*",
     cors({
@@ -220,26 +182,15 @@ export function createApp(deps: AppDeps) {
     }),
   );
 
-  // X-Build-Id on non-cacheable responses, X-Api-Format on cacheable ones —
-  // see middleware/version-headers.ts for why the split matters.
   app.use("/api/*", versionHeadersMiddleware(config.buildId));
 
   if (config.logRequests) {
     app.use("/api/*", async (c, next) => {
       const start = performance.now();
-      // Size from Content-Length headers, not by cloning + buffering the body —
-      // logging a request shouldn't read large payloads (e.g. /catalog) in full
-      // just to report their size.
       const reqSize = Number(c.req.header("content-length") ?? 0);
       await next();
       const ms = (performance.now() - start).toFixed(0);
-      // Response size: Bun sets Content-Length only when it serializes the
-      // response to the socket — downstream of this middleware — so for normal
-      // c.json()/c.text() responses the header is absent here and prod logs no
-      // `res=` size. In dev, buffer a clone to report an accurate size (the
-      // observability is worth the cost while developing); in prod, keep the
-      // cheap header read and omit the size rather than buffer large payloads
-      // like /catalog (~310KB) on every request.
+      // Bun sets Content-Length only when serializing to the socket, downstream of here.
       let resSize = Number(c.res.headers.get("content-length") ?? 0);
       if (config.isDev && resSize === 0) {
         const buffered = await c.res.clone().arrayBuffer();
@@ -318,7 +269,6 @@ export function createApp(deps: AppDeps) {
     });
   }
 
-  // Make shared dependencies (repos, services, etc.) available via c.get() in all routes.
   app.use("/api/*", async (c, next) => {
     c.set("io", deps.io ?? defaultIo);
     c.set("auth", auth);
@@ -330,10 +280,8 @@ export function createApp(deps: AppDeps) {
     await next();
   });
 
-  // ── Auth ────────────────────────────────────────────────────────────────
-  // Apply rate limiting only to sensitive auth endpoints (sign-in, sign-up, etc.).
-  // DISABLE_AUTH_RATE_LIMIT lets the e2e harness opt out — auth.setup re-runs
-  // in tight succession would otherwise trip the limiter and fail.
+  // DISABLE_AUTH_RATE_LIMIT lets the e2e harness opt out; auth.setup re-runs in
+  // tight succession would otherwise trip the limiter and fail.
   const authRateLimitDisabled = process.env.DISABLE_AUTH_RATE_LIMIT === "1";
   app.use("/api/auth/*", async (c, next) => {
     if (!authRateLimitDisabled && rateLimitedAuthPrefixes.some((p) => c.req.path.startsWith(p))) {
@@ -348,19 +296,6 @@ export function createApp(deps: AppDeps) {
   app.get("/api/auth/*", (c) => auth.handler(c.req.raw));
   app.post("/api/auth/*", (c) => auth.handler(c.req.raw));
 
-  // Session loading is opt-in per route. Auth-gated middlewares
-  // (`requireAuth`, `requireAdmin`) resolve the session themselves;
-  // public routes that branch on auth state apply the `loadSession`
-  // middleware explicitly. Truly-public routes skip the lookup entirely.
-
-  // ── OpenAPI spec & Swagger UI ──────────────────────────────────────────
-  // The public and admin surfaces get separate OpenAPI documents (split by the
-  // /api/admin/ path prefix) so the ~140 admin operations don't pollute the
-  // public spec. The spec is generated entirely from the shared oRPC contracts
-  // (`generateContractOpenAPIDocument`). A few routes are plain Hono and not in
-  // the doc on purpose (health, the sentry smoke test). Per-operation `security`
-  // is derived from each contract's auth meta (cookie session / bearer key /
-  // public) so Swagger UI shows the credential each endpoint needs.
   const ADMIN_DOC_PREFIX = "/api/admin/";
   const filterPaths = <TDoc extends { paths?: Record<string, unknown> }>(
     doc: TDoc,
@@ -388,9 +323,6 @@ export function createApp(deps: AppDeps) {
     description: "Admin-only operations, mounted under `/api/admin/v1` (require an admin session).",
   } as const;
 
-  // Build the OpenAPI document from the oRPC contracts, overlaying the doc info
-  // and the cookie-session security scheme (Better Auth issues the session in
-  // this cookie). Contract schemas are inlined (no `components.schemas`).
   const buildDoc = async (info: { title: string; version: string; description: string }) => {
     const contractDoc = await generateContractOpenAPIDocument();
     return {
@@ -403,8 +335,7 @@ export function createApp(deps: AppDeps) {
           ...contractDoc.components?.securitySchemes,
           cookieAuth: { type: "apiKey", in: "cookie", name: "better-auth.session_token" },
           bearerAuth: { type: "http", scheme: "bearer" },
-          // Same session cookie as cookieAuth, but the user must hold the admin
-          // role — enforced by the requireAdmin middleware on /api/admin/v1/*.
+          // Same cookie as cookieAuth; the requireAdmin middleware on /api/admin/v1/* enforces the role.
           adminAuth: {
             type: "apiKey",
             in: "cookie",
@@ -416,32 +347,21 @@ export function createApp(deps: AppDeps) {
     };
   };
 
-  // Public doc: everything except the admin surface.
   app.get("/api/doc", async (c) => {
     const doc = await buildDoc(publicDocInfo);
     return c.json(filterPaths(doc, (path) => !path.startsWith(ADMIN_DOC_PREFIX)));
   });
-  // Admin doc + UI are intentionally public (no requireAdmin in front). They
-  // describe the admin surface but grant no access: every operation under
-  // /api/admin/v1 is gated by the admin middleware on that sub-app, so the
-  // contract is the only thing exposed here. We do not rely on hiding the API
-  // shape for security, so publishing it is an accepted trade-off (a browsable
-  // admin reference) rather than a leak. Gate these behind requireAdmin if that
-  // stance ever changes.
-  // Admin doc: only the admin surface.
+  // Admin doc + UI are intentionally public (no requireAdmin in front): every operation
+  // under /api/admin/v1 is still gated by the admin middleware on that sub-app.
   app.get("/api/admin/doc", async (c) => {
     const doc = await buildDoc(adminDocInfo);
     return c.json(filterPaths(doc, (path) => path.startsWith(ADMIN_DOC_PREFIX)));
   });
-  // baseUrl points the page's <script>/<link> tags at swaggerAssetsRoute below
-  // instead of the default jsDelivr CDN, which the site CSP blocks.
+  // baseUrl must not point at the default jsDelivr CDN: the site CSP blocks it.
   app.get("/api/ui", swaggerUI({ url: "/api/doc", baseUrl: SWAGGER_ASSETS_BASE_URL }));
   app.get("/api/admin/ui", swaggerUI({ url: "/api/admin/doc", baseUrl: SWAGGER_ASSETS_BASE_URL }));
 
-  // ── Plain-Hono routes (not oRPC) ──────────────────────────────────────────
-  // Binary/HTML/empty responses, external error envelopes, or a deliberate
-  // throw (sentry-test) — these don't fit the oRPC JSON model, so they stay
-  // Hono. Registered before the oRPC catch-all so they win the path match.
+  // Registered before the oRPC catch-all so these plain-Hono routes win the path match.
   mountAdminSentryTest(app);
   app
     .route("/api", healthRoute)
@@ -456,26 +376,11 @@ export function createApp(deps: AppDeps) {
     .route("/api/v1", deckImageRoute)
     .route("/api/v1", tierListImageRoute);
 
-  // ── Auth + caching middleware for the oRPC routes ─────────────────────────
-  // Auth is enforced per-procedure by the `requireUser` middleware on every
-  // router (fail-closed; public procedures opt out via `meta.auth`). The only
-  // exceptions handled here as Hono middleware:
-  //  - admin uses the clean `/api/admin/v1/*` prefix (no ambiguity);
-  //  - the two optional-auth public routes run `loadSession` so they can read
-  //    the viewer AND set `Vary: Cookie` for the edge cache (ADR-016);
-  //  - `etag()` provides the catalog/prices content version + conditional GETs;
-  //  - the deck-check provider push carries a per-key rate limit + 1 MB body
-  //    limit (the push itself is a public oRPC procedure with Bearer-key auth).
   app.use("/api/admin/v1/*", requireAdmin);
   app.use("/api/v1/feature-flags", loadSession);
   app.use("/api/v1/users/share/*", loadSession);
-  // Token-gated landings that return a different body per auth state on the
-  // same URL (`viewerStatus`, `viewerIsParticipant`, `alreadyStaff`). They
-  // resolve the viewer themselves via `context.loadUser()`, so this is here for
-  // the other half of what `loadSession` does: `Vary: Cookie`, so a shared
-  // cache can never key on the URL alone. They set no `Cache-Control` today and
-  // so fall through to Cloudflare's default heuristic (ADR-016), which is
-  // exactly the case `Vary` has to survive.
+  // These return a different body per auth state on the same URL; loadSession sets
+  // `Vary: Cookie` so a shared cache can't conflate the responses.
   app.use("/api/v1/friend-groups/preview", loadSession);
   app.use("/api/v1/tournaments/submit/*", loadSession);
   app.use("/api/v1/tournaments/staff-invite/*", loadSession);
@@ -483,27 +388,16 @@ export function createApp(deps: AppDeps) {
   mountCardSubmissionsMiddleware(app);
   mountMetaSubmissionsMiddleware(app);
   for (const path of ETAG_PATHS) {
-    // Outside etag() on purpose: the immutable upgrade reads the ETag header
-    // etag() sets, so it must run after etag()'s post-processing.
+    // immutableWhenVersionMatches reads the ETag header etag() sets, so it must run
+    // after etag()'s post-processing despite being registered first.
     app.use(path, immutableWhenVersionMatches);
     app.use(path, etag());
   }
 
-  // ── Single oRPC catch-all (registered LAST) ───────────────────────────────
-  // One OpenAPIHandler serves every migrated endpoint. When oRPC has no route
-  // for the path we call next() rather than answering here, so later-registered
-  // routes still match and the app's JSON-404 notFound handler owns the miss.
-  // Cache-Control for the few cacheable public reads is applied here from the
-  // directive the cache-control client interceptor resolved off the matched
-  // procedure's meta.
   app.all("/api/*", async (c, next) => {
     const apiContext = buildApiContext(c);
-    // oRPC matches on the contract's declared method, so a HEAD never matches a
-    // GET route and used to fall through to the JSON-404 handler. RFC 9110
-    // defines HEAD as GET without a body, so run it as a GET and drop the body.
-    // This was invisible in production: the CDN answers HEAD from its stored
-    // GET for every cached read, so only the reads it hadn't cached — and any
-    // direct origin check — saw the 404.
+    // oRPC matches on the contract's declared method, so a HEAD never matches a GET route.
+    // RFC 9110 defines HEAD as GET without a body, so run it as GET and drop the body.
     const isHead = c.req.method === "HEAD";
     const request = isHead
       ? new Request(c.req.raw.url, { method: "GET", headers: c.req.raw.headers })
@@ -512,14 +406,12 @@ export function createApp(deps: AppDeps) {
     if (!matched || !response) {
       return next();
     }
-    // Only successful safe reads are cacheable. The method guard keeps a private
-    // mutation that shares a cacheable prefix (e.g. POST /decks/share/{token}/clone
-    // under the public /decks/share/ read) from ever being labelled `public`.
+    // The method guard keeps a private mutation sharing a cacheable prefix (e.g. POST
+    // /decks/share/{token}/clone under the public /decks/share/ read) from being cached.
     if (response.ok && (c.req.method === "GET" || isHead) && apiContext.cacheControl) {
       response.headers.set("Cache-Control", apiContext.cacheControl);
     }
-    // A handler-computed ETag (see ApiContext.etag). Set before `etag()` sees
-    // the response, so it keeps this tag instead of hashing the body.
+    // Must be set before `etag()` sees the response, or etag() hashes the body instead.
     if (
       response.ok &&
       (c.req.method === "GET" || isHead) &&
@@ -527,18 +419,13 @@ export function createApp(deps: AppDeps) {
     ) {
       response.headers.set("ETag", `"${apiContext.response.etag}"`);
     }
-    // The api-key rate limiter refused the session lookup and told us how long
-    // to wait; the throw is already encoded into `response` by here, so the
-    // hint travels on the context (see ApiContext.retryAfterSeconds).
     if (apiContext.retryAfterSeconds !== undefined) {
       response.headers.set("Retry-After", String(apiContext.retryAfterSeconds));
     }
     if (!isHead) {
       return response;
     }
-    // Headers (including Content-Length) describe what the GET would return,
-    // which is what HEAD must report. Cancel the unread body so the stream
-    // isn't left dangling.
+    // Cancel the unread body so the stream isn't left dangling.
     void response.body?.cancel();
     return new Response(null, {
       status: response.status,

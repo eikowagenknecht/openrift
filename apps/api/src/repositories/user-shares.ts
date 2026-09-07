@@ -16,26 +16,14 @@ export interface BundleListSummary {
 }
 
 /**
- * Per-user public share bundle: a single opaque token on `users.share_token`
- * that resolves to a filtered view of the owner's `wish` + `trade` lists. See
- * ADR-018.
- *
- * Authorization happens twice: the owner opts in by setting a `share_token`,
- * and each list opts in either via its own per-list `share_token` (anonymous
- * public) or by being shared with a friend group the viewer belongs to. The
- * repo never surfaces `organize` lists regardless of share state.
- *
- * @returns An object with user-share query methods bound to the given `db`.
+ * A token on `users.shareToken` resolves to a filtered view of the owner's
+ * `wish`/`trade` lists. Authorization is two-part: the owner's share token,
+ * and each list's own token or a friend-group share the viewer belongs to.
+ * `organize` lists are never surfaced.
  */
 export function userSharesRepo(db: Kysely<Database>) {
   return {
-    /**
-     * Sets (or nulls) the user's share token. Pass a freshly generated token
-     * to enable, `null` to revoke. Rotation is a normal write.
-     *
-     * @returns The new token (or null), or undefined if the user does not
-     *   exist.
-     */
+    /** Pass `null` to revoke. */
     async setShareToken(
       userId: string,
       shareToken: string | null,
@@ -49,7 +37,6 @@ export function userSharesRepo(db: Kysely<Database>) {
       return updated;
     },
 
-    /** @returns The current share token state for the user, or undefined. */
     getShareToken(userId: string): Promise<{ shareToken: string | null } | undefined> {
       return db
         .selectFrom("users")
@@ -58,13 +45,7 @@ export function userSharesRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /**
-     * Resolves a bundle share token to its owner. Returns nothing if the
-     * token does not match a user with a non-null `share_token`.
-     *
-     * @returns Owner profile fields needed by the public bundle page, or
-     *   undefined.
-     */
+    /** Returns nothing if the token does not match a user with a non-null `shareToken`. */
     findOwnerByShareToken(shareToken: string): Promise<BundleOwner | undefined> {
       return db
         .selectFrom("users")
@@ -78,13 +59,6 @@ export function userSharesRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /**
-     * Lists in the bundle for the given owner, restricted to lists the viewer
-     * can see (public share token or friend-group share with the viewer's
-     * groups). Anonymous viewers see public-only.
-     *
-     * @returns Bundle list summaries sorted by intent, then name.
-     */
     async listsForOwner(
       ownerUserId: string,
       viewerUserId: string | null,
@@ -152,14 +126,7 @@ export function userSharesRepo(db: Kysely<Database>) {
       }));
     },
 
-    /**
-     * Resolves a single list in the bundle, scoped to the token's owner, the
-     * bundle's intent filter, and the viewer's visibility. Used by
-     * `/users/share/:token/lists/:listId` to gate per-list reads.
-     *
-     * @returns The list row, or undefined if the list does not belong to the
-     *   token's owner, has `intent='organize'`, or is invisible to the viewer.
-     */
+    /** Used by `/users/share/:token/lists/:listId` to gate per-list reads. */
     findListInBundle(
       shareToken: string,
       listId: string,

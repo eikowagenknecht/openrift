@@ -1,34 +1,20 @@
 /**
  * Presenters for the chat-bot lookup endpoint (`GET /api/v1/chat/card`).
  *
- * Every line here is pasted verbatim into a Twitch/Discord chat message by a
- * bot's url-fetch command, so all of them are plain, single-line text — hits,
- * misses and bad input alike. Two constraints shape the formatting:
- *
- * - **One line.** A newline would split into two chat messages (or be dropped),
- *   so nothing here may emit one, including the echoed user query.
- * - **≤ 400 characters.** Twitch caps a message at 500 and the bot prepends its
- *   own text, so the body leaves headroom. The card URL is the whole point of
- *   the line and is never trimmed; the name and stat line share what's left.
- *
- * The stat line uses the shared `describeCardStats`, so a card reads the same
- * in a Twitch chat and in a Discord embed.
+ * Output must be one line (no newline) and ≤400 characters: Twitch caps a
+ * message at 500 and the bot prepends its own text. The card URL is never
+ * trimmed; the name and stat line share whatever space remains.
  */
 
 import type { CardStatLabels } from "@openrift/shared";
 import { describeCardStats, legendDisplayName, truncateWithEllipsis } from "@openrift/shared";
 
-/** Character budget for a response line. See the module comment. */
 const CHAT_LINE_LIMIT = 400;
 
-/** Cap on the echoed card name, so a long name can't crowd out the stat line. */
 const NAME_LIMIT = 80;
 
-/** Cap on the echoed user query in a miss line. Chat queries are short; anything
- * longer is someone pasting, and the line still has to fit the budget. */
 const QUERY_LIMIT = 60;
 
-/** Separator between the line's segments, matching the Discord bot's em dash. */
 const SEPARATOR = " — ";
 
 export interface ChatCard {

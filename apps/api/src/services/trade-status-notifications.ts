@@ -12,43 +12,26 @@ import { isRequestGroupDue } from "./trade-notifications.js";
 
 type SendEmail = ReturnType<typeof createEmailSender>;
 
-/**
- * Kill switch, an api-scoped site setting. Default on: absent (never created)
- * or `"true"` → send; set it to `"false"` to stop the trade-status emails if
- * a bug shows up. Keep in sync with the admin site-settings page.
- */
+/** Site setting; `"false"` disables sending. Keep in sync with the admin site-settings page. */
 const TRADE_STATUS_EMAIL_SETTING = "trade-status-email";
 
 export interface TradeStatusFlushDeps {
   repos: Repos;
   log: Logger;
   sendEmail: SendEmail;
-  /** Web origin for deep links + the unsubscribe route (BETTER_AUTH_URL). */
   appBaseUrl: string;
-  /** App secret used to sign the stateless unsubscribe token. */
   unsubscribeSecret: string;
 }
 
 export interface TradeStatusFlushResult {
-  /** Distinct (actor, recipient) pairs whose burst was due. */
   pairs: number;
-  /** Coalesced emails actually sent (gated + send didn't throw). */
   emailsSent: number;
-  /** Queued status changes folded into sent emails. */
   events: number;
-  /** Pair sends that threw. Without this a run where every send failed records
-   *  the same all-zero summary as a run with nothing to send. */
   failed: number;
-  /** Status changes claimed for a send that then threw. Claims are never
-   *  released (at-most-once), so these are dropped, not retried. */
   eventsDropped: number;
 }
 
-// A trade-status flush did nothing when no pair was due (flag off, or no
-// queued transitions), so no email was sent and no event was folded in.
 export function isTradeStatusFlushNoop(result: TradeStatusFlushResult): boolean {
-  // `failed` needs no clause: only a due pair can fail, so any failure is
-  // already counted in `pairs`.
   return result.pairs === 0 && result.emailsSent === 0 && result.events === 0;
 }
 
@@ -89,22 +72,13 @@ async function claimPair(
   return claimed;
 }
 
-/**
- * Sends the coalesced trade-status emails: for each actor→recipient pair
- * whose burst of accept/decline/cancel actions is due under the recipient's
- * cadence (shared with trade requests, see {@link isRequestGroupDue}), folds all
- * that pair's queued transitions into one email to the party who didn't act. A
- * still-settling burst is left queued for a later tick; an opted-out recipient's
- * queue is claimed-and-suppressed so it isn't retried forever. Per-pair sends are
- * best-effort — a failure is logged, counted in `failed`, and the run continues.
- */
+/** Cadence gating is shared with trade requests, see {@link isRequestGroupDue}. */
 export async function flushTradeStatusEmails(
   deps: TradeStatusFlushDeps,
 ): Promise<TradeStatusFlushResult> {
   const { repos, log, sendEmail, appBaseUrl, unsubscribeSecret } = deps;
 
-  // Kill switch: leave queued rows untouched while off, so they resume when the
-  // setting is turned back on.
+  // While off, queued rows are left untouched and resume once turned back on.
   if ((await repos.siteSettings.getBool(TRADE_STATUS_EMAIL_SETTING)) === false) {
     return { pairs: 0, emailsSent: 0, events: 0, failed: 0, eventsDropped: 0 };
   }
@@ -142,13 +116,10 @@ export async function flushTradeStatusEmails(
       !context.emailVerified ||
       !isTradeStatusEmailEnabled(context.emailNotifications)
     ) {
-      // Suppressed: claim the queued rows so we don't retry this pair every tick.
       await claimPair(repos, rows);
       continue;
     }
 
-    // Apply the recipient's cadence (shared with trade requests). A still-settling
-    // burst stays queued for a later tick rather than being sent early.
     const cadence = getTradeRequestEmailCadence(context.emailNotifications);
     if (
       !isRequestGroupDue(
@@ -187,10 +158,6 @@ export async function flushTradeStatusEmails(
     const cards = await repos.catalog.cardsByIds([...cardIds]);
     const nameByCard = new Map(cards.map((card) => [card.id, card.name]));
 
-    // One section per group (a pair can share more than one group). The email
-    // folds several status changes together, so it is not about a single trade:
-    // each section is a friend group, headed and buttoned by its name, and stays
-    // on the group deep link rather than the person-level sheet.
     const sections: TradeStatusUpdateGroup[] = [];
     const sectionByGroup = new Map<string, TradeStatusUpdateGroup>();
     for (const row of claimedRows) {

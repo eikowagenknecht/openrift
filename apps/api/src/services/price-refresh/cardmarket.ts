@@ -1,11 +1,7 @@
 /**
  * Refreshes Cardmarket price data from the Cardmarket product catalog API.
- *
- * Fetches price guides and singles, writes snapshots for already-mapped
- * sources into marketplace_product_prices, and stages all products in
- * marketplace_staging for manual admin mapping.
- *
- * Usage: bun scripts/refresh-cardmarket-prices.ts
+ * Writes snapshots for already-mapped sources and stages the rest for
+ * manual admin mapping.
  */
 
 import { WellKnown } from "@openrift/shared";
@@ -26,7 +22,7 @@ const UPSERT_CONFIG: PriceUpsertConfig = {
 };
 
 const CARDMARKET_BASE = "https://downloads.s3.cardmarket.com/productCatalog";
-const CARDMARKET_GAME = 22; // Riftbound
+const CARDMARKET_GAME = 22;
 
 interface CmProduct {
   idProduct: number;

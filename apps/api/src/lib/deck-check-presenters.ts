@@ -20,11 +20,6 @@ import type {
 } from "../repositories/deck-check.js";
 import { buildEntryAdvisories } from "../services/deck-check-advisories.js";
 
-/*
- * The same shapes back both the group-scoped surface and the tournament-scoped
- * judge API, so the mapping lives here rather than being re-derived per router.
- */
-
 /** Exported because the player router presents the same `eventDate` field. */
 export function isoDate(value: Date | string | null): string | null {
   if (value === null) {

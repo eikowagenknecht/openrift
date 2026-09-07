@@ -6,22 +6,18 @@ import { sql } from "kysely";
 import type { Database, ProductsTable } from "../db/index.js";
 import { imageId, requireFrontImage } from "./query-helpers.js";
 
-/** A product row with its content rollups (distinct printings, summed quantities). */
 export interface ProductWithCounts extends Selectable<ProductsTable> {
   printingCount: number;
   cardTotal: number;
-  /** Joined from `sets` — null when the product has no set. */
   setSlug: string | null;
   setName: string | null;
 }
 
-/** One content row of a product snapshot. */
 export interface ProductContentRow {
   printingId: string;
   quantity: number;
 }
 
-/** One cover printing for a product tile's card fan (see `coverCards`). */
 export interface ProductCoverRow {
   productId: string;
   printingId: string;
@@ -29,7 +25,6 @@ export interface ProductCoverRow {
   name: string;
 }
 
-/** A product back-reference for one printing of a card. */
 export interface ProductForPrintingRow {
   printingId: string;
   slug: string;
@@ -53,11 +48,7 @@ export function productsRepo(db: Kysely<Database>) {
       .groupBy(["p.id", "s.slug", "s.name", "s.sortOrder"]);
 
   return {
-    /**
-     * @returns All products with content counts, in set release order
-     * (products without a set last), then by name. The /products index
-     * groups consecutive rows by set, so this ordering is load-bearing.
-     */
+    /** The /products index groups consecutive rows by set: must stay set order (no-set last), then name. */
     listWithCounts(): Promise<ProductWithCounts[]> {
       return withCounts()
         .orderBy(sql`s.sort_order nulls last`)
@@ -65,28 +56,23 @@ export function productsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns The product with content counts, or undefined. */
     getBySlugWithCounts(slug: string): Promise<ProductWithCounts | undefined> {
       return withCounts().where("p.slug", "=", slug).executeTakeFirst();
     },
 
-    /** @returns All product sitemap entries (slug + updatedAt). */
     async allSitemapEntries(): Promise<{ slug: string; updatedAt: string }[]> {
       const rows = await db.selectFrom("products").select(["slug", "updatedAt"]).execute();
       return rows.map((row) => ({ slug: row.slug, updatedAt: row.updatedAt.toISOString() }));
     },
 
-    /** @returns The product with content counts, or undefined. */
     getByIdWithCounts(id: string): Promise<ProductWithCounts | undefined> {
       return withCounts().where("p.id", "=", id).executeTakeFirst();
     },
 
-    /** @returns The bare product row, or undefined. */
     getById(id: string): Promise<Selectable<ProductsTable> | undefined> {
       return db.selectFrom("products").selectAll().where("id", "=", id).executeTakeFirst();
     },
 
-    /** @returns Whether another product already uses this slug. */
     async slugTaken(slug: string, excludeId?: string): Promise<boolean> {
       let query = db.selectFrom("products").select("id").where("slug", "=", slug);
       if (excludeId !== undefined) {
@@ -116,7 +102,6 @@ export function productsRepo(db: Kysely<Database>) {
       await db.updateTable("products").set(patch).where("id", "=", id).execute();
     },
 
-    /** Bumps `updated_at` so a contents re-sync surfaces in "recently updated". */
     async touch(id: string): Promise<void> {
       await db
         .updateTable("products")
@@ -125,28 +110,19 @@ export function productsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Whether a row was deleted (contents cascade). */
+    /** Row deletion cascades to the product's contents. */
     async remove(id: string): Promise<boolean> {
       const result = await db.deleteFrom("products").where("id", "=", id).executeTakeFirst();
       return result.numDeletedRows > 0n;
     },
 
-    /**
-     * Representative cover printings for the product tiles: per product, up
-     * to `PRODUCT_COVER_CARD_COUNT` distinct cards that have an active,
-     * self-hosted front image — legends first, then highest rarity.
-     * Battlefields are excluded because their landscape art breaks the
-     * portrait card fan.
-     *
-     * @returns Cover rows in fan display order, grouped by product.
-     */
+    /** Battlefields are excluded: their landscape art breaks the portrait card fan. */
     async coverCards(productIds: string[]): Promise<ProductCoverRow[]> {
       if (productIds.length === 0) {
         return [];
       }
-      // One row per (product, card): the card's best printing (highest
-      // rarity, stable on public_code), so variant-heavy cards can't fill
-      // the whole fan with the same art.
+      // One row per (product, card): the best printing per card, so
+      // variant-heavy cards can't fill the whole fan with the same art.
       const bestPerCard = requireFrontImage(
         db
           .selectFrom("productPrintings as pp")
@@ -199,7 +175,7 @@ export function productsRepo(db: Kysely<Database>) {
       return rows as ProductCoverRow[];
     },
 
-    /** @returns The product's content rows (unordered; display order is a client concern). */
+    /** Unordered: display order is a client concern. */
     contents(productId: string): Promise<ProductContentRow[]> {
       return db
         .selectFrom("productPrintings")
@@ -208,13 +184,7 @@ export function productsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Reverse lookup for the card-detail page: every product containing any
-     * printing of this card, one row per (printing, product). Rides the
-     * `idx_product_printings_printing` index.
-     *
-     * @returns Back-reference rows, ordered by product name.
-     */
+    /** Rides the `idx_product_printings_printing` index. */
     productsForCard(cardId: string): Promise<ProductForPrintingRow[]> {
       return db
         .selectFrom("productPrintings as pp")
@@ -226,10 +196,7 @@ export function productsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Wholesale-replaces the product's contents (ADR-015: snapshots are not
-     * diffs). Call inside `transact` together with any metadata write.
-     */
+    /** Call inside `transact` together with any metadata write. */
     async replaceContents(productId: string, rows: ProductContentRow[]): Promise<void> {
       await db.deleteFrom("productPrintings").where("productId", "=", productId).execute();
       if (rows.length > 0) {

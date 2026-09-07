@@ -6,10 +6,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminMetaSubmissionsRouter } from "./meta-submissions";
 
-// ---------------------------------------------------------------------------
-// Mock repos
-// ---------------------------------------------------------------------------
-
 const mockSubmissions = {
   listPendingEventCorrections: vi.fn(),
   byId: vi.fn(),
@@ -32,7 +28,7 @@ app.use("*", async (c, next) => {
 });
 registerRouterForTest(app, adminMetaSubmissionsRouter);
 
-/** @returns A stored ledger row, pending unless overridden. */
+/** A stored ledger row, pending unless overridden. */
 function ledgerRow(overrides: Record<string, unknown> = {}) {
   return {
     id: SUBMISSION_ID,
@@ -58,7 +54,7 @@ function ledgerRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** @returns The response to a POST with an optional JSON body. */
+/** The response to a POST with an optional JSON body. */
 function post(path: string, body?: unknown) {
   return app.request(`/api/admin/v1/meta/submissions${path}`, {
     method: "POST",
@@ -98,8 +94,6 @@ describe("GET /meta/submissions/by-player-overlay/{playerOverlayId}", () => {
   });
 
   it("answers null for a provider's overlay rather than 404ing", async () => {
-    // The review screen asks for every row it renders, and most rows are
-    // mirrored standings with no submission behind them.
     mockSubmissions.byPlayerOverlayId.mockResolvedValue(null);
 
     const res = await app.request(

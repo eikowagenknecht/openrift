@@ -144,7 +144,6 @@ function makeApp(overrides: {
     c.set("user", (overrides.user ?? { id: USER_ID }) as never);
     c.set("repos", repos as never);
     c.set("services", { notifyAdminsOfGroupJoinRequest, notifyMemberOfGroupApproval } as never);
-    // Test transact just runs the callback against the same mock repos.
     c.set("transact", (async (fn: (r: typeof repos) => unknown) => fn(repos)) as never);
     await next();
   });
@@ -208,7 +207,6 @@ describe("friend-groups route", () => {
     };
     expect(body.items).toHaveLength(1);
     expect(body.items[0].sharedListCount).toBe(3);
-    // Previews are mapped to the public shape: gravatar hash instead of email.
     expect(body.items[0].memberPreviews).toHaveLength(1);
     expect(body.items[0].memberPreviews[0].userId).toBe(USER_ID);
     expect(body.items[0].memberPreviews[0].gravatarHash).toBeTruthy();
@@ -546,7 +544,6 @@ describe("friend-groups route", () => {
       listName: "More than 2 PS",
       listIntent: "trade",
       listKind: "copy",
-      // Materialized count is 0 for a rule-only list — the bug this covers.
       entryCount: 0,
       hasRule: true,
       userName: "Test Owner",
@@ -573,11 +570,8 @@ describe("friend-groups route", () => {
     expect(res.status).toBe(200);
     const body = (await readJson(res)) as { shares: { listId: string; entryCount: number }[] };
     const byId = new Map(body.shares.map((s) => [s.listId, s.entryCount]));
-    // Rule-based list reports the expanded size, not the materialized 0.
     expect(byId.get(LIST_ID)).toBe(3);
-    // Manual list keeps its cheap count and is never expanded.
     expect(byId.get(manualShare.listId)).toBe(4);
-    // One batched call, carrying only the rule-based list.
     expect(expandedCounts).toHaveBeenCalledTimes(1);
     expect(expandedCounts).toHaveBeenCalledWith([LIST_ID]);
   });
@@ -600,7 +594,6 @@ describe("friend-groups route", () => {
       listName: "More than 2 PS",
       listIntent: "trade",
       listKind: "copy",
-      // Materialized count is 0 for a rule-only list — the bug this covers.
       entryCount: 0,
       hasRule: true,
       userName: "Other Member",
@@ -626,11 +619,8 @@ describe("friend-groups route", () => {
     expect(res.status).toBe(200);
     const body = (await readJson(res)) as { shares: { listId: string; entryCount: number }[] };
     const byId = new Map(body.shares.map((s) => [s.listId, s.entryCount]));
-    // Rule-based list reports the expanded size, not the materialized 0.
     expect(byId.get(LIST_ID)).toBe(3);
-    // Manual list keeps its cheap count and is never expanded.
     expect(byId.get(manualShare.listId)).toBe(4);
-    // One batched call, carrying only the rule-based list.
     expect(expandedCounts).toHaveBeenCalledTimes(1);
     expect(expandedCounts).toHaveBeenCalledWith([LIST_ID]);
   });
@@ -641,7 +631,6 @@ describe("friend-groups route", () => {
       listName: "More than 2 PS",
       listIntent: "trade",
       listKind: "copy",
-      // Materialized count is 0 for a rule-only list — the bug this covers.
       entryCount: 0,
       sharedAt: null,
       defaultPricePref: null,
@@ -670,11 +659,8 @@ describe("friend-groups route", () => {
     expect(res.status).toBe(200);
     const body = (await readJson(res)) as { items: { listId: string; entryCount: number }[] };
     const byId = new Map(body.items.map((i) => [i.listId, i.entryCount]));
-    // Rule-based list reports the expanded size, not the materialized 0.
     expect(byId.get(LIST_ID)).toBe(2);
-    // Manual list keeps its cheap count and is never expanded.
     expect(byId.get(manual.listId)).toBe(4);
-    // One batched call, carrying only the rule-based list.
     expect(expandedCounts).toHaveBeenCalledTimes(1);
     expect(expandedCounts).toHaveBeenCalledWith([LIST_ID]);
   });
@@ -750,7 +736,6 @@ describe("friend-groups route", () => {
     const { app } = makeApp({
       friendGroups: {
         getBySlug: vi.fn(() => Promise.resolve(group)),
-        // viewer resolves as owner (passes the admin gate); the target is the owner.
         getMembership: vi.fn(() => Promise.resolve(ownerMembership)),
       },
     });
@@ -803,8 +788,7 @@ describe("friend-groups route", () => {
     expect(deleteInvite).toHaveBeenCalledWith(group.id, OTHER_ID);
   });
 
-  it("POST /{slug}/invites/{userId}/accept requires admin/owner", async () => {
-    // viewer is the requester themselves; they cannot self-approve a request
+  it("POST /{slug}/invites/{userId}/accept rejects the requester approving their own request", async () => {
     const { app } = makeApp({
       friendGroups: {
         getBySlug: vi.fn(() => Promise.resolve(group)),
@@ -893,7 +877,6 @@ describe("friend-groups route", () => {
         getBySlug: vi.fn(() => Promise.resolve(group)),
         getMembership: vi.fn(() => Promise.resolve(memberMembership)),
       },
-      // Pooled collection has userId: null, so the ownership check rejects it.
       collections: {
         getAccessForUser: vi.fn(() =>
           Promise.resolve({
@@ -984,8 +967,7 @@ describe("friend-groups route", () => {
     expect(body.viewerRole).toBe("member");
   });
 
-  // Private notes stay owner-only on personal collections shared into a group:
-  // the route nulls notesPrivate for every viewer but the owner.
+  // The route nulls notesPrivate for every viewer but the owner.
   describe("GET /{slug}/collections/{id} private notes", () => {
     const sharedCopyRow = {
       id: "a0000000-0001-4000-a000-000000000020",

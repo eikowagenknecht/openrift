@@ -11,7 +11,6 @@ import { orpcErrorResponse } from "../../orpc/error-body.js";
 import { keysetPage } from "../../repositories/query-helpers.js";
 import type { Variables } from "../../types.js";
 
-/** A decklist is a few hundred short text lines, never a binary upload. */
 const MAX_BODY_BYTES = 128 * 1024;
 
 const DEFAULT_LIST_LIMIT = 25;
@@ -19,14 +18,8 @@ const DEFAULT_LIST_LIMIT = 25;
 const os = implement(metaSubmissionsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
- * The meta archive's signed-in surfaces.
- *
- * Auth is per procedure, through `requireAuthedUser`, and deliberately not a
- * Hono middleware on the `/api/v1/meta` prefix: the archive's reads live on that
- * same prefix and are anonymous, so a prefix gate would 401 every public page.
- *
- * Nothing here writes a live row. A submission stages one proposed standings
- * row and one ledger row, and an admin accept is what makes any of it public.
+ * Auth is per procedure via `requireAuthedUser`, not Hono middleware on the
+ * `/api/v1/meta` prefix: that prefix also serves anonymous archive reads.
  */
 export const metaSubmissionsRouter = {
   submit: os.submit.handler(async ({ input, context, errors }) => {
@@ -56,9 +49,6 @@ export const metaSubmissionsRouter = {
       throw errors.BAD_REQUEST({ message: result.errors.join("; ") });
     }
 
-    // Unresolved names travel back rather than blocking the submission: an
-    // unmatched spelling is usually an alias the catalog needs, which is the
-    // admin's fix, and the contributor should still see which lines were odd.
     return { id: result.submissionId, unresolvedNames: result.unresolvedNames };
   }),
 
@@ -81,7 +71,6 @@ export const metaSubmissionsRouter = {
 
   list: os.list.handler(async ({ input, context }) => {
     const limit = input.limit ?? DEFAULT_LIST_LIMIT;
-    // The repo scopes by user id itself; the client never supplies one.
     const rows = await context.repos.metaSubmissions.listByUser(context.userId, {
       cursor: input.cursor ?? null,
       limit,
@@ -101,35 +90,22 @@ export const metaSubmissionsRouter = {
 
   creditVisibility: os.creditVisibility.handler(async ({ context }) => {
     const visibility = await context.repos.meta.creditVisibility(context.userId);
-    // A session always names a real user, so an absent row means the account was
-    // deleted mid-request. `hidden` is the safe answer either way.
     return { visibility: visibility ?? "hidden" };
   }),
 
   setCreditVisibility: os.setCreditVisibility.handler(async ({ input, context }) => {
-    // Rows in `meta_credits` are untouched: consent is read at render, so
-    // opting in credits every past contribution and opting out removes them
-    // all, without rewriting a single archive row.
+    // Rows in `meta_credits` are left untouched; consent is read at render time.
     await context.repos.meta.setCreditVisibility(context.userId, input.visibility);
     return { visibility: input.visibility };
   }),
 };
 
-/**
- * Registers the Hono body-limit that fronts the submission endpoint, mirroring
- * the card-submission guard. Runs before the oRPC catch-all so an oversized
- * payload is rejected early. The per-user cap on pending submissions is enforced
- * in the service (a DB-backed count under an advisory lock), not here.
- *
- * Scoped to the exact submission path, never to `/api/v1/meta/*`: the archive's
- * public reads share that prefix.
- */
+/** Scoped to the exact submission paths; `/api/v1/meta/*` also serves anonymous reads. */
 export function mountMetaSubmissionsMiddleware(app: Hono<{ Variables: Variables }>): void {
   const guard = bodyLimit({
     maxSize: MAX_BODY_BYTES,
-    // The limit rejects before the oRPC catch-all runs, so the body is built
-    // here rather than thrown as an AppError — the client gets the same
-    // envelope for the 413 as for this endpoint's other errors.
+    // Runs before the oRPC catch-all, so the 413 body is built by hand here
+    // to match the envelope shape oRPC errors use.
     onError: (c) =>
       orpcErrorResponse(c, ERROR_CODES.PAYLOAD_TOO_LARGE, "Submission exceeds 128 KB"),
   });

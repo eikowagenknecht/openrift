@@ -130,15 +130,8 @@ export function computeScanCropBox(
 }
 
 /**
- * Measure a scan's black/white points inside the card box and derive the
- * capped auto-levels stretch. Scanners lift true black to ~15–40 and pull
- * highlights down to ~230–250, which reads as a washed-out, hazy card. The
- * caps keep the stretch self-limiting: a well-exposed scan measures black ≈
- * 0 / white ≈ 255 and the correction converges to a no-op, so re-running it
- * is always safe.
- *
- * Returns `multiply`/`offset` factors for sharp's `linear`, or `null` when
- * the correction would be a no-op or the measurement is degenerate.
+ * Scanners lift true black to ~15-40 and pull highlights down to ~230-250.
+ * The stretch is capped so a well-exposed scan converges to a no-op, making re-running it safe.
  */
 export function computeScanLevels(
   grey: Uint8Array,

@@ -2,15 +2,12 @@ import { formatRank, formatRecord } from "@openrift/shared";
 
 import type { MetaDeckContextRow } from "../repositories/meta.js";
 
-/** What an archived list's share image prints in place of its generated deck row. */
 export interface MetaDeckImageFraming {
   deckName: string;
-  /** Absent when the title already is the player's name, i.e. the list has no legend. */
   ownerName?: string;
   resultLine: string;
 }
 
-/** The archive framing for one deck share image: what the list is, who piloted it, and what it scored. */
 export function metaDeckImageFraming(
   context: MetaDeckContextRow,
   legendName: string | null,

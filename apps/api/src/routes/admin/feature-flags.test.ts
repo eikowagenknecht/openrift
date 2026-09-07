@@ -6,10 +6,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminFeatureFlagsRouter } from "./feature-flags";
 
-// ---------------------------------------------------------------------------
-// Mock repo
-// ---------------------------------------------------------------------------
-
 const mockFlagsRepo = {
   listAll: vi.fn(),
   create: vi.fn(),
@@ -29,10 +25,6 @@ app.use("*", async (c, next) => {
 });
 registerRouterForTest(app, adminFeatureFlagsRouter);
 
-// ---------------------------------------------------------------------------
-// Test data
-// ---------------------------------------------------------------------------
-
 const now = new Date("2026-03-17T00:00:00Z");
 
 const dbFlag1 = {
@@ -50,10 +42,6 @@ const dbFlag2 = {
   createdAt: now,
   updatedAt: now,
 };
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("GET /feature-flags", () => {
   beforeEach(() => {

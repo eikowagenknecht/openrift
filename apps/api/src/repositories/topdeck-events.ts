@@ -35,7 +35,6 @@ export interface TopdeckUpsertResult {
 
 export type TopdeckTriage = "new" | "accepted" | "dismissed";
 
-/** See the uvsgames counterpart. This source maps no template, so field size is the whole rule. */
 export interface TopdeckTierInputRow {
   metaEventId: string;
   tid: string;
@@ -46,15 +45,10 @@ export interface TopdeckListRow extends TopdeckEventRow {
   triage: TopdeckTriage;
   metaEventId: string | null;
   metaEventSlug: string | null;
-  /** When the mirror last took this event's standings; null for an empty payload. */
   fetchedAt: Date | null;
-  /** Standings rows this source's mirror holds. */
   stagedPlayerCount: number;
-  /** The mirrored rows whose legend is known. */
   stagedLegendCount: number;
-  /** The mirrored decks the payload carried. */
   stagedDeckCount: number;
-  /** The other provider a linked live event already reads, if it does. See `meta_event_sources.contributes`. */
   rivalProvider: string | null;
 }
 
@@ -66,14 +60,11 @@ export interface TopdeckTriageCounts {
 
 export interface TopdeckListFilters {
   search?: string;
-  /** The source's own format word, not ours. */
   format?: string;
   triage?: TopdeckTriage;
   minPlayers?: number;
-  /** Inclusive `YYYY-MM-DD` bounds, read against the instant `start_at` holds. */
   dateFrom?: string;
   dateTo?: string;
-  /** True keeps only rows a covering crawl stopped returning. */
   missing?: boolean;
 }
 
@@ -85,7 +76,6 @@ export interface TopdeckListOrder {
 
 type SqlBool = boolean;
 
-/** Stands in for a content hash, which is always 32 hex characters. */
 const RESULTS_PENDING = "pending";
 
 const CATALOG_ORDER_COLUMNS = {
@@ -94,7 +84,6 @@ const CATALOG_ORDER_COLUMNS = {
   playerCount: sql`c.player_count`,
 };
 
-/** See the playloltcg counterpart: nulls sort last whichever way the column runs. */
 function catalogOrderBy(order: TopdeckListOrder) {
   const column = CATALOG_ORDER_COLUMNS[order.sort ?? "startAt"];
   return order.direction === "asc" ? sql`${column} asc nulls last` : sql`${column} desc nulls last`;
@@ -124,8 +113,7 @@ export function topdeckEventsRepo(db: Kysely<Database>) {
     select max(st.fetched_at) from topdeck_event_standings st where st.tid = c.tid
   )`;
 
-  // Correlated against the mirror, so each one is an index lookup on the page's
-  // rows rather than an aggregate over every event the archive holds.
+  // Correlated against the mirror: an index lookup per page row, not an aggregate over the whole archive.
   const stagedPlayerCount = sql<number>`(
     select count(*)::int from topdeck_event_standings st where st.tid = c.tid
   )`;
@@ -141,8 +129,8 @@ export function topdeckEventsRepo(db: Kysely<Database>) {
   )`;
 
   /**
-   * Null until accepted, null for an event only this source describes, and
-   * null once the cross-mirror review has let this citation contribute.
+   * Null until accepted, for an event only this source describes, or once the
+   * cross-mirror review has let this citation contribute.
    */
   const rivalProvider = sql<string | null>`(
     case when src.contributes then null else (
@@ -261,7 +249,6 @@ export function topdeckEventsRepo(db: Kysely<Database>) {
       }
     },
 
-    /** Flags rows a covering crawl no longer returned, over a start-date range. */
     async markMissing(params: {
       from: Date;
       to: Date;
@@ -285,7 +272,6 @@ export function topdeckEventsRepo(db: Kysely<Database>) {
       return await listSelect().where("c.tid", "=", tid).executeTakeFirst();
     },
 
-    /** See the uvsgames counterpart. This source maps no template, so field size is the whole rule. */
     tierInputsForLiveEvents(): Promise<TopdeckTierInputRow[]> {
       return db
         .selectFrom("topdeckEvents as e")
@@ -296,7 +282,6 @@ export function topdeckEventsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** The catalogue triage list: filtered, triaged, ordered, paginated. */
     async list(
       filters: TopdeckListFilters,
       pagination: { limit: number; offset: number },
@@ -354,10 +339,6 @@ export function topdeckEventsRepo(db: Kysely<Database>) {
       return { rows, total: Number(countRow.total) };
     },
 
-    /**
-     * Every key still awaiting triage, newest event first, for the backlog
-     * sweep. Keys rather than rows, so the sweep can page through them.
-     */
     async newKeys(): Promise<string[]> {
       const rows = await triagedQuery()
         .select("c.tid")
@@ -367,7 +348,6 @@ export function topdeckEventsRepo(db: Kysely<Database>) {
       return rows.map((row) => row.tid);
     },
 
-    /** The keys a crawl touched that are neither accepted nor dismissed. */
     async unacceptedByKeys(tids: readonly string[]): Promise<TopdeckListRow[]> {
       const rows: TopdeckListRow[] = [];
       for (const batch of keyBatches(tids)) {

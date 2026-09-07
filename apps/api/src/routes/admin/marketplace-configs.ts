@@ -3,8 +3,6 @@ import type { Marketplace } from "@openrift/shared";
 import type { Repos } from "../../deps.js";
 import type { marketplaceMappingRepo } from "../../repositories/marketplace-mapping.js";
 
-// ── Unified product-info shape consumed by the frontend ─────────────────────
-
 export interface ProductInfo {
   productName: string | null;
   marketCents: number | null;
@@ -19,9 +17,6 @@ export interface ProductInfo {
   avg30Cents: number | null;
 }
 
-// ── Row shapes used by config callbacks ─────────────────────────────────────
-
-/** All 8 price columns on `marketplace_product_prices`. */
 interface PriceColumns {
   marketCents: number | null;
   lowCents: number | null;
@@ -33,7 +28,6 @@ interface PriceColumns {
   avg30Cents: number | null;
 }
 
-/** Common fields on staging rows (shared by both marketplaces). */
 export interface StagingRow extends PriceColumns {
   externalId: number;
   groupId: number;
@@ -44,7 +38,6 @@ export interface StagingRow extends PriceColumns {
   recordedAt: Date;
 }
 
-/** Latest-price query result for a bound printing (join through mpv → mp → prices). */
 interface MappedPriceRow extends PriceColumns {
   printingId: string;
   externalId: number;
@@ -54,20 +47,13 @@ interface MappedPriceRow extends PriceColumns {
   recordedAt: Date;
 }
 
-// ── Marketplace-specific config ─────────────────────────────────────────────
-
 export interface MarketplaceConfig {
   marketplace: Marketplace;
   currency: string;
-  /** Map a staging row → the unified product-info price fields */
   mapStagingPrices: (row: StagingRow) => Omit<ProductInfo, "productName" | "recordedAt">;
-  /** Fetch the latest price row per (printing × product) for the given printings. */
   priceQuery: (printingIds: string[]) => Promise<MappedPriceRow[]>;
-  /** Map a price query result → unified product-info */
   mapPriceRow: (row: MappedPriceRow) => ProductInfo;
 }
-
-// ── Factory helper ──────────────────────────────────────────────────────────
 
 function createMarketplaceConfig(opts: {
   marketplace: Marketplace;
@@ -92,8 +78,6 @@ function createMarketplaceConfig(opts: {
     }),
   };
 }
-
-// ── TCGPlayer config ────────────────────────────────────────────────────────
 
 const tcgMapPrices = (row: PriceColumns) => ({
   marketCents: row.marketCents,

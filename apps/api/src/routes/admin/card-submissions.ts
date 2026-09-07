@@ -8,12 +8,8 @@ import { recordAdminEvent } from "../../services/record-admin-event.js";
 const os = implement(adminCardSubmissionsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
- * Admin side of in-app card submissions (ADR-036): reading the submission
- * behind a candidate column, and writing the message its contributor sees.
- *
- * The outcome itself is not settable here. It is derived by
- * `card-submission-outcomes.ts` from the check and ignore verbs, so what the
- * contributor is told always matches what review actually did.
+ * The outcome is not settable here: it's derived by
+ * `card-submission-outcomes.ts` from the check and ignore verbs.
  */
 export const adminCardSubmissionsRouter = {
   forCandidate: os.forCandidate.handler(async ({ input, context }) => {

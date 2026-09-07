@@ -13,14 +13,9 @@ import type { ApiContext } from "../../orpc/context.js";
 
 const os = implement(loansContract).$context<ApiContext>().use(requireAuthedUser);
 
-/** How many past free-text borrower names the lend dialog offers. */
 const RECENT_BORROWER_NAMES_LIMIT = 8;
 
-/**
- * Authenticated loans contract (mounted at `/api/v1/loans`, ADR-039). The loan
- * services throw `AppError` for state failures, which are mapped by the
- * handler's appErrorInterceptor.
- */
+/** Loan services throw `AppError` for state failures, mapped by the handler's appErrorInterceptor. */
 export const loansRouter = {
   create: os.create.handler(({ input, context }): Promise<LoanResponse> => {
     const { createLoan } = context.services;

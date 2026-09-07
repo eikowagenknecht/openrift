@@ -1,4 +1,3 @@
-// Re-export all table types from the local tables file (single source of truth).
 export type {
   AdminEventAction,
   AdminEventEntityType,
@@ -34,16 +33,13 @@ export type {
   SetsTable,
   ListEntriesTable,
   ListsTable,
-  // Meta archive
   MetaEventsTable,
   MetaEventPlayersTable,
   MetaEventMatchesTable,
   MetaEventPhasesTable,
-  // Meta archive catalogue sync
   UvsgamesEventsTable,
   PlayloltcgEventsTable,
   TopdeckEventsTable,
-  // Meta archive source mirrors (ADR-014 rev 3)
   UvsgamesEventStandingsTable,
   UvsgamesEventPhasesTable,
   UvsgamesEventMatchesTable,
@@ -55,47 +51,36 @@ export type {
   TopdeckEventStandingsTable,
   TopdeckDecklistsTable,
   TopdeckDecklistCardsTable,
-  // Meta archive overlays
   MetaEventOverlaysTable,
   MetaEventPlayerOverlaysTable,
   MetaEventPlayerOverlayCardsTable,
-  // Meta archive multi-source
   MetaEventSourcesTable,
   MetaPlayerLinksTable,
   MetaSubmissionsTable,
-  // Tier lists (migration 237)
   TierListCard,
   TierListRow,
   TierListsTable,
-  // Preconstructed products (migration 198, ADR-015)
   ProductsTable,
-  // Friend groups (migration 134, 141)
   FriendGroupCollectionSharesTable,
   FriendGroupDiscordLinksTable,
   FriendGroupInvitesTable,
   FriendGroupListSharesTable,
   FriendGroupMembersTable,
   FriendGroupsTable,
-  // Organizations + tournaments umbrella (migration 166/167, ADR-033)
   OrganizationsTable,
   OverlayChannelsTable,
-  // Saved creator-tool dressing (migration 242)
   StagePresetsTable,
   OrganizationMembersTable,
   TournamentsTable,
   TournamentParticipantsTable,
   PodRoundsTable,
   PodsTable,
-  // Card trades (migration 143, ADR-019)
   CardTradesTable,
-  // Loans (migration 195, ADR-039)
   LoansTable,
-  // Deck check (migration 149, ADR-025)
   DeckCheckEntriesTable,
   DeckCheckEntryCardsTable,
   DeckCheckKeysTable,
   UserPreferencesTable,
-  // Reference tables (migration 062)
   DomainsTable,
   MarkersTable,
   RaritiesTable,

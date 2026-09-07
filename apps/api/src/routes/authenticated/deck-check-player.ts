@@ -141,14 +141,8 @@ async function loadOwnEntryForTournament(
 }
 
 /**
- * Resolves a looked-up player row to its event and settles the deadline
- * auto-submit, 404-ing whenever either half is missing.
- *
- * `justSettled` reports whether this call was the one that performed the
- * deadline auto-submit, rather than finding the entry already settled. Loading
- * an entry writes in that case, so a caller that is about to reject on a closed
- * window needs to know whether the rejection would contradict a write it just
- * caused. Only `submit` acts on it: see the window guard there.
+ * 404s whenever either half is missing. `justSettled` is true only when this
+ * call itself performed the deadline auto-submit; `submit`'s window guard checks it before rejecting.
  */
 async function withSettledEvent(
   repos: Repos,

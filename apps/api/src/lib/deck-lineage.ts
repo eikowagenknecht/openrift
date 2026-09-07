@@ -1,7 +1,6 @@
 /**
- * Lineage rules for deck variant families (ADR-042). The predecessor pointers
- * inside one family form a forest, and the only way to break that is to point a
- * deck at one of its own descendants.
+ * Predecessor pointers within one deck variant family form a forest; the only
+ * way to break that is to point a deck at one of its own descendants.
  */
 
 /** The slice of a family member the lineage walk needs. */
@@ -10,14 +9,7 @@ export interface LineageMember {
   predecessorDeckId: string | null;
 }
 
-/**
- * Walks up from the proposed predecessor. Reaching `deckId` means the pointer
- * would close a loop, because the proposed parent already descends from the
- * deck being repointed. The `seen` guard keeps a family that somehow already
- * holds a loop from spinning here.
- *
- * @returns True when setting the pointer would create a cycle.
- */
+/** The `seen` guard keeps an already-corrupt family from spinning here forever. */
 export function createsCycle(
   members: readonly LineageMember[],
   deckId: string,

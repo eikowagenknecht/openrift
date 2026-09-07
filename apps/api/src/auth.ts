@@ -60,13 +60,11 @@ export function createAuth(deps: {
         overrideDefaultEmailVerification: true,
       }),
       apiKey({
-        // A valid `x-api-key` header resolves to a session for the key's
-        // owner via `auth.api.getSession`, so requireAuth/requireAdmin work
-        // unchanged for script callers (e.g. candidate uploads).
+        // Resolves a session for the key's owner via `auth.api.getSession`, so
+        // requireAuth/requireAdmin work unchanged for script callers.
         enableSessionForAPIKeys: true,
         defaultPrefix: "orift_",
-        // Plugin default is 10 requests per day, far too tight for upload
-        // scripts. Keys are minted on /admin/api-keys.
+        // Plugin default is 10 requests per day, far too tight for upload scripts.
         rateLimit: {
           enabled: true,
           timeWindow: 60 * 60 * 1000,
@@ -116,8 +114,7 @@ export function createAuth(deps: {
         enabled: true,
       },
       additionalFields: {
-        // Free-text Riot ID (ADR-028): self-reported display data, validated
-        // in the update hook below. Verified RSO linking comes later.
+        // Self-reported, unverified display data; validated in the update hook below.
         riotId: {
           type: "string",
           required: false,
@@ -151,10 +148,8 @@ export function createAuth(deps: {
     },
     account: {
       accountLinking: {
-        // Intentional: users may sign up with email then link a social provider
-        // whose email differs (e.g. personal Gmail vs work email). The user must
-        // already be authenticated to link an account, so this does not create an
-        // account-takeover vector.
+        // Deliberate: linking requires an existing session, so a differing social-provider
+        // email (e.g. a work Gmail) does not create an account-takeover vector.
         allowDifferentEmails: true,
       },
       fields: {
@@ -186,8 +181,7 @@ export function createAuth(deps: {
           async before(user) {
             const fallback = typeof user.email === "string" ? user.email.split("@")[0] : "";
             const cleaned = sanitizeDisplayName(user.name, fallback ?? "");
-            // Signup bodies may carry the riotId additional field; like the
-            // name, drop an invalid value instead of failing the signup.
+            // An invalid riotId is dropped; signup still succeeds.
             const riot = validateRiotId(user.riotId);
             const riotId = riot.ok ? riot.value : null;
             if (cleaned === user.name && riotId === (user.riotId ?? null)) {
@@ -260,9 +254,8 @@ export function createAuth(deps: {
       if (origin && matchOrigin(origin, config.corsOrigin)) {
         return [origin];
       }
-      // In dev, trust local devices (a phone/tablet on the same network hitting
-      // the dev server by its LAN IP) so they can sign in without adding their
-      // rotating IPs to CORS_ORIGIN. Never applies in production/preview.
+      // In dev, trust local devices (LAN IP) so they can sign in without adding their
+      // rotating IPs to CORS_ORIGIN.
       if (config.isDev && origin && isLocalDevOrigin(origin)) {
         return [origin];
       }

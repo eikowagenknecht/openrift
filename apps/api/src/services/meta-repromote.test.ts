@@ -65,8 +65,6 @@ describe("repromoteMetaEvents", () => {
 
     const result = await repromoteMetaEvents(fakeRepos(["ev-1", "ev-2", "ev-3"]));
 
-    // One hard failure used to abort the batch, leaving every later event
-    // unpromoted with nothing recorded about why.
     expect(vi.mocked(promoteMetaEvent)).toHaveBeenCalledTimes(3);
     expect(result).toMatchObject({ events: 3, failed: 1 });
     expect(result.errors[0]).toContain("mirror row is half written");

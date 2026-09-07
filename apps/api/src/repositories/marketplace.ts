@@ -7,12 +7,6 @@ import type { Database, MarketplaceProductPricesTable } from "../db/index.js";
 interface CollectionValueHistoryPoint {
   date: string;
   valueCents: number;
-  /**
-   * The same day's holdings priced at what each copy was worth on the day it
-   * was acquired, or on the series' first day for copies older than that.
-   * `valueCents - baselineValueCents` is therefore the return on those
-   * holdings, with buying and selling divided out.
-   */
   baselineValueCents: number;
   copyCount: number;
 }
@@ -312,42 +306,6 @@ export function marketplaceRepo(db: Kysely<Database>) {
       return rows.rows[0];
     },
 
-    /**
-     * Collection value over time, computed from today's copies walked backwards
-     * through collection events.
-     *
-     * The replay is anchored to the present, not the past. Today's composition
-     * is not derived from event history — it is read from `copies`, the same
-     * rows {@link collectionValues} sums — and events are then undone day by
-     * day to reconstruct the past. This makes "the last point equals the Stats
-     * card" structural rather than a property that happens to hold when the
-     * event log is complete.
-     *
-     * It is not complete. Some accounts carry `removed` events with no
-     * matching `added`, because event logging predates their copies and the
-     * backfill could only cover copies that still existed when it ran. A
-     * forward replay clamps per printing across all collections, so
-     * one of those orphan removals silently cancels a live copy of the same
-     * printing sitting in a different collection. Walking backwards, the same
-     * orphans only make historical days look slightly larger, which is honest:
-     * those copies did exist then.
-     *
-     * Errors therefore accumulate into the past rather than into the headline
-     * figure. A historical point reads "what I hold now, minus the events
-     * since" — identical to "what I held then" for an account with complete
-     * history, and closer to the truth than a forward replay for one without.
-     *
-     * Each point also carries `baselineValueCents`: the same composition with
-     * every copy held at the price it carried the day it was acquired, floored
-     * at the window's first day for copies older than the window. The gap to
-     * `valueCents` is the return on those holdings, with buying and selling
-     * divided out — a card bought mid-window adds the same amount to both
-     * lines on the day it arrives and moves the gap only as its price moves.
-     *
-     * The gap also survives the incomplete event log better than either line
-     * alone: a phantom copy inflates both, so it distorts the gap by its price
-     * movement rather than by its full value.
-     */
     async collectionValueTimeSeries(params: {
       userId: string;
       marketplace: string;
@@ -514,12 +472,8 @@ export function marketplaceRepo(db: Kysely<Database>) {
         ? sql`cp.collection_id IN (${sql.join(collectionIds.map((id) => sql`${id}::uuid`))})`
         : sql`col.user_id = ${userId} AND col.group_id IS NULL`;
 
-      // Grouped by acquisition day as well as printing, because the baseline
-      // line prices each copy at what it cost the day it was added. Two copies
-      // of one printing bought months apart carry different bases, so the
-      // printing alone is not a fine enough key. The correlated subquery rides
-      // idx_collection_events_copy, and grouping keeps the result at one row
-      // per (printing, day) rather than one per copy.
+      // Grouped by acquisition day and printing: two copies of one printing
+      // bought on different days carry different baseline prices.
       const anchorRows = await sql<{
         printingId: string;
         acquiredOn: string | null;
@@ -561,12 +515,8 @@ export function marketplaceRepo(db: Kysely<Database>) {
         ? sql`AND ce.created_at >= ${windowStartDay}::date`
         : sql``;
 
-      // `acquiredOn` is the copy's own `added` date, looked up through
-      // `copy_id`. A `removed` event needs it too: undoing one puts a copy back
-      // into an earlier day, and that copy has to re-enter the baseline at what
-      // it cost when it was bought, not at what it was worth when it left.
-      // Events outlive their copy row, so this resolves even for copies that
-      // no longer exist.
+      // `acquiredOn` resolves via the events table, not the copy row, so it
+      // still works for copies that have since been deleted.
       const events = await sql<{
         action: string;
         printingId: string;
@@ -607,14 +557,9 @@ export function marketplaceRepo(db: Kysely<Database>) {
       }
 
       const endDay = toDateString(new Date());
-      // A requested range spans its whole window even with no events in it —
-      // a collection nobody touched for a month is a flat month, not a single
-      // point. Without a cutoff the series starts at the first event, or at
-      // today for a collection whose copies predate any logged event.
-      //
-      // Computed here rather than beside the walk because the baseline basis
-      // is floored at it: a copy bought before the window enters the baseline
-      // at the window's opening price, not at what it originally cost.
+      // Without a cutoff the series starts at the first event, or today if none exist.
+      // The baseline basis floors at this day: a copy bought earlier enters
+      // the baseline at the window's opening price.
       const startDay =
         windowStartDay ??
         (events.rows.length > 0 ? toDateString(events.rows[0].createdAt) : endDay);
@@ -693,21 +638,9 @@ export function marketplaceRepo(db: Kysely<Database>) {
        * The baseline price for one copy of `printingId` acquired on
        * `acquiredOn`, floored at `startDay`.
        *
-       * The floor is what keeps the range toggle meaningful. On the All range
-       * it never bites and every copy sits at its own purchase price, so the
-       * gap to the real line is the total return since buying. On 30d, a copy
-       * held for a year enters at the price it carried thirty days ago, so the
-       * gap is the month's return rather than the year's.
-       *
-       * Deliberately not `priceOnDay`: that helper's cursor only ever moves
-       * left and the walk needs it to start at the right edge, so feeding it
-       * an older day first would misprice every day after.
-       *
-       * A printing with no snapshot on the basis day falls back to its first
-       * one ever. That fallback is safe here only because the day is anchored
-       * to the purchase: an earlier cut floored everything at `startDay`, which
-       * on the All range sent most of the collection to its release-day high
-       * and wildly overstated the baseline.
+       * Not `priceOnDay`: that cursor only moves left and must start at the
+       * right edge, or every later day is mispriced. The first-ever-snapshot
+       * fallback is safe only because the basis day is anchored to acquisition.
        */
       function basisFor(printingId: string, acquiredOn: string | null): number {
         const days = sortedPriceDays.get(printingId);
@@ -784,18 +717,12 @@ export function marketplaceRepo(db: Kysely<Database>) {
         const nextBasis =
           (basisByPrinting.get(event.printingId) ?? 0) -
           delta * basisFor(event.printingId, event.acquiredOn);
-        // Floored because the event log is not airtight: an orphan `removed`
-        // with no matching `added` credits a basis on the way back that was
-        // never debited, and enough of those could drive a printing's basis
-        // below zero, which is not a price a chart can draw.
+        // Floored: an orphan `removed` with no matching `added` can drive this below zero.
         basisByPrinting.set(event.printingId, Math.max(0, nextBasis));
       }
 
-      // Seed from today's copies, then undo events newest-first. Basis is
-      // summed per printing rather than kept as one scalar so that the day
-      // loop can drop a printing from both lines together on days it has no
-      // price — a basis standing over a real line of zero would render a hole
-      // in the price history as a total loss.
+      // Basis is kept per printing so a printing with no price on a given day
+      // can be dropped from both lines together.
       const composition = new Map<string, number>();
       const basisByPrinting = new Map<string, number>();
       for (const row of anchorRows.rows) {
@@ -826,9 +753,6 @@ export function marketplaceRepo(db: Kysely<Database>) {
           copyCount += count;
           const price = priceOnDay(printingId, dayStr);
           if (price === undefined) {
-            // No snapshot this old. Dropping the printing from both lines
-            // keeps the gap between them a return, rather than letting a hole
-            // in the price history read as a total loss.
             continue;
           }
           valueCents += price * count;

@@ -3,8 +3,7 @@ import { describe, expect, it } from "vitest";
 import { parseTestDbTimestamp, replaceDbName } from "./integration-setup.js";
 
 describe("parseTestDbTimestamp", () => {
-  it("extracts the epoch-ms from the current name format", () => {
-    // openrift_test_<label>_<epoch-ms>_<pid>_<seq>
+  it("extracts the epoch-ms from openrift_test_<label>_<epoch-ms>_<pid>_<seq>", () => {
     expect(parseTestDbTimestamp("openrift_test_shared_1782885425522_12345_0")).toBe(
       1_782_885_425_522,
     );
@@ -31,11 +30,8 @@ describe("parseTestDbTimestamp", () => {
       const timestamp = parseTestDbTimestamp(name);
       return timestamp !== null && now - timestamp > maxAgeMs;
     };
-    // 31 minutes old → stale.
     expect(isStale(`openrift_test_shared_${now - 31 * 60 * 1000}_1_0`)).toBe(true);
-    // 29 minutes old → fresh (protects a concurrently-running run's DB).
     expect(isStale(`openrift_test_shared_${now - 29 * 60 * 1000}_1_0`)).toBe(false);
-    // Unparseable → never swept.
     expect(isStale("openrift")).toBe(false);
   });
 });

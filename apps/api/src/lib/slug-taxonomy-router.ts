@@ -7,28 +7,13 @@ import type { ApiContext } from "../orpc/context.js";
 import type { SlugTaxonomyRepo, SlugTaxonomyTable } from "../repositories/slug-taxonomy.js";
 import { assertSlugAvailable, assertValidReorder } from "./assertions.js";
 
-/**
- * Config for one slug-keyed admin taxonomy router (finishes, domains,
- * rarities, art variants, card types, super types, deck formats). Everything
- * the seven routers do NOT share lives here; everything they do share lives
- * in {@link createSlugTaxonomyHandlers}.
- */
+/** Per-router config for the seven slug-keyed admin taxonomy routers; shared behavior lives in {@link createSlugTaxonomyHandlers}. */
 export interface SlugTaxonomyRouterConfig<T extends SlugTaxonomyTable, CreateKey extends string> {
-  /** `context.repos` key for this taxonomy; doubles as the `list` response key. */
   repoKey: T;
-  /**
-   * Display noun for error messages, e.g. `"Finish"`, `"Art variant"`. Used
-   * as-is in not-found/already-exists messages, lowercased for the
-   * well-known/in-use ones and for the reorder unknown-slugs label.
-   */
   entityName: string;
-  /** The `create` response key, e.g. `"finish"` for the `"finishes"` repo. */
   createKey: CreateKey;
-  /** What references a row, e.g. `"one or more printings"`, `"one or more cards"`. */
   inUseBy: string;
-  /** Whether create/update accept the optional hex `color` (rarities, domains only). */
   hasColor?: boolean;
-  /** Extra work to run after a successful reorder (finishes: refreshCanonicalRank). */
   afterReorder?: (context: ApiContext) => Promise<void>;
 }
 
@@ -44,21 +29,12 @@ interface UpdateInput {
   color?: string | null;
 }
 
-/**
- * Builds `{ [key]: value }` typed as a proper mapped type instead of the
- * widened `{ [x: string]: V }` a plain computed-property literal would infer,
- * so callers get back the exact response shape their contract expects.
- * @returns The single-key object.
- */
+/** Typed as a proper mapped type; a plain computed-property literal would widen to `{ [x: string]: V }`. */
 function keyed<K extends string, V>(key: K, value: V): Record<K, V> {
   return { [key]: value } as Record<K, V>;
 }
 
-/**
- * Return shape of {@link createSlugTaxonomyHandlers}, spelled out explicitly
- * because Kysely's `Selectable<Database[T]>` pulls in an internal type-utils
- * type TS can't print from an inferred return position.
- */
+/** Spelled out explicitly: Kysely's `Selectable<Database[T]>` pulls in an internal type TS can't print from an inferred return position. */
 export interface SlugTaxonomyHandlers<T extends SlugTaxonomyTable, CreateKey extends string> {
   list: (args: { context: ApiContext }) => Promise<Record<T, Selectable<Database[T]>[]>>;
   reorder: (args: { input: { slugs: string[] }; context: ApiContext }) => Promise<void>;
@@ -70,21 +46,7 @@ export interface SlugTaxonomyHandlers<T extends SlugTaxonomyTable, CreateKey ext
   remove: (args: { input: { slug: string }; context: ApiContext }) => Promise<void>;
 }
 
-/**
- * Builds the five CRUD handlers shared by the slug-keyed admin taxonomy
- * routers. Each router file wires these into its own contract-bound `os.*`
- * procedures (`os.list.handler(handlers.list)`, etc.), so every route path,
- * method, status code and error code still comes from that router's own
- * contract — only the handler bodies are shared here.
- *
- * `T` is generic across the seven taxonomy tables, so the repo lookups below
- * go through a type-only redirection (`Record<T, SlugTaxonomyRepo<T>>`) the
- * same way {@link SlugTaxonomyRepo}'s own factory redirects through
- * `TaxonomyDb`: the real, precisely-typed repo is what a caller sees once `T`
- * is instantiated to a specific table via `config.repoKey`.
- *
- * @returns The `{ list, reorder, create, update, remove }` handler functions.
- */
+/** Each router wires these into its own contract-bound `os.*` procedures; route, method, status and error code still come from that contract. */
 export function createSlugTaxonomyHandlers<T extends SlugTaxonomyTable, CreateKey extends string>(
   config: SlugTaxonomyRouterConfig<T, CreateKey>,
 ): SlugTaxonomyHandlers<T, CreateKey> {
@@ -96,11 +58,8 @@ export function createSlugTaxonomyHandlers<T extends SlugTaxonomyTable, CreateKe
     return repos[repoKey];
   }
 
-  // T stays generic across the seven tables, so a row typed `Selectable<Database[T]>`
-  // is opaque here (TS can't see through it to `ReferenceTable`'s columns the way
-  // it can once `T` is instantiated to a literal table at each router's call site).
-  // Every one of the seven tables carries the full `ReferenceTable` shape, so this
-  // redirection is safe — same trick as `TaxonomyDb` in slug-taxonomy.ts.
+  // Every one of the seven tables carries the full `ReferenceTable` shape, so this cast is safe
+  // even though T is generic here and TS can't see through it to those columns.
   function asReference(row: Selectable<Database[T]>): ReferenceTable {
     return row as unknown as ReferenceTable;
   }

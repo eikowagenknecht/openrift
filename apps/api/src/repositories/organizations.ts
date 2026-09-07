@@ -3,11 +3,7 @@ import type { ExpressionBuilder, Kysely, Selectable } from "kysely";
 
 import type { Database, OrganizationMembersTable, OrganizationsTable } from "../db/index.js";
 
-/**
- * Correlated subquery for the longest-standing owner's display name, shown in
- * the two summary listings. Ownership is the `role = 'owner'` membership rows,
- * so the "owner" an admin list names is simply the oldest one.
- */
+/** The "owner" shown in a listing is the longest-standing `role = 'owner'` member. */
 function ownerNameSubquery(eb: ExpressionBuilder<Database & { o: OrganizationsTable }, "o">) {
   return eb
     .selectFrom("organizationMembers as om")
@@ -22,7 +18,6 @@ function ownerNameSubquery(eb: ExpressionBuilder<Database & { o: OrganizationsTa
 export type Organization = Selectable<OrganizationsTable>;
 export type OrganizationMember = Selectable<OrganizationMembersTable>;
 
-/** Admin-list row: the org plus its longest-standing owner's name and a member count. */
 export interface OrganizationSummary extends Organization {
   ownerName: string | null;
   memberCount: number;
@@ -39,7 +34,6 @@ export interface NewOrganization {
   slug: string;
   name: string;
   description?: string | null;
-  /** Seeds the first `role = 'owner'` membership; ownership lives on the roles alone. */
   ownerUserId: string;
 }
 
@@ -49,17 +43,12 @@ export interface OrganizationPatch {
   description?: string | null;
 }
 
-/**
- * Event organizations: a first-class, admin-provisioned tournament host (a
- * local game store, a league). `organization_members` carries org-level
- * authority — both `owner` and `manager` inherit organizer authority on every
- * tournament the org hosts. Authorization is the caller's job; the repo is naive.
- */
+/** Both `owner` and `manager` inherit organizer authority on every tournament the org hosts. */
 export function organizationsRepo(db: Kysely<Database>) {
   return {
     create(input: NewOrganization): Promise<Organization> {
-      // One transaction: a deferred owner-guard trigger checks at commit
-      // that the org has an owner-role member.
+      // A deferred owner-guard trigger checks at commit that the org has an
+      // owner-role member, so this must run in one transaction.
       return db.transaction().execute(async (trx) => {
         const org = await trx
           .insertInto("organizations")
@@ -119,7 +108,6 @@ export function organizationsRepo(db: Kysely<Database>) {
       }));
     },
 
-    /** Excludes `judge` memberships, which carry no host authority. */
     async listIdsForUser(userId: string): Promise<string[]> {
       const rows = await db
         .selectFrom("organizationMembers")
@@ -204,7 +192,6 @@ export function organizationsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** Adds or updates a member's role; idempotent on the (org, user) primary key. */
     async addMember(orgId: string, userId: string, role: OrganizationRole): Promise<void> {
       await db
         .insertInto("organizationMembers")
@@ -213,7 +200,6 @@ export function organizationsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Updates an existing member's role. No-op if the member does not exist. */
     async updateMemberRole(orgId: string, userId: string, role: OrganizationRole): Promise<void> {
       await db
         .updateTable("organizationMembers")
@@ -232,10 +218,8 @@ export function organizationsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Acquires a row-level write lock on the organization (`SELECT … FOR UPDATE`).
-     * Call this inside a transaction before a count-then-mutate guard (e.g. the
-     * last-owner check) so concurrent member mutations on the same org serialize
-     * instead of racing the read. A no-op outside a transaction.
+     * Call inside a transaction before a count-then-mutate guard, to
+     * serialize concurrent member mutations against the read.
      */
     async lockForUpdate(orgId: string): Promise<void> {
       await db
@@ -246,7 +230,6 @@ export function organizationsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Used to keep at least one owner. */
     async countOwners(orgId: string): Promise<number> {
       const row = await db
         .selectFrom("organizationMembers")

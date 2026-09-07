@@ -3,12 +3,6 @@ import { afterAll, describe, expect, it } from "vitest";
 import { adminReq, createTestContext } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Admin rules import + delete flows.
-// Uses unique version strings prefixed with "ar-int-" so we don't collide
-// with real data, and cleans them up in afterAll.
-// ---------------------------------------------------------------------------
-
 const ADMIN_ID = "a0000000-0045-4000-a000-000000000001";
 const NON_ADMIN_ID = "a0000000-0049-4000-a000-000000000001";
 
@@ -32,7 +26,6 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
   const { app: nonAdminApp } = nonAdminCtx!;
 
   afterAll(async () => {
-    // Cascade deletes the rule rows.
     await db
       .deleteFrom("ruleVersions")
       .where("version", "in", [COLLISION_VERSION, CORE_VERSION, TOURNAMENT_VERSION])
@@ -114,9 +107,6 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
     });
 
     it("rejects a version older than the latest existing one for that kind", async () => {
-      // CORE_VERSION ("ar-int-core") was imported earlier in this suite. An
-      // import with a lower version string for the same kind must be rejected
-      // — the diff model can't safely insert older versions in-place.
       const res = await app.fetch(
         adminReq("POST", "/rules/import", {
           kind: "core",
@@ -132,7 +122,6 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
 
   describe("DELETE /admin/rules/{kind}/versions/{version}", () => {
     it("deletes only the specified kind", async () => {
-      // Seed a tournament-only version to delete.
       await app.fetch(
         adminReq("POST", "/rules/import", {
           kind: "tournament",
@@ -146,7 +135,6 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Same version string in core (the earlier import under CORE_VERSION) still exists.
       const corePresent = await db
         .selectFrom("ruleVersions")
         .selectAll()

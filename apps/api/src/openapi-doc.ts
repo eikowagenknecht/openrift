@@ -5,24 +5,18 @@ import type { OpenAPI } from "@orpc/openapi";
 import { OpenAPIGenerator } from "@orpc/openapi";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 
-// The oRPC OpenAPI document is generated from the shared contracts (the same
-// values the routers implement), so every JSON endpoint appears in the spec
-// from a single source of truth — this is the only OpenAPI document the API
-// produces. Zod v4 schemas are converted by the zod4 converter and inlined
-// per-operation (no `components.schemas`). The only routes absent from the doc
-// are a few plain Hono utility endpoints that don't serve typed JSON (health,
-// the Sentry tunnel, share/list image generators, email unsubscribe); they are
-// excluded on purpose, not pending migration.
+// This is the only OpenAPI document the API produces. A few plain Hono
+// endpoints (health, Sentry tunnel, share/list image generators, email
+// unsubscribe) don't serve typed JSON and are excluded on purpose.
 
 const generator = new OpenAPIGenerator({
   schemaConverters: [new ZodToJsonSchemaConverter()],
 });
 
 /**
- * Collects every `*Contract` runtime export from the shared contracts barrel
- * into a single router object. Keys are arbitrary (the OpenAPI path comes from
- * each procedure's `.route({ path })`), so the nesting is just for traversal.
- * @returns A router object whose leaves are the contract procedures.
+ * Collects every `*Contract` export from the shared contracts barrel into one
+ * router object; keys are arbitrary since the OpenAPI path comes from each
+ * procedure's `.route({ path })`.
  */
 function buildContractRouter(): AnyContractRouter {
   const router: Record<string, unknown> = {};
@@ -31,8 +25,6 @@ function buildContractRouter(): AnyContractRouter {
       router[key] = value;
     }
   }
-  // The barrel's `*Contract` exports are all contract routers; the cast tells
-  // the generator to treat the assembled object as one nested router.
   return router as AnyContractRouter;
 }
 
@@ -45,12 +37,7 @@ interface ContractDef {
 
 const HTTP_METHODS = ["get", "post", "put", "patch", "delete", "head", "options"] as const;
 
-/**
- * Walks the assembled contract router and records each operation's auth level
- * (from its `meta`) keyed by `"METHOD /path"`, so the generated document can
- * carry an accurate per-operation `security` marker.
- * @returns Nothing; fills `out`.
- */
+/** Records each operation's auth level (from `meta`), keyed by `"METHOD /path"`. */
 function collectAuthByOperation(node: unknown, out: Map<string, AuthLevel>): void {
   if (!node || typeof node !== "object") {
     return;
@@ -65,23 +52,15 @@ function collectAuthByOperation(node: unknown, out: Map<string, AuthLevel>): voi
   }
 }
 
-// Admin operations are not gated by contract `meta` — they're gated by the
-// `requireAdmin` Hono middleware mounted on the `/api/admin/v1/*` URL prefix
-// (see `app.ts`). The contract and OpenAPI layers can't see that, so stamp the
-// admin `security` marker by path instead, mirroring the mount. Every
-// documented admin path starts with this prefix (the same one the admin/public
-// doc split filters on).
+// Admin operations aren't gated by contract meta; they're gated by the
+// requireAdmin Hono middleware on the /api/admin/v1/* prefix (see app.ts).
+// Stamp the admin security marker by path instead, mirroring that mount.
 const ADMIN_PATH_PREFIX = "/api/admin/";
 
 /**
- * Sets the OpenAPI `security` from each contract's auth level — the same `meta`
- * the runtime `requireUser` middleware reads — so Swagger UI shows which
- * endpoints need credentials: the document defaults to the session `cookieAuth`
- * (matching the fail-closed model), public reads opt out with `security: []`,
- * the provider push declares its `bearerAuth` key, and admin operations declare
- * `adminAuth` — the session cookie of an admin-role user, enforced by the
- * `requireAdmin` middleware rather than by contract meta.
- * @returns Nothing; mutates `doc` in place.
+ * Sets each operation's OpenAPI `security`: cookieAuth by default
+ * (fail-closed), `[]` for public reads, `bearerAuth` for the provider push,
+ * `adminAuth` for the admin path prefix.
  */
 function applySecurity(doc: OpenAPI.Document, router: AnyContractRouter): void {
   const authByOperation = new Map<string, AuthLevel>();
@@ -106,15 +85,9 @@ function applySecurity(doc: OpenAPI.Document, router: AnyContractRouter): void {
   }
 }
 
-// The contract spec is static for a given build, so generate it once and reuse
-// the promise across requests to /api/doc and /api/admin/doc.
+// Static for a given build; reused across requests to /api/doc and /api/admin/doc.
 let cachedContractDoc: Promise<OpenAPI.Document> | null = null;
 
-/**
- * Generates (once, then cached) the OpenAPI document for all migrated oRPC
- * endpoints from the shared contracts.
- * @returns The contract-derived OpenAPI document.
- */
 export function generateContractOpenAPIDocument(): Promise<OpenAPI.Document> {
   cachedContractDoc ??= (async () => {
     const router = buildContractRouter();

@@ -9,11 +9,7 @@ import { encodeDeck } from "../../services/deck-codecs/encode-deck.js";
 
 const os = implement(publicDecksContract).$context<ApiContext>().use(requireUser);
 
-/**
- * Public shared-deck view. An unknown token returns a typed NOT_FOUND. Card +
- * preferred-printing data is denormalized so the share page can SSR without
- * the global catalog.
- */
+/** Card + preferred-printing data is denormalized so the share page can SSR without the global catalog. */
 export const publicDecksRouter = {
   share: os.share.handler(async ({ input, context, errors }): Promise<PublicDeckDetailResponse> => {
     const found = await context.repos.decks.findByShareToken(input.token);

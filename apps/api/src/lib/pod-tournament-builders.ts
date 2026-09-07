@@ -7,19 +7,6 @@ import { toRoundResponse } from "./pod-tournament-presenters.js";
 import { loadTournament } from "./tournament-access.js";
 import { toPodPlayer, toPodTournament } from "./tournament-presenters.js";
 
-/**
- * The pod-engine running surface (pairingStyle='pod'), kept apart from the
- * umbrella builders because it reads a different slice of the same tournament
- * row: the engine pairs players into 3/4-player pods and derives standings from
- * finalized rounds via `repos.podTournaments`.
- */
-
-/**
- * Assembles the pod running payload (standings + rounds are derived). The
- * open-round snapshot (organizer warnings + manual editor) is only meaningful
- * while a round is open.
- * @returns The pod tournament detail response.
- */
 export async function buildPodRunDetail(
   repos: Repos,
   tournament: Tournament,
@@ -43,10 +30,6 @@ export async function buildPodRunDetail(
   };
 }
 
-/**
- * Reloads + assembles the pod running payload after a mutation.
- * @returns The fresh pod tournament detail response.
- */
 export async function podRunDetailById(
   repos: Repos,
   id: string,

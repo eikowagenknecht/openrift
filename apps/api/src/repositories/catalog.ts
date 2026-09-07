@@ -15,22 +15,12 @@ import type {
 } from "../db/index.js";
 import { fallbackImageId, imageId } from "./query-helpers.js";
 
-// The landing thumbnails' price. Cardmarket is the euro feed with the widest
-// printing coverage, and the vignettes that show a price render it in euros.
 const PRICE_MARKETPLACE = "cardmarket";
 
-// Printings priced inside this band sort ahead of the rest of the sample. Most
-// of the catalog sits at two cents, and a scanner tray totalling six of them
-// reads as a broken price feed; the chase printings above the band read as a
-// staged flex instead of a session anyone could have.
 export const PRICE_BAND_CENTS = { min: 50, max: 2000 };
 
-// How many channel labels a sampled promo section may carry. The deep tournament
-// branches spend a whole line on their breadcrumb alone.
 const PROMO_MAX_CHANNEL_DEPTH = 2;
 
-// Rotation step for the legend sample, matching the `current_date` the rest of
-// the landing samples shuffle on.
 const DAY_MS = 86_400_000;
 
 /** One sampled printing inside a {@link LandingPromoSection}. */
@@ -66,10 +56,8 @@ export type CatalogCardRow = Omit<
 };
 
 /**
- * `mv_card_aggregates` types its slug arrays as plain `string[]` — a view can't
- * carry the vocabulary unions — so every read of it narrows to the catalog's
- * types. One alias rather than three inline objects, so a column added to the
- * view can't be narrowed at one call site and forgotten at the next.
+ * `mv_card_aggregates` types its slug arrays as plain `string[]`; every read
+ * of it must narrow them to `Domain[]` / `SuperType[]` / `CardType[]`.
  */
 interface CardAggregateNarrowing {
   domains: Domain[];
@@ -97,11 +85,7 @@ type CatalogCardErrataRow = Pick<
   "cardId" | "correctedRulesText" | "correctedEffectText" | "source" | "sourceUrl" | "effectiveDate"
 >;
 
-/**
- * No `released` boolean on purpose: clients derive it from the dates via
- * `isReleased`, so a cached response can't claim a set is still upcoming a
- * week after its date passed.
- */
+/** No `released` boolean: clients derive it from the dates via `isReleased`. */
 type CatalogSetRow = Pick<Selectable<SetsTable>, "id" | "slug" | "name" | "setType"> & {
   releases: SetReleases;
 };
@@ -256,10 +240,6 @@ function selectCardErrata(db: Kysely<Database>) {
     ]);
 }
 
-/**
- * External-only rows are excluded here rather than at the call sites, so a
- * page can never be handed an image it has no URL for.
- */
 function selectPrintingImages(db: Kysely<Database>) {
   return db
     .selectFrom("printingImages")
@@ -275,20 +255,9 @@ function selectPrintingImages(db: Kysely<Database>) {
 const CATALOG_SHAPE_VERSION = "2";
 
 /**
- * The stored-catalog aggregates both tokens share, WITHOUT any notion of
- * "today". Kept at module scope, and as a fragment rather than a query, so the
- * two callers compose one expression instead of maintaining two copies that
- * drift apart.
- *
- * The date is deliberately not in here. It belongs to exactly one of the two
- * callers — see {@link catalogContentVersion} — and folding it in for both
- * would roll the catalog's ETag at every UTC midnight, expiring every client's
- * year-long `immutable` cache entry daily for no change in the bytes.
- *
- * Timestamps are pinned to UTC before being rendered because `timestamptz::text`
- * formats in the *session* time zone. Without the pin, two API instances (or one
- * instance after a config change) would compute different tokens for identical
- * data, which for a cache key is a correctness bug rather than a cosmetic one.
+ * Excludes the current date; only {@link catalogContentVersion} folds that in.
+ * Timestamps are pinned to UTC: `timestamptz::text` renders in the session
+ * time zone otherwise, so instances would compute different tokens for identical data.
  */
 const STORED_CATALOG_AGGREGATES = sql<string>`
       ${sql.lit(CATALOG_SHAPE_VERSION)} || '|' ||
@@ -456,83 +425,16 @@ export function catalogRepo(db: Kysely<Database>) {
     },
 
     /**
-     * A cheap content-version token for the assembled catalog, changing iff the
-     * rule-relevant catalog changes; it keeps the dynamic list-rule expansion
-     * memo fresh. It folds together a
-     * `count(*)` plus the latest mutation timestamp of every table that feeds the
-     * server-assembled `Printing[]` — so any admin edit that can change rule
-     * output (a card/printing/set field, a ban or errata added/removed, a marker
-     * or channel renamed, a marker/channel link added/removed, a domain /
-     * super-type / custom-tag assignment changed) rolls the token, while user
-     * copy adds and price refreshes (which don't reach the `Printing[]`) leave it
-     * stable. `count(*)` catches inserts/deletes; `max(updated_at)` (or
-     * `created_at` for the append-only ban/errata tables) catches in-place edits.
-     * `filterCards` reads only coarse facts from bans/errata (presence) and slugs
-     * from markers/channels, so the per-row note/reason columns that lack
-     * `updated_at` cannot change the result and need not be probed.
-     *
-     * The domain / super-type / custom-tag *assignment* junction tables carry no
-     * timestamp, and a same-cardinality swap (delete one + insert one) leaves
-     * `count(*)` unchanged — so those are content-hashed (`md5(string_agg(...))`)
-     * instead. `cards.updated_at` is not bumped on a domain/super-type edit (only
-     * the junction rows change), so without these hashes the memo would serve a
-     * stale card set for any rule filtering on a domain, super-type, or custom
-     * tag. The hashes are over the junctions only (a few thousand rows);
-     * `custom_tags` slug renames are caught by its own `updated_at`.
-     *
-     * `current_date` is folded in **here only**, because the assembled
-     * `Printing[]` this memo guards carries `setReleased`, derived from the
-     * per-language release dates rather than stored. Without it
-     * a set whose date passed at midnight would keep evaluating as unreleased
-     * until some unrelated admin edit happened to roll the token.
-     *
-     * {@link catalogResponseVersion} deliberately does NOT inherit that term:
-     * the catalog *response* carries no date-derived field (`CatalogSetRow` has
-     * no `released` boolean on purpose, so clients derive it from the raw
-     * dates), so its bytes are identical either side of midnight.
-     *
-     * Far cheaper than the full assembly (aggregates only, no row materialization
-     * or map building), so it can run on every ruled-list read.
+     * Domain/super-type/custom-tag junction tables have no `updated_at`, and a same-cardinality swap leaves `count(*)` unchanged, so they are content-hashed.
+     * Includes `current_date` for `setReleased`'s derived flag; {@link catalogResponseVersion} must not inherit it.
      */
     catalogContentVersion(): Promise<string> {
       return hashedToken(db, sql`${STORED_CATALOG_AGGREGATES} || '|' || current_date::text`);
     },
 
     /**
-     * The content version of the assembled `/catalog` **response**, used as that
-     * response's ETag (see `routes/public/catalog.ts`).
-     *
-     * This is the shared stored-catalog aggregates plus what the rule memo does
-     * not need but the response carries:
-     *
-     * - `printing_images` — the response embeds each printing's `images`.
-     * - `copies` — the response carries `totalCopies`.
-     * - `printing_markers` / `printing_distribution_channels` — content-hashed,
-     *   not counted. Both are timestamp-less junctions, so a same-cardinality
-     *   swap (drop one link, add another) leaves `count(*)` identical and would
-     *   not roll the token, while every printing's `markers` and
-     *   `distributionChannels` in the response changed. The rule token counts
-     *   them only, which is why they are restated here rather than shared.
-     *   `printing_markers` is *also* covered indirectly — its `_sync_iud`
-     *   trigger denormalizes slugs onto `printings`, bumping that row's
-     *   `updated_at` — but hashing it directly keeps the guarantee from resting
-     *   on a trigger side effect. `printing_distribution_channels` has no such
-     *   trigger and was genuinely uncovered until this hash.
-     * - `printing_citations` — content-hashed for the same reason: the table
-     *   has no `updated_at`, and editing a citation's label or URL in place
-     *   leaves every count identical while the response text changes.
-     *
-     * It shares the stored aggregates rather than restating them, because the
-     * failure mode of drifting out of sync is severe here: this token gates a
-     * year-long `immutable` entry, so anything reachable in `CatalogResponse`
-     * that it misses gets served stale to every client holding that URL.
-     * `assembleCatalogResponse`'s inputs are the checklist, and
-     * `catalog-response-version.integration.test.ts` mutates each of them to
-     * enforce it.
-     *
-     * Notably absent: `current_date`. Carrying it would roll this token at every
-     * UTC midnight and throw away every client's `immutable` entry daily, while
-     * the response bytes did not change at all.
+     * `printing_markers`, `printing_distribution_channels`, and `printing_citations` have no `updated_at`, so they are content-hashed.
+     * Any new `CatalogResponse` field must be added to this token or the `immutable` ETag goes stale. Excludes `current_date`.
      */
     async catalogResponseVersion(): Promise<string> {
       const [storedToken, result] = await Promise.all([
@@ -556,27 +458,9 @@ export function catalogRepo(db: Kysely<Database>) {
           ) AS token
         `.execute(db),
       ]);
-      // Both halves are already md5 hex, so joining them needs no hashing here
-      // and yields a value safe in both an ETag header and a `?v=` query param.
-      // The raw aggregates carry timestamps (spaces, `+`) and would need
-      // escaping in both places.
       return `${storedToken}${result.rows[0]?.token ?? ""}`;
     },
 
-    /**
-     * Counts and a sampled list of front-face thumbnails for the public
-     * landing page. Battlefield cards are excluded from the thumbnail sample
-     * (they're landscape and look wrong in the scatter). The sample is
-     * deterministic per UTC day — `md5(printing_id || current_date)` — so an
-     * edge cache can serve the same payload to every visitor for the day,
-     * with the scatter rotating once at midnight.
-     *
-     * Each thumbnail carries the printing's own identity (name, code, variant
-     * label, Cardmarket price) so the marketing vignettes can label the card
-     * they are showing instead of inventing one. Printings priced inside
-     * {@link PRICE_BAND_CENTS} sort first, since the vignettes that show a
-     * price read the head of the sample.
-     */
     async landingSummary(sampleSize: number): Promise<{
       cardCount: number;
       printingCount: number;
@@ -1009,10 +893,6 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Every printing of a set of cards, for the surfaces that need a printing
-     * picker over a deck rather than over the whole catalogue.
-     */
     printingsByCardIds(cardIds: string[]): Promise<CatalogPrintingRow[]> {
       if (cardIds.length === 0) {
         return Promise.resolve([]);
@@ -1211,24 +1091,14 @@ export function catalogRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Refresh `mv_printings_canonical_rank`, which backs the
-     * `printings_ordered` view's `canonical_rank`.
-     *
-     * Must run after anything that changes the ranking: printings themselves,
-     * or the `sort_order` of sets / finishes / card_sizes / languages /
-     * markers. Until it does, a new printing coalesces to the largest int and
-     * sorts last rather than disappearing, so a missed refresh delays ordering
-     * instead of hiding cards.
+     * Must run after anything that changes ranking: printings themselves, or the
+     * `sort_order` of sets / finishes / card_sizes / languages / markers.
      */
     async refreshCanonicalRank(): Promise<void> {
       await sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_printings_canonical_rank`.execute(db);
     },
 
-    /**
-     * Card and printing mutations invalidate every catalog-derived materialized
-     * view, so they refresh together rather than leaving callers to remember
-     * the set.
-     */
+    /** Add any new catalog-derived materialized view here; callers refresh them as a set. */
     async refreshCatalogViews(): Promise<void> {
       // Not `this.refresh…()`: instrumentRepo rebinds these methods onto a new
       // object, so a `this` reference here would not survive the wrapping.

@@ -108,10 +108,6 @@ describe("parseRulesText", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Endpoint tests — mount the oRPC router directly (without requireAdmin).
-// ---------------------------------------------------------------------------
-
 const mockRulesRepo = {
   getVersion: vi.fn(),
   listVersions: vi.fn(),
@@ -122,7 +118,6 @@ const mockRulesRepo = {
   updateComments: vi.fn(),
 };
 
-// transact runs its callback with a repos bundle exposing the same rules repo.
 const mockTransact = vi.fn(async (cb: (txRepos: { rules: typeof mockRulesRepo }) => unknown) =>
   cb({ rules: mockRulesRepo }),
 );
@@ -176,7 +171,7 @@ describe("POST /api/admin/v1/rules/import", () => {
     expect(mockRulesRepo.insertRules).toHaveBeenCalledOnce();
   });
 
-  it("computes added/modified/removed against the previous version", async () => {
+  it("computes added/modified/removed against the previous version (001 changed, 002 added, 003 removed)", async () => {
     mockRulesRepo.getVersion.mockResolvedValue(null);
     mockRulesRepo.listVersions.mockResolvedValue([{ version: "1.0" }]);
     mockRulesRepo.listLatest.mockResolvedValue([
@@ -196,7 +191,6 @@ describe("POST /api/admin/v1/rules/import", () => {
 
     expect(res.status).toBe(201);
     const json = await readJson(res);
-    // 001 changed (modified), 002 is new (added), 003 dropped (removed).
     expect(json).toMatchObject({ added: 1, modified: 1, removed: 1 });
   });
 

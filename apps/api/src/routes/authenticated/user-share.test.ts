@@ -7,20 +7,12 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { userShareRouter } from "./user-share";
 
-// ---------------------------------------------------------------------------
-// Mock repo
-// ---------------------------------------------------------------------------
-
 const mockUserSharesRepo = {
   getShareToken: vi.fn(() => Promise.resolve(undefined as object | undefined)),
   setShareToken: vi.fn((_userId: string, _token: string | null) =>
     Promise.resolve(undefined as object | undefined),
   ),
 };
-
-// ---------------------------------------------------------------------------
-// Test app
-// ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
@@ -37,10 +29,6 @@ app.onError((err, c) => {
   }
   throw err;
 });
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 beforeEach(() => vi.resetAllMocks());
 

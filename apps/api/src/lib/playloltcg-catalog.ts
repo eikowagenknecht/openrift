@@ -2,16 +2,12 @@
 import { createHash } from "node:crypto";
 
 /**
- * Reading the Chinese app's shop, event and deck payloads into the slim shapes
- * `playloltcg_*` stores (ADR-014, second source). The source publishes no schema
- * and its lists nest differently per endpoint, so every field is probed
- * defensively and a row with no usable id or name is dropped rather than guessed.
+ * The source publishes no schema and its lists nest differently per endpoint.
+ * A row with no usable id or name is dropped, not guessed.
  */
 
-/** The second catalogued source. */
 export const PLAYLOLTCG_PROVIDER = "playloltcg";
 
-/** The source's own page for an event, which becomes the citation's URL. */
 export function playloltcgEventUrl(activityShopId: number): string {
   return `https://playloltcg.com/activity/${activityShopId}`;
 }
@@ -33,7 +29,6 @@ function text(value: unknown): string | null {
   return null;
 }
 
-/** The source's own integer keys, which arrive as numbers and must stay whole. */
 function sourceId(value: unknown): number | null {
   if (typeof value === "number" && Number.isInteger(value) && value > 0) {
     return value;
@@ -52,10 +47,7 @@ function coord(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-/**
- * The day part of a source timestamp, in the `YYYY-MM-DD` shape the `date`
- * columns store and hand back. The source publishes no time of day.
- */
+/** The source publishes no time of day; only the `YYYY-MM-DD` part is kept. */
 function day(value: unknown): string | null {
   const raw = text(value);
   if (raw === null || !/^\d{4}-\d{2}-\d{2}/u.test(raw)) {
@@ -66,13 +58,8 @@ function day(value: unknown): string | null {
 }
 
 /**
- * The source's `cardNo` as the key our SC printings are matched on. The source
- * is inconsistent — `SFD·195/221`, `UNL-145a/219`, `VEN·038` all occur in one
- * deck — so both separators are folded and the `/total` suffix is dropped,
- * leaving the set-number-variant that equals our `short_code` (`SFD-195`,
- * `UNL-145a`, `VEN-038`). Verified against the live deck feed 2026-08-30.
- *
- * @returns The `short_code` key, or null when the value carries no code.
+ * The source mixes `·` and `-` separators and a `/total` suffix in one deck
+ * (`SFD·195/221`, `UNL-145a/219`); both are folded to match our `short_code`.
  */
 export function normalizeCardNo(cardNo: unknown): string | null {
   const raw = text(cardNo);
@@ -84,7 +71,6 @@ export function normalizeCardNo(cardNo: unknown): string | null {
   return key === "" ? null : key;
 }
 
-/** A shop from the registry, as `playloltcg_shops` stores it. */
 export interface PlayloltcgShopProjection {
   id: number;
   name: string;
@@ -96,12 +82,6 @@ export interface PlayloltcgShopProjection {
   latitude: number | null;
 }
 
-/**
- * One `searchShop` row, or null when it carries no id or name.
- *
- * @param raw - A shop object from the registry.
- * @returns The projection, or null.
- */
 export function projectShopRow(raw: unknown): PlayloltcgShopProjection | null {
   const row = record(raw);
   if (row === null) {
@@ -124,16 +104,10 @@ export function projectShopRow(raw: unknown): PlayloltcgShopProjection | null {
   };
 }
 
-/**
- * The source's `sortWeight` lifecycle, sent as an integer or as a string of one:
- * 1 registration-open, 2 fully-booked, 3 scheduled, then the two the recheck
- * ladder reads by name.
- */
 const PLAYLOLTCG_STATUS_REGISTRATION_OPEN = 1;
 export const PLAYLOLTCG_STATUS_IN_PROGRESS = 4;
 export const PLAYLOLTCG_STATUS_FINISHED = 5;
 
-/** The `sortWeight` lifecycle as a bounded value, or null when it is out of range. */
 function status(value: unknown): number | null {
   let n = Number.NaN;
   if (typeof value === "number") {
@@ -145,10 +119,7 @@ function status(value: unknown): number | null {
   return Number.isInteger(n) && inRange ? n : null;
 }
 
-/**
- * The columns `playloltcg_events` keeps, minus `shopId` (the repo resolves that
- * by name against the registry) and the crawl bookkeeping the repo owns.
- */
+/** Omits `shopId` (repo-resolved by name) and the crawl bookkeeping the repo owns. */
 export interface PlayloltcgEventProjection {
   activityShopId: number;
   shopName: string | null;
@@ -157,7 +128,7 @@ export interface PlayloltcgEventProjection {
   activityTypeName: string | null;
   battleMode: string | null;
   status: number | null;
-  /** `YYYY-MM-DD`, matching the `date` column; the source publishes no time. */
+  /** YYYY-MM-DD */
   startAt: string | null;
   endAt: string | null;
   playerCount: number | null;
@@ -172,10 +143,7 @@ export interface PlayloltcgEventProjection {
   contentHash: string;
 }
 
-/**
- * Stable over the projection's own field order, so a source that reorders its
- * JSON keys never reads as a change.
- */
+/** The parts array's field order must stay fixed, or unrelated diffs hash as content changes. */
 export function playloltcgContentHash(
   fields: Omit<PlayloltcgEventProjection, "contentHash">,
 ): string {
@@ -202,12 +170,8 @@ export function playloltcgContentHash(
 }
 
 /**
- * One `activityShop/page` row as the slim projection, or null when it carries no
- * usable id or name. The venue is the event's own address, which the source
- * repeats per row; the store link is resolved from {@link shopName} by the repo.
- *
- * @param raw - An event object from the date-window listing.
- * @returns The projection, or null.
+ * The venue is the event's own address, which the source repeats per row; the
+ * store link is resolved from {@link shopName} by the repo.
  */
 export function projectEventRow(raw: unknown): PlayloltcgEventProjection | null {
   const row = record(raw);
@@ -242,18 +206,13 @@ export function projectEventRow(raw: unknown): PlayloltcgEventProjection | null 
   return { ...fields, contentHash: playloltcgContentHash(fields) };
 }
 
-/** One card row from a deck body, resolved enough to stage. */
 export interface PlayloltcgDeckCard {
-  /** The source's raw `cardNo`, kept for the citation and for debugging a miss. */
   cardNo: string;
-  /** The `short_code` key {@link normalizeCardNo} produced, for SC resolution. */
   shortCode: string | null;
   cardName: string | null;
   hero: string | null;
   cardCount: number;
-  /** The legend is the row whose categories include `legendary` (传奇). */
   isLegend: boolean;
-  /** The champion unit, distinct from the legend. */
   isMainHero: boolean;
 }
 
@@ -261,12 +220,7 @@ function categories(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
 }
 
-/**
- * One `getActivityCardGroupCardListImage` card row.
- *
- * @param raw - A card object from a deck body.
- * @returns The card, or null when it carries no code.
- */
+/** One `getActivityCardGroupCardListImage` card row, or null when it carries no code. */
 export function projectDeckCard(raw: unknown): PlayloltcgDeckCard | null {
   const row = record(raw);
   if (row === null) {
@@ -287,7 +241,6 @@ export function projectDeckCard(raw: unknown): PlayloltcgDeckCard | null {
   };
 }
 
-/** The `cardGroupId`s a standings table points at, as the mirror keys its decks. */
 export function referencedDeckIds(standings: readonly unknown[]): string[] {
   const ids = new Set<string>();
   for (const row of standings) {

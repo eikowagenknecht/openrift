@@ -12,15 +12,12 @@ import { countryFromAddress } from "./meta-event-classify.js";
  * unlike the other two sources there is nothing here to queue.
  */
 
-/** The third catalogued source. */
 export const TOPDECK_PROVIDER = "topdeck";
 
-/** The source's own page for a tournament, which becomes the citation's URL. */
 export function topdeckEventUrl(tid: string): string {
   return `https://topdeck.gg/event/${tid}`;
 }
 
-/** The game the source files Riftbound under, the required half of every search. */
 export const TOPDECK_GAME = "Riftbound";
 
 /** Anything but the source's constructed word skips deck validation: a sealed list is not a constructed deck. */
@@ -79,7 +76,6 @@ export function topdeckLocalDay(startAt: Date, longitude: number | null): string
   return new Date(startAt.getTime() + offsetHours * MS_PER_HOUR).toISOString().slice(0, 10);
 }
 
-/** The columns `topdeck_events` keeps, minus the crawl bookkeeping the repo owns. */
 export interface TopdeckEventProjection {
   tid: string;
   name: string;
@@ -124,7 +120,6 @@ const MAX_EVENT_NAME = 120;
 const MAX_PLAYER_NAME = 80;
 const MAX_ADDRESS = 500;
 
-/** One standings row as `topdeck_event_standings` stores it. */
 export interface TopdeckStandingProjection {
   playerKey: string;
   sourcePlayerId: string | null;
@@ -134,13 +129,10 @@ export interface TopdeckStandingProjection {
   losses: number | null;
   draws: number | null;
   legendName: string | null;
-  /** Null when the player submitted no list. */
   sourceDeckId: string | null;
-  /** The `deckObj` sections, kept raw until the card bridge is loaded. */
   deckSections: Record<string, unknown> | null;
 }
 
-/** One card line of a decklist, in the zone vocabulary the mirror stores. */
 export interface TopdeckDeckLine {
   lineNumber: number;
   zone: DeckZone;
@@ -148,7 +140,6 @@ export interface TopdeckDeckLine {
   cardName: string;
 }
 
-/** A whole tournament as the mirror keeps it. */
 export interface TopdeckTournamentProjection {
   event: TopdeckEventProjection;
   standings: TopdeckStandingProjection[];
@@ -243,7 +234,6 @@ export function projectTournament(raw: unknown): TopdeckTournamentProjection | n
   return { event: { ...fields, contentHash: topdeckContentHash(fields) }, standings };
 }
 
-/** The source names the zone outright; anything unlisted is main deck. */
 const ZONE_BY_SECTION: ReadonlyMap<string, DeckZone> = new Map([
   ["legend", WellKnown.deckZone.LEGEND],
   ["champion", WellKnown.deckZone.CHAMPION],
@@ -253,10 +243,8 @@ const ZONE_BY_SECTION: ReadonlyMap<string, DeckZone> = new Map([
   ["sideboard", WellKnown.deckZone.SIDEBOARD],
 ]);
 
-/** `deckObj` carries the list's own provenance under this heading, not cards. */
 const METADATA_SECTION = "metadata";
 
-/** The `id` a card entry carries when the list was built against a printing. */
 const SHORT_CODE = /^[A-Z]{2,4}-\d{1,4}[a-z]?$/u;
 
 /** Every `short_code` a set of decks names, for one bridge query per pass. */

@@ -7,10 +7,6 @@ import type { ApiContext } from "../../orpc/context.js";
 
 const os = implement(siteSettingsContract).$context<ApiContext>().use(requireUser);
 
-/**
- * oRPC implementation of the public site-settings contract.
- * `GET /api/v1/site-settings` — web-scoped settings as a `{ key: value }` map.
- */
 export const siteSettingsRouter = {
   get: os.get.handler(async ({ context }): Promise<SiteSettingsResponse> => {
     const { siteSettings } = context.repos;

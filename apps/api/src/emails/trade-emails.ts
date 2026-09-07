@@ -106,12 +106,7 @@ export interface CoalescedTradeRequestsEmailInput {
  * Builds the coalesced "{sender} sent you N trade requests" email, folding a
  * burst from a single member into one message.
  *
- * For any non-instant cadence (including the default `5min`) this is the
- * recipient's *first and only* notification of the burst — no instant email
- * precedes it — so the copy reads as a fresh first-contact notice, not a "you
- * have more waiting" follow-up. It stays accurate whether the burst is one
- * request or several, and whether or not an instant email happened to precede
- * it.
+ * Copy must read correctly whether or not an instant email preceded this one.
  */
 export function buildCoalescedTradeRequestsEmail(input: CoalescedTradeRequestsEmailInput): {
   subject: string;
@@ -301,13 +296,6 @@ export function buildTradeStatusUpdateEmail(input: TradeStatusUpdateEmailInput):
   const allUpdates = input.groups.flatMap((group) => group.updates);
   const total = allUpdates.length;
 
-  // The email is coalesced per actor, so the actor is constant and the intro
-  // carries it once. The lines themselves group by outcome under colored
-  // headers — the verdict and the card are the only things that vary, so they
-  // are all a line shows. The group stays the deep-link location: on the button
-  // for a single group, on a muted "In {group}" line when several are involved.
-  // A single update keeps the plain-sentence form; a header over one bullet
-  // reads as noise.
   if (total === 1) {
     const group = input.groups[0];
     const bodyHtml = `

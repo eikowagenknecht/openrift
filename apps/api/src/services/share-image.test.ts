@@ -252,8 +252,6 @@ describe("markPlacement", () => {
   });
 
   it("uses the footer for a one-row grid, where the cards are width-bound", () => {
-    // Five cards fill the width long before they fill the height, so the band
-    // below them costs nothing.
     expect(markPlacement(5, false, true, AREA_W, AREA_H)).toBe("footer");
   });
 
@@ -262,8 +260,6 @@ describe("markPlacement", () => {
   });
 
   it("takes the footer rather than a cell when the mark carries no code", () => {
-    // A card-sized cell holding one small host label reads as a card that
-    // failed to load, and the label-height footer costs the grid far less.
     expect(markPlacement(9, false, true, AREA_W, AREA_H, false)).toBe("footer");
     expect(markPlacement(5, false, true, AREA_W, AREA_H, false)).toBe("footer");
   });
@@ -294,7 +290,6 @@ describe("bestGridForArea", () => {
     const grid = bestGridForArea(20, V_AREA_W, V_AREA_H, V_GAP);
 
     expect(grid.cols).toBe(4);
-    // A landscape image draws twelve tiles at ~181px; twenty fit here wider.
     expect(grid.cellW).toBeGreaterThan(181);
   });
 
@@ -319,11 +314,7 @@ describe("bestGridForArea", () => {
   });
 });
 
-/**
- * Mirrors the renderer's grid sizing so the placement test can assert on the
- * resulting card width without exporting the grid packer itself.
- * @returns The cell width the grid would produce.
- */
+/** Mirrors the renderer's grid sizing without exporting the grid packer itself. */
 function computeGridForTest(count: number, areaW: number, areaH: number): number {
   const rows = count <= 6 ? 1 : 2;
   const cols = Math.ceil(count / rows);

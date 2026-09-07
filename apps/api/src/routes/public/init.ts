@@ -7,10 +7,6 @@ import type { ApiContext } from "../../orpc/context.js";
 
 const os = implement(initContract).$context<ApiContext>().use(requireUser);
 
-/**
- * Drops the internal `is_well_known` seeding flag from a batch of reference rows.
- * @returns The rows without `isWellKnown`.
- */
 function stripInternal<T extends { isWellKnown: boolean }>(rows: T[]): Omit<T, "isWellKnown">[] {
   return rows.map(({ isWellKnown: _isWellKnown, ...rest }) => rest);
 }
@@ -68,10 +64,8 @@ export const initRouter = {
       }
     }
 
-    // `is_well_known` is an internal seeding flag; strip it from every row.
-    // Listing the keys (rather than folding over Object.entries) keeps the
-    // result checked against the contract's `enums` object instead of casting an
-    // index signature onto it, so a key added on either side fails to compile.
+    // Listing keys explicitly keeps this checked against InitResponse["enums"];
+    // folding over Object.entries would need an index-signature cast.
     const strippedEnums: InitResponse["enums"] = {
       cardTypes: stripInternal(enumData.cardTypes),
       rarities: stripInternal(enumData.rarities),

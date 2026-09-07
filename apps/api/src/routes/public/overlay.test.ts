@@ -13,7 +13,6 @@ const mockPresetRepo = { findByIdForUser: vi.fn() };
 
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
-  // No session: the OBS browser source has none, which is the point.
   c.set("repos", { overlayChannels: mockRepo, stagePresets: mockPresetRepo } as never);
   await next();
 });
@@ -90,7 +89,6 @@ describe("GET /api/v1/overlay/{token}/state?presetId=", () => {
     });
   });
 
-  /** @returns The state response for the given query string. */
   async function request(query: string): Promise<Response> {
     return await app.request(`/api/v1/overlay/AbC123XyZ789/state${query}`);
   }
@@ -113,7 +111,6 @@ describe("GET /api/v1/overlay/{token}/state?presetId=", () => {
       ...DEFAULT_OVERLAY_PAYLOAD.plateFields,
       flavorText: true,
     });
-    // The card and the version belong to the channel, not to the preset.
     expect(json.payload.printingId).toBe("p-1");
     expect(json.version).toBe(5);
   });

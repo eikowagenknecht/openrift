@@ -502,7 +502,6 @@ describe("toMetaEventPlayer", () => {
       slug: "jinx",
       imageId: "image-legend",
       domains: ["chaos", "fury"],
-      // No name, so no key it could answer to; the row links at the card page.
       archiveSlug: null,
     });
   });

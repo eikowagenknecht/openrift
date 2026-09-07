@@ -5,46 +5,20 @@ import type { Variables } from "../../types.js";
 
 /**
  * oEmbed provider endpoint (https://oembed.com) for OpenRift's public share
- * links. WordPress and other oEmbed consumers turn a pasted share URL into an
- * inline preview by calling this endpoint; we answer with a `photo` response
- * pointing at the same 1200×630 share image already used as the page's
- * og:image.
- *
- * Only the token-based share surfaces are supported — deck, collection, list,
- * tier-list, and user-bundle shares — because those are the only public pages
- * with a purpose-built, anonymous, immutably-cached share image. A WordPress admin
- * registers the provider once with
- * `wp_oembed_add_provider('https://openrift.app/*', 'https://openrift.app/api/v1/oembed')`;
- * the matching `<link rel="alternate" type="application/json+oembed">` discovery
- * tag on each page lets other consumers find it without registration.
+ * links: answers a `photo` response pointing at the share image already used
+ * as the page's og:image.
  */
 
-/** The fixed render size of every share image. */
 const IMAGE_WIDTH = 1200;
 const IMAGE_HEIGHT = 630;
 
-/**
- * Tell consumers to re-request the oEmbed response after a day. The image URL
- * carries a content version (`?v=`), so a refetch after content changes yields
- * a fresh image; until then the consumer may cache the response.
- */
 const CACHE_AGE_SECONDS = 86_400;
 
-/**
- * Path prefixes (`/{kind}/share/{token}`) we can resolve to a share image. Each
- * entry must have both a `<link rel="alternate" ... json+oembed>` tag on its web
- * share route and a `/{kind}/share/{token}/image.png` route in `share-images.ts`
- * — a kind advertised by the page but missing here answers 404 to every consumer
- * that follows the discovery tag, which is exactly what tier lists did.
- */
 const SHARE_KINDS = new Set(["decks", "collections", "lists", "tier-lists", "users"]);
 
 interface ResolvedShare {
-  /** Human-readable title for the embed (provider/author line in consumers). */
   title: string;
-  /** Display name of the owner, when known. */
   authorName?: string;
-  /** Content version folded into the image URL's `?v=` cache-bust token. */
   version: string;
 }
 
@@ -56,11 +30,7 @@ function versionFromDate(value: Date | string | null | undefined): number {
   return Number.isNaN(epochMs) ? 0 : epochMs;
 }
 
-/**
- * A share URL must belong to the `CORS_ORIGIN` allow-list to be resolved —
- * this keeps the endpoint from acting as an open redirector / SSRF surface
- * for arbitrary URLs.
- */
+/** Must belong to the `CORS_ORIGIN` allow-list, or this endpoint is an open SSRF redirector. */
 function allowedOrigins(corsOrigin: string | undefined): Set<string> {
   if (!corsOrigin) {
     return new Set();
@@ -182,11 +152,7 @@ async function resolveShare(
   }
 }
 
-/**
- * Scales the fixed image size down to fit within the consumer-requested
- * `maxwidth`/`maxheight` while preserving aspect. The share image is always
- * rendered at full size; only the reported dimensions shrink.
- */
+/** Only the reported dimensions shrink to fit maxwidth/maxheight; the image renders at full size. */
 function scaledDimensions(maxWidth: number, maxHeight: number): { width: number; height: number } {
   const scale = Math.min(
     maxWidth > 0 ? maxWidth / IMAGE_WIDTH : 1,

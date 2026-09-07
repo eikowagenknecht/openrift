@@ -9,9 +9,8 @@ const os = implement(adminStagingCardOverridesContract)
   .use(requireAuthedUser);
 
 /**
- * Admin staging-card-overrides. Any thrown `AppError` is mapped by the
- * handler's {@link appErrorInterceptor}. The DELETE reads its SKU key from
- * detailed `query` input (compact mode drops DELETE query params).
+ * The DELETE reads its SKU key from detailed `query` input: compact mode
+ * drops DELETE query params.
  */
 export const adminStagingCardOverridesRouter = {
   create: os.create.handler(async ({ input, context }): Promise<void> => {

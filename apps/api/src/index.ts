@@ -1,6 +1,5 @@
-// Tracing must be initialized before any module that obtains a tracer; keep
-// this import at the very top, even before Sentry, so our OTel SDK owns the
-// global TracerProvider.
+// Must be the first import: our OTel SDK must own the global TracerProvider
+// before any module obtains a tracer, including Sentry below.
 // oxlint-disable-next-line import/no-unassigned-import -- side-effect import is the canonical OTel SDK bootstrap pattern
 import "./tracing.js";
 import { createLogger } from "@openrift/shared/logger";
@@ -20,12 +19,9 @@ import { wellKnownRepo } from "./repositories/well-known.js";
 import { createJobScheduler } from "./services/job-scheduler.js";
 import { validateWellKnownSlugs } from "./services/validate-well-known.js";
 
-// ── Composition root ──────────────────────────────────────────────────────────
-
 const env = process.env as Record<string, string | undefined>;
 // In containers, the deploy SHA is written to /app/.build-id by the Dockerfile.
-// Outside containers (local dev) the file is absent and BUILD_ID stays unset,
-// which disables X-Build-Id stamping (clients skip the comparison).
+// Absent outside containers, which disables X-Build-Id stamping.
 if (!env.BUILD_ID) {
   try {
     const buildIdText = await Bun.file("/app/.build-id").text();
@@ -44,24 +40,15 @@ if (config.sentryDsn) {
   Sentry.init({
     dsn: config.sentryDsn,
     environment: config.appEnv,
-    // Tracing is owned by our own OTel SDK (see ./tracing.ts) which exports to
-    // Tempo. skipOpenTelemetrySetup keeps Sentry from registering a competing
-    // TracerProvider; tracesSampleRate: 0 keeps Sentry from sending any
-    // transactions on its own. Errors continue to flow as before.
+    // skipOpenTelemetrySetup keeps Sentry from registering a competing
+    // TracerProvider; our own OTel SDK (./tracing.ts) owns tracing to Tempo.
     tracesSampleRate: 0,
     skipOpenTelemetrySetup: true,
     // Sentry's Bun.serve wrapper starts spans through the global OTel tracer
     // despite tracesSampleRate 0: raw-URL INTERNAL spans with all headers in Tempo.
     integrations: (defaults) => defaults.filter((i) => i.name !== "BunServer"),
-    // Drop unhandled rejections that are just transient DNS/connectivity blips
-    // against the database. postgres.js rejects a background reconnect promise
-    // nobody awaits, so it arrives here as an unhandled rejection with no
-    // stacktrace, while the request path already answered 503 db_unreachable.
-    // Only unhandled rejections are considered — anything thrown on a real
-    // request path still reports, transient or not, because there a caller saw
-    // the failure. A database that is actually gone still surfaces:
-    // /api/health keeps returning 503 and the container goes unhealthy.
-    // Dropped events are logged, so Loki keeps all of them.
+    // postgres.js rejects a background reconnect promise nobody awaits, so a
+    // transient DB blip surfaces here with no stacktrace; drop only that.
     beforeSend: (event, hint) => {
       if (!isDroppableTransientRejection(event, hint)) {
         return event;
@@ -74,9 +61,6 @@ if (config.sentryDsn) {
     },
   });
 
-  // Attach the active OTel trace_id / span_id to every Sentry event. This
-  // populates Sentry's "Trace" tab and gives us a value we can templated into
-  // a "View in Grafana" link for the Tempo trace.
   Sentry.addEventProcessor((event) => {
     const span = trace.getActiveSpan();
     if (!span) {
@@ -103,22 +87,15 @@ const auth = createAuth({ config, db, dialect, sendEmail });
 
 log.info("Starting API server");
 
-// ── 1. Run migrations (blocks until complete) ───────────────────────────────
-
 log.info("Running migrations");
 await migrate(db, log.child({ service: "migrate" }));
-
-// ── 2. Validate well-known reference data ──────────────────────────────────
 
 log.info("Validating well-known slugs");
 await validateWellKnownSlugs(wellKnownRepo(db));
 
-// ── 3. Register scheduled jobs (non-blocking timers) ────────────────────────
-
 const repos = createRepos(db);
 
-// Any row left in 'running' from a previous process crash would block
-// re-entrancy. Mark orphans failed before registering new timers.
+// A row left 'running' from a previous crash would block re-entrancy.
 const swept = await repos.jobRuns.sweepOrphaned();
 if (swept > 0) {
   log.warn({ swept }, "Marked orphaned job_runs as failed on startup");
@@ -131,14 +108,10 @@ const scheduler = createJobScheduler({
 });
 await scheduler.start();
 
-// ── 4. Start server ─────────────────────────────────────────────────────────
-
 const app = createApp({ db, auth, config, log, sendEmail, scheduler });
 
-// Bun's default idleTimeout is 10s, which cuts the socket mid-request on slow
-// admin operations (bulk imports, inline matview refreshes after card edits).
-// Anything expected to run long still belongs in runJobAsync; this is headroom
-// for legitimately slow synchronous requests, not a license to block.
+// Bun's default idleTimeout (10s) cuts slow admin requests mid-request.
+// Anything long-running still belongs in runJobAsync.
 Bun.serve({ fetch: app.fetch, port: config.port, idleTimeout: 120 });
 log.info(`API server listening on http://localhost:${config.port}`);
 

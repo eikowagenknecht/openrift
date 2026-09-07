@@ -4,9 +4,6 @@ import { createRecordingDb } from "../test/recording-db.js";
 import { customTagsRepo } from "./custom-tags.js";
 
 describe("customTagsRepo.setForCard", () => {
-  // Regression: the doc claimed "Atomic: clear then insert" while the two
-  // statements ran on the bare db. A failure between them wiped a card's tags
-  // and wrote nothing back.
   it("runs the clear and the insert in one transaction", async () => {
     const { db, queries, events } = createRecordingDb();
 
@@ -37,9 +34,7 @@ describe("customTagsRepo.setForCard", () => {
     expect(events).toEqual(["begin", "commit"]);
   });
 
-  // Callers that already hold a transaction must not open a nested one —
-  // Kysely would issue a savepoint-less second BEGIN.
-  it("reuses an open transaction instead of nesting", async () => {
+  it("reuses an open transaction instead of nesting, avoiding a savepoint-less second BEGIN", async () => {
     const { db, events } = createRecordingDb();
 
     await db.transaction().execute(async (trx) => {

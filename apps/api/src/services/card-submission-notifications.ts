@@ -12,27 +12,17 @@ type SendEmail = ReturnType<typeof createEmailSender>;
 /** Dependencies the admin card-submission alert needs beyond `repos`. */
 export interface CardSubmissionEmailDeps {
   sendEmail: SendEmail;
-  /** Web origin for the review deep link + the unsubscribe route (BETTER_AUTH_URL). */
   appBaseUrl: string;
-  /** App secret used to sign the stateless unsubscribe token. */
   unsubscribeSecret: string;
   log: Logger;
 }
 
-/** What the route knows about a submission that just landed. */
 export interface CardSubmissionAlert {
-  /** Who submitted it — resolved to a name + email for the email body. */
   submitterUserId: string;
-  /** The mapped candidate card, the same one that was just ingested. */
   card: IngestCard;
   note: string | null;
 }
 
-/**
- * The admin candidates tab, filtered to in-app user submissions — where the
- * email's button lands, so the row is one click away rather than behind two
- * filter clicks.
- */
 function reviewUrl(appBaseUrl: string): string {
   return `${appBaseUrl}/admin/cards?tab=candidates&source=usersubmission`;
 }
@@ -98,8 +88,7 @@ export async function notifyAdminsOfCardSubmission(
         unsubscribeUrl: pageUrl,
       });
 
-      // One send per admin rather than a shared To: line, so admins never see
-      // each other's addresses. A failure is logged and the loop continues.
+      // Send per-admin: a shared To: line would leak other admins' addresses.
       try {
         await deps.sendEmail({
           to: recipient.email,

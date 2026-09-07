@@ -28,7 +28,6 @@ const authedOs = implement(contract).$context<ApiContext>().use(requireAuthedUse
 const router = {
   pub: os.pub.handler(() => ({ ok: true })),
   priv: os.priv.handler(({ context }) => ({ hasUser: context.user !== null })),
-  // requireAuthedUser narrows context.user to non-null and injects context.userId.
   authed: authedOs.authed.handler(({ context }) => ({ userId: context.userId })),
 };
 const handler = new OpenAPIHandler(router);
@@ -40,7 +39,6 @@ app.use("*", async (c, next) => {
   if (currentUser) {
     c.set("user", currentUser as never);
   }
-  // Anonymous: resolveSession calls auth.getSession — stub it to "no session".
   c.set("auth", { api: { getSession: async () => null } } as never);
   await next();
 });
@@ -84,33 +82,22 @@ describe("apiImplement fail-closed auth middleware", () => {
   });
 });
 
-// Exercises the load-bearing reason `convertingAppErrors` lives in the base
-// middleware (not the transport interceptor): an AppError thrown by a handler
-// must reach the client as a *defined* oRPC error so `isDefinedError()` narrows
-// it — but only when the contract declares the code AND the AppError's status
-// matches oRPC's expected status for that code.
 const errorContract = {
-  // Contract declares NOT_FOUND with the conventional 404 → upgrade succeeds.
   declaredNotFound: oc
     .route({ method: "GET", path: "/_e/declared-not-found" })
     .meta({ auth: "public" })
     .errors({ NOT_FOUND: { message: "Not found" } })
     .output(z.object({ ok: z.boolean() })),
-  // Handler throws CONFLICT, but the contract only declares NOT_FOUND → the
-  // thrown code is absent from the errorMap, so it stays undefined.
   undeclaredConflict: oc
     .route({ method: "GET", path: "/_e/undeclared-conflict" })
     .meta({ auth: "public" })
     .errors({ NOT_FOUND: { message: "Not found" } })
     .output(z.object({ ok: z.boolean() })),
-  // VALIDATION_ERROR is not a standard oRPC code, so its fallback status is 500.
-  // Declared without an explicit status, a 422 throw does not match → undefined.
   validationDefaultStatus: oc
     .route({ method: "GET", path: "/_e/validation-default" })
     .meta({ auth: "public" })
     .errors({ VALIDATION_ERROR: { message: "Invalid" } })
     .output(z.object({ ok: z.boolean() })),
-  // Same code, but the contract pins status 422 to match the AppError → upgrade.
   validationExplicitStatus: oc
     .route({ method: "GET", path: "/_e/validation-explicit" })
     .meta({ auth: "public" })
@@ -147,9 +134,6 @@ errorApp.all("/_e/*", async (c: Context<{ Variables: Variables }>) => {
   return matched && response ? response : c.notFound();
 });
 
-// The OpenAPI error body carries the `defined` flag verbatim — the same flag the
-// web client's `isDefinedError()` narrows on — so asserting on it here proves the
-// client-side guarantee without pulling the client packages into apps/api.
 async function errorBody(path: string): Promise<{
   defined: boolean;
   code: string;

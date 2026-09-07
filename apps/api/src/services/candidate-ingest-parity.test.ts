@@ -8,17 +8,6 @@ import type { IngestCard } from "../routes/admin/cards/schemas.js";
 import { ingestCandidates } from "./ingest-candidates.js";
 import { buildUserSubmissionCard, ingestUserSubmission } from "./ingest-user-submission.js";
 
-// ---------------------------------------------------------------------------
-// One card, both ingest entry points, one answer.
-//
-// The batch provider ingest and the in-app user-submission ingest (ADR-036)
-// used to resolve the live printing link with two separate copies of the same
-// code, and they drifted: commit a5fadf8ed uppercased short codes and dropped
-// the rarity gate on the batch side only, so a submission with a lowercase
-// public_code or without a rarity stayed unlinked forever. These tests feed the
-// identical card through both and assert the resolved printing id matches.
-// ---------------------------------------------------------------------------
-
 const USER_ID = "11111111-2222-3333-4444-555555555555";
 const NOW = new Date("2026-07-02T09:00:00.000Z");
 const LIVE_PRINTING_ID = "printing-uuid";
@@ -66,12 +55,6 @@ interface Catalog {
   linkOverrides?: { externalId: string; finish: string; provider: string; printingId: string }[];
 }
 
-/**
- * Run one card through an ingest service against a stubbed catalog.
- * @param catalog The live rows the link resolution sees.
- * @param run Called with a transact bound to the stub repo.
- * @returns The `printingId` each inserted candidate printing was linked to.
- */
 async function linkedPrintingIds(
   catalog: Catalog,
   run: (transact: Transact) => Promise<unknown>,
@@ -115,12 +98,6 @@ async function linkedPrintingIds(
   );
 }
 
-/**
- * Resolve one submission through both ingest paths.
- * @param input The submission to feed to both.
- * @param catalog The live rows the link resolution sees.
- * @returns The linked printing id from each path, plus the built ingest card.
- */
 async function bothPaths(input: CardSubmissionInput, catalog: Catalog = {}) {
   const card: IngestCard = buildUserSubmissionCard(input, USER_ID, formatCompactUtcStamp(NOW));
 
@@ -144,8 +121,6 @@ describe("candidate ingest link parity", () => {
   });
 
   it("links a lowercase public_code from both entry points", async () => {
-    // The submission form takes public_code as free text with no case
-    // transform, so a contributor typing "ogn-066/298" must still link.
     const { submission: fromSubmission, batch } = await bothPaths(
       submission({ public_code: "ogn-066/298" }),
     );
@@ -154,7 +129,6 @@ describe("candidate ingest link parity", () => {
   });
 
   it("links without a rarity from both entry points", async () => {
-    // rarity is optional on the contribution schema and is not part of the key.
     const { submission: fromSubmission, batch } = await bothPaths(
       submission({ rarity: undefined }),
     );
@@ -180,8 +154,7 @@ describe("candidate ingest link parity", () => {
     const built = buildUserSubmissionCard(submission(), USER_ID, formatCompactUtcStamp(NOW));
     const { submission: fromSubmission, batch } = await bothPaths(submission(), {
       printings: [],
-      // The '' wildcard provider (pre-scoping legacy rows) applies to both
-      // entry points, which is exactly what parity needs here.
+      // '' provider means a pre-scoping legacy row (wildcard, matches any provider).
       linkOverrides: [
         {
           externalId: built.printings[0].external_id,

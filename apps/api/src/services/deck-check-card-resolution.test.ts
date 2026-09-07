@@ -24,12 +24,7 @@ const CARDS = [
 
 const CODES = [{ cardId: "c-annie", shortCode: "OGN-001", publicCode: "OGN-001/298" }];
 
-/**
- * A repos double with just what the resolution path touches. Each call builds
- * its own so the per-`Repos` index memo starts cold.
- *
- * @returns The repos double, plus the spies the assertions read.
- */
+/** Each call builds its own repos double so the per-`Repos` index memo starts cold. */
 function makeRepos(aliases: { cardId: string; normName: string }[] = []) {
   const cards = vi.fn().mockResolvedValue(CARDS);
   const canonicalPrintingByCard = vi

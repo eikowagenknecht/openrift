@@ -26,9 +26,6 @@ describe("resolveFallbackArt", () => {
   });
 
   it("degrades a pin with no servable image to auto", () => {
-    // The pinned file has no rehosted copy, so there is no id to send. Emitting
-    // `pinned` without one would break the wire invariant the client relies on,
-    // and emitting `none` would blank a printing whose art we do have.
     expect(resolveFallbackArt({ fallbackArtMode: "pinned", fallbackImageId: null })).toEqual({});
   });
 
@@ -46,7 +43,6 @@ const MARKER: Marker = {
   description: null,
 };
 
-/** @returns A printing row shaped as the catalog reads hand it over. */
 function printingRow(id: string, overrides: Record<string, unknown> = {}) {
   return {
     id,
@@ -101,9 +97,6 @@ describe("buildPrintingsResponse", () => {
     expect(printing.citations).toHaveLength(2);
   });
 
-  // The wire field is optional precisely so an uncited printing costs nothing
-  // on the full-catalog read every visitor downloads. An empty array would be
-  // ~16 bytes on each of ~15k printings.
   it("omits the key entirely for an uncited printing", () => {
     const [printing] = buildPrintingsResponse([printingRow("p-1")], [], {
       markerBySlug: MARKERS,

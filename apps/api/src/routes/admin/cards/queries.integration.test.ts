@@ -78,7 +78,6 @@ if (ctx) {
     .values({ cardId: card2.id, domainSlug: "calm", ordinal: 0 })
     .execute();
 
-  // Card 3: has a printing with NO active front image (covers listCardsWithMissingImages)
   const [card3] = await db
     .insertInto("cards")
     .values({
@@ -135,7 +134,6 @@ if (ctx) {
     .execute();
   printing1Id = printing1.id;
 
-  // Printing 2: for card3, has NO printing image (covers listCardIdsWithMissingImages)
   const [printing2] = await db
     .insertInto("printings")
     .values({
@@ -159,7 +157,6 @@ if (ctx) {
     .execute();
   printing2Id = printing2.id;
 
-  // Add an active front image for printing1 (so card1 is NOT missing images)
   const [csqImageFile] = await db
     .insertInto("imageFiles")
     .values({ originalUrl: "https://example.com/csq-001-front.png" })
@@ -175,7 +172,6 @@ if (ctx) {
     })
     .execute();
 
-  // Create card sources (matched — name matches card1 via norm_name trigger)
   const [cs1] = await db
     .insertInto("candidateCards")
     .values({
@@ -199,7 +195,6 @@ if (ctx) {
     .execute();
   cs1Id = cs1.id;
 
-  // Create card source (unmatched — no card with this name)
   const [cs2] = await db
     .insertInto("candidateCards")
     .values({
@@ -223,7 +218,6 @@ if (ctx) {
     .execute();
   cs2Id = cs2.id;
 
-  // Candidate card matched to card3 (covers candidateCardsByNormNames etc.)
   const [cs3] = await db
     .insertInto("candidateCards")
     .values({
@@ -293,7 +287,6 @@ if (ctx) {
     })
     .execute();
 
-  // Candidate printing linked to card3's printing (covers candidatePrintingsForCandidateCards)
   await db
     .insertInto("candidatePrintings")
     .values({
@@ -317,7 +310,6 @@ if (ctx) {
     })
     .execute();
 
-  // Unlinked candidate printing for card3 (covers unlinked grouping in detail)
   await db
     .insertInto("candidatePrintings")
     .values({
@@ -341,7 +333,6 @@ if (ctx) {
     })
     .execute();
 
-  // Mark "csq-spreadsheet" as a favorite provider (needed for unchecked count tests)
   await db
     .insertInto("providerSettings")
     .values({
@@ -372,7 +363,6 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       const csqCards = json.filter((c: { slug: string }) => c.slug.startsWith("CSQ-"));
       expect(csqCards).toHaveLength(3);
 
-      // Ordered by name: "CSQ Another Card" before "CSQ No Image Card" before "CSQ Test Card"
       const sorted = csqCards.sort((a: { name: string }, b: { name: string }) =>
         a.name.localeCompare(b.name),
       );
@@ -391,10 +381,8 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(csqCard.slug).toBeTypeOf("string");
       expect(csqCard.name).toBeTypeOf("string");
       expect(csqCard.type).toBeTypeOf("string");
-      // Full ordered type set alongside the primary `type` scalar.
       expect(csqCard.types).toEqual(["unit"]);
       expect(Array.isArray(csqCard.setSlugs)).toBe(true);
-      // The printing short codes the card picker ranks against.
       expect(Array.isArray(csqCard.shortCodes)).toBe(true);
       expect(Object.keys(csqCard).sort()).toEqual([
         "id",
@@ -412,8 +400,6 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       const json = await readJson(res);
       const card1 = json.find((c: { slug: string }) => c.slug === "CSQ-001");
       const card2 = json.find((c: { slug: string }) => c.slug === "CSQ-002");
-      // CSQ-001 has a printing in CSQ-TEST; the aggregated setSlugs drives
-      // the admin list filter and detail prev/next scoping.
       expect(card1.setSlugs).toEqual(["CSQ-TEST"]);
       expect(card2.setSlugs).toEqual([]);
     });
@@ -448,7 +434,6 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       const spreadsheet = json.find((s: { provider: string }) => s.provider === "csq-spreadsheet");
       expect(spreadsheet).toBeDefined();
       expect(spreadsheet.cardCount).toBe(2);
-      // 1 from cs1 + 2 from cs3 = 3
       expect(spreadsheet.printingCount).toBe(3);
     });
   });
@@ -467,7 +452,6 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(testCard.name).toBe("CSQ Test Card");
       expect(testCard.candidateCount).toBeGreaterThanOrEqual(1);
 
-      // CSQ Another Card is an orphan: it has no candidate_cards.
       const anotherCard = json.find((r: { cardSlug: string | null }) => r.cardSlug === "CSQ-002");
       expect(anotherCard).toBeDefined();
       expect(anotherCard.cardSlug).toBe("CSQ-002");
@@ -512,7 +496,6 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       const json = await readJson(res);
       expect(json).toEqual(expect.any(Array));
 
-      // Export uses short_code, which is the card slug.
       const csqExport = json.filter((e: { card: { short_code: string } }) =>
         e.card.short_code?.startsWith("CSQ-"),
       );
@@ -566,7 +549,6 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(json.card).toBeDefined();
       expect(json.card.slug).toBe("CSQ-001");
       expect(json.card.name).toBe("CSQ Test Card");
-      // The detail card carries the full ordered type set, no scalar.
       expect(json.card.types).toEqual(["unit"]);
       expect(json.card.domains).toEqual(["mind"]);
       expect(json.card.energy).toBe(2);
@@ -612,7 +594,6 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
     });
 
     it("returns 500 when card exists but has no name alias", async () => {
-      // Delete the alias to simulate a broken state.
       await testDb.deleteFrom("cardNameAliases").where("normName", "=", "csqtestcard").execute();
 
       const res = await app.fetch(adminReq("GET", "/cards/CSQ-001"));
@@ -649,7 +630,6 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
 
   describe("GET /admin/cards/:cardId (extended coverage)", () => {
     it("returns card detail for a card with missing images", async () => {
-      // CSQ-003 has a printing but no active front image.
       const res = await app.fetch(adminReq("GET", "/cards/CSQ-003"));
       expect(res.status).toBe(200);
 
@@ -667,7 +647,6 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(json.printings).toHaveLength(1);
       expect(json.printings[0].shortCode).toBe("CSQ-003");
       expect(json.printings[0].setId).toBe("CSQ-TEST");
-      // setId is resolved to the set slug.
       expect(json.printings[0].setSlug).toBe("CSQ-TEST");
       expect(json.printingImages).toEqual(expect.any(Array));
 
@@ -691,7 +670,6 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
     it("includes setTotals object", async () => {
       const res = await app.fetch(adminReq("GET", "/cards/CSQ-003"));
       const json = await readJson(res);
-      // CSQ-TEST set has printedTotal: 2.
       expect(json.setTotals).toBeDefined();
       expect(typeof json.setTotals).toBe("object");
     });

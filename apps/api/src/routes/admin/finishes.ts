@@ -13,15 +13,11 @@ const handlers = createSlugTaxonomyHandlers({
   createKey: "finish",
   inUseBy: "one or more printings",
   afterReorder: async (context) => {
-    // finish.sort_order feeds canonical_rank (migration 215).
+    // finish.sort_order feeds canonical_rank.
     await context.repos.catalog.refreshCanonicalRank();
   },
 });
 
-/**
- * Admin finish taxonomy CRUD. Conflict / not-found / bad-request states are
- * thrown as `AppError` and mapped by the handler's appErrorInterceptor.
- */
 export const adminFinishesRouter = {
   list: os.list.handler(handlers.list),
   reorder: os.reorder.handler(handlers.reorder),

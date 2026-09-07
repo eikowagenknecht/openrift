@@ -8,8 +8,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { listImageRoute } from "./list-image.js";
 
-// Only the heavy renderer is mocked; the route's auth scoping and data flow run
-// for real.
 vi.mock("../../services/list-image.js", async (importOriginal) => ({
   ...(await importOriginal<typeof ListImageModule>()),
   renderListImage: vi.fn(() =>
@@ -22,37 +20,25 @@ const mockListsRepo = {
   entriesWithDetailsAnon: vi.fn(() => Promise.resolve([])),
 };
 
-/**
- * Builds a Hono app mounting {@link listImageRoute} the same way `app.ts` does
- * (`.route("/api/v1", listImageRoute)`), with a fall-through that stands in for
- * the oRPC catch-all so we can tell "the image route's auth gated this request"
- * (401) apart from "the request fell through to the public handler" (418, a
- * sentinel no real route uses). `getSession` returns `session`, mirroring the
- * real auth resolution that `requireAuth` performs.
- * @returns A configured Hono app for the test.
- */
+// 418 sentinel stands in for the oRPC catch-all, distinguishing a 401 from
+// this route's auth from a fall-through to a public route.
 function buildApp(session: { user: { id: string; name?: string } } | null) {
-  return (
-    new Hono<{ Variables: Variables }>()
-      .onError((err, c) => {
-        if (err instanceof AppError) {
-          return c.json({ error: err.message, code: err.code }, err.status as 401);
-        }
-        throw err;
-      })
-      .use("/api/*", async (c, next) => {
-        c.set("auth", { api: { getSession: () => Promise.resolve(session) } } as never);
-        c.set("repos", { lists: mockListsRepo, canonicalPrintings: {} } as never);
-        c.set("io", {} as never);
-        c.set("config", { corsOrigin: "https://openrift.app" } as never);
-        await next();
-      })
-      .route("/api/v1", listImageRoute)
-      // Stand-in for the oRPC catch-all: any path the image route does not own
-      // reaches here. The public `GET /api/v1/lists/share/{token}` share view
-      // lives in the oRPC router, so it must reach this fall-through, never 401.
-      .all("/api/*", (c) => c.text("fell through to oRPC catch-all", 418))
-  );
+  return new Hono<{ Variables: Variables }>()
+    .onError((err, c) => {
+      if (err instanceof AppError) {
+        return c.json({ error: err.message, code: err.code }, err.status as 401);
+      }
+      throw err;
+    })
+    .use("/api/*", async (c, next) => {
+      c.set("auth", { api: { getSession: () => Promise.resolve(session) } } as never);
+      c.set("repos", { lists: mockListsRepo, canonicalPrintings: {} } as never);
+      c.set("io", {} as never);
+      c.set("config", { corsOrigin: "https://openrift.app" } as never);
+      await next();
+    })
+    .route("/api/v1", listImageRoute)
+    .all("/api/*", (c) => c.text("fell through to oRPC catch-all", 418));
 }
 
 beforeEach(() => {
@@ -60,11 +46,9 @@ beforeEach(() => {
 });
 
 describe("listImageRoute auth scoping", () => {
-  it("does not gate the public share-token path (regression: every shared list 401'd)", async () => {
+  it("does not gate the public share-token path", async () => {
     const res = await buildApp(null).request("/api/v1/lists/share/some-token");
 
-    // Before the fix, `.use(requireAuth)` on the whole `/lists` sub-app threw
-    // 401 here; the request must instead fall through to the oRPC catch-all.
     expect(res.status).toBe(418);
     expect(mockListsRepo.getByIdForUser).not.toHaveBeenCalled();
   });

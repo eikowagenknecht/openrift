@@ -51,8 +51,6 @@ describe.skipIf(!ctx)("card submission admin notifications (integration)", () =>
     await seedTestUser(db, { id: OPTED_IN_NON_ADMIN_ID });
     await seedTestUser(db, { id: UNVERIFIED_ADMIN_ID, isAdmin: true, emailVerified: false });
 
-    // Only the first admin opts in. The non-admin sets the same preference to
-    // prove the admins join — not the preference — is what makes a recipient.
     await repos.userPreferences.upsert(OPTED_IN_ADMIN_ID, {
       emailNotifications: { cardSubmissions: true },
     });
@@ -77,8 +75,6 @@ describe.skipIf(!ctx)("card submission admin notifications (integration)", () =>
     const recipients = await repos.userPreferences.listCardSubmissionRecipients();
     const ids = new Set(recipients.map((recipient) => recipient.userId));
     expect(ids.has(OPTED_IN_ADMIN_ID)).toBe(true);
-    // An admin who never opted in, an opted-in ordinary user, and an
-    // unverified admin all stay out.
     expect(ids.has(SILENT_ADMIN_ID)).toBe(false);
     expect(ids.has(OPTED_IN_NON_ADMIN_ID)).toBe(false);
     expect(ids.has(UNVERIFIED_ADMIN_ID)).toBe(false);

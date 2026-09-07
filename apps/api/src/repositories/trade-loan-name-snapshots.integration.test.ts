@@ -4,14 +4,10 @@ import { PRINTING_1 } from "../test/fixtures/constants.js";
 import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import { friendGroupsRepo } from "./friend-groups.js";
 
-// Migration 248: closing an account must not take the other party's history
-// with it. `trg_snapshot_deleted_user_names` cancels the live trades the
-// account was in, then swaps each party reference for the display name it had
-// at the moment of deletion, so the counterparty keeps a readable record.
-//
-// Everything is asserted after one deletion in `beforeAll`, the same shape the
-// organization-rebalance file uses: the trigger fires once and each test reads
-// a different part of what it left behind.
+// `trg_snapshot_deleted_user_names` cancels the deleted account's live trades
+// and swaps each party reference for the display name it had at deletion, so
+// the counterparty keeps a readable record.
+// One deletion in `beforeAll`; each test reads a different part of the result.
 const LEAVER_ID = crypto.randomUUID();
 const GIVER_ID = crypto.randomUUID();
 const RECEIVER_ID = crypto.randomUUID();
@@ -128,7 +124,6 @@ describe.skipIf(!ctx)("deleted-user name snapshots (integration)", () => {
     expect(trade?.status).toBe("completed");
     expect(trade?.receiverUserId).toBeNull();
     expect(trade?.receiverName).toBe("Ekko Timewinder");
-    // The surviving party is untouched on both counts.
     expect(trade?.giverUserId).toBe(GIVER_ID);
     expect(trade?.giverName).toBeNull();
   });

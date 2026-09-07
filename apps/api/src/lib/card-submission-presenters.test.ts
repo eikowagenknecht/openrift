@@ -58,8 +58,6 @@ describe("toCardSubmissionStatus", () => {
   });
 
   it("never exposes review-side bookkeeping", () => {
-    // proposed_diff would tell a contributor which of their fields the catalog
-    // disagreed with before anyone had looked at it.
     const result = toCardSubmissionStatus(ROW) as Record<string, unknown>;
     expect(result.proposedDiff).toBeUndefined();
     expect(result.candidateCardId).toBeUndefined();

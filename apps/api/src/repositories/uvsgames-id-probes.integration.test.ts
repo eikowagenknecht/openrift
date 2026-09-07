@@ -4,16 +4,14 @@ import { createDbContext } from "../test/integration-context.js";
 import type { UvsgamesUpsertInput } from "./uvsgames-events.js";
 import { uvsgamesEventsRepo } from "./uvsgames-events.js";
 
-// Exercises the sweep's two anti-joins against a real range — SQL logic like
-// this isn't caught by mocks. The window sits far above the source's own id
-// space (hundreds of thousands) to avoid colliding with real mirror rows.
+// The window sits far above the source's own id space (hundreds of
+// thousands) to avoid colliding with real mirror rows.
 
 const ctx = createDbContext(crypto.randomUUID());
 
 const WINDOW_FROM = 999_000_001;
 const WINDOW_TO = 999_000_010;
 
-/** The mirrored id inside the window, and the two ids probed away. */
 const MIRRORED = 999_000_003;
 const PROBED = [999_000_005, 999_000_007];
 

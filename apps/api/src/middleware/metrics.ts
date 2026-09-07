@@ -27,17 +27,6 @@ interface Metrics {
   registry: Registry<typeof Registry.OPENMETRICS_CONTENT_TYPE>;
 }
 
-/**
- * Hono middleware that records per-request prom metrics with OpenMetrics
- * exemplars carrying the active OTel `traceID`. Grafana's prometheus
- * datasource is wired to surface exemplars as clickable trace links into
- * Tempo, so latency/throughput panels offer a one-click jump to the exact
- * trace that produced an outlier point.
- *
- * @param options - Pass `collectDefaults: false` in tests to skip the
- * Bun runtime collectors.
- * @returns The middleware, the /metrics handler, and the registry.
- */
 export const createMetricsMiddleware = (options: MetricsOptions = {}): Metrics => {
   const registry = new Registry<typeof Registry.OPENMETRICS_CONTENT_TYPE>();
   registry.setContentType(Registry.OPENMETRICS_CONTENT_TYPE);
@@ -75,9 +64,8 @@ export const createMetricsMiddleware = (options: MetricsOptions = {}): Metrics =
         ok: String(c.res.ok),
       };
       const traceId = getActiveTraceId();
-      // prom-client types exemplarLabels with the metric's label union, but
-      // exemplar labels are independent at runtime. `as never` lets us pass
-      // `traceID` without polluting the metric label types.
+      // prom-client types exemplarLabels with the metric's label union; `as never`
+      // passes `traceID` without polluting the metric label types.
       const exemplarLabels = traceId ? ({ traceID: traceId } as never) : undefined;
       const durationSec = Number(process.hrtime.bigint() - start) / 1e9;
       requestDuration.observe({ labels, value: durationSec, exemplarLabels });

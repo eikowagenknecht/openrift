@@ -30,7 +30,6 @@ interface AdminPrintingEvent extends EnrichedPrintingEvent {
   retryCount: number;
 }
 
-// Repository for printing event notifications (Discord webhook queue).
 export function printingEventsRepo(db: Kysely<Database>) {
   return {
     async recordNew(printingId: string): Promise<void> {
@@ -73,7 +72,6 @@ export function printingEventsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Used by the admin queue view. */
     async listByStatus(statuses: PrintingEventStatus[]): Promise<AdminPrintingEvent[]> {
       if (statuses.length === 0) {
         return [];
@@ -112,11 +110,6 @@ export function printingEventsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Resets events back to pending and clears their retry counter so they get
-     * picked up by the next flush. Used by the admin queue view to retry events
-     * that had hit MAX_RETRIES.
-     */
     async retryFailed(ids: string[]): Promise<void> {
       if (ids.length === 0) {
         return;

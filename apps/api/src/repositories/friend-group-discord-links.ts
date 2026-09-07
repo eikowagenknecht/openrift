@@ -11,19 +11,12 @@ export type RedeemResult =
   | { status: "unknown-code" }
   | { status: "guild-taken" };
 
-/**
- * A link starts as a pending row holding a one-time code; the bot's /link
- * command redeems it, binding the guild to the group. Authorization is the
- * caller's job (admin role for code management, the bot's service secret for
- * redeeming).
- */
+// A link starts as a pending row with a one-time code; /link redeems it into
+// a live guild binding. Authorization is the caller's job.
 export function friendGroupDiscordLinksRepo(db: Kysely<Database>) {
   return {
-    /**
-     * Replaces any earlier pending code (one outstanding code per group).
-     * Expired pending rows of other groups are swept opportunistically, since
-     * they are dead weight nothing else deletes.
-     */
+    // Replaces any earlier pending code for the group, and opportunistically
+    // sweeps expired pending rows of other groups (nothing else deletes them).
     createPendingLink(values: {
       groupId: string;
       createdByUserId: string;
@@ -52,20 +45,8 @@ export function friendGroupDiscordLinksRepo(db: Kysely<Database>) {
       return db.isTransaction ? run(db) : db.transaction().execute(run);
     },
 
-    /**
-     * Redeems a pending code, turning it into a live guild link. Redeeming the
-     * same guild into the group it is already linked to consumes the code and
-     * returns the existing link (idempotent re-link); a guild held by another
-     * group is a conflict, and leaves the code unspent.
-     *
-     * The whole redeem runs in one transaction with the pending row locked
-     * `FOR UPDATE`. Two concurrent redeems of the same one-time code therefore
-     * serialize: the loser re-checks the qualifier after the lock is released,
-     * no longer matches (the winner cleared `code`), and reports
-     * `unknown-code` instead of binding a second guild. The transaction also
-     * closes the crash window — a failure part-way through rolls back, so the
-     * code is either fully spent or still redeemable, never half-consumed.
-     */
+    // Re-linking the same guild to its current group is idempotent; a guild
+    // held by another group conflicts and leaves the code unspent.
     redeemCode(values: {
       code: string;
       guildId: string;
@@ -82,8 +63,7 @@ export function friendGroupDiscordLinksRepo(db: Kysely<Database>) {
         if (!pending) {
           return { status: "unknown-code" };
         }
-        // Locked too: a concurrent redeem targeting the same guild has to wait
-        // rather than read a stale owner and decide the branch on it.
+        // Locked too: a concurrent redeem for the same guild must wait here.
         const existing = await trx
           .selectFrom("friendGroupDiscordLinks")
           .selectAll()
@@ -121,7 +101,6 @@ export function friendGroupDiscordLinksRepo(db: Kysely<Database>) {
       return db.isTransaction ? run(db) : db.transaction().execute(run);
     },
 
-    /** The group's live links (pending codes excluded), oldest first. */
     listLinks(groupId: string): Promise<DiscordLink[]> {
       return db
         .selectFrom("friendGroupDiscordLinks")
@@ -132,7 +111,6 @@ export function friendGroupDiscordLinksRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Unlinks one guild, or discards a pending code, belonging to the group. */
     async deleteLink(groupId: string, linkId: string): Promise<boolean> {
       const result = await db
         .deleteFrom("friendGroupDiscordLinks")
@@ -142,7 +120,6 @@ export function friendGroupDiscordLinksRepo(db: Kysely<Database>) {
       return result.numDeletedRows > 0n;
     },
 
-    /** Idempotent in both directions, and a no-op for an unlinked guild. */
     async setTradeChannel(values: {
       guildId: string;
       channelId: string;
@@ -166,10 +143,8 @@ export function friendGroupDiscordLinksRepo(db: Kysely<Database>) {
       return updated?.tradeChannelIds ?? null;
     },
 
-    /**
-     * The bot holds this in memory and refreshes it periodically: deciding
-     * whether to scan happens on every message, which no per-message query could carry.
-     */
+    // The bot caches this in memory and refreshes it periodically, since
+    // deciding whether to scan runs on every message.
     listTradeChannels(): Promise<{ guildId: string; channelIds: string[] }[]> {
       return db
         .selectFrom("friendGroupDiscordLinks")

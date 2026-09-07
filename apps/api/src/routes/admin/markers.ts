@@ -52,7 +52,7 @@ export const adminMarkersRouter = {
       unknownLabel: "marker ids",
     });
     await repo.reorder(ids);
-    // marker.sort_order feeds canonical_rank (migration 215).
+    // marker.sort_order feeds canonical_rank.
     await context.repos.catalog.refreshCanonicalRank();
   }),
 

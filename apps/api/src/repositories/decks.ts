@@ -17,11 +17,8 @@ import { createsCycle } from "../lib/deck-lineage.js";
 import { findByShareToken, selectShareState, updateShareRow } from "./query-helpers.js";
 
 /**
- * Locks every deck of the given families in id order (`FOR UPDATE`), so the
- * family repairs (delete, unlink, link) serialize instead of electing
- * survivors from stale reads — two concurrent repairs could otherwise leave a
- * one-deck "family" with no primary. Id order keeps two lockers from meeting
- * in opposite order and deadlocking.
+ * Locks every deck of the given families in id order (`FOR UPDATE`) before a
+ * family repair. Lock in id order or concurrent repairs can deadlock.
  */
 async function lockFamilies(
   trx: Kysely<Database>,
@@ -42,9 +39,8 @@ async function lockFamilies(
 }
 
 /**
- * Every editable deck column, with the jsonb ones required rather than
- * optional-by-absence, so `"links" in updates` distinguishes "clear it" from
- * "leave it alone".
+ * The jsonb columns are required, not optional, so `"links" in updates`
+ * distinguishes "clear it" from "leave it alone".
  */
 export type DeckUpdateInput = Omit<
   Updateable<DecksTable>,
@@ -677,16 +673,12 @@ export function decksRepo(db: Kysely<Database>) {
         if (!departing.familyId) {
           return "no-family" as const;
         }
-        // Lock the rest of the family before electing survivors — see
-        // lockFamilies. (The departing row is already locked above; a
-        // concurrent sibling repair meeting us in opposite order aborts on
-        // deadlock detection rather than corrupting the family.)
+        // The departing row is already locked above; lock the rest of the
+        // family before reading survivors.
         await lockFamilies(trx, userId, [departing.familyId]);
 
-        // Read the recency order before anything writes: the splice below is an
-        // UPDATE, and the updated_at trigger stamps every row it touches with
-        // the same transaction timestamp. Ordering afterwards would put the
-        // spliced rows in a tie broken at random.
+        // Read survivor order before the splice below writes: the updated_at
+        // trigger stamps every touched row with the same timestamp.
         const survivors = await trx
           .selectFrom("decks")
           .select(["id", "isPrimary"])
@@ -862,9 +854,8 @@ export function decksRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Lets GET /decks/:id/share report `{ shareToken: null, isPublic: false }`
-     * for an owned-but-unshared deck instead of 404ing; `undefined` (deck
-     * missing or foreign) is what the route 404s on.
+     * Returns `undefined` only when the deck is missing or not owned by
+     * `userId`; an owned-but-unshared deck returns `{ shareToken: null, isPublic: false }`.
      */
     getShareState(
       id: string,

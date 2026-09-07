@@ -23,7 +23,6 @@ describe.skipIf(!ctx)("trade-request email (integration)", () => {
   const groupsRepo = friendGroupsRepo(db);
   const createdGroupIds: string[] = [];
 
-  // Captures the emails a single createTrade call would send.
   function makeEmailDeps(): { deps: TradeEmailDeps; sent: { to: string; subject: string }[] } {
     const sent: { to: string; subject: string }[] = [];
     const deps: TradeEmailDeps = {
@@ -61,12 +60,10 @@ describe.skipIf(!ctx)("trade-request email (integration)", () => {
   beforeAll(insertUsers);
 
   beforeEach(async () => {
-    // Reset verification + clear any email-notification preference between tests.
     await insertUsers(true);
     await repos.userPreferences.upsert(GIVER_ID, { emailNotifications: null });
     await repos.userPreferences.upsert(RECEIVER_ID, { emailNotifications: null });
-    // Clear prior trades so each test starts from a clean slate (createTrade
-    // rejects a duplicate live trade for the same pair + printing).
+    // createTrade rejects a duplicate live trade for the same pair + printing.
     await db
       .deleteFrom("cardTrades")
       .where((eb) =>
@@ -116,7 +113,6 @@ describe.skipIf(!ctx)("trade-request email (integration)", () => {
     return created.id;
   }
 
-  // Giver shares one trade copy of PRINTING_1; receiver wishes one — both in a fresh group.
   async function setupMatch() {
     const slug = `re-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`;
     const group = await groupsRepo.createWithOwner(
@@ -200,8 +196,6 @@ describe.skipIf(!ctx)("trade-request email (integration)", () => {
   }
 
   it("emails the non-initiator (the giver) instantly on a receiver-initiated request", async () => {
-    // Recipient (the giver) opts into the instant cadence so the email sends
-    // straight from createTrade instead of queueing for the coalescing flush.
     await repos.userPreferences.upsert(GIVER_ID, {
       emailNotifications: { tradeRequestCadence: "instant" },
     });
@@ -215,7 +209,6 @@ describe.skipIf(!ctx)("trade-request email (integration)", () => {
   });
 
   it("emails the receiver (non-initiator) instantly on a giver-initiated offer", async () => {
-    // Recipient (the receiver) opts into the instant cadence.
     await repos.userPreferences.upsert(RECEIVER_ID, {
       emailNotifications: { tradeRequestCadence: "instant" },
     });

@@ -5,19 +5,13 @@ import { buildGroupApprovedEmail, buildGroupJoinRequestEmail } from "../emails/g
 import { buildUnsubscribeUrls } from "../emails/unsubscribe-token.js";
 import type { TradeEmailDeps } from "./trade-notifications.js";
 
-/** What the route knows about a join request that was just written. */
 export interface GroupJoinRequest {
   groupId: string;
   groupSlug: string;
   groupName: string;
-  /** Who asked to join — resolved to a name for the email body. */
   requesterUserId: string;
 }
 
-/**
- * The members tab, where the pending-requests band with its approve / deny
- * buttons lives, so the request is one click away.
- */
 function membersUrl(appBaseUrl: string, groupSlug: string): string {
   return `${appBaseUrl}/groups/${encodeURIComponent(groupSlug)}/members`;
 }
@@ -26,29 +20,19 @@ function groupUrl(appBaseUrl: string, groupSlug: string): string {
   return `${appBaseUrl}/groups/${encodeURIComponent(groupSlug)}`;
 }
 
-/** The manage tab, where the new member picks what the group may see. */
 function manageUrl(appBaseUrl: string, groupSlug: string): string {
   return `${appBaseUrl}/groups/${encodeURIComponent(groupSlug)}/manage`;
 }
 
 /**
- * Emails the group's owners and admins that someone asked to join.
- *
- * Opt-out per admin and default on: you become a group admin by creating the
- * group, and the request is addressed to you. The toggle lives in their
- * profile, and every send carries a one-click unsubscribe.
- *
- * Best-effort and side-effect-only: it never throws, and a failed send to one
- * admin does not stop the others. The caller invokes it after the invite row
- * has committed and outside any transaction, so a mail failure can never roll
- * back or 500 the request.
+ * Never throws. The caller invokes it after the invite row has committed and
+ * outside any transaction, so a mail failure can never roll back or 500 the request.
  */
 export async function notifyAdminsOfGroupJoinRequest(
   repos: Repos,
   request: GroupJoinRequest,
   deps?: TradeEmailDeps,
 ): Promise<void> {
-  // No SMTP wired (tests, an SMTP-less env): nothing to send.
   if (deps === undefined) {
     return;
   }
@@ -77,8 +61,7 @@ export async function notifyAdminsOfGroupJoinRequest(
         unsubscribeUrl: pageUrl,
       });
 
-      // One send per admin rather than a shared To: line, so admins never see
-      // each other's addresses. A failure is logged and the loop continues.
+      // Sent individually so admins don't see each other's addresses.
       try {
         await deps.sendEmail({
           to: recipient.email,
@@ -101,23 +84,16 @@ export async function notifyAdminsOfGroupJoinRequest(
   }
 }
 
-/** What the route knows about a join request an admin just approved. */
 export interface GroupApproval {
   groupId: string;
   groupSlug: string;
   groupName: string;
-  /** The requester who is now a member, and who receives the welcome. */
   memberUserId: string;
 }
 
 /**
- * Welcomes a member whose join request was just approved, since approval is
- * otherwise silent: the requester learns of it only by returning to the site.
- *
- * Opt-out and default on, because they asked to join and have been waiting for
- * an answer. Same shape as {@link notifyAdminsOfGroupJoinRequest}: best-effort,
- * never throws, and the caller invokes it after the membership has committed
- * and outside the transaction.
+ * Same contract as {@link notifyAdminsOfGroupJoinRequest}: never throws, and
+ * the caller invokes it after the membership has committed and outside the transaction.
  */
 export async function notifyMemberOfGroupApproval(
   repos: Repos,

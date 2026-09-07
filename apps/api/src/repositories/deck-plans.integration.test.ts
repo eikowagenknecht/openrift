@@ -168,9 +168,7 @@ describe.skipIf(!ctx)("deckPlansRepo (integration)", () => {
       battlefieldCustom: false,
       battlefieldNote: "",
       matchups: [
-        // CARD_BODY_UNIT is a Unit, not a Legend — now a valid opponent card.
         { opponentCardId: CARD_BODY_UNIT.id, opponentLabel: "", notes: "", swaps: [] },
-        // Label-only matchup: no linked card (an archetype like "Aggro").
         { opponentCardId: null, opponentLabel: "Aggro", notes: "", swaps: [] },
       ],
     });

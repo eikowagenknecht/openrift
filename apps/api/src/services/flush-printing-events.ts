@@ -16,9 +16,6 @@ interface FlushSummary {
   failures?: WebhookFailure[];
 }
 
-/** A printing-events flush did nothing when there were no events to deliver, so
- *  neither a successful nor a failed webhook call was attempted.
- *  @returns True when the run had no work to do. */
 export function isPrintingFlushNoop(summary: { sent: number; failed: number }): boolean {
   return summary.sent === 0 && summary.failed === 0;
 }
@@ -34,16 +31,8 @@ function describeFailures(failures: WebhookFailure[]): string {
 }
 
 /**
- * Flush pending printing events to the Discord webhook.
- * The webhook URL comes from an environment variable (DISCORD_WEBHOOK_*).
- *
- * Marks succeeded events `sent` and increments retry counts on failures.
  * Throws when every attempted webhook call failed so the caller's job_runs
- * row records a real error_message; partial failures return normally with
- * `failures` included in the summary.
- *
- * @returns Summary of sent/failed counts plus optional per-channel failure
- * detail. Throws if all delivery attempts failed.
+ * row records a real error_message; partial failures return normally.
  */
 export async function flushPendingPrintingEvents(
   repos: { printingEvents: PrintingEventsRepo },

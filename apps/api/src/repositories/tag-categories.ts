@@ -63,7 +63,6 @@ export function tagCategoriesRepo(db: Kysely<Database>) {
       await db.deleteFrom("tagCategories").where("id", "=", id).execute();
     },
 
-    /** @returns true if at least one tag_definitions row uses this category. */
     async isInUse(id: string): Promise<boolean> {
       const row = await db
         .selectFrom("tagDefinitions")

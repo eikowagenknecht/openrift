@@ -23,40 +23,23 @@ import { TopdeckThrottledError } from "./topdeck-client.js";
 import type { TopdeckSyncDeps } from "./topdeck-deps.js";
 import { clock } from "./topdeck-deps.js";
 
-/**
- * The scheduled topdeck crawls. One search returns the tournament, its
- * standings and every list, so a pass writes the whole mirror and an accepted
- * event is complete the moment it is accepted. A search must name a format, so
- * a pass is one request per {@link TOPDECK_FORMATS} entry, and the endpoint
- * answers about completed tournaments only.
- */
-
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Long enough to catch a late list or a standings correction, short enough that a daily pass is five small responses. */
 const SYNC_LOOKBACK_DAYS = 30;
 
-/** One backfill request's span. The source pages nothing, so this bounds the body size. */
 const BACKFILL_CHUNK_DAYS = 90;
 
-/** The first day the backfill asks about, comfortably before the game's launch. */
 const ARCHIVE_START = new Date("2025-06-01T00:00:00Z");
 
-/**
- * `decklist` is the column that carries the lists, and asking for `deckObj`
- * without it returns neither. Verified against the live search 2026-09-04.
- */
+// `decklist` is the column that carries the lists; asking for `deckObj`
+// without it returns neither.
 const SEARCH_COLUMNS = ["name", "id", "decklist", "wins", "losses", "draws"];
 
-/** The ceiling on collected error lines, so one bad run cannot fill `job_runs`. */
 const MAX_ERRORS = 50;
 
 export interface TopdeckSyncResult extends MetaSyncResultBase {
-  /** Standings rows written across every event this run touched. */
   players: number;
-  /** Decklists written across every event this run touched. */
   decks: number;
-  /** True when the source throttled the run past its patience. */
   throttled: boolean;
 }
 
@@ -82,7 +65,7 @@ function unixSeconds(date: Date): number {
   return Math.floor(date.getTime() / 1000);
 }
 
-/** Collected up to a ceiling: a run that fails per event must not fill `job_runs`. */
+// Capped so one bad run cannot fill `job_runs` with error lines.
 function record(errors: string[], messages: readonly string[]): void {
   for (const message of messages) {
     if (errors.length >= MAX_ERRORS) {
@@ -92,7 +75,7 @@ function record(errors: string[], messages: readonly string[]): void {
   }
 }
 
-/** The card bridge is built once per tournament, so a full field costs one query rather than one per list. */
+// The card bridge is built once per tournament: one query, not one per list.
 async function writeResults(
   deps: TopdeckSyncDeps,
   projection: TopdeckTournamentProjection,
@@ -119,9 +102,8 @@ async function writeResults(
       wins: standing.wins,
       losses: standing.losses,
       draws: standing.draws,
-      // The source's own `leader` string names a legend the way it spells one;
-      // the deck's Legend line already carries our catalogue's spelling, so it
-      // wins where a list was submitted.
+      // The deck's Legend line carries our catalogue's spelling and wins over
+      // the source's own `leader` string when a list was submitted.
       legendName:
         legendFromTopdeckLines(deckLines.get(standing.sourceDeckId ?? "") ?? []) ??
         standing.legendName,
@@ -130,8 +112,8 @@ async function writeResults(
     }),
   );
 
-  // The decklists reference the event row, so the standings replace has to
-  // happen after the event upsert and before the lists are written.
+  // Decklists reference the event row; this must run after the event upsert
+  // and before the lists are written.
   await deps.repos.topdeckResults.replaceStandings(event.tid, rows);
 
   let decks = 0;
@@ -163,10 +145,8 @@ interface CrawlContext {
   now: Date;
 }
 
-/**
- * An unchanged event's results are not rewritten. The content hash covers the
- * standings count, so a grown field or a late list reads as a change.
- */
+// An unchanged event's results are not rewritten. The content hash covers
+// the standings count, so a grown field counts as a change.
 async function crawlFormatWindow(
   deps: TopdeckSyncDeps,
   ctx: CrawlContext,
@@ -232,7 +212,6 @@ async function finish(deps: TopdeckSyncDeps, ctx: CrawlContext): Promise<Topdeck
   return ctx.result;
 }
 
-/** Five requests when nothing changed, plus one bridge query per event that did. */
 export async function syncTopdeckCatalog(deps: TopdeckSyncDeps): Promise<TopdeckSyncResult> {
   const now = clock(deps);
   const ctx: CrawlContext = { result: emptyResult(), touched: [], now };
@@ -253,11 +232,11 @@ export async function syncTopdeckCatalog(deps: TopdeckSyncDeps): Promise<Topdeck
 }
 
 export interface TopdeckBackfillOptions {
-  /** The instant a prior run covered through, so this one starts after it. */
   resumeFrom?: Date;
 }
 
-/** The source pages nothing, so the chunk bounds the response: the full Constructed archive in one call is eleven megabytes. */
+// The source pages nothing, so the chunk bounds the response: the full
+// Constructed archive in one call is eleven megabytes.
 export async function backfillTopdeck(
   deps: TopdeckSyncDeps,
   runId?: string,

@@ -58,8 +58,6 @@ describe("createPlayloltcgClient", () => {
     const { client } = harness([() => json({ code: 0, result: [{ id: 1 }, { id: 2 }] })]);
     const list = await client.postList<{ id: number }>("/xcx/shop/searchShop", {});
     expect(list.items).toHaveLength(2);
-    // Standing the page's own length in for a missing total reads as "that was
-    // all of it", which is how a full page used to end a walk mid-listing.
     expect(list.total).toBeNull();
   });
 
@@ -84,7 +82,6 @@ describe("createPlayloltcgClient", () => {
       PlayloltcgBlockedError,
     );
     expect(client.blocked).toBe(true);
-    // Two WAF hits (one patient retry), never reaching the third response.
     expect(client.requests).toBe(2);
   });
 

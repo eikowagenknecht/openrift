@@ -5,11 +5,6 @@ import { createUnauthenticatedTestContext, req } from "../../test/integration-co
 
 const ctx = createUnauthenticatedTestContext();
 
-/**
- * The route is anonymous on purpose — a chat bot has no session — so this runs
- * against the unauthenticated context to prove no auth middleware stands in
- * front of it.
- */
 describe.skipIf(!ctx)("Chat card lookup route (integration)", () => {
   const { app } = ctx!;
 
@@ -17,7 +12,6 @@ describe.skipIf(!ctx)("Chat card lookup route (integration)", () => {
     return await app.fetch(req("GET", `/chat/card?q=${encodeURIComponent(query)}`));
   }
 
-  /** @returns The response body of a lookup. */
   async function lookupText(query: string): Promise<string> {
     const res = await lookup(query);
     return await res.text();

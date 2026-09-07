@@ -11,11 +11,7 @@ const log = createLogger("admin-cache");
 
 const os = implement(adminCacheContract).$context<ApiContext>().use(requireAuthedUser);
 
-/**
- * Admin Cloudflare cache controls. Not-configured (503) / upstream-failure
- * (502) states are thrown as `AppError` and mapped by the handler's
- * appErrorInterceptor.
- */
+/** Not-configured and upstream-failure states are thrown as `AppError` (503/502) and mapped by appErrorInterceptor. */
 export const adminCacheRouter = {
   status: os.status.handler(({ context }) => {
     const config = context.config;

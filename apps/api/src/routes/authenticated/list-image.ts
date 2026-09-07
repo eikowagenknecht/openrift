@@ -12,24 +12,14 @@ import {
 import type { Variables } from "../../types.js";
 
 /**
- * Owner-authenticated download of a list's share image (ADR-024). The share
- * dialog's "Download image" uses this so it works whether or not the list is
- * publicly shared: the public og:image route resolves by share token, this one
- * resolves the caller's own list by id. `?aspect=vertical` renders the 9:16
- * canvas, `?scale=N` the N× variant (`?size=hq` is the older spelling of 2×),
- * and `?qr=0` leaves the scannable mark off — the same contract the deck and
- * tier-list download routes carry.
- *
- * Owner-only, served `no-store` (the list is mutable and this is an on-demand,
- * low-traffic download).
+ * Owner-authenticated download of a list's share image, resolving the list by
+ * id (the public og:image route resolves by share token instead). `?size=hq`
+ * is the older spelling of `?scale=2`.
  */
 export const listImageRoute = new Hono<{ Variables: Variables }>()
   .basePath("/lists")
-  // `requireAuth` is scoped to this one route, not mounted as `.use()` on the
-  // whole `/lists` sub-app: a bare `.use(requireAuth)` runs for every
-  // `/api/v1/lists/*` path this sub-app sees and 401s anonymous callers before
-  // they fall through to the oRPC catch-all — which silently gated the public
-  // `GET /api/v1/lists/share/{token}` share view (every shared-list link 401'd).
+  // requireAuth is scoped to this one route: a bare `.use(requireAuth)` on the
+  // sub-app would 401 the public `GET /api/v1/lists/share/{token}` route too.
   .get("/:id/image.png", requireAuth, async (c) => {
     const { lists, canonicalPrintings } = c.get("repos");
     const config = c.get("config");

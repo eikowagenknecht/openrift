@@ -5,14 +5,8 @@ import type { DeckCheckHost } from "./deck-check.js";
 
 export type DeckCheckKey = Selectable<DeckCheckKeysTable>;
 
-/**
- * Repository for deck-check integration keys: the host-scoped tokens
- * providers present on the ingest endpoint. Every mutation is scoped to the
- * owning host, so a key id from another host can never be touched.
- */
 export function deckCheckKeysRepo(db: Kysely<Database>) {
   return {
-    /** The host is the current user or an organization, not resolved through a friend group. */
     async listKeysForHost(
       host: DeckCheckHost,
     ): Promise<(DeckCheckKey & { createdByName: string | null })[]> {
@@ -80,11 +74,8 @@ export function deckCheckKeysRepo(db: Kysely<Database>) {
       return result.numUpdatedRows > 0n;
     },
 
-    /**
-     * The `revoked_at IS NOT NULL` guard keeps an active key from being
-     * deleted out from under a provider — revoke first, then remove the dead
-     * row. Nothing references a key id, so the delete leaves no dangling rows.
-     */
+    // The `revokedAt IS NOT NULL` guard keeps an active key from being
+    // deleted out from under a provider: revoke first, then delete.
     async deleteRevokedKeyForHost(host: DeckCheckHost, keyId: string): Promise<boolean> {
       let query = db
         .deleteFrom("deckCheckKeys")
@@ -98,7 +89,6 @@ export function deckCheckKeysRepo(db: Kysely<Database>) {
       return result.numDeletedRows > 0n;
     },
 
-    /** Revoked keys do not match. */
     findActiveKeyByHash(tokenHash: string): Promise<(DeckCheckHost & { id: string }) | undefined> {
       return db
         .selectFrom("deckCheckKeys")

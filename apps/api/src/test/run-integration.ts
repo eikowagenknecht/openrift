@@ -14,28 +14,13 @@ import { bootstrapSeededTestDb, dropTempDb, sweepStaleTestDatabases } from "./in
 
 const repoRoot = resolve(import.meta.dirname!, "../..");
 
-/** Migrations test — always gets its own temp DB, so it is excluded from the shared batch. */
 const MIGRATIONS_FILE = "src/db/migrations/migrations.integration.test.ts";
 
-/**
- * Every integration test file, discovered from disk rather than hand-listed.
- *
- * A hand-maintained list had two silent-failure modes, both of which bit us:
- * `bun test` ignores file args that don't exist, so a stale path dropped a file
- * from the run without an error (~124 tests once went dark), and a new test file
- * nobody remembered to register never ran at all. Globbing removes both by
- * construction. Sorted because every file in the parallel batch shares one
- * database, so the execution order has to be deterministic across machines.
- */
 const ALL_FILES = [...new Bun.Glob("src/**/*.integration.test.ts").scanSync({ cwd: repoRoot })]
   .map((file) => file.replaceAll("\\", "/"))
   .sort();
 
 const PARALLEL_FILES = ALL_FILES.filter((file) => file !== MIGRATIONS_FILE);
-
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -43,9 +28,6 @@ if (!DATABASE_URL) {
   process.exit(0);
 }
 
-// The glob is the only thing standing between us and a run that quietly tests
-// nothing, so verify it actually found something. An empty result means the cwd
-// or the pattern is wrong, and every downstream step would still report success.
 if (ALL_FILES.length === 0) {
   console.error(
     `Integration runner: no src/**/*.integration.test.ts files found under ${repoRoot}.`,
@@ -53,9 +35,6 @@ if (ALL_FILES.length === 0) {
   process.exit(1);
 }
 
-// MIGRATIONS_FILE is the one path still written by hand. If it is renamed the
-// filter above stops matching, and bun test silently ignores the stale arg — so
-// the migrations test would vanish from the run while everything looked green.
 if (!ALL_FILES.includes(MIGRATIONS_FILE)) {
   console.error(
     `Integration runner: ${MIGRATIONS_FILE} does not exist.\n` +
@@ -70,10 +49,8 @@ const coverageArgs = process.env.COVERAGE
 
 let tempDbName = "";
 
-// Best-effort cleanup if the run is interrupted. The `finally` below only runs
-// on a normal exit or a thrown error, not on SIGINT/SIGTERM, so without this a
-// Ctrl-C or a `kill` leaks the shared DB. (SIGKILL and hard crashes still can't
-// be caught. The startup sweep reclaims those on the next run.)
+// `finally` below doesn't run on SIGINT/SIGTERM, so without this a Ctrl-C
+// leaks the shared DB. SIGKILL still isn't caught; the startup sweep reclaims it.
 let shuttingDown = false;
 async function cleanupAndExit(code: number): Promise<void> {
   if (shuttingDown) {
@@ -94,8 +71,6 @@ process.on("SIGINT", () => void cleanupAndExit(130));
 process.on("SIGTERM", () => void cleanupAndExit(143));
 
 try {
-  // Reclaim leftovers from earlier interrupted runs (killed processes never
-  // reach teardown). Age cutoff keeps a concurrently-running run's fresh DBs.
   const STALE_TEST_DB_AGE_MS = 30 * 60 * 1000;
   const swept = await sweepStaleTestDatabases(DATABASE_URL, STALE_TEST_DB_AGE_MS);
   if (swept.length > 0) {
@@ -115,11 +90,8 @@ try {
   console.log(`\nRunning ${PARALLEL_FILES.length} test files in parallel...`);
   const parallelCoverageDir =
     coverageArgs.length > 0 ? ["--coverage-dir=./coverage/integration-parallel"] : [];
-  // Same 60s as the migrations spawn below, for the same reason: enum-checks
-  // applies every migration through setupTestDb in beforeAll, which passed
-  // bun's 5s default once the migration count grew and then failed whenever the
-  // machine was busy. The batch shares one database across 118 files, so bun's
-  // default is too tight a budget for anything DB-bound under contention.
+  // 60s: bun's 5s default is too tight for DB-bound tests under the
+  // contention of 118 files sharing one database.
   const parallelResult = Bun.spawnSync(
     [
       "bun",
@@ -141,10 +113,6 @@ try {
     failed = true;
   }
 
-  // Migrations test gets its own temp DB and uses DATABASE_URL directly.
-  // Needs a longer timeout than bun's 5s default: setupTestDb applies all ~100
-  // migrations in beforeAll, and the up/down cycle rolls every one back and
-  // re-applies — comfortably over 5s under DB contention from the parallel batch.
   console.log(`\nRunning ${MIGRATIONS_FILE} (own temp DB)...`);
   const migrationsCoverageDir =
     coverageArgs.length > 0 ? ["--coverage-dir=./coverage/integration-migrations"] : [];

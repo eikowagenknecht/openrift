@@ -3,20 +3,12 @@ import { describe, expect, it } from "vitest";
 import { createUnauthenticatedTestContext } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Health route
-//
-// GET /api/health — returns database health status
-// Uses the shared integration database. Requires INTEGRATION_DB_URL.
-// ---------------------------------------------------------------------------
-
 const ctx = createUnauthenticatedTestContext();
 
 describe.skipIf(!ctx)("Health route (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app } = ctx!;
 
-  // The health route is mounted at /api (not /api/v1), so we build the request manually.
   function healthReq(): Request {
     return new Request("http://localhost/api/health", {
       method: "GET",

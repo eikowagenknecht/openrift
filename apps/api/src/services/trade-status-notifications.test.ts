@@ -24,8 +24,6 @@ describe("isTradeStatusFlushNoop", () => {
   });
 });
 
-/** One due pair (instant cadence) with a reserved and a declined event.
- *  @returns Stubbed repos covering only what the flush reads. */
 function statusRepos(): Repos {
   const rows = [
     { id: "trade-1", event: "reserved" as const },
@@ -83,7 +81,6 @@ describe("flushTradeStatusEmails", () => {
     );
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
-    // The rows stay claimed (at-most-once), so both transitions are lost.
     expect(result).toEqual({
       pairs: 1,
       emailsSent: 0,

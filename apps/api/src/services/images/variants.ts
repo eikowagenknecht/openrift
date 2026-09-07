@@ -9,9 +9,6 @@ import { downloadImage } from "./download.js";
 import { CARD_MEDIA_DIR } from "./paths.js";
 import { computeScanCropBox, computeScanLevels } from "./scan-analysis.js";
 
-// Variants are capped on the **short edge** so portrait and landscape
-// cards end up at the same visual size after layout. `full` is not the
-// pristine original — that's kept separately as `-orig.{ext}`.
 const SIZES = [
   { suffix: "120w", shortEdge: 120, quality: 75 },
   { suffix: "240w", shortEdge: 240, quality: 80 },
@@ -19,12 +16,7 @@ const SIZES = [
   { suffix: "full", shortEdge: 800, quality: 85 },
 ] as const;
 
-/**
- * Whether a filename uses a currently-valid variant suffix (`-orig.{ext}` or
- * `-{SIZES.suffix}.webp`). Files failing this check are either legacy-resolution
- * stragglers (e.g. `-300w.webp`) or unrelated junk, and should be treated as
- * orphaned by the cleanup pass.
- */
+/** Whether a filename uses a currently-valid variant suffix (`-orig.{ext}` or `-{SIZES.suffix}.webp`). */
 export function isValidVariantSuffix(file: string): boolean {
   if (/-orig\.[^.]+$/u.test(file)) {
     return true;
@@ -38,13 +30,7 @@ export async function generateWebpVariants(
   outputDir: string,
   fileBase: string,
   rotation: number,
-  /**
-   * When true, crop white scanner margins to the detected card box (plus a
-   * 1px shave) and apply the capped auto-levels contrast correction before
-   * resizing. False preserves the image edge-to-edge and untouched —
-   * required for digital images where the card already fills the frame. The
-   * `-orig` file is never touched regardless of this flag.
-   */
+  /** True crops to the detected card box and applies auto-levels; false leaves the image untouched. */
   needsTrim: boolean,
   skipExisting = false,
 ): Promise<void> {
@@ -55,7 +41,7 @@ export async function generateWebpVariants(
     try {
       existing = new Set(await io.fs.readdir(outputDir));
     } catch {
-      // Directory unreadable — fall through; sharp/writeFile errors will surface.
+      // directory unreadable, fall through to let sharp/writeFile errors surface
     }
     const allPresent = SIZES.every((size) => existing.has(`${fileBase}-${size.suffix}.webp`));
     if (allPresent) {
@@ -86,9 +72,7 @@ export async function generateWebpVariants(
     const box = computeScanCropBox(grey, greyInfo.width, greyInfo.height);
     const wasCropped = box !== null && (box.width < greyInfo.width || box.height < greyInfo.height);
     if (box && wasCropped && box.width > 4 && box.height > 4) {
-      // Shave 2 extra px off each side to absorb leftover scanner halo and
-      // the last transition rows of a slightly tilted edge. Skipped when
-      // detection was a no-op so already-edge-to-edge art isn't nibbled.
+      // Shave 2px off each side to absorb scanner halo and a slightly tilted edge.
       const shaved = {
         left: box.left + 2,
         top: box.top + 2,
@@ -137,13 +121,7 @@ export async function generateWebpVariants(
   }
 }
 
-/**
- * Check whether rehosted files already exist on disk for a given file base.
- * Looks for any file starting with `{fileBase}-` in the output directory.
- * Used by `processAndSave` as a cheap "don't clobber" guard — NOT for
- * integrity checking. Use `rehostFilesComplete` for "are all required files
- * present" (broken-image detection).
- */
+/** A cheap "don't clobber" guard for `processAndSave`; use `rehostFilesComplete` for integrity checks. */
 export async function rehostFilesExist(
   io: Io,
   outputDir: string,
@@ -158,11 +136,7 @@ export async function rehostFilesExist(
   return files.some((f) => f.startsWith(`${fileBase}-`));
 }
 
-/**
- * Check whether ALL expected rehost files exist on disk: the `-orig.*` archive
- * plus every `-{SIZES.suffix}.webp` variant. Used by the broken-image finder
- * so an image missing its orig (or any variant) is surfaced to the admin.
- */
+/** Whether the `-orig.*` archive and every `-{SIZES.suffix}.webp` variant exist on disk. */
 export async function rehostFilesComplete(
   io: Io,
   outputDir: string,
@@ -181,12 +155,7 @@ export async function rehostFilesComplete(
   return SIZES.every((size) => files.includes(`${fileBase}-${size.suffix}.webp`));
 }
 
-/**
- * Remove every `{fileBase}-orig.*` file from `outputDir`. Used to sweep stale
- * orig archives with a *different* extension before writing a new one —
- * otherwise a format change upstream (e.g. png → webp) leaves both files on
- * disk and we end up with duplicate origs.
- */
+/** Removes every `{fileBase}-orig.*` so a format change (e.g. png to webp) doesn't leave duplicates. */
 async function sweepExistingOrig(io: Io, outputDir: string, fileBase: string): Promise<void> {
   let files: string[];
   try {
@@ -213,8 +182,6 @@ export async function processAndSave(
   allowOverwrite = false,
 ): Promise<void> {
   if (!allowOverwrite && (await rehostFilesExist(io, outputDir, fileBase))) {
-    // A guard, not a failure: the printing was already rehosted. Typed so the
-    // admin UI gets a clean 409 instead of a Sentry-reported 500.
     throw new AppError(
       409,
       ERROR_CODES.CONFLICT,

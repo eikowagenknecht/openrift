@@ -7,20 +7,11 @@ import { describe, expect, it } from "vitest";
 
 import { createDbContext } from "../test/integration-context.js";
 
-// A `DEFAULT` is a promise the schema makes to the code — omit this and the
-// database fills it in. `tables.ts` only keeps that promise when the member is
-// `Generated<T>` (or a `ColumnType` with `undefined` in the insert position);
-// typed as a plain required field, Kysely demands a value at every call site
-// and the default becomes unreachable. Nothing fails loudly when that happens:
-// the insert compiles, it just always writes the value the caller guessed,
-// which is how `decks.is_public` sat next to three already-`Generated` siblings
-// and how `marketplace_products.norm_name` never got a member at all.
-//
-// TypeScript types are gone at runtime, so the check reads `tables.ts` as text.
-// The file is consistently formatted (two-space members, one per line, tables
-// registered in the `Database` interface), which is what makes that reliable —
-// and the parser asserts its own coverage below, so a reformat that defeats it
-// fails the suite rather than silently passing everything.
+// A DEFAULTed column typed as a plain required field in tables.ts makes
+// Kysely demand a value at every insert, so the column silently gets whatever
+// the caller passes (decks.is_public, marketplace_products.norm_name). Types
+// don't exist at runtime, so this reads tables.ts as text; the parser asserts
+// its own coverage below so a reformat that defeats it fails loudly.
 
 const ctx = createDbContext("column-defaults");
 
@@ -140,10 +131,8 @@ describe.skipIf(!ctx)("columns with a database default", () => {
   const tableMembers = parseTableMembers();
 
   async function defaultedColumns(): Promise<ColumnRow[]> {
-    // `column_default` covers plain DEFAULTs; `is_identity` covers the identity
-    // columns, which have no default expression but behave the same way on
-    // insert. Views and materialized views are out of scope — nothing inserts
-    // into them.
+    // is_identity columns have no default expression but behave the same on
+    // insert; views are excluded since nothing inserts into them.
     const rows = await sql<ColumnRow>`
       SELECT c.table_name AS "tableName", c.column_name AS "columnName"
       FROM information_schema.columns c

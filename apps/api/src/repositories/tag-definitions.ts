@@ -57,12 +57,7 @@ export function tagDefinitionsRepo(db: Kysely<Database>) {
       return result.reduce((sum, row) => sum + Number(row.numInsertedOrUpdatedRows ?? 0), 0);
     },
 
-    /**
-     * Every tag the admin page should list: the union of tags currently
-     * printed on cards and tags that already have a definition. Definitions
-     * whose tag no longer appears on any card (errata) come back with
-     * cardCount 0 so they stay visible and can be un-classified.
-     */
+    /** A definition whose tag has no cards comes back with cardCount 0, and stays visible so it can be un-classified. */
     async distinctCardTags(): Promise<
       { tag: string; cardCount: number; categoryId: string | null }[]
     > {

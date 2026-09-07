@@ -304,8 +304,6 @@ export function cardTradesRepo(db: Kysely<Database>) {
         })
         .returningAll()
         .executeTakeFirstOrThrow();
-      // The group and both party ids were just written from `values`, so the
-      // row is live.
       return {
         ...row,
         groupId: values.groupId,
@@ -315,14 +313,9 @@ export function cardTradesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Shrinks a settleable trade by `quantity`, reserving that much for a split
-     * half. Guarded so it doubles as the split's concurrency control: the
-     * caller's own side must still be unsettled, and enough quantity must be
-     * left over for the remainder to keep `chk_card_trades_quantity`. Two
-     * concurrent partial settles therefore serialize on this row, and the
-     * loser matches zero rows rather than driving the quantity negative.
-     *
-     * Does NOT bump `updated_at`: the swap did not change, it split.
+     * The row filters (unsettled caller side, `quantity` strictly less than the total)
+     * are the only concurrency control on a partial settle; a losing concurrent call matches zero rows.
+     * Does not bump `updated_at`.
      */
     async reserveQuantityForSplit(
       id: string,
@@ -343,13 +336,8 @@ export function cardTradesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Inserts the settled half of a split.
-     *
-     * The caller's settle timestamp goes in on this first statement, which is
-     * what keeps the row outside `uq_card_trades_live` — two reserved halves of
-     * one swap would otherwise collide on it, and the original keeps the live
-     * slot. The other side's timestamp is inherited: once they have settled,
-     * both halves are theirs, and the new row is immediately completable.
+     * The caller's settle timestamp must be set on insert, or the new row collides
+     * with the original on `uq_card_trades_live`.
      */
     async createSettledSplit(values: NewCardTradeSplit): Promise<LiveCardTrade> {
       const { from, role } = values;
@@ -364,8 +352,7 @@ export function cardTradesRepo(db: Kysely<Database>) {
           printingId: from.printingId,
           cardId: from.cardId,
           quantity: values.quantity,
-          // Inherits the accept rather than performing one, so it sends no
-          // request or reserved email and keeps the original's accepted_at.
+          // Sets status directly to "reserved": no request/reserved email is sent.
           status: "reserved",
           acceptedAt: from.acceptedAt,
           expiresAt: from.expiresAt,
@@ -379,7 +366,6 @@ export function cardTradesRepo(db: Kysely<Database>) {
         })
         .returningAll()
         .executeTakeFirstOrThrow();
-      // The group and both party ids are inherited from `from`, which is live.
       return {
         ...row,
         groupId: from.groupId,
@@ -389,9 +375,7 @@ export function cardTradesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Hands `copyIds` from one trade's reservations to another's. The split
-     * moves pins rather than dropping them: a split half with no pins would
-     * leave the giver nothing to dispose when they settle it.
+     * A split half must keep its pins, or the giver has nothing to dispose when they settle it.
      */
     async reassignCopies(fromTradeId: string, toTradeId: string, copyIds: string[]): Promise<void> {
       if (copyIds.length === 0) {
@@ -409,10 +393,6 @@ export function cardTradesRepo(db: Kysely<Database>) {
       return db.selectFrom("cardTrades").selectAll().where("id", "=", id).executeTakeFirst();
     },
 
-    /**
-     * The existing live (pending/reserved) trade for this exact direction, if
-     * any — used to reject a duplicate before the DB does.
-     */
     findLiveTrade(
       groupId: string,
       giverUserId: string,
@@ -431,13 +411,8 @@ export function cardTradesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * The giver's still-`pending` trades for one printing, across every group.
-     * Feeds the unfillable sweep in the card-trades service, which re-reads
-     * supply and cancels what can no longer be filled.
-     *
-     * Ordered oldest first (`created_at`, then `id` to break ties on rows
-     * written in the same microsecond) so the sweep's first-come-first-served
-     * allocation is stable and reproducible.
+     * Must stay ordered oldest first (`created_at`, then `id` to break same-microsecond ties)
+     * for the caller's first-come-first-served allocation.
      */
     async listPendingForGiverPrinting(
       giverUserId: string,
@@ -452,17 +427,10 @@ export function cardTradesRepo(db: Kysely<Database>) {
         .orderBy("createdAt", "asc")
         .orderBy("id", "asc")
         .execute();
-      // `pending` rules NULL out — deleting a group cancels its live trades —
-      // and the filter is what says so to the type system.
+      // groupId is nullable in the schema, but a `pending` row's group can't be deleted.
       return rows.filter((row): row is PendingGiverTrade => row.groupId !== null);
     },
 
-    /**
-     * Distinct printings the giver still has `pending` trades for in one group.
-     * A group-scoped supply change (unsharing a trade list) drives the
-     * per-printing sweep from this list, so the work stays proportional to the
-     * live trades rather than to the list's size.
-     */
     async listPendingPrintingIdsForGiverInGroup(
       groupId: string,
       giverUserId: string,
@@ -527,21 +495,8 @@ export function cardTradesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Cards the viewer has traded with each other member of a group: for every
-     * counterparty, the summed `quantity` of the rows between the two of them
-     * whose swap is done. Feeds the members page's per-member "N traded" badge.
-     * Members the viewer has traded nothing with are absent from the map.
-     *
-     * Viewer-scoped, not group-wide. The badge sits next to a person on a page
-     * the viewer is reading, so it is read as "what the two of us have traded";
-     * a group-wide total put "3 traded" beside a member the viewer had only ever
-     * opened three cancelled requests with.
-     *
-     * The predicate is the SQL twin of `cardTradeState(trade) === "done"` in
-     * `@openrift/shared`: completed, or reserved with the *viewer's own* half
-     * settled. Testing the viewer's side rather than either side is what keeps
-     * the badge from claiming a swap the viewer still owes a settle on, which
-     * their trade sheet would be listing as their move at the same moment.
+     * The predicate must mirror `cardTradeState(trade) === "done"` in `@openrift/shared`:
+     * completed, or reserved with the viewer's own half settled.
      */
     async countTradedCardsWithViewerInGroup(
       groupId: string,
@@ -574,8 +529,7 @@ export function cardTradesRepo(db: Kysely<Database>) {
       ]);
       const totals = new Map<string, number>();
       for (const row of [...given, ...received]) {
-        // A counterparty who deleted their account is no longer a member and has
-        // no row in the member list this map keys.
+        // row.userId is null when the counterparty's account was deleted.
         if (row.userId !== null) {
           totals.set(row.userId, (totals.get(row.userId) ?? 0) + row.total);
         }
@@ -637,30 +591,17 @@ export function cardTradesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Per-group counts of trades needing the viewer's action, split by which
-     * action it is: a request awaiting their answer, or a swap whose own half
-     * they haven't confirmed. Mirrors the two `action-needed` cases in
-     * `deriveActionNeeded` (`cancel` is deliberately excluded), so `count` is
-     * exactly the two split parts summed.
-     *
-     * The swap half is counted from the moment a trade is accepted, with no
-     * grace period. Two people who swap in person and never touch the app would
-     * otherwise be reminded by nothing at all, which leaves the giver's copies
-     * pinned out of every match view indefinitely. The two halves stay separate
-     * badges so this never reads as urgent: a request blocks someone else,
-     * while confirming your own half is yours to do whenever the swap happens.
+     * Must mirror the two `action-needed` cases in `deriveActionNeeded` (`cancel` is
+     * deliberately excluded), or `count` stops equaling the two split parts summed.
      */
     async actionNeededCountsForUser(
       userId: string,
     ): Promise<CardTradeActionCountsResponse["byGroup"]> {
-      // Both predicates drive the row filter and their own count, so the split
-      // can never drift from the total the WHERE admits.
       const awaitingResponse = sql<boolean>`(t.status = 'pending' and (
         (t.receiver_user_id = ${userId} and t.initiator = 'giver')
         or (t.giver_user_id = ${userId} and t.initiator = 'receiver')
       ))`;
-      // `completed` covers legacy rows that finished before partial settles
-      // existed, revived only where a side was still outstanding.
+      // `completed` must stay: legacy rows can be completed with a side still outstanding.
       const awaitingSettle = sql<boolean>`(t.status in ('reserved', 'completed') and (
         (t.giver_user_id = ${userId} and t.giver_sync_applied_at is null)
         or (t.receiver_user_id = ${userId} and t.receiver_sync_applied_at is null)
@@ -693,20 +634,8 @@ export function cardTradesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * The viewer's live trades across every group, summed per (printing, role,
-     * phase) so a card browser can annotate a cell without loading trades. Live
-     * means pending, reserved, or completed-but-not-yet-synced *on the viewer's
-     * own side*; terminal rows and an already-synced side are simply absent.
-     *
-     * One scan with a role CASE rather than a UNION of a giver query and a
-     * receiver query. The phase ladder is identical for both sides apart from
-     * which `*_sync_applied_at` column counts, so a union would restate the
-     * whole ladder twice and give the vocabulary two homes. Both
-     * `idx_card_trades_giver` and `idx_card_trades_receiver` lead with the user
-     * column, so the `OR` still reaches each side through its own index.
-     *
-     * Self-trades are rejected at creation, so no row matches both sides and
-     * the role CASE is never ambiguous.
+     * The role CASE assumes no row matches both sides (self-trades are rejected at creation).
+     * `idx_card_trades_giver`/`_receiver` both lead with the user column, so the `OR` still uses an index per side.
      */
     async liveAnnotationsForUser(userId: string): Promise<LiveTradeAnnotationRow[]> {
       const result = await sql<LiveTradeAnnotationRow>`
@@ -948,10 +877,7 @@ export function cardTradesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Like {@link filterReservedCopyIds}, but carries the owning trade's status.
-     * A pin on a `completed` trade means the giver has not resolved their sync
-     * yet, and that trade can no longer be cancelled, so the dispose guard needs
-     * the status to name a remedy that actually exists.
+     * A `completed` trade cannot be cancelled, so the caller needs the status to offer a valid remedy.
      */
     async listReservationsForCopies(copyIds: readonly string[]): Promise<ReservedCopyPin[]> {
       if (copyIds.length === 0) {
@@ -966,13 +892,8 @@ export function cardTradesRepo(db: Kysely<Database>) {
       return rows;
     },
 
-    // Each transition below guards on the expected source status in the WHERE
-    // clause and returns
-    // the affected-row count, so a concurrent transition that already moved the
-    // row matches zero rows. The service throws 409 on a 0 count, making each
-    // transition exactly-once under READ COMMITTED without an explicit row lock.
-    // Real transitions bump `updated_at`; the seen / sync-applied writes do not
-    // (so the unread rule never spuriously re-flags the counterparty).
+    // Each transition below guards on the expected source status and returns the affected-row
+    // count; a concurrent transition that already moved the row must match zero rows.
 
     async markReserved(id: string, byUserId: string): Promise<number> {
       const result = await db
@@ -1075,10 +996,8 @@ export function cardTradesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Records the giver resolved their side's sync. A side settles while the
-     * trade is still `reserved`; `completed` stays in the guard for legacy
-     * rows that reached it with a side outstanding, which is what
-     * `assertSettleable` admits too.
+     * `completed` must stay in the status guard, matching `assertSettleable`: legacy rows
+     * can reach `completed` with a side still outstanding.
      */
     async setGiverSyncApplied(id: string): Promise<number> {
       const result = await db

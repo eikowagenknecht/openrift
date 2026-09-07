@@ -7,12 +7,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { tournamentDeckCheckRouter } from "./tournament-deck-check.js";
 
-// setEntryState concurrency regression (see deck-check-states.ts /
-// applyJudgeTransition): two near-simultaneous judge requests must not both
-// validate against the same pre-transition snapshot. The transactional
-// re-load inside `context.transact` is what makes the second request see the
-// first's committed write and fail the transition instead of overwriting it.
-
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const TOURNAMENT_ID = "b0000000-0001-4000-a000-000000000001";
 const ENTRY_ID = "c0000000-0001-4000-a000-000000000001";
@@ -74,9 +68,8 @@ function entry(state: "submitted" | "approved") {
 function makeApp() {
   const tournaments = { isHostOrStaff: vi.fn(() => Promise.resolve(true)) };
 
-  // The plain (non-transactional) repos: this is what `authorizeJudge` and the
-  // outer `loadEntry` 404-check see. It reflects the state at the start of the
-  // request ("submitted"), before a concurrent judge's commit lands.
+  // What authorizeJudge and loadEntry see: the state at the start of the
+  // request, before a concurrent judge's commit lands.
   const outerDeckCheck = {
     getEventById: vi.fn(() => Promise.resolve(event)),
     getEntry: vi.fn(() => Promise.resolve(entry("submitted"))),
@@ -84,10 +77,8 @@ function makeApp() {
   };
   const outerRepos = { deckCheck: outerDeckCheck, tournaments };
 
-  // The transactional repos handed to the `context.transact` callback: by the
-  // time this request's transaction opens, a concurrent judge has already
-  // committed the entry into "approved". The re-load must see that, not the
-  // stale "submitted" snapshot loaded above.
+  // What context.transact sees: a concurrent judge has already committed the
+  // entry into "approved" by the time this request's transaction opens.
   const txDeckCheck = {
     getEntryForUpdate: vi.fn(() => Promise.resolve(entry("approved"))),
     updateEntry: vi.fn(() => Promise.resolve(entry("approved"))),
@@ -116,11 +107,6 @@ describe("PUT /tournaments/{tournamentId}/deck-check/entries/{entryId}/state", (
   it("rejects a transition validated against a stale snapshot and writes nothing", async () => {
     const { app, txDeckCheck } = makeApp();
 
-    // A judge tries to approve, believing (from the pre-request load) that the
-    // entry is still "submitted". By the time the transaction opens, another
-    // judge has already approved it. Approving an already-approved entry is
-    // not a valid transition, so this must 409 instead of silently
-    // overwriting the concurrent judge's approval.
     const res = await app.request(
       `/api/v1/tournaments/${TOURNAMENT_ID}/deck-check/entries/${ENTRY_ID}/state`,
       {
@@ -133,9 +119,7 @@ describe("PUT /tournaments/{tournamentId}/deck-check/entries/{entryId}/state", (
     expect(res.status).toBe(409);
     const body = (await readJson(res)) as { code: string };
     expect(body.code).toBe("CONFLICT");
-    // The re-loaded, locked entry was consulted...
     expect(txDeckCheck.getEntryForUpdate).toHaveBeenCalledWith(TOURNAMENT_ID, ENTRY_ID);
-    // ...and the invalid transition never reached a write.
     expect(txDeckCheck.updateEntry).not.toHaveBeenCalled();
   });
 });

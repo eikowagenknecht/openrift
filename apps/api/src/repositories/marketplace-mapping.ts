@@ -447,13 +447,9 @@ export function marketplaceMappingRepo(db: Db) {
       }
       const productRows = [...productRowsByKey.values()];
 
-      // `doUpdateSet` rather than `doNothing`: the mapping needs an id for
-      // every input SKU, and RETURNING only covers a conflicting row when the
-      // conflict action actually touches it. The column list infers
-      // `marketplace_products_sku_key`, which is NULLS NOT DISTINCT, so CM/TCG
-      // rows with a NULL language collapse onto the existing row.
-      // Batched: the admin body this runs on is uncapped, and a mapping pass
-      // over a whole set binds past what one statement can carry.
+      // `doNothing` would leave conflicting rows out of RETURNING, with no id to
+      // bind. The `marketplace_products_sku_key` unique is NULLS NOT DISTINCT.
+      // Batched: the admin body this runs on can exceed one statement's bind limit.
       const products = [];
       for (const batch of rowBatches(productRows)) {
         products.push(

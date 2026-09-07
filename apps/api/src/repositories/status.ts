@@ -26,7 +26,6 @@ interface PricingSourceStats {
   marketplace: string;
   products: number;
   variants: number;
-  /** Row count in `marketplace_product_prices` for this marketplace. */
   prices: number;
   latestPrice: string | null;
 }
@@ -123,10 +122,8 @@ export function statusRepo(db: Kysely<Database>) {
     },
 
     /**
-     * The price aggregate runs as its own query rather than a third join in
-     * the product query. Variants and prices both hang off a product, so
-     * joining them together multiplies each product's price rows by its
-     * variant count.
+     * Runs as its own query: variants and prices both hang off a product, so
+     * joining all three would multiply each product's price rows by its variant count.
      */
     async getPricingStats(): Promise<PricingStats> {
       const [productRows, priceRows] = await Promise.all([

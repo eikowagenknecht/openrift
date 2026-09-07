@@ -4,13 +4,6 @@ import { describe, expect, it } from "vitest";
 
 import { isBuildIdSafe, versionHeadersMiddleware } from "./version-headers.js";
 
-// Regression coverage for the post-deploy reload-prompt loop: cacheable API
-// responses (catalog, prices, landing-summary) replayed from the browser cache
-// after a release still carried the previous build's X-Build-Id, which
-// false-tripped the client's stale-bundle detector for up to their max-age.
-// Cacheable responses carry the cache-invariant X-Api-Format instead; the
-// build id goes only on responses no cache may reuse.
-
 describe("isBuildIdSafe", () => {
   it("allows responses without a Cache-Control header", () => {
     expect(isBuildIdSafe(null)).toBe(true);

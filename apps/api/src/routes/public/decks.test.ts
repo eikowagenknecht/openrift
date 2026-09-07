@@ -278,8 +278,6 @@ describe("GET /api/v1/decks/share/:token", () => {
 });
 
 describe("POST /api/v1/decks/encode", () => {
-  // Sequential short codes (already 3-digit, so they round-trip through the
-  // Piltover codec unchanged), or null for cards listed in `missing`.
   function stubShortCodes(missing = new Set<string>()) {
     mockCanonicalPrintingsRepo.shortCodesForRows.mockImplementation((rows) =>
       Promise.resolve(
@@ -345,7 +343,6 @@ describe("POST /api/v1/decks/encode", () => {
     expect(json.warnings).toEqual([]);
 
     const decoded = getDeckFromCode(json.code);
-    // Champion is counted into mainDeck (+1) and marked as the chosen champion.
     expect(decoded.chosenChampion).toBe("OGN-002");
     const mainCounts = new Map(
       decoded.mainDeck.map((card: { cardCode: string; count: number }) => [

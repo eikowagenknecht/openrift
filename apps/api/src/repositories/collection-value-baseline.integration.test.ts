@@ -5,7 +5,6 @@ import { PRINTING_1 } from "../test/fixtures/constants.js";
 import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import { marketplaceRepo } from "./marketplace.js";
 
-// Random per-file so nothing couples to a fixed id (see seedTestUser).
 const userId = crypto.randomUUID();
 const risingPrintingId = crypto.randomUUID();
 const flatPrintingId = crypto.randomUUID();
@@ -14,25 +13,10 @@ const midPrintingId = crypto.randomUUID();
 
 const ctx = createDbContext(userId);
 
-/**
- * `baselineValueCents` prices each day's holdings at what every copy was worth
- * the day it was added, floored at the first day of the requested range. The
- * gap to `valueCents` is therefore the return on those holdings, with buying
- * and selling divided out.
- *
- * Four scenarios get their own collection, because the series is scoped by
- * collection but `startDay` is not — it comes from the user's first event
- * either way. Every `added` event is dated six days ago except where a
- * scenario needs a mid-window purchase, which pins `startDay` to the same day
- * for all of them.
- */
 describe.skipIf(!ctx)("collection value baseline (integration)", () => {
   const { db } = ctx!;
   const repo = marketplaceRepo(db);
 
-  // A real marketplace (the CHECK constraint allows nothing else). All queries
-  // and cleanup stay keyed on this file's own printings / group id / external
-  // ids, so rows other files leave under tcgplayer never leak into assertions.
   const marketplace = "tcgplayer" as const;
   const groupId = 80_201;
 
@@ -131,28 +115,16 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
       ])
       .execute();
 
-    // TCGPlayer falls into the ELSE branch of the headline CASE, so
-    // market_cents is the headline and these numbers are the prices.
     await db
       .insertInto("marketplaceProductPrices")
       .values([
-        // Rising: 100 at the window start, a step to 150, then 300 today. The
-        // mid-window step is what lets a shorter range freeze somewhere else.
         { marketplaceProductId: risingSku.id, recordedAt: dayOffset(6), marketCents: 100 },
         { marketplaceProductId: risingSku.id, recordedAt: dayOffset(4), marketCents: 150 },
         { marketplaceProductId: risingSku.id, recordedAt: dayOffset(0), marketCents: 300 },
-        // Flat: unchanged across the window, so buying must move both lines
-        // by the same amount.
         { marketplaceProductId: flatSku.id, recordedAt: dayOffset(6), marketCents: 200 },
         { marketplaceProductId: flatSku.id, recordedAt: dayOffset(0), marketCents: 200 },
-        // Late: no price at all until day 2, though the copy is held from day
-        // 6, and then a rise. Freezing at its first-ever 500 would book a 400
-        // gain over a window it had no starting price for.
         { marketplaceProductId: lateSku.id, recordedAt: dayOffset(2), marketCents: 500 },
         { marketplaceProductId: lateSku.id, recordedAt: dayOffset(0), marketCents: 900 },
-        // Mid: quadruples before the copy is bought on day 2, then edges up.
-        // Freezing at the day-6 price of 100 would credit the holder with a
-        // 400 run-up that happened before they owned anything.
         { marketplaceProductId: midSku.id, recordedAt: dayOffset(6), marketCents: 100 },
         { marketplaceProductId: midSku.id, recordedAt: dayOffset(3), marketCents: 400 },
         { marketplaceProductId: midSku.id, recordedAt: dayOffset(0), marketCents: 500 },
@@ -171,8 +143,6 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
       .returning(["id", "printingId", "collectionId"])
       .execute();
 
-    // The second flat copy and the mid copy arrive on day two; everything else
-    // is held from day six, which pins `startDay` for every scenario.
     const midWindowCopyIds = new Set([
       copyRows.filter((c) => c.printingId === flatPrintingId)[1].id,
       copyRows.find((c) => c.printingId === midPrintingId)!.id,
@@ -241,7 +211,6 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
   it("holds the baseline flat while prices rise under a fixed composition", async () => {
     const series = await seriesFor(risingCollectionId);
 
-    // Nothing was bought or sold, so the counterfactual never moves.
     expect(new Set(series.map((p) => p.baselineValueCents))).toEqual(new Set([100]));
     expect(series[0].valueCents).toBe(100);
     expect(series.at(-1)!.valueCents).toBe(300);
@@ -250,7 +219,6 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
   it("moves both lines together when prices are flat and cards are added", async () => {
     const series = await seriesFor(flatCollectionId);
 
-    // The whole point of the second line: buying is not a return.
     for (const point of series) {
       expect(point.valueCents).toBe(point.baselineValueCents);
     }
@@ -263,9 +231,6 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
     const allTime = await seriesFor(risingCollectionId);
     const threeDays = await seriesFor(risingCollectionId, dayOffset(3));
 
-    // All-time freezes at the day-6 price of 100; the 3-day window freezes at
-    // the day-4 step of 150, carried forward to its own first day. Without
-    // this the range toggle would not change the reported return at all.
     expect(allTime.at(-1)!.baselineValueCents).toBe(100);
     expect(threeDays.at(-1)!.baselineValueCents).toBe(150);
     expect(threeDays.at(-1)!.valueCents).toBe(300);
@@ -274,14 +239,8 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
   it("prices a mid-window purchase at what it cost that day, not at the range start", async () => {
     const series = await seriesFor(midCollectionId);
 
-    // The printing ran 100 -> 400 before the copy was bought on day two, then
-    // 400 -> 500. Only the second leg belongs to the holder. Flooring the
-    // basis at the range start instead would report a 400 gain from a run-up
-    // that finished before they owned anything.
     expect(series.at(-1)!.valueCents).toBe(500);
     expect(series.at(-1)!.baselineValueCents).toBe(400);
-    // Leading days with no copies are trimmed, so the series opens on the
-    // purchase — bought and held at 400, no return yet.
     expect(series[0].valueCents).toBe(400);
     expect(series[0].baselineValueCents).toBe(400);
   });
@@ -289,14 +248,9 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
   it("drops a printing from both lines on days it has no price", async () => {
     const series = await seriesFor(lateCollectionId);
 
-    // Held from day six but unpriced until day two, then 500 -> 900. On the
-    // unpriced days it must leave both lines rather than stand a basis over a
-    // real line of zero, which would draw as a total loss.
     expect(series[0].copyCount).toBe(1);
     expect(series[0].valueCents).toBe(0);
     expect(series[0].baselineValueCents).toBe(0);
-    // Its first observable price is the best available basis once it is
-    // priced, so the run to 900 counts as the holder's gain.
     expect(series.at(-1)!.valueCents).toBe(900);
     expect(series.at(-1)!.baselineValueCents).toBe(500);
   });
@@ -305,7 +259,6 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
     const series = await seriesFor(risingCollectionId);
     const values = await repo.collectionValues([risingCollectionId], marketplace);
 
-    // The baseline is additive: it must not have perturbed the headline.
     expect(series.at(-1)!.valueCents).toBe(values.get(risingCollectionId)!.totalValueCents);
   });
 });

@@ -30,10 +30,6 @@ describe("userPreferencesRepo", () => {
     expect(result!.data).toEqual(data);
   });
 
-  // Regression: upsert used to read the row, merge in JS, and write the result
-  // back. Two PATCHes overlapping in time each wrote the snapshot they had read,
-  // so the later commit silently dropped the earlier one's keys. The merge now
-  // happens inside the one statement, which leaves no window to lose.
   it("upsert reads nothing first and merges in a single statement", async () => {
     const { db, queries, parameters } = createRecordingDb([STORED_ROW]);
 
@@ -45,8 +41,6 @@ describe("userPreferencesRepo", () => {
     expect(result).toEqual({ theme: "dark" });
   });
 
-  // jsonb params are handed to the driver as values, never as JSON text —
-  // stringifying here would double-encode into a jsonb string scalar.
   it("upsert binds the patch as an object, not as JSON text", async () => {
     const { db, parameters } = createRecordingDb([STORED_ROW]);
 
@@ -72,9 +66,6 @@ describe("userPreferencesRepo", () => {
     expect(parameters[0]).toEqual(["u1", {}, []]);
   });
 
-  // The channel is opt-out, so an admin who has never opened the profile page
-  // has no preferences row at all and must still be mailed. An inner join (what
-  // the two opt-in recipient queries use) would silently drop exactly them.
   it("listGroupJoinRequestRecipients left-joins preferences and excludes only an explicit false", async () => {
     const { db, queries, parameters } = createRecordingDb([[]]);
 

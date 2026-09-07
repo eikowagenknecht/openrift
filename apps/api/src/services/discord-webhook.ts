@@ -28,14 +28,11 @@ interface DiscordWebhookPayload {
 
 export interface WebhookFailure {
   channel: "newPrintings";
-  /** HTTP status if Discord responded, undefined if fetch threw. */
   status?: number;
-  /** Response body (for HTTP failures) or thrown error message. */
   detail: string;
 }
 
-// Discord requires absolute URLs for embed images. Build the 400w variant
-// from the image id and prepend the app base URL.
+// Discord requires absolute URLs for embed images.
 function absoluteImageUrl(appBaseUrl: string, id: string | null): string | undefined {
   if (!id) {
     return undefined;
@@ -90,13 +87,9 @@ export function buildNewPrintingPayloads(
     return buildNewPrintingSummary(events, appBaseUrl);
   }
 
-  // Derive the site host from the base URL so the author line adapts to
-  // preview/dev domains instead of hardcoding openrift.app.
   const siteName = appBaseUrl.replace(/^https?:\/\//u, "");
 
   const embeds: DiscordEmbed[] = events.map((event) => {
-    // Set name + shortcode + info render as a footer, which Discord places below
-    // the image, so the card art leads and the metadata reads as a compact row.
     const infoParts: string[] = [];
     if (event.setName) {
       infoParts.push(event.setName);

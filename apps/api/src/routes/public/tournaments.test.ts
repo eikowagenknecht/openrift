@@ -10,11 +10,6 @@ import { participantDisplayName, publicTournamentsRouter, resolveSelfJoin } from
 const USER = { id: "user-1", name: "Ashe", email: "ashe@example.com" };
 const TOURNAMENT_ID = "tournament-1";
 
-/**
- * Builds a minimal repos stub over the two participant methods
- * `resolveSelfJoin` calls.
- * @returns The repos stub plus references to its two mocks.
- */
 function reposStub(overrides: {
   findByUser: (...args: unknown[]) => Promise<unknown>;
   createParticipant: (...args: unknown[]) => Promise<unknown>;
@@ -70,8 +65,6 @@ describe("resolveSelfJoin", () => {
   });
 
   it("resolves to the race winner when the insert hits a unique violation", async () => {
-    // First lookup misses (no spot yet), the insert loses the race with a 23505,
-    // and the re-read finds the concurrently-created row.
     const findByUser = vi
       .fn()
       .mockResolvedValueOnce(undefined)
@@ -103,11 +96,6 @@ describe("resolveSelfJoin", () => {
 const INVITE_TOKEN = "staffinvite01";
 const HOST_USER_ID = "host-1";
 
-/**
- * Mounts the public router with `user` pre-set, which short-circuits
- * `resolveSession` so `loadUser()` returns exactly what the test asked for.
- * @returns The test app.
- */
 function makeStaffInviteApp(overrides: {
   user?: { id: string } | null;
   tournaments?: Record<string, unknown>;

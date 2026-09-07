@@ -339,10 +339,8 @@ describe.skipIf(!ctx)("metaRepo", () => {
       expect([row.wins, row.losses, row.draws]).toEqual([4, 2, 0]);
     });
 
-    // `uq_deck_cards` is NULLS NOT DISTINCT, so the archive's null
-    // `preferred_printing_id` does not separate two lines naming the same card
-    // and zone. A source that splits a playset, or two names resolving to one
-    // card, used to violate the index instead of adding up.
+    // `uq_deck_cards` is NULLS NOT DISTINCT, so a null `preferred_printing_id`
+    // does not separate two lines naming the same card and zone.
     it("folds repeated lines into one row, summing quantity", async () => {
       const eventId = await seedEvent(repo, "mta-merge-create");
       const created = await repo.createPlayer(
@@ -425,7 +423,7 @@ describe.skipIf(!ctx)("metaRepo", () => {
       expect(row?.shareToken).toBeNull();
       expect(row?.rankIsTier).toBe(true);
       // The legend is a column on the standings row, so it survives the
-      // absence of a list — which is the point of the pyramid.
+      // absence of a list.
       expect(row?.legendName).toBe("MTA Legend");
     });
 
@@ -474,7 +472,7 @@ describe.skipIf(!ctx)("metaRepo", () => {
         .execute();
       expect(players).toHaveLength(0);
       // The cascade reaches the standings row only; the deck itself survives,
-      // which is exactly why deleteEvent removes decks explicitly.
+      // so deleteEvent removes decks explicitly.
       const deck = await db.selectFrom("decks").select("id").where("id", "=", deckId).execute();
       expect(deck).toHaveLength(1);
     });
@@ -548,9 +546,8 @@ describe.skipIf(!ctx)("metaRepo", () => {
     });
   });
 
-  // The archive is paged on the server (the accept pipeline fills it faster
-  // than a maintainer can), so a page is one slice of the whole table and every
-  // filter, the order and the total have to come from SQL.
+  // Each page is one slice of the whole table, so the filter, order and
+  // total have to come from SQL.
   describe("paged event list", () => {
     const PAGE = { limit: 50, offset: 0 };
 
@@ -1290,8 +1287,6 @@ describe.skipIf(!ctx)("metaRepo", () => {
         maxGameWins: 2,
       });
 
-      // The source republishes the whole list on every fetch, so a shorter one
-      // takes the place of the longer one rather than merging into it.
       await repo.replaceEventPhases(eventId, [
         phase(eventId, 0, { roundCount: 5, maxGameWins: null }),
       ]);
@@ -1346,9 +1341,8 @@ describe.skipIf(!ctx)("metaRepo", () => {
     });
 
     it("scopes by the event's format, not the deck's", async () => {
-      // `meta_events.format` is a foreign key, so the scope can only name a real
-      // format and cannot be one this test owns. Every other suite seeds into
-      // the same archive, so the assertion is on the movement this test causes.
+      // `meta_events.format` is a foreign key, so the scope can only name a
+      // real format; the assertion is on the movement this test causes.
       const eventScope = { format: FORMAT, dateFrom: "2026-09-01", dateTo: "2026-09-30" };
       const deckScope = { ...eventScope, format: DECK_ONLY_FORMAT };
       const before = {
@@ -1753,8 +1747,7 @@ describe.skipIf(!ctx)("metaRepo", () => {
       const overwritten = await repo.playerById(playerId);
 
       expect(preserved?.deckName).toBe("MTA Curated Name");
-      // Without the flag the caller's name is the name, which is what the
-      // admin's own edit means.
+      // Without the flag, the caller's own name applies as the admin's edit.
       expect(overwritten?.deckName).toBe("MTA Renamed Deck");
     });
 
@@ -1768,8 +1761,6 @@ describe.skipIf(!ctx)("metaRepo", () => {
       });
 
       expect(await repo.renamePlayerDeck(playerId, "MTA Chosen Name")).toBe(true);
-      // Not an error: an entry with no list has no name to carry, so the
-      // caller learns nothing was written rather than throwing.
       expect(await repo.renamePlayerDeck(decklessId, "MTA Chosen Name")).toBe(false);
       expect(await repo.renamePlayerDeck(crypto.randomUUID(), "MTA Chosen Name")).toBe(false);
 
@@ -1995,9 +1986,6 @@ describe.skipIf(!ctx)("metaRepo", () => {
         sourceUrl: null,
       });
 
-      // One event, two citations: the fan-in this supports. Neither is
-      // reachable by a live-side key any more — the link is the candidate's
-      // own FK, and this list is the credit it writes.
       const sources = await repo.sourcesForEvent(eventId);
       expect(sources.map((source) => source.label).toSorted()).toEqual(["mta-prb", "mta-uvs"]);
     });
@@ -2501,7 +2489,6 @@ describe.skipIf(!ctx)("promotion", () => {
     await repos.metaOverlays.setEventOverlayStatus(pending, "accepted", new Date());
     await promoteMetaEvent(repos, metaEventId);
 
-    // And it survives the next promote, which is the whole point of the mask.
     await promoteMetaEvent(repos, metaEventId);
     const applied = await repo.eventById(metaEventId);
     expect(applied?.name).toBe("Never Applied");
@@ -2509,13 +2496,11 @@ describe.skipIf(!ctx)("promotion", () => {
     await db.deleteFrom("metaEventOverlays").where("id", "=", pending).execute();
   });
 
-  // Last in this block: it leaves thousands of pairings on the event, which
-  // every test above reads.
+  // Must run last in this block: it leaves thousands of pairings on the event.
   it("writes a round-by-round history wider than one statement can bind", async () => {
     const players = await repo.rawStandingsForEvent(metaEventId);
     const [first, second] = players;
-    // 13 bound columns a row, against postgres's 65534: a 1000-player Swiss
-    // reaches this, and used to take the whole recheck job down with it.
+    // 13 bound columns per row, against postgres's 65534 param limit.
     const rows = Array.from({ length: 6000 }, (_entry, index) => ({
       metaEventId,
       sourceMatchId: `m-wide-${index}`,
@@ -2535,8 +2520,6 @@ describe.skipIf(!ctx)("promotion", () => {
     const written = await repo.upsertEventMatches(rows);
     expect(written).toHaveLength(rows.length);
 
-    // The conflict target still holds across batch boundaries, so a replayed
-    // materialization refreshes rather than duplicating.
     const again = await repo.upsertEventMatches(rows);
     expect(again.map((row) => row.id).toSorted()).toEqual(written.map((row) => row.id).toSorted());
   });

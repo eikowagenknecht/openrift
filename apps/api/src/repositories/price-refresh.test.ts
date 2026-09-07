@@ -11,9 +11,6 @@ describe("priceRefreshRepo", () => {
   });
 
   it("loadIgnoredKeys returns LoadedIgnoredKeys with productIds and variantKeys", async () => {
-    // The mock proxy returns the same execute result for both the product and
-    // variant queries. A row with externalId + finish + language satisfies both
-    // (extra fields are ignored for the product query).
     const db = createMockDb([{ externalId: 123, finish: "normal", language: "EN" }]);
     const result = await priceRefreshRepo(db).loadIgnoredKeys("tcgplayer");
     expect(result.productIds).toBeInstanceOf(Set);
@@ -134,11 +131,6 @@ describe("priceRefreshRepo (generated SQL)", () => {
   });
 
   it("batchInsertProductVariants keeps two marketplaces sharing an external id apart", async () => {
-    // Regression: the product lookup was keyed on (externalId, finish,
-    // language) alone while the inputs and the re-select both span
-    // marketplaces. Two marketplaces handing out the same external id
-    // collapsed onto one key, and every variant bound to whichever product
-    // happened to land in the map last.
     captured.setRows([
       { id: "p-tcg", marketplace: "tcgplayer", externalId: 42, finish: "normal", language: null },
       { id: "p-cm", marketplace: "cardmarket", externalId: 42, finish: "normal", language: null },
@@ -171,9 +163,6 @@ describe("priceRefreshRepo (generated SQL)", () => {
   });
 
   it("batchInsertProductVariants throws when a marketplace's product is missing", async () => {
-    // Only the tcgplayer product comes back, so the cardmarket input has no
-    // id to bind to. Before the key carried the marketplace this silently
-    // bound to the wrong product instead of failing.
     captured.setRows([
       { id: "p-tcg", marketplace: "tcgplayer", externalId: 42, finish: "normal", language: null },
     ]);
@@ -194,9 +183,6 @@ describe("priceRefreshRepo (generated SQL)", () => {
   });
 
   it("upsertProductsForMarketplace updates on conflict so RETURNING covers existing rows", async () => {
-    // `doNothing` would drop conflicting rows from RETURNING, and the caller
-    // needs an id for every input SKU — on any refresh past the first, most
-    // of them already exist.
     await priceRefreshRepo(captured.db).upsertProductsForMarketplace("cardmarket", [
       { externalId: 42, finish: "normal", language: null, groupId: 7, productName: "Card" },
     ]);
@@ -208,8 +194,6 @@ describe("priceRefreshRepo (generated SQL)", () => {
     expect(sql).toContain('"group_id" = "excluded"."group_id"');
     expect(sql).toContain('"product_name" = "excluded"."product_name"');
     expect(sql).toContain('returning "id", "external_id", "finish", "language"');
-    // A NULL language is bound as NULL, so the NULLS NOT DISTINCT unique
-    // (`marketplace_products_sku_key`) collapses it onto the existing row.
     expect(parameters).toEqual(["cardmarket", 42, 7, "Card", "normal", null]);
   });
 });

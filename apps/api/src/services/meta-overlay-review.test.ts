@@ -18,7 +18,6 @@ vi.mock("./meta-promote.js", () => ({ promoteMetaEvent: vi.fn(), promoteNewEvent
 
 const OVERLAY_ID = "b0000000-0001-4000-a000-000000000001";
 
-/** A pending proposal carrying everything a mint needs. */
 const PROPOSAL = {
   id: OVERLAY_ID,
   metaEventId: null,
@@ -226,8 +225,6 @@ describe("acceptMetaEventOverlay", () => {
 
     await expect(acceptMetaEventOverlay(repos, OVERLAY_ID)).rejects.toThrow("connection lost");
 
-    // An overlay flipped to accepted before the mint would be stranded: gone
-    // from the pending queue, with no live event behind it.
     expect(mockOverlays.setEventOverlayStatus).not.toHaveBeenCalled();
     expect(mockOverlays.updateEventOverlay).not.toHaveBeenCalled();
   });

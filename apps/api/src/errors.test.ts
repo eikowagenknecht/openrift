@@ -29,7 +29,6 @@ describe("ERROR_CODES", () => {
   });
 
   it("includes the codes the global handler depends on", () => {
-    // These were previously emitted as un-enumerated string literals.
     expect(ERROR_CODES.VALIDATION_ERROR).toBe("VALIDATION_ERROR");
     expect(ERROR_CODES.SERVICE_UNAVAILABLE).toBe("SERVICE_UNAVAILABLE");
   });

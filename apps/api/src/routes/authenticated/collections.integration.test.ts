@@ -18,10 +18,8 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
   let inboxId: string;
 
   beforeAll(async () => {
-    // In production the inbox collection is created by the signup hook
-    // (auth.ts → collections.ensureInbox). Integration users are inserted
-    // directly into the users table, bypassing that hook, so seed the inbox
-    // here to mirror a real account. GET /collections does not auto-create it.
+    // Integration users are inserted directly into the users table, bypassing
+    // the signup hook that normally creates the inbox, so seed it here.
     await db
       .insertInto("collections")
       .values({ userId: USER_ID, groupId: null, name: "Inbox", isInbox: true, sortOrder: 0 })
@@ -103,7 +101,6 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
 
       const json = (await readJson(res)) as { items: CollectionResponse[] };
       expect(Array.isArray(json.items)).toBe(true);
-      // 3 created above + the seeded inbox = 4
       expect(json.items.length).toBeGreaterThanOrEqual(4);
     });
 
@@ -178,8 +175,6 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const json = (await readJson(getRes)) as CollectionResponse;
       expect(json.sidebarHidden).toBe(true);
 
-      // Flipping it back clears the row's effect, so the collection returns to
-      // the visible part of the sidebar.
       const restore = await app.fetch(
         req("PUT", `/collections/${collectionId}/sidebar`, { hidden: false }),
       );
@@ -228,12 +223,8 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       expect(res.status).toBe(409);
     });
 
-    // A non-empty SHARED (group-owned) collection has no inbox to drain into,
-    // so deletion is a resource-state conflict (409), not a malformed request
-    // (400). The unit suite covers this with a mocked repo; this exercises the
-    // real listCopiesInCollection query + group-admin access path end-to-end.
-    // Set up directly (no API exists to mint a group collection here): a
-    // group, USER_ID as its owner, a group-owned collection, and one copy.
+    // A non-empty shared (group-owned) collection has no inbox to drain into,
+    // so deletion is a 409 conflict, not a 400.
     it("returns 409 when deleting a non-empty shared (group) collection", async () => {
       const groupId = "a0000000-0002-4000-a000-0000000000a0";
       const groupCollectionId = "a0000000-0002-4000-a000-0000000000a1";
@@ -264,7 +255,6 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const res = await app.fetch(req("DELETE", `/collections/${groupCollectionId}`));
       expect(res.status).toBe(409);
 
-      // The 409 must not have deleted the collection.
       const stillThere = await db
         .selectFrom("collections")
         .select("id")
@@ -272,8 +262,6 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
         .executeTakeFirst();
       expect(stillThere).toBeDefined();
 
-      // Clean up so later tests' collection counts are unaffected (the 409 left
-      // everything in place).
       await db.deleteFrom("copies").where("collectionId", "=", groupCollectionId).execute();
       await db.deleteFrom("collections").where("id", "=", groupCollectionId).execute();
       await db.deleteFrom("friendGroupMembers").where("groupId", "=", groupId).execute();
@@ -281,8 +269,6 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
     });
 
     it("deletes a collection and auto-moves its copies to inbox", async () => {
-      // Populate `secondCollectionId` with two copies so the auto-move path
-      // is actually exercised (without copies the test passes trivially).
       const addRes = await app.fetch(
         req("POST", "/copies", {
           copies: [
@@ -298,7 +284,6 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const res = await app.fetch(req("DELETE", `/collections/${secondCollectionId}`));
       expect(res.status).toBe(204);
 
-      // Both copies should now live in the inbox.
       const inboxCopiesRes = await app.fetch(req("GET", `/collections/${inboxId}/copies`));
       const inboxCopies = (await readJson(inboxCopiesRes)) as { items: { id: string }[] };
       const inboxIds = new Set(inboxCopies.items.map((c) => c.id));
@@ -313,16 +298,12 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
     });
 
     it("deletes a collection that has prior 'removed' events in its history", async () => {
-      // Reproduces the bug where deleting a collection fails with 500 because
-      // the FK ON DELETE SET NULL on collection_events.from_collection_id
-      // violates chk_collection_events_collection_presence (which requires
-      // 'removed' events to keep from_collection_id NOT NULL).
+      // chk_collection_events_collection_presence requires 'removed' events to
+      // keep from_collection_id NOT NULL, so FK ON DELETE SET NULL alone would violate it.
       const createRes = await app.fetch(req("POST", "/collections", { name: "Has History" }));
       expect(createRes.status).toBe(201);
       const { id: historyCollectionId } = (await readJson(createRes)) as { id: string };
 
-      // Add a copy, then dispose it — this writes a 'removed' event with
-      // from_collection_id = historyCollectionId.
       const addRes = await app.fetch(
         req("POST", "/copies", {
           copies: [{ printingId: PRINTING_1.id, collectionId: historyCollectionId }],
@@ -334,15 +315,13 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const disposeRes = await app.fetch(req("POST", "/copies/dispose", { copyIds: [copy.id] }));
       expect(disposeRes.status).toBe(204);
 
-      // Collection is now empty but has a 'removed' event referencing it.
       const res = await app.fetch(req("DELETE", `/collections/${historyCollectionId}`));
       expect(res.status).toBe(204);
     });
 
     it("deletes a collection that has prior 'moved' events in its history", async () => {
-      // Same root cause as above but for the 'moved' branch of the check
-      // constraint, which requires both from_collection_id and to_collection_id
-      // to remain NOT NULL.
+      // Same constraint, for the 'moved' branch: both from_collection_id and
+      // to_collection_id must stay NOT NULL.
       const createSrcRes = await app.fetch(req("POST", "/collections", { name: "Move Source" }));
       const { id: srcId } = (await readJson(createSrcRes)) as { id: string };
       const createDstRes = await app.fetch(
@@ -362,7 +341,6 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       );
       expect(moveRes.status).toBe(204);
 
-      // Deleting either endpoint of the historical 'moved' event should work.
       const delSrcRes = await app.fetch(req("DELETE", `/collections/${srcId}`));
       expect(delSrcRes.status).toBe(204);
       const delDstRes = await app.fetch(req("DELETE", `/collections/${dstId}`));
@@ -376,12 +354,9 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
     });
   });
 
-  // ── POST /collections/:id/clear ───────────────────────────────────────────
-
   describe("POST /collections/:id/clear", () => {
     it("removes every copy but keeps the collection", async () => {
-      // The inbox can never be deleted; clear is its delete-equivalent. Seed
-      // two copies straight into the inbox and clear it.
+      // The inbox can never be deleted; clear is its delete-equivalent.
       const addRes = await app.fetch(
         req("POST", "/copies", {
           copies: [
@@ -398,7 +373,6 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       expect(json.removedCount).toBeGreaterThanOrEqual(2);
       expect(json.keptCopyIds).toEqual([]);
 
-      // The inbox itself survives, empty.
       const getRes = await app.fetch(req("GET", `/collections/${inboxId}`));
       expect(getRes.status).toBe(200);
       const inbox = (await readJson(getRes)) as CollectionResponse;
@@ -418,8 +392,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
     });
 
     it("logs 'removed' events for the cleared copies", async () => {
-      // Disposal nulls copy_id on the event via FK, so events can't be matched
-      // by copy id — count the inbox's 'removed' events before and after.
+      // Disposal nulls copy_id on the event via FK; match by from_collection_id.
       const removedEvents = () =>
         db
           .selectFrom("collectionEvents")
@@ -449,8 +422,6 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       expect(res.status).toBe(404);
     });
   });
-
-  // ── Share endpoints (GET / POST / POST rotate / DELETE) ───────────────────
 
   describe("collection sharing", () => {
     let shareCollectionId: string;
@@ -484,8 +455,8 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
     });
 
     it("GET reflects the shared state after sharing", async () => {
-      // Re-fetch the token that the previous POST minted so the idempotency
-      // assertion below has a stable reference even though tests share state.
+      // Tests share state; re-fetch the token the previous POST minted so the
+      // idempotency assertion below has a stable reference.
       const res = await app.fetch(req("GET", `/collections/${shareCollectionId}/share`));
       expect(res.status).toBe(200);
 
@@ -506,7 +477,6 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       expect(second.shareToken).toBe(first.shareToken);
       expect(second.isPublic).toBe(true);
 
-      // The shared token resolves on the public endpoint.
       const publicRes = await app.fetch(
         req("GET", `/collections/share/${second.shareToken as string}`),
       );
@@ -519,7 +489,6 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const oldToken = before.shareToken as string;
       expect(oldToken).toBeTypeOf("string");
 
-      // The old token currently resolves on the public endpoint.
       const oldResolvesRes = await app.fetch(req("GET", `/collections/share/${oldToken}`));
       expect(oldResolvesRes.status).toBe(200);
 
@@ -533,7 +502,6 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       expect(rotated.shareToken).not.toBe(oldToken);
       expect(rotated.isPublic).toBe(true);
 
-      // Old token no longer resolves; the new one does.
       const oldNowRes = await app.fetch(req("GET", `/collections/share/${oldToken}`));
       expect(oldNowRes.status).toBe(404);
       const newRes = await app.fetch(
@@ -541,7 +509,6 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       );
       expect(newRes.status).toBe(200);
 
-      // GET reflects the rotated token.
       const stateRes = await app.fetch(req("GET", `/collections/${shareCollectionId}/share`));
       const state = (await readJson(stateRes)) as CollectionShareResponse;
       expect(state.shareToken).toBe(rotated.shareToken);

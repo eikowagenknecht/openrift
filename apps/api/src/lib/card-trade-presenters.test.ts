@@ -35,21 +35,14 @@ function copy(overrides: Partial<TradeCopyRow> = {}): TradeCopyRow {
 
 describe("selectSplitPins", () => {
   it("takes the plainest pins when nothing is being disposed", () => {
-    // The receiver's split: no copies leave, so the order given decides.
     expect(selectSplitPins(["plain", "noted", "graded"], 2)).toEqual(["plain", "noted"]);
   });
 
   it("always moves the pin of a copy this settle deletes", () => {
-    // Left on the remainder, the cascade on `copy_id` would take it away with
-    // the copy and leave the remainder pinned to two copies for a quantity of
-    // two, but one of those pins already gone.
     expect(selectSplitPins(["plain", "noted", "graded"], 1, ["graded"])).toEqual(["graded"]);
   });
 
   it("tops the count up plainest-first around a substituted copy", () => {
-    // The giver promised three, then handed over one that was never pinned. Its
-    // pin cannot move because there isn't one, so the count comes off the
-    // plainest of the rest.
     expect(selectSplitPins(["plain", "noted", "graded"], 2, ["elsewhere"])).toEqual([
       "plain",
       "noted",
@@ -68,8 +61,6 @@ describe("selectSplitPins", () => {
   });
 
   it("returns what there is when the trade is pinned short", () => {
-    // A giver who already settled has released their pins, so a receiver
-    // splitting afterwards finds nothing to move.
     expect(selectSplitPins([], 2)).toEqual([]);
     expect(selectSplitPins(["only"], 2)).toEqual(["only"]);
   });
@@ -91,8 +82,6 @@ describe("sortCopiesForPinning", () => {
   });
 
   it("keeps equally plain copies of one collection together", () => {
-    // Interleaved on the way in, so pure id order would spread each binder's
-    // copies across the picker.
     const rows = [
       copy({ id: "c", collectionId: "col-2", collectionName: "Shoebox" }),
       copy({ id: "a", collectionId: "col-1", collectionName: "Binder" }),
@@ -103,8 +92,6 @@ describe("sortCopiesForPinning", () => {
   });
 
   it("groups by collection only within a pin weight", () => {
-    // The plain Shoebox copy still outranks the graded Binder one: how plain a
-    // copy is decides first, and which binder it sits in only sorts the rest.
     const rows = [
       copy({
         id: "graded",
@@ -279,8 +266,6 @@ describe("toCardTradeCopyOptions", () => {
   });
 
   it("floats the pinned copies above the alternatives", () => {
-    // The pinned copy is the graded one, which pin order would otherwise bury
-    // behind both plain candidates.
     const result = toCardTradeCopyOptions({
       tradeId: "trade-1",
       quantity: 1,
@@ -300,8 +285,6 @@ describe("toCardTradeCopyOptions", () => {
       copy({ id: "pinned", collectionId: "col-1", collectionName: "Binder" }),
       copy({ id: "other", collectionId: "col-2", collectionName: "Shoebox" }),
     ];
-    // The accept side of the same two copies has nothing to decide: it promises
-    // a card, it does not empty a binder.
     expect(
       toCardTradeCopyOptions({ tradeId: "trade-1", quantity: 1, copies: spread }).choiceMatters,
     ).toBe(false);
@@ -336,8 +319,6 @@ describe("toCardTradeCopyOptions", () => {
   });
 
   it("ignores a pin id with no candidate row", () => {
-    // The settle picker reads pins and candidates separately, so a copy that
-    // vanished between the two must not conjure a row.
     const result = toCardTradeCopyOptions({
       tradeId: "trade-1",
       quantity: 1,
@@ -418,8 +399,6 @@ describe("toCardTradeLiveByPrinting", () => {
   });
 
   it("ranks the full phase ladder, least committed last", () => {
-    // The ladder stops at reserved: a settled side has nothing left to
-    // annotate, so there is no rung above it.
     const result = toCardTradeLiveByPrinting([
       annotationRow({ phase: "offered" }),
       annotationRow({ phase: "asked" }),
@@ -709,8 +688,6 @@ describe("toCardTradeSheetRows", () => {
     expect(result).toHaveLength(2);
   });
 
-  // Rule-derived demand has no list_entries row, so null is a value in the
-  // key and not a wildcard that swallows the manual row beside it.
   it("keys a rule-derived row apart from a manual one on the same list", () => {
     const result = toCardTradeSheetRows([
       {

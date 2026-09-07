@@ -27,7 +27,6 @@ function makeCard(overrides: Partial<ChatCard> = {}): ChatCard {
   };
 }
 
-/** @returns The stat line between the name and the URL, which is what most cases assert. */
 function statLine(card: ChatCard): string {
   return chatCardLine(card, labels).slice(`${card.name} — `.length);
 }

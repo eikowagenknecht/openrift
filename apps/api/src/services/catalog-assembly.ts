@@ -95,8 +95,8 @@ export async function assembleCatalogResponse(repos: Repos): Promise<CatalogResp
       ...resolveFoilTwin({ hasFoilTwin }),
       markers: resolveMarkers(markerSlugs, markerBySlug),
       distributionChannels: channelsByPrinting.get(id) ?? [],
-      // Omitted rather than empty — see `buildPrintingsResponse`. This is the
-      // bundle every visitor downloads, so an uncited printing costs no bytes.
+      // Must be omitted, not an empty array (see `buildPrintingsResponse`):
+      // every visitor downloads this bundle, so an uncited printing costs no bytes.
       ...(citations === undefined ? {} : { citations }),
       images: (imagesByPrinting.get(id) ?? []).map((i) => ({
         face: i.face,
@@ -212,23 +212,8 @@ export async function assembleRuleCatalog(repos: Repos): Promise<RuleCatalog> {
 }
 
 /**
- * Wraps a catalog assembler in a process-wide, *content-addressed* memo for
- * dynamic list-rule expansion. Rule expansion calls the assembly
- * *inline* on every list read (including the uncached anonymous public-share
- * path), so without this each read rebuilds the entire catalog from the database.
- *
- * The memo is keyed on a `getVersion()` token (a cheap aggregate probe, see
- * `catalogContentVersion`) instead of a clock: every read re-probes, reuses the
- * cached value while the token is unchanged, and reassembles the instant an
- * admin edit rolls it. So reads are both cheap (probe ≪ assembly) and always
- * fresh — no staleness window, unlike a TTL.
- *
- * Concurrency: concurrent probes are coalesced into one, and because the cache
- * entry is set synchronously after the probe resolves (no `await` between the
- * version check and the assignment), a burst on a new version triggers a single
- * assembly that everyone shares. A rejected assembly is never cached (next call
- * retries); a transient probe failure serves the last good catalog rather than
- * breaking the read.
+ * The cache entry must be set synchronously, with no `await` between the
+ * version check and the assignment, or concurrent callers would each trigger their own assembly.
  */
 export function createContentAddressedCache<T>(
   load: () => Promise<T>,
@@ -265,10 +250,7 @@ export function createContentAddressedCache<T>(
       return cached.value;
     }
     const entry = { version, value: load() };
-    // Drop a failed assembly so the next caller retries instead of being served a
-    // rejected promise. Fire-and-forget on purpose: awaiting here would defeat
-    // sharing the in-flight promise with concurrent callers, and the original
-    // rejection still propagates to whoever awaits it.
+    // Fire-and-forget: awaiting here would defeat sharing the in-flight promise with concurrent callers.
     // oxlint-disable-next-line promise/prefer-await-to-then -- side-channel cleanup, must not await
     entry.value.catch(() => {
       if (cached === entry) {

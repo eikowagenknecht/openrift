@@ -13,9 +13,8 @@ export interface OverlayChannel extends Omit<Selectable<OverlayChannelsTable>, "
   payload: OverlayPayload;
 }
 
-// The stored payload goes through `normalizeOverlayPayload`, because it grows
-// display switches without a migration and older rows are missing whichever
-// ones came later.
+// Normalizes the payload: it grows display switches without a migration, so
+// older rows are missing whichever ones came later.
 function toChannel(row: Selectable<OverlayChannelsTable>): OverlayChannel {
   return {
     ...row,
@@ -24,12 +23,8 @@ function toChannel(row: Selectable<OverlayChannelsTable>): OverlayChannel {
 }
 
 /**
- * Queries for the signed-in creator's stream overlay channel.
- *
- * Every write bumps `version` in the same statement that changes `payload`, so
- * the two can never disagree — the version is what the OBS source's conditional
- * poll compares against, and a payload that changed without a bump would sit
- * invisible behind a 304 until the next push.
+ * Every write bumps `version` in the same statement that changes `payload`,
+ * since the OBS source's conditional poll compares against it.
  */
 export function overlayChannelsRepo(db: Kysely<Database>) {
   async function writePayload(
@@ -55,8 +50,7 @@ export function overlayChannelsRepo(db: Kysely<Database>) {
       return row ? toChannel(row) : undefined;
     },
 
-    // Reads the state an OBS browser source polls for. Token-authorised, so
-    // it deliberately returns no owner information.
+    // Token-authorised: deliberately returns no owner information.
     async findByToken(token: string): Promise<OverlayChannel | undefined> {
       const row = await db
         .selectFrom("overlayChannels")
@@ -66,12 +60,9 @@ export function overlayChannelsRepo(db: Kysely<Database>) {
       return row ? toChannel(row) : undefined;
     },
 
-    // Retries on the astronomically unlikely token collision, the same way
-    // every other share token here does.
     create(userId: string): Promise<OverlayChannel> {
-      // Scoped to the token constraint: without it, two concurrent first-opens
-      // colliding on the user_id unique burned all retries and 500ed instead
-      // of letting the caller recover the winner's row.
+      // Scoped to the token constraint: unscoped, two concurrent first-opens
+      // colliding on the user_id unique burned all retries and 500ed.
       return withUniqueShareToken(
         async (token) => {
           const row = await db
@@ -93,9 +84,8 @@ export function overlayChannelsRepo(db: Kysely<Database>) {
     // a card keeps the dressing.
     setPayload: writePayload,
 
-    // Issues a new token, which immediately blinds every browser source still
-    // polling the old one. Leaves the payload alone: rotating a leaked token
-    // mid-stream should not also blank the scene.
+    // Leaves the payload alone: rotating a leaked token mid-stream should not
+    // also blank the scene.
     rotateToken(userId: string): Promise<OverlayChannel | undefined> {
       return withUniqueShareToken(async (token) => {
         const row = await db

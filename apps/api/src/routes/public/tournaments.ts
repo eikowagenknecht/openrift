@@ -27,9 +27,8 @@ async function hostDisplayName(repos: Repos, tournament: Tournament): Promise<st
 }
 
 /**
- * Falls back to the email's local part when the account has no (non-blank)
- * name — the raw email address must never become a publicly visible
- * participant name.
+ * Falls back to the email's local part; the raw email must never appear
+ * as a public participant name.
  */
 export function participantDisplayName(name: string | null | undefined, email: string): string {
   const trimmed = name?.trim();
@@ -41,9 +40,8 @@ export function participantDisplayName(name: string | null | undefined, email: s
 }
 
 /**
- * Idempotent under a concurrent double-submit: the one-participant-per-account
- * partial index rejects the second insert, which we catch and resolve to the
- * winning row instead of surfacing a raw 500.
+ * The one-participant-per-account index rejects a concurrent double-submit's
+ * insert; that case resolves to the winning row.
  */
 export async function resolveSelfJoin(
   repos: Repos,
@@ -73,8 +71,6 @@ export async function resolveSelfJoin(
       alreadyJoined: false,
     };
   } catch (error) {
-    // A concurrent double-submit inserted the participant between the existence
-    // check and this insert; uq_tournament_participants_user rejects the second.
     if (isUniqueViolation(error)) {
       const raced = await repos.tournaments.findParticipantByUser(tournamentId, user.id);
       if (raced) {
@@ -91,12 +87,6 @@ export async function resolveSelfJoin(
 
 const os = implement(publicTournamentsContract).$context<ApiContext>().use(requireUser);
 
-/**
- * Public, token-gated request-to-join surface for the umbrella. The
- * landing is unauthenticated; `requestJoin` requires a session and, when
- * self-registration is open, creates a `requested` participant for the caller
- * (the approval gate). An existing participant is returned, never duplicated.
- */
 export const publicTournamentsRouter = {
   landing: os.landing.handler(
     async ({ input, context, errors }): Promise<PublicTournamentLandingResponse> => {
@@ -105,9 +95,6 @@ export const publicTournamentsRouter = {
       if (!tournament) {
         throw errors.NOT_FOUND({ message: "Not found" });
       }
-      // The landing is public, so resolve the session lazily (anonymous → null)
-      // only to tell the client whether the viewer already holds a spot. That
-      // gates deck submission when self-registration is closed.
       const viewer = await context.loadUser();
       const viewerIsParticipant = viewer
         ? Boolean(await repos.tournaments.findParticipantByUser(tournament.id, viewer.id))
@@ -133,12 +120,6 @@ export const publicTournamentsRouter = {
       if (!tournament) {
         throw errors.NOT_FOUND({ message: "Not found" });
       }
-      // A completed or cancelled tournament must not accept new entrants even if
-      // the self-registration flag and its share token are still live. This is a
-      // terminal-state conflict (409), matching the authenticated `update` /
-      // `addParticipant` and pod `submitResult` guards; `selfRegistration` off is
-      // a host-toggled policy gate (403), kept distinct so the client can tell
-      // "tournament is over" from "sign-ups aren't open".
       const status = tournament.status;
       if (status === "completed" || status === "cancelled") {
         throw errors.CONFLICT({ message: "This tournament is no longer accepting entries" });
@@ -146,8 +127,6 @@ export const publicTournamentsRouter = {
       if (!tournament.selfRegistration) {
         throw errors.FORBIDDEN({ message: "Self-registration is not open" });
       }
-      // Respect the one-participant-per-account index: return the existing one,
-      // and stay idempotent if a concurrent submit wins the insert race.
       return resolveSelfJoin(repos, tournament.id, user);
     },
   ),
@@ -159,9 +138,6 @@ export const publicTournamentsRouter = {
       if (!match) {
         throw errors.NOT_FOUND({ message: "Not found" });
       }
-      // Public, so the session is resolved lazily and only to answer "do you
-      // already hold this role" — false for an anonymous viewer, the same way
-      // the submit landing reports `viewerIsParticipant`.
       const viewer = await context.loadUser();
       const alreadyStaff = viewer
         ? await repos.tournaments.isHostOrStaff(match.tournament.id, viewer.id, [match.role])

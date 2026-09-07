@@ -2,18 +2,12 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";
 
-/**
- * Card ban queries for admin CRUD and catalog lookups.
- * @returns An object with card ban query methods bound to the given `db`.
- */
 export function cardBansRepo(db: Kysely<Database>) {
   return {
-    /** @returns All formats (id + name). */
     listFormats() {
       return db.selectFrom("formats").select(["id", "name"]).orderBy("name").execute();
     },
 
-    /** @returns All active bans for a given card, with format display name. */
     listByCard(cardId: string) {
       return db
         .selectFrom("cardBans")
@@ -25,7 +19,6 @@ export function cardBansRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Active bans among `cardIds` in any of `formatIds`, as (cardId, formatId) pairs. */
     listActiveForCards(cardIds: string[], formatIds: string[]) {
       if (cardIds.length === 0 || formatIds.length === 0) {
         return Promise.resolve([]);
@@ -39,7 +32,6 @@ export function cardBansRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns A specific active ban, or undefined. */
     findActiveBan(cardId: string, formatId: string) {
       return db
         .selectFrom("cardBans")
@@ -50,7 +42,6 @@ export function cardBansRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns The newly created ban row with format display name. */
     async create(ban: {
       cardId: string;
       formatId: string;
@@ -70,10 +61,6 @@ export function cardBansRepo(db: Kysely<Database>) {
       return { ...row, formatName: format.name };
     },
 
-    /**
-     * Updates `bannedAt` and/or `reason` on the active ban for the given card+format.
-     * @returns The updated ban row with format display name, or undefined if not found.
-     */
     async update(
       cardId: string,
       formatId: string,
@@ -98,10 +85,6 @@ export function cardBansRepo(db: Kysely<Database>) {
       return { ...row, formatName: format.name };
     },
 
-    /**
-     * Sets `unbannedAt` on the active ban for the given card+format.
-     * @returns Whether a row was updated.
-     */
     async unban(cardId: string, formatId: string): Promise<boolean> {
       const result = await db
         .updateTable("cardBans")

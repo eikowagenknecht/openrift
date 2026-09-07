@@ -2,7 +2,6 @@ import type { ProductCoverCard, ProductSummary } from "@openrift/shared/contract
 
 import type { ProductCoverRow, ProductWithCounts } from "../repositories/products.js";
 
-/** @returns The API response shape for a product row with counts. */
 export function toProductSummary(
   product: ProductWithCounts,
   coverCards: ProductCoverCard[],
@@ -24,7 +23,6 @@ export function toProductSummary(
   };
 }
 
-/** @returns Repo cover rows mapped to the response shape (productId dropped). */
 export function toCoverCards(rows: ProductCoverRow[] = []): ProductCoverCard[] {
   return rows.map(({ printingId, imageId, name }) => ({ printingId, imageId, name }));
 }

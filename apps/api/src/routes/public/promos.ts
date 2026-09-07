@@ -13,12 +13,8 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(promosContract).$context<ApiContext>().use(requireUser);
 
 /**
- * Public promos read: channel-distributed printings with their cards, bans,
- * errata, images, and per-channel rollup counts.
- *
- * Scoped to one language. The page is per-language, and serving every language
- * to each of them put enough into the SSR stream to blank the page.
- * `languages` still names all of them, so the switcher knows what exists.
+ * Scoped to one language: serving every language put enough into the SSR
+ * stream to blank the page. `languages` still names all of them.
  */
 export const promosRouter = {
   list: os.list.handler(async ({ input, context }): Promise<PromosListResponse> => {
@@ -50,7 +46,6 @@ export const promosRouter = {
     const cards = buildCardsResponse(cardRows, banRows, errataRows);
     const printings = buildPrintingsResponse(printingRows, imageRows, decorations);
 
-    // Count cards + printings per channel by walking the resolved links.
     const channelCounts = new Map<string, { cards: Set<string>; printings: number }>();
     for (const printing of printings) {
       for (const link of printing.distributionChannels) {
@@ -64,8 +59,6 @@ export const promosRouter = {
       }
     }
 
-    // Roll printing counts from each channel up to its ancestors so a parent
-    // header can display the aggregate without each page re-walking the tree.
     const rollupCards = new Map<string, Set<string>>();
     const rollupPrintings = new Map<string, number>();
     const channelById = new Map(allChannels.map((ch) => [ch.id, ch]));

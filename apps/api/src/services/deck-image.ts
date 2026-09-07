@@ -36,26 +36,13 @@ import {
 } from "./share-image-core.js";
 
 /**
- * Two resolutions share one layout via the `scale` arg: the og:image renders at
- * 1× (1200×630); the download renders at 2× by embedding raster sources (card
- * art, glyphs, QR) at the matching resolution while satori lays out once at base
- * size. The tile itself, the QR mark, and the card aspect come from
- * `share-image-core` so this image and the list and tier-list images stay one
- * family.
- *
- * The two canvases are two compositions rather than one resized layout: the
- * landscape layout is horizontal at its core (a legend panel *beside* a grid,
- * with a band whose tiles absorb the grid's vertical slack), which turned
- * upright is inside out. The vertical export stacks fixed-height bands and
- * gives the grid the rest, so nearly all of its 2.7× pixel count reaches the
- * main grid. Vertical is download-only — no crawler consumes a 9:16 og:image.
+ * `scale` picks resolution for one satori layout: 1x for the og:image
+ * (1200x630), 2x for the download, embedding raster sources at that resolution.
+ * Landscape and vertical are separate compositions, not one resized layout.
+ * Vertical is download-only; no crawler consumes a 9:16 og:image.
  */
 
-/**
- * Per-canvas geometry. Everything that differs between the two compositions
- * lives here rather than being branched on at each use, so a vertical tweak
- * cannot silently move the landscape og:image.
- */
+/** Per-canvas geometry. Everything that differs between the two compositions lives here, not branched on at each use. */
 interface DeckCanvas {
   width: number;
   height: number;
@@ -315,8 +302,7 @@ async function renderLandscapeDeckImage(
       )
     : 0;
 
-  // The host-label width is estimated generously (12px/char at 20px) so the
-  // sections shrink rather than shoving the label past the clipped right edge.
+  // Host-label width is overestimated at 12px/char (20px font) to keep it off the clipped right edge.
   const footerMarkW = input.siteHost ? input.siteHost.length * 12 : 0;
   const bottomRowAvailW = rightW - (footerMarkW > 0 ? footerMarkW + BODY_GAP : 0);
   const bottomUnitW = bfCount * BATTLEFIELD_ASPECT + runeCount * CARD_ASPECT;
@@ -418,9 +404,7 @@ async function renderLandscapeDeckImage(
             color: COLORS.gold,
             transform: `translateY(${baselineNudge(canvas.titleSize, canvas.bylineSize)}px)`,
           },
-          // "by Name" rather than "· Name": the middle dot is a mid-height glyph
-          // that floats oddly beside the much larger deck title, whereas plain
-          // lowercase text shares the title's baseline cleanly.
+          // "by Name", not "· Name": the middle-dot glyph floats off the title baseline at this size.
           `by ${input.ownerName}`,
         )
       : false,
@@ -446,10 +430,7 @@ async function renderLandscapeDeckImage(
             alignItems: "center",
             marginLeft: 14,
             gap: 6,
-            // The glyphs are art, not type, so they centre on the metadata run
-            // rather than sitting on its baseline. In a bottom-aligned row that
-            // means offsetting by the run's own nudge plus half the height
-            // difference between a glyph and the text box.
+            // Glyphs center on the metadata run, not its baseline: offset by the run's nudge plus half the glyph/text height difference.
             transform: `translateY(${baselineNudge(canvas.titleSize, canvas.metaSize) + (canvas.domainIcon - canvas.metaSize) / 2}px)`,
           },
           ...domainIcons,
@@ -640,10 +621,6 @@ function fitRowTileH(count: number, areaW: number, aspect: number, maxH: number)
   return Math.max(1, Math.floor(Math.min(maxH, (areaW - (count - 1) * GAP) / count / aspect)));
 }
 
-/**
- * Stacked over two lines rather than strung along a single row because the
- * canvas is narrower than landscape while the type is larger.
- */
 function verticalTitleBlock(
   input: DeckImageInput,
   canvas: DeckCanvas,
@@ -687,7 +664,6 @@ function verticalTitleBlock(
               fontWeight: 600,
               color: COLORS.gold,
             },
-            // "by Name" rather than "· Name", as on the landscape image.
             `by ${input.ownerName}`,
           )
         : false,
@@ -743,8 +719,8 @@ function verticalTitleBlock(
 }
 
 /**
- * 1× is already 1080×1920, the native upload size for every vertical surface,
- * so `scale` here is editing headroom rather than the deliverable.
+ * 1x already renders at 1080x1920, the native upload size for every vertical
+ * surface; `scale` above 1 adds editing headroom, not resolution.
  */
 async function renderVerticalDeckImage(
   io: Io,
@@ -766,9 +742,8 @@ async function renderVerticalDeckImage(
   const bfCount = battlefields.length;
   const runeCount = runeCards.length;
 
-  // Only a deck with a legend gets an identity band; a freeform deck sends
-  // battlefields and runes to the full-width stack below the grid instead,
-  // where they read as sections rather than as an identity that isn't there.
+  // Only a deck with a legend gets an identity band; a freeform deck's
+  // battlefields and runes go to the full-width stack below the grid instead.
   const hasIdentityBand = legend !== null;
   const legendW = VERTICAL_LEGEND_W;
   const legendH = Math.round(legendW / CARD_ASPECT);
@@ -894,10 +869,7 @@ async function renderVerticalDeckImage(
         {
           display: "flex",
           flexDirection: "column",
-          // Both sections are capped by the width they have to share, so they
-          // rarely add up to the legend's height. Pushing them apart pins the
-          // first to the hero's top edge and the last to its bottom, which
-          // squares off the band instead of leaving it visibly short.
+          // The two sections rarely add up to the legend's height; space-between pins the first to the hero's top edge and the last to its bottom.
           justifyContent: "space-between",
           width: identityRightW,
           height: legendH,
@@ -925,9 +897,7 @@ async function renderVerticalDeckImage(
       ),
     );
 
-  // The grid block absorbs the layout's slack. Centring it keeps a deck too
-  // small to fill the area sitting between its bands rather than pinned under
-  // the identity one with a hole beneath.
+  // Centered so a deck too small to fill the grid area sits between its bands, not pinned under the identity band with a gap beneath.
   const gridBlock = element(
     "div",
     {

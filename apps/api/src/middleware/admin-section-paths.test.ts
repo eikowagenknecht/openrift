@@ -15,15 +15,12 @@ describe("sectionAllowsRequest", () => {
       "/api/admin/v1/cards/0197a1b2-0000-7000-a000-000000000001/custom-tags",
     ])("allows %s", (path) => {
       expect(sectionAllowsRequest("custom-tags", "GET", path)).toBe(true);
-      // custom-tags matching is method-agnostic (its endpoints are all its own prefix)
       expect(sectionAllowsRequest("custom-tags", "POST", path)).toBe(true);
     });
 
     it.each([
-      // prefix must match on a segment boundary, not as a raw string prefix
       "/api/admin/v1/custom-tags-evil",
       "/api/admin/v1/custom-tag-categories-evil",
-      // other admin surfaces stay closed
       "/api/admin/v1/me",
       "/api/admin/v1/users",
       "/api/admin/v1/admin-grants",
@@ -47,9 +44,7 @@ describe("sectionAllowsRequest", () => {
     });
 
     it.each([
-      // prefix must match on a segment boundary, not as a raw string prefix
       "/api/admin/v1/products-evil",
-      // other admin surfaces stay closed
       "/api/admin/v1/custom-tags",
       "/api/admin/v1/users",
       "/api/admin/v1/cards/all-cards",
@@ -111,7 +106,6 @@ describe("sectionAllowsRequest", () => {
     });
 
     it.each([
-      // reads that share the /cards/{slug} shape but stay admin-only
       "/api/admin/v1/cards/export",
       "/api/admin/v1/cards/provider-stats",
       "/api/admin/v1/cards/provider-names",
@@ -120,7 +114,6 @@ describe("sectionAllowsRequest", () => {
     });
 
     it.each([
-      // triage stays full-admin
       ["POST", "/api/admin/v1/cards/some-id/check"],
       ["POST", "/api/admin/v1/cards/some-id/uncheck"],
       ["POST", "/api/admin/v1/cards/some-id/check-all"],
@@ -129,10 +122,8 @@ describe("sectionAllowsRequest", () => {
       ["POST", "/api/admin/v1/cards/candidate-printings/check-all"],
       ["POST", "/api/admin/v1/ignored-candidates/cards"],
       ["DELETE", "/api/admin/v1/ignored-candidates/cards"],
-      // accept-favorites shortcuts stay full-admin (anchored accept patterns)
       ["POST", "/api/admin/v1/cards/new/some-name/accept-favorites"],
       ["POST", "/api/admin/v1/cards/some-slug/accept-favorite-printings"],
-      // manual creation / structural edits stay full-admin
       ["POST", "/api/admin/v1/cards/create"],
       ["POST", "/api/admin/v1/cards/some-id/printings"],
       ["POST", "/api/admin/v1/cards/some-id/rename"],
@@ -140,22 +131,18 @@ describe("sectionAllowsRequest", () => {
       ["POST", "/api/admin/v1/cards/candidate-printings/some-id/copy"],
       ["POST", "/api/admin/v1/cards/candidate-printings/link"],
       ["DELETE", "/api/admin/v1/cards/printing/some-id"],
-      // errata / bans / upload / by-provider stay full-admin
       ["POST", "/api/admin/v1/cards/some-id/errata"],
       ["DELETE", "/api/admin/v1/cards/some-id/errata"],
       ["POST", "/api/admin/v1/cards/errata/upload"],
       ["POST", "/api/admin/v1/cards/upload"],
       ["POST", "/api/admin/v1/cards/by-provider/some-provider/check"],
       ["DELETE", "/api/admin/v1/cards/by-provider/some-provider"],
-      // destructive / external image actions stay full-admin
       ["DELETE", "/api/admin/v1/cards/printing-images/some-id"],
       ["POST", "/api/admin/v1/cards/printing-images/some-id/unrehost"],
       ["POST", "/api/admin/v1/cards/printing/some-id/add-image-url"],
       ["POST", "/api/admin/v1/cards/printing/some-id/upload-image"],
-      // provider-settings writes stay full-admin (list GET is allowed)
       ["PATCH", "/api/admin/v1/provider-settings/some-provider"],
       ["PUT", "/api/admin/v1/provider-settings/reorder"],
-      // marketplace and other admin surfaces stay closed
       ["GET", "/api/admin/v1/unified-mappings"],
       ["GET", "/api/admin/v1/custom-tags"],
       ["GET", "/api/admin/v1/users"],

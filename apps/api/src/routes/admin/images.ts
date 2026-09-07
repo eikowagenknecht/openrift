@@ -26,11 +26,6 @@ const log = createLogger("admin");
 
 const os = implement(adminImagesContract).$context<ApiContext>().use(requireAuthedUser);
 
-/**
- * Admin image tooling. `rehost` / `regenerate` read their options from the
- * query input. Not-found / conflict states are thrown as `AppError` and mapped
- * by the handler's appErrorInterceptor.
- */
 export const adminImagesRouter = {
   rehost: os.rehost.handler(async ({ input, context }) => {
     const { printingImages } = context.repos;
@@ -43,10 +38,8 @@ export const adminImagesRouter = {
     const io = context.io;
     const { reset, skipExisting, scansOnly } = input.query;
 
-    // Auto-resume from the most recent failed run with a valid checkpoint
-    // that still has work left, unless ?reset=true was passed. A scans-only
-    // request never resumes: the prior checkpoint's snapshot may span the
-    // whole catalog, which is exactly what the caller asked to avoid.
+    // scansOnly never resumes: the prior checkpoint's snapshot may span the
+    // whole catalog, which scansOnly is meant to avoid.
     let resumeFrom: { runId: string; checkpoint: RegenerateImagesCheckpoint } | undefined;
     if (!reset && !scansOnly) {
       const prior = await repos.jobRuns.findLatestForResume(REGENERATE_IMAGES_KIND);
@@ -69,10 +62,7 @@ export const adminImagesRouter = {
           runId,
           { resumeFrom, skipExisting: skipExisting ?? false, scansOnly: scansOnly ?? false },
         ),
-      // Persist the final checkpoint as the run's `result` so the admin UI can
-      // show counts + per-image errors after the job finishes. Drop the
-      // per-image `snapshot` since it's only needed for mid-run resume and
-      // would bloat the row.
+      // Drop the per-image `snapshot`: only needed for mid-run resume, would bloat the row.
       {
         summarize: ({ snapshot: _snapshot, ...summary }) => summary,
       },
@@ -87,8 +77,6 @@ export const adminImagesRouter = {
     }
     const current = await jobRuns.getResult(running.id);
     if (!isRegenerateImagesCheckpoint(current)) {
-      // Job started but hasn't written its first checkpoint yet — nothing to
-      // flag. The caller can retry once progress shows up.
       throw new AppError(
         409,
         ERROR_CODES.CONFLICT,

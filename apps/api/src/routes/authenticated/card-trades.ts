@@ -94,8 +94,7 @@ export const cardTradesRouter = {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Member not found");
     }
 
-    // Promise.all keeps the groups in their sorted order, which is what decides
-    // where a row shared by several groups gets attributed.
+    // Must preserve `groups`' sorted order: it decides attribution for rows shared by several groups.
     const matchesByGroup = await Promise.all(
       groups.map(async (group) => {
         const scope = { groupId: group.id, viewerUserId: viewerId, counterpartyUserId };

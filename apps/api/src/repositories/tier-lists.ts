@@ -7,9 +7,8 @@ import { findByShareToken, selectShareState, updateShareState } from "./query-he
 export type TierList = Selectable<TierListsTable>;
 
 /**
- * A shared tier list plus its owner's identity, for the public share view. The
- * email is carried so the route can derive a gravatar hash without a second
- * lookup; it never reaches a response.
+ * The email is carried so the route can derive a gravatar hash without a
+ * second lookup; it never reaches a response.
  */
 export interface SharedTierList {
   tierList: TierList;
@@ -26,10 +25,7 @@ export interface LegacyTierListRow {
   cardIds?: string[];
 }
 
-/**
- * Brings a stored row up to the current entry shape. A legacy `cardIds` row
- * becomes entries pinned to no printing, which is exactly what it meant.
- */
+/** A legacy `cardIds` row becomes entries pinned to no printing. */
 export function normalizeTiers(tiers: (TierListRow | LegacyTierListRow)[]): TierListRow[] {
   return tiers.map((tier) => {
     if ("cards" in tier && Array.isArray(tier.cards)) {
@@ -39,9 +35,7 @@ export function normalizeTiers(tiers: (TierListRow | LegacyTierListRow)[]): Tier
           cardId: card.cardId,
           printingId: card.printingId ?? null,
         })),
-        // Carried only when set, matching the contract: an absent flag and a
-        // false one mean the same thing, and boards saved before the unranked
-        // row existed have no flag at all.
+        // Contract: an absent flag and a false one mean the same thing.
         ...(tier.unranked === true ? { unranked: true } : {}),
       };
     }
@@ -53,21 +47,14 @@ export function normalizeTiers(tiers: (TierListRow | LegacyTierListRow)[]): Tier
   });
 }
 
-/**
- * Applied at the single exit point of each query rather than at call sites, so
- * a new query cannot forget it.
- */
+/** Called at each query's single exit point; a new query that skips it returns unnormalized legacy tiers. */
 function withParsedTiers<Row extends { tiers: TierListRow[] }>(row: Row): Row {
   return { ...row, tiers: normalizeTiers(row.tiers as (TierListRow | LegacyTierListRow)[]) };
 }
 
 /**
- * Queries for creator-authored tier lists.
- *
- * Every owner-scoped method takes `userId` and filters on it, so an id
- * belonging to someone else matches nothing rather than erroring — the routes
- * carry no separate ownership pre-check. `findByShareToken` is the one
- * unscoped read, and it additionally requires `is_public`.
+ * Owner-scoped methods filter on `userId`; a mismatched id returns nothing, not an error.
+ * `findByShareToken` is the one unscoped read, gated by `is_public`.
  */
 export function tierListsRepo(db: Kysely<Database>) {
   return {
@@ -105,8 +92,7 @@ export function tierListsRepo(db: Kysely<Database>) {
           userId,
           title: values.title,
           description: values.description,
-          // Kysely types the column as the parsed shape; postgres.js serializes
-          // the array for the jsonb parameter, so no manual stringify here.
+          // postgres.js serializes the array for the jsonb parameter; no manual stringify.
           tiers: values.tiers,
         })
         .returningAll()
@@ -115,9 +101,8 @@ export function tierListsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Applies a partial edit. `undefined` fields are left alone, so the builder
-     * can save the board without restating the title. Not a no-op guard: the
-     * caller only reaches this with at least one field set.
+     * `undefined` fields are left alone. Not a no-op guard: the caller only
+     * reaches this with at least one field set.
      */
     async update(
       id: string,
@@ -147,10 +132,7 @@ export function tierListsRepo(db: Kysely<Database>) {
       return (result.numDeletedRows ?? 0n) > 0n;
     },
 
-    /**
-     * An owned-but-unshared list reports `{ shareToken: null, isPublic: false }`
-     * rather than being indistinguishable from a missing one.
-     */
+    /** An owned-but-unshared list reports `{ shareToken: null, isPublic: false }`, not undefined. */
     getShareState(
       id: string,
       userId: string,

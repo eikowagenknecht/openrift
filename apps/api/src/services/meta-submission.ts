@@ -32,15 +32,7 @@ import { AppError } from "../errors.js";
 import { isValidIsoDate } from "../lib/iso-date.js";
 import { loadCardNameIndex, resolveCardIdByName } from "./candidate-links.js";
 
-/**
- * How many submissions one person may have awaiting review at once.
- *
- * A pending cap rather than a rolling daily one: a meta submission
- * costs an admin a review of a whole decklist, so the thing worth bounding is
- * the queue a single person can build up, and it clears itself as the archive
- * catches up. Ten is comfortably more than a real contributor sends between
- * reviews and far below what makes the queue unusable.
- */
+/** How many submissions one person may have awaiting review at once. */
 export const META_PENDING_SUBMISSION_LIMIT = 10;
 
 interface MetaSubmissionProposedEvent {

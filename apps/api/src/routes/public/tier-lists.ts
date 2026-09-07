@@ -10,12 +10,8 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(publicTierListsContract).$context<ApiContext>().use(requireUser);
 
 /**
- * Public shared tier-list view. An unknown token — or one whose list is no
- * longer public — returns a typed NOT_FOUND, so revoking a share is
- * indistinguishable from a link that never existed.
- *
- * Cards travel as bare ids: the share page resolves them against the catalogue
- * the client already holds, the same way the shared-collection page does.
+ * An unknown or no-longer-public share token returns NOT_FOUND either way.
+ * Cards travel as bare ids, resolved against the client's own catalogue.
  */
 export const publicTierListsRouter = {
   share: os.share.handler(

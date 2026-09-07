@@ -7,10 +7,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { contactMethodsRouter } from "./contact-methods";
 
-// ---------------------------------------------------------------------------
-// Mock repo
-// ---------------------------------------------------------------------------
-
 const mockContactMethodsRepo = {
   listForUser: vi.fn(() => Promise.resolve([] as object[])),
   create: vi.fn(() => Promise.resolve(undefined as object | undefined)),
@@ -18,10 +14,6 @@ const mockContactMethodsRepo = {
   delete: vi.fn(() => Promise.resolve(false)),
   reorder: vi.fn(() => Promise.resolve()),
 };
-
-// ---------------------------------------------------------------------------
-// Test app
-// ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
@@ -39,19 +31,11 @@ app.onError((err, c) => {
   throw err;
 });
 
-// ---------------------------------------------------------------------------
-// Test data
-// ---------------------------------------------------------------------------
-
 const METHOD_ID = "a0000000-0001-4000-a000-000000000020";
 const OTHER_ID = "a0000000-0001-4000-a000-000000000021";
 
 const discordMethod = { id: METHOD_ID, type: "discord", value: "alice#1234" };
 const emailMethod = { id: OTHER_ID, type: "email", value: "alice@example.com" };
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 beforeEach(() => vi.resetAllMocks());
 

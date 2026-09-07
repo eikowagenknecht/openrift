@@ -7,18 +7,9 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { collectionEventsRouter } from "./collection-events";
 
-// ---------------------------------------------------------------------------
-// Mock repos
-// ---------------------------------------------------------------------------
-
 const mockCollectionEventsRepo = {
   listForUser: vi.fn(() => Promise.resolve([] as object[])),
 };
-
-// ---------------------------------------------------------------------------
-// Test app — mounts the oRPC handler as production does; a pre-set user
-// satisfies requireAuth (resolveSession is idempotent).
-// ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
@@ -37,10 +28,6 @@ app.onError((err, c) => {
   }
   throw err;
 });
-
-// ---------------------------------------------------------------------------
-// Test data
-// ---------------------------------------------------------------------------
 
 const now = new Date("2026-03-17T00:00:00Z");
 
@@ -62,10 +49,6 @@ const dbEvent = {
   cardSuperTypes: ["Dragon"],
   tags: [],
 };
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("GET /api/v1/collection-events", () => {
   beforeEach(() => {
@@ -175,7 +158,6 @@ describe("GET /api/v1/collection-events", () => {
     const res = await app.request("/api/v1/collection-events?limit=10");
     const json = await readJson(res);
     expect(json.items).toHaveLength(10);
-    // Last item in the sliced array (index 9): createdAt = lastDate - 9s, id = ...000000000009
     const expectedTime = new Date(lastDate.getTime() - 9000).toISOString();
     expect(json.nextCursor).toBe(`${expectedTime}_a0000000-0001-4000-a000-000000000009`);
   });

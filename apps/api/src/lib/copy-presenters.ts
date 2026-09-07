@@ -1,6 +1,5 @@
 import type { CopyLink, CopyResponse, PublicCopyResponse } from "@openrift/shared";
 
-/** The per-copy metadata fields (ADR-038) as they appear on responses. */
 interface CopyMetadataFields {
   condition: string | null;
   grader: string | null;
@@ -11,10 +10,6 @@ interface CopyMetadataFields {
   links: CopyLink[];
 }
 
-/**
- * Maps a copy row to CopyResponse.
- * @returns The serialized copy response.
- */
 export function toCopy(
   row: {
     id: string;
@@ -42,12 +37,7 @@ export function toCopy(
   };
 }
 
-/**
- * Maps a copy row to the narrower public projection for anonymous share
- * viewers — withholds the owner-internal `groupId`/`collectionId` and the
- * owner's `notesPrivate` (never exposed on public surfaces, ADR-038).
- * @returns The serialized public copy response.
- */
+/** Withholds the owner-internal `groupId`/`collectionId` and `notesPrivate`. */
 export function toPublicCopy(
   row: { id: string; printingId: string } & CopyMetadataFields,
 ): PublicCopyResponse {

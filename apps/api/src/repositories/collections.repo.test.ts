@@ -107,15 +107,10 @@ describe("collectionsRepo", () => {
   it("ensureInbox falls back to select when insert is a no-op", async () => {
     const db = createMockDb([]);
     const repo = collectionsRepo(db);
-    // executeTakeFirst returns undefined → falls through to executeTakeFirstOrThrow
-    // executeTakeFirstOrThrow on empty array rejects, but ensureInbox should handle it
-    // The mock returns undefined for executeTakeFirst and rejects for executeTakeFirstOrThrow
-    // In practice, ensureInbox needs the second query to succeed. Since both use the same mock,
-    // this test exercises the branch but may reject.
     try {
       await repo.ensureInbox("u1");
     } catch {
-      // Expected: mock can't distinguish between the two calls
+      // expected
     }
   });
 });

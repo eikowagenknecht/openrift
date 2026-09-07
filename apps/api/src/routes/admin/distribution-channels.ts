@@ -14,15 +14,8 @@ const os = implement(adminDistributionChannelsContract)
   .use(requireAuthedUser);
 
 /**
- * Turns a rejection from the hierarchy trigger (migration 094: cycles, a kind
- * that disagrees with the parent's, the depth cap, a parent that already has
- * printings) into a 409. Those rules live in the database, so without this
- * every one of them surfaces as an uncaught 500 despite being the caller's
- * mistake. The trigger's messages are written for a human, so they carry
- * through as-is.
- *
- * @returns The error to throw — a 409 carrying the trigger's message,
- *   otherwise the original error.
+ * Maps a hierarchy-trigger rejection (cycle, kind mismatch, depth cap, parent
+ * already has printings) to a 409; the trigger's message is already human-readable.
  */
 function asHierarchyConflict(error: unknown): unknown {
   const raised = raisedExceptionMessage(error);
@@ -33,10 +26,7 @@ function asHierarchyConflict(error: unknown): unknown {
 }
 
 /**
- * Admin distribution-channels taxonomy CRUD. Channels are keyed by their UUID
- * `id` and may nest via `parentId`. Conflict / not-found / has-children /
- * in-use states are thrown as `AppError` and mapped by the handler's
- * appErrorInterceptor.
+ * Channels are keyed by their UUID `id` and may nest via `parentId`.
  */
 export const adminDistributionChannelsRouter = {
   list: os.list.handler(async ({ context }) => {
@@ -119,15 +109,12 @@ export const adminDistributionChannelsRouter = {
         throw new AppError(409, ERROR_CODES.CONFLICT, `Slug "${body.slug}" already in use`);
       }
     }
-    // A PATCH carries only the fields it means to change, so an absent
-    // `parentId` leaves the row where it is. Coercing it to null here would
-    // reparent every channel to the root on any partial edit.
+    // Coercing an absent `parentId` to null here would reparent every
+    // channel to the root on any partial edit.
     const updates = { ...body };
     if (Object.keys(updates).length === 0) {
       return;
     }
-    // When the parent changes, append the row to the new sibling group's end
-    // so sort orders don't collide with existing siblings under that parent.
     const parentChanged =
       body.parentId !== undefined && (body.parentId ?? null) !== existing.parentId;
     try {

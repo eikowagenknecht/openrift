@@ -30,15 +30,6 @@ function normalizeText(value: string | null | undefined): string | null | undefi
 
 const os = implement(tierListsContract).$context<ApiContext>().use(requireAuthedUser);
 
-/**
- * Creator-authored tier lists, mounted at `/api/v1/tier-lists`.
- *
- * Every read and write is user-scoped in the repository, so a list belonging to
- * someone else resolves to nothing and surfaces as NOT_FOUND — the caller never
- * learns whether the id exists. Sharing follows the deck precedent exactly:
- * `POST /share` is an idempotent enable, `DELETE /share` clears the token and
- * the flag together so a revoked link stops resolving immediately.
- */
 export const tierListsRouter = {
   list: os.list.handler(async ({ context }): Promise<TierListListResponse> => {
     const rows = await context.repos.tierLists.listForUser(context.userId);
@@ -52,8 +43,6 @@ export const tierListsRouter = {
   }),
 
   create: os.create.handler(async ({ input, context }): Promise<TierListResponse> => {
-    // A list with no rows has nothing to drag into, so an omitted board starts
-    // on the default ladder rather than empty.
     const row = await context.repos.tierLists.create(context.userId, {
       // The contract's `.trim()` already normalized the title.
       title: input.title,
@@ -65,8 +54,7 @@ export const tierListsRouter = {
 
   update: os.update.handler(async ({ input, context }): Promise<TierListResponse> => {
     const { id, title, description, tiers } = input;
-    // Spread-in-place rather than a fully-optional object literal: an explicit
-    // `undefined` key would still reach Kysely's SET clause and null the column.
+    // An explicit `undefined` key here reaches Kysely's SET clause and nulls the column.
     const values: Parameters<typeof context.repos.tierLists.update>[2] = {};
     if (title !== undefined) {
       values.title = title;
@@ -80,8 +68,7 @@ export const tierListsRouter = {
     }
 
     if (Object.keys(values).length === 0) {
-      // Nothing to write, but the caller still expects the current state — and
-      // an empty SET is not valid SQL.
+      // An empty values object would produce an empty SET, which is invalid SQL.
       const current = await context.repos.tierLists.getByIdForUser(id, context.userId);
       assertFound(current, NOT_FOUND);
       return toTierList(current);
@@ -99,9 +86,6 @@ export const tierListsRouter = {
     }
   }),
 
-  // Idempotent enable: an already-shared list returns its existing token rather
-  // than minting a new one, so re-opening the share dialog never invalidates a
-  // link the creator has already put in a video description.
   share: os.share.handler(async ({ input, context }): Promise<TierListShareResponse> => {
     const { tierLists } = context.repos;
     const existing = await tierLists.getShareState(input.id, context.userId);
@@ -118,8 +102,6 @@ export const tierListsRouter = {
     return { shareToken: token, isPublic: true };
   }),
 
-  // Clears the token as well as the flag: re-sharing later mints a fresh one, so
-  // a link that was revoked can never come back to life.
   unshare: os.unshare.handler(async ({ input, context }): Promise<void> => {
     const updated = await context.repos.tierLists.setShare(input.id, context.userId, null, false);
     assertFound(updated, NOT_FOUND);

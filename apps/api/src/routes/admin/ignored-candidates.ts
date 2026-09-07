@@ -11,10 +11,6 @@ import { recordAdminEvent } from "../../services/record-admin-event.js";
 
 const os = implement(adminIgnoredCandidatesContract).$context<ApiContext>().use(requireAuthedUser);
 
-/**
- * Admin ignored-candidates controls. Any thrown `AppError` is mapped by the
- * handler's appErrorInterceptor.
- */
 export const adminIgnoredCandidatesRouter = {
   list: os.list.handler(async ({ context }) => {
     const { ignoredCandidates } = context.repos;
@@ -46,8 +42,8 @@ export const adminIgnoredCandidatesRouter = {
     const { provider, externalId } = input;
     await ignoredCandidates.ignoreCard({ provider, externalId });
 
-    // For a user submission this action is a rejection, and the per-submission
-    // external_id makes the key exact (ADR-036). No-ops for scraped providers.
+    // For a user submission this rejects it (per-submission external_id makes
+    // the key exact); no-ops for scraped providers.
     await rejectIgnoredSubmission(context.repos, {
       provider,
       externalId,

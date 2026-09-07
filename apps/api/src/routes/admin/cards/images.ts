@@ -88,11 +88,7 @@ export const adminCardImagesRouter = {
 
     const imageFileId = await printingImages.getImageFileId(imageId);
 
-    // Check whether anything else still shows this file before deleting it from
-    // disk: another printing_image sharing the image_file, or a printing that
-    // pins it as substitute art. A pin outlives the scan it was taken from, so
-    // skipping that check would leave the pinning printing pointing at files
-    // that are gone.
+    // A pin can outlive the scan it was taken from, so check pins too before deleting the file from disk.
     const othersUsingFiles = imageFileId
       ? (await printingImages.countOthersByImageFileId(imageFileId, imageId)) +
         (await printingImages.countPinsByImageFileId(imageFileId))
@@ -191,10 +187,8 @@ export const adminCardImagesRouter = {
     const rehostedUrl = imageRehostedUrl(image.imageFileId);
     const outputDir = join(CARD_MEDIA_DIR, image.imageFileId.slice(-2));
 
-    // A manual re-host is an explicit regenerate: overwrite any existing files.
-    // Since accepting a printing now auto-rehosts in the background, the files
-    // usually already exist by the time an admin clicks Rehost, and defaulting
-    // allowOverwrite to false would throw "Rehost files already exist".
+    // allowOverwrite=true: accepting a printing auto-rehosts in the background, so files usually
+    // already exist by the time an admin clicks Rehost.
     await processAndSave(
       context.io,
       buffer,
@@ -311,13 +305,10 @@ export const adminCardImagesRouter = {
     const buffer = Buffer.from(await file.arrayBuffer());
     const ext = file.name ? `.${file.name.split(".").pop()?.toLowerCase() ?? "png"}` : ".png";
 
-    // Pre-compute paths so rehostedUrl can be included in the INSERT
     const imageId = uuidv7();
     const rehostedUrl = imageRehostedUrl(imageId);
     const outputDir = join(CARD_MEDIA_DIR, imageId.slice(-2));
 
-    // New uploads default to needsTrim=false (digital). Admin opts in via the
-    // needs-trim toggle after upload — see set-needs-trim route.
     await processAndSave(context.io, buffer, ext, outputDir, imageId, 0, false);
 
     await context.transact((trxRepos) =>
@@ -391,9 +382,7 @@ export const adminCardImagesRouter = {
     const imageFileId = await printingImages.imageFileForUrl(url);
     await printingImages.setFallbackArt(printingId, "pinned", imageFileId);
 
-    // Best-effort, like every other add-from-URL path: an un-rehosted pin is
-    // not servable, and the catalog reports it as `auto` until the retry lands,
-    // so the printing shows derived art rather than nothing.
+    // Best-effort: the catalog reports fallbackArtMode "auto" until the retry lands if this fails.
     await rehostImageFile(context.io, printingImages, imageFileId);
 
     await recordAdminEvent(context.repos, context.userId, {

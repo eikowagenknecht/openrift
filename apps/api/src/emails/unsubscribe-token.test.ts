@@ -33,7 +33,6 @@ describe("unsubscribe-token", () => {
   });
 
   it("rejects a token naming an unknown channel", () => {
-    // A well-formed-looking token for a channel we don't recognise.
     const forged = `${Buffer.from(USER_ID).toString("base64url")}.somethingElse.sig`;
     expect(verifyUnsubscribeToken(SECRET, forged)).toBeNull();
   });

@@ -7,12 +7,8 @@ import type { ApiContext } from "../../orpc/context.js";
 
 const os = implement(adminGrantsContract).$context<ApiContext>().use(requireAuthedUser);
 
-/**
- * Per-section admin grant management (full admins only — the `requireAdmin`
- * gate never lets grant holders reach this surface). `list` filters out grants
- * whose section slug is no longer in the shared registry, matching what the
- * gate itself authorizes.
- */
+// `list` filters out grants whose section slug isn't in the shared registry,
+// matching what the requireAdmin gate authorizes.
 export const adminGrantsRouter = {
   list: os.list.handler(async ({ context }) => {
     const rows = await context.repos.adminGrants.listAllWithUsers();

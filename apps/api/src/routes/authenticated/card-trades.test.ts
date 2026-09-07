@@ -7,10 +7,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { cardTradesRouter } from "./card-trades";
 
-// ---------------------------------------------------------------------------
-// Mock repos and services
-// ---------------------------------------------------------------------------
-
 const mockCardTradesRepo = {
   listDtoRowsForUser: vi.fn(() => Promise.resolve([] as object[])),
   actionNeededCountsForUser: vi.fn(() => Promise.resolve([] as object[])),
@@ -36,10 +32,6 @@ const mockCancelTrade = vi.fn(() => Promise.resolve({} as object));
 const mockSetTradeQuantity = vi.fn(() => Promise.resolve({} as object));
 const mockApplyTradeSync = vi.fn(() => Promise.resolve({} as object));
 const mockSkipTradeSync = vi.fn(() => Promise.resolve({} as object));
-
-// ---------------------------------------------------------------------------
-// Test app
-// ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
@@ -71,10 +63,6 @@ app.onError((err, c) => {
   }
   throw err;
 });
-
-// ---------------------------------------------------------------------------
-// Test data
-// ---------------------------------------------------------------------------
 
 const TRADE_ID = "a0000000-0001-4000-a000-000000000020";
 const PRINTING_ID = "a0000000-0001-4000-a000-000000000030";
@@ -110,7 +98,6 @@ const tradeResponse = {
   actionNeeded: null,
 };
 
-/** A trade as the DTO query hands it to the list handler, before presenting. */
 const tradeRow = {
   id: TRADE_ID,
   groupId: "a0000000-0001-4000-a000-000000000040",
@@ -168,7 +155,6 @@ const tradePref = {
   currency: null,
 };
 
-/** @returns A match row as the match repo hands it to the sheet handler. */
 function matchRow(overrides: Record<string, unknown> = {}) {
   return {
     counterpartyUserId: COUNTERPARTY_ID,
@@ -201,10 +187,6 @@ function matchRow(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 beforeEach(() => vi.resetAllMocks());
 
@@ -337,9 +319,7 @@ describe("GET /api/v1/trades/live-by-printing", () => {
     expect(mockCardTradesRepo.liveAnnotationsForUser).toHaveBeenCalledWith(USER_ID);
   });
 
-  // The endpoint feeds a card browser, where a leaked counterparty or group
-  // would put an in-progress negotiation on a shoulder-surfable surface.
-  it("carries no counterparty, group or user identity", async () => {
+  it("carries no counterparty, group or user identity (feeds a public card browser)", async () => {
     mockCardTradesRepo.liveAnnotationsForUser.mockResolvedValue([
       { printingId: PRINTING_ID, role: "giver", phase: "reserved", tradeCount: 1, quantity: 4 },
     ]);
@@ -364,7 +344,6 @@ describe("GET /api/v1/trades/live-by-printing", () => {
 });
 
 describe("GET /api/v1/trades/with/:userId", () => {
-  /** Points the roster and contact reads at the counterparty in every group. */
   function seedCounterparty() {
     mockFriendGroupsRepo.listMembers.mockResolvedValue([counterpartyMember]);
     mockFriendGroupsRepo.getRevealedContactsForMembers.mockResolvedValue(
@@ -464,8 +443,6 @@ describe("GET /api/v1/trades/with/:userId", () => {
     ]);
   });
 
-  // A shared group whose roster no longer carries the counterparty means the
-  // membership went away between the two reads.
   it("returns 404 when the counterparty is not on the roster", async () => {
     mockFriendGroupsRepo.sharedGroups.mockResolvedValue([GROUP_A]);
     mockFriendGroupsRepo.listMembers.mockResolvedValue([]);

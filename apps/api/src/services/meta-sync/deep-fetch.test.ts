@@ -61,7 +61,6 @@ interface PageCall {
   pageSize: number;
 }
 
-/** An accepted event: its key is linked to a live row, so promotion runs. */
 function acceptedSource(): { metaEventId: string } {
   return { metaEventId: "live-1" };
 }
@@ -69,22 +68,17 @@ function acceptedSource(): { metaEventId: string } {
 function fakeDeps(
   options: {
     registrations?: unknown[];
-    /** Registrations spread over several pages, for the truncation cases. */
     registrationPages?: unknown[][];
     /** Pages the source refuses, keyed `<path fragment>:<page>`. */
     failedPages?: string[];
     deck?: (deckId: string) => unknown;
     detail?: unknown;
-    /** Makes the event-detail read fail, the way a source blip does. */
     detailFails?: boolean;
     heldRounds?: string[];
     roundMatches?: (roundId: string) => unknown[];
     roundStandings?: (roundId: string) => unknown[];
-    /** Standings this event's mirror already holds. */
     standingsHeld?: Record<string, unknown>[];
-    /** Deck ids the mirror still owes, which is what the fetch asks for. */
     outstandingDecks?: string[];
-    /** The citation linking this key to a live event; absent means unaccepted. */
     source?: { metaEventId: string };
   } = {},
 ): {
@@ -98,7 +92,6 @@ function fakeDeps(
   liveMatches: Record<string, unknown>[];
   livePhases: Record<string, unknown>[];
   fetchMarks: { externalId: string; at: Date }[];
-  /** Mirror writes and reads in the order the pass made them. */
   callOrder: string[];
 } {
   const pageCalls: PageCall[] = [];
@@ -112,7 +105,6 @@ function fakeDeps(
   const fetchMarks: { externalId: string; at: Date }[] = [];
   const callOrder: string[] = [];
 
-  /** Which of the paginated endpoints a path is, and what this fake answers with. */
   function pageResults(path: string, page: number): unknown[] {
     const matchRound = /\/tournament-rounds\/(?<roundId>[^/]+)\/matches\//u.exec(path)?.groups
       ?.roundId;
@@ -262,8 +254,6 @@ describe("deepFetchEvent", () => {
 
     const result = await deepFetchEvent(deps, catalogRow());
 
-    // The standings are live either way; only the decks behind unmatched names
-    // are withheld, which is the pyramid working as intended.
     expect(result.skippedPlayers).toBe(0);
   });
 
@@ -287,8 +277,6 @@ describe("deepFetchEvent", () => {
 
     await deepFetchEvent(deps, catalogRow());
 
-    // A cancelled event legitimately mirrors no standings. Counting rows would
-    // leave the ladder revisiting it until the ladder ran out.
     expect(mirroredStandings).toEqual([]);
     expect(fetchMarks).toEqual([{ externalId: "365708", at: NOW }]);
   });
@@ -312,8 +300,6 @@ describe("deepFetchEvent", () => {
 
     await deepFetchEvent(deps, catalogRow({ decklistStatus: "PUBLISHED" }));
 
-    // The gap is computed from deck ids this pass just wrote, so a first visit
-    // asks for decks instead of finding an empty mirror and fetching none.
     expect(callOrder).toEqual(["replaceStandings", "deckCoverage"]);
   });
 
@@ -334,8 +320,6 @@ describe("deepFetchEvent", () => {
 
     await deepFetchEvent(deps, catalogRow({ decklistStatus: "PUBLISHED" }));
 
-    // A 4xx is the source refusing for good, so the id is recorded and never
-    // asked for again. A 503 records nothing, leaving it fetchable next pass.
     expect(storedDecklists.map((entry) => entry.row)).toEqual([
       expect.objectContaining({ sourceDeckId: "d-gone", fetchStatus: "refused" }),
     ]);
@@ -389,7 +373,6 @@ describe("deepFetchEvent", () => {
       winnerUvsgamesId: 11,
     });
     expect(result.stagedMatches).toBe(1);
-    // Matches never land in the stored raw payload.
   });
 
   it("leaves a round unstaged when one of its match pages fails", async () => {
@@ -442,14 +425,11 @@ describe("deepFetchEvent", () => {
 
     const result = await deepFetchEvent(deps, catalogRow());
 
-    // The mirror replaces an event's standings wholesale, so a short list
-    // would delete the players it did not carry.
     expect(mirroredStandings).toEqual([]);
     expect(result.players).toBe(0);
     expect(result.errors.at(-1)).toContain("came back incomplete");
   });
 
-  /** A premier event: two swiss rounds, then a top cut only the leaders enter. */
   const TOP_CUT_DETAIL = {
     tournament_phases: [
       {
@@ -479,7 +459,6 @@ describe("deepFetchEvent", () => {
     };
   }
 
-  /** The round ids whose standings the pass asked for, in request order. */
   function standingsRoundsRead(calls: PageCall[]): string[] {
     return calls
       .map(

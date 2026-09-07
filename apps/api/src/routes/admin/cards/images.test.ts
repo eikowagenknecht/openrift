@@ -15,7 +15,6 @@ import { readJson } from "../../../test/read-json.js";
 import type { Variables } from "../../../types.js";
 import { adminCardImagesRouter } from "./images";
 
-// vitest hoists vi.mock() automatically.
 vi.mock("../../../services/images/index.js", () => ({
   CARD_MEDIA_DIR: "/mock/media/cards",
   rehostSingleImage: vi.fn(),
@@ -75,20 +74,15 @@ const mockTransact = vi.fn(
     callback({ printingImages: mockTrxPrintingImages }),
 );
 
-// Mounts the oRPC router directly, without the requireAdmin gate. AppErrors
-// thrown by handlers are bridged to ORPCErrors inside the router, so the
-// error body is `{ message, code }` (asserted via `json.message`).
+// AppErrors thrown by handlers are bridged to ORPCErrors, so the error body is `{ message, code }`.
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const mockIo = { fetch: vi.fn() };
 
-// Audit event sink (record-admin-event.ts); handlers write here best-effort.
 const mockAdminEvents = { insert: vi.fn() };
 
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
-  // requireAdmin isn't mounted here; emulate the access it would resolve for
-  // a full admin (the setImage handler reads it for card-review provider scoping).
   c.set("adminAccess", { isAdmin: true, sections: [] });
   c.set("io", mockIo as never);
   c.set("transact", mockTransact as never);
@@ -441,9 +435,7 @@ describe("POST /printing-images/:imageId/rehost", () => {
       "00594247-a18a-4efd-8998-105449a4c1ab",
       0,
       false,
-      // allowOverwrite: a manual re-host is an explicit regenerate. The
-      // background auto-rehost already wrote these files on accept, so without
-      // this processAndSave would throw "Rehost files already exist".
+      // allowOverwrite=true: the background auto-rehost already wrote these files on accept.
       true,
     );
     expect(mockPrintingImages.updateRehostedUrl).toHaveBeenCalledWith(
@@ -468,9 +460,6 @@ describe("POST /printing-images/:imageId/rehost", () => {
       method: "POST",
     });
     expect(res.status).toBe(200);
-    // The last positional arg to processAndSave is allowOverwrite; it must be
-    // true here or an admin re-hosting a freshly-accepted (already-rehosted)
-    // printing hits "Rehost files already exist".
     const allowOverwrite = mockProcessAndSave.mock.calls[0]?.at(-1);
     expect(allowOverwrite).toBe(true);
   });
@@ -773,7 +762,6 @@ describe("audit events", () => {
 const FALLBACK_ART = `/api/admin/v1/cards/printing/${PRINTING_ID}/fallback-art`;
 const IMAGE_FILE_ID = "00000000-0000-4000-a000-000000000004";
 
-/** Seeds the printing lookup every fallback-art handler starts from. */
 function mockPrintingWithAutoFallback(): void {
   mockPrintingImages.getFallbackArt.mockResolvedValue({
     id: "printing-1",
@@ -938,8 +926,6 @@ describe("POST /printing/:printingId/fallback-art/upload", () => {
       id: "mock-uuid-v7",
       rehostedUrl: "/media/cards/v7/mock-uuid-v7",
     });
-    // The whole point of the endpoint: no printing_images row, so the printing
-    // still counts as missing a scan everywhere coverage is tracked.
     expect(mockTrxPrintingImages.insertUploadedImage).not.toHaveBeenCalled();
     expect(mockTrxPrintingImages.setFallbackArt).toHaveBeenCalledWith(
       PRINTING_ID,

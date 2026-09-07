@@ -38,16 +38,14 @@ export async function clearAllRehosted(
       }
     }
   } catch {
-    // Directory doesn't exist — nothing to delete
+    // directory doesn't exist
   }
 
   return { cleared };
 }
 
 function diskFileToPrefix(dirPrefix: string, file: string): string {
-  // Match only the suffix after the LAST dash: `-<variant>.webp` or `-orig.<ext>`.
-  // The `[^-.]+` class prevents the suffix from swallowing an internal dash
-  // (e.g. `img-1-300w.webp` must become `img-1`, not `img`).
+  // `[^-.]+` matches only the last dash-suffix, so `img-1-300w.webp` becomes `img-1`, not `img`.
   return `/media/cards/${dirPrefix}/${file.replace(/-(?:orig\.[^.]+|[^-.]+\.webp)$/u, "")}`;
 }
 
@@ -96,7 +94,7 @@ async function scanDisk(io: Io): Promise<{
       totalBytes += dirBytes;
     }
   } catch {
-    // Directory doesn't exist yet
+    // directory doesn't exist yet
   }
 
   const byResolution = [...resByResolution.entries()]
@@ -126,12 +124,6 @@ export async function getRehostStatus(
     return { setId: row.setId, setName: row.setName, total: t, rehosted: r, external: t - r };
   });
 
-  // Count orphaned files: the DB doesn't know the base UUID, or the filename
-  // uses a variant suffix that's no longer in the current SIZES config
-  // (e.g. legacy `-300w.webp` stragglers after a resolution change). Also
-  // add stale duplicate `-orig.*` archives — when multiple origs exist for
-  // the same base (from an upstream format change), cleanup keeps the newest
-  // so `(count - 1)` of them are orphans per base.
   const knownPrefixes = new Set(knownUrls);
   let orphanedFiles = 0;
   for (const { prefix, files } of filesByPrefix) {
@@ -157,12 +149,7 @@ export async function getRehostStatus(
   return { total, rehosted, external: total - rehosted, orphanedFiles, sets, disk };
 }
 
-/**
- * When more than one orig archive exists for the same base (e.g. both
- * `-orig.png` and `-orig.webp`, left over when the upstream content type
- * changed between rehost runs), keep the newest by mtime and return the rest
- * for deletion.
- */
+/** Returns stale duplicate `-orig.*` archives per base, keeping only the newest by mtime. */
 async function findDuplicateOrigs(
   io: Io,
   prefixDir: string,
@@ -195,14 +182,6 @@ async function findDuplicateOrigs(
   return stale;
 }
 
-/**
- * A file is considered orphaned if its base UUID has no matching rehostedUrl
- * in the DB, if its variant suffix is not in the current SIZES config (e.g.
- * legacy `-300w.webp` after a resolution change), or if it is a stale
- * duplicate `-orig.*` (another orig with a different extension exists and is
- * newer). This is the one place users can reach for to sweep stale files, so
- * regenerate no longer needs to touch them.
- */
 export async function cleanupOrphanedFiles(
   io: Io,
   repo: PrintingImagesRepo,
@@ -237,11 +216,6 @@ export async function cleanupOrphanedFiles(
   return progress;
 }
 
-/**
- * An image is considered broken if its `-orig.*` archive is missing OR any
- * current `-{SIZES.suffix}.webp` variant is missing. This also catches images
- * left over from earlier resolution changes where the orig was never preserved.
- */
 export async function findBrokenImages(
   io: Io,
   repo: PrintingImagesRepo,
@@ -270,15 +244,8 @@ export async function findBrokenImages(
   return { total: images.length, broken };
 }
 
-// Images whose source short edge is below this are flagged as low-res.
-// The -full.webp variant is short-edge capped at 800; anything below 400
-// means the source was genuinely small (below our grid thumbnail size).
 const LOW_RES_SHORT_EDGE_THRESHOLD = 400;
 
-/**
- * Reads the `-full.webp` file (short-edge capped at 800) and checks its
- * shorter dimension, orientation-agnostic.
- */
 export async function findLowResImages(
   io: Io,
   repo: PrintingImagesRepo,
@@ -311,18 +278,14 @@ export async function findLowResImages(
         });
       }
     } catch {
-      // File missing or unreadable — skip (handled by broken-images check)
+      // missing or unreadable, handled by findBrokenImages
     }
   }
 
   return { total: images.length, lowRes };
 }
 
-/**
- * Moves files from `media/cards/{setSlug}/{uuid}-*` to
- * `media/cards/{last2chars}/{uuid}-*`. Only processes directories that are NOT
- * 2-char hex prefixes (i.e., old set-slug dirs).
- */
+/** Moves `media/cards/{setSlug}/{uuid}-*` files into `media/cards/{last2chars}/{uuid}-*`. */
 export async function migrateImageDirectories(io: Io): Promise<{
   scanned: number;
   moved: number;

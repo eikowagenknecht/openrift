@@ -3,12 +3,8 @@ import { afterAll, describe, expect, it } from "vitest";
 import { createDbContext, refreshCardAggregates } from "../test/integration-context.js";
 import { cardTokensRepo } from "./card-tokens.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: card_tokens derivation (migration 228).
-//
 // Uses the shared integration database. Requires INTEGRATION_DB_URL.
 // Uses prefix CTK- for entities it creates.
-// ---------------------------------------------------------------------------
 
 const ctx = createDbContext("00000000-0000-4000-a000-0000000000cc");
 
@@ -20,10 +16,8 @@ let plainId: string;
 let spritePrintingId: string;
 
 /**
- * Inserts a card. The card-type junction is left to migration 193's trigger,
- * which seeds it from `cards.type` at commit; writing the row here as well
- * collides on `card_card_types_pkey`.
- * @returns The inserted card's id.
+ * The card-type junction is left to a trigger that seeds it from `cards.type`
+ * at commit; writing the row here too collides on `card_card_types_pkey`.
  */
 async function seedCard(name: string, type: string, normName: string): Promise<string> {
   const [card] = await ctx!.db
@@ -34,7 +28,6 @@ async function seedCard(name: string, type: string, normName: string): Promise<s
   return card.id;
 }
 
-/** @returns The inserted printing's id. */
 async function seedPrinting(
   cardId: string,
   shortCode: string,
@@ -74,7 +67,6 @@ if (ctx) {
     .execute();
   setId = set.id;
 
-  // The two token cards, one matched by phrase and one by the implicit rule.
   spriteId = await seedCard("Sprite", "unit", "ctk-sprite");
   buffId = await seedCard("Buff", "other", "ctk-buff");
   await db
@@ -85,7 +77,6 @@ if (ctx) {
     ])
     .execute();
 
-  // A card that creates a Sprite, and one that references neither.
   summonerId = await seedCard("CTK Summoner", "unit", "ctk-summoner");
   plainId = await seedCard("CTK Plain", "unit", "ctk-plain");
 
@@ -104,7 +95,6 @@ if (ctx) {
   });
 }
 
-/** @returns Token card ids derived for `cardId`, sorted for stable assertions. */
 async function tokensFor(cardId: string): Promise<string[]> {
   const rows = await ctx!.db
     .selectFrom("cardTokens")
@@ -136,7 +126,6 @@ describe.skipIf(!ctx)("cardTokensRepo derivation", () => {
       .execute();
     await repo.recomputeForPrintingCard(spritePrintingId);
 
-    // The Sprite reference is gone and the implicit Buff rule now applies.
     expect(await tokensFor(summonerId)).toEqual([buffId]);
 
     await ctx!.db
@@ -217,7 +206,7 @@ describe.skipIf(!ctx)("cardTokensRepo derivation", () => {
     const repo = cardTokensRepo(ctx!.db);
 
     // The Buff token's own reminder line trips the implicit Buff rule, and
-    // `chk_card_tokens_no_self` (migration 253) rejects the row that produced.
+    // `chk_card_tokens_no_self` rejects the row that produces.
     await seedPrinting(buffId, "CTK-004", {
       printedRulesText: "A unit may have no more than one buff at a time.",
     });

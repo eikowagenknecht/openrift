@@ -14,27 +14,8 @@ import { PlayloltcgBlockedError, PlayloltcgRefusedError } from "./playloltcg-cli
 import type { PlayloltcgSyncDeps } from "./playloltcg-deps.js";
 import { clock } from "./playloltcg-deps.js";
 
-/**
- * One accepted playloltcg event's results: the detail (for the exact shop id
- * and the results-published flag), the whole standings table, and one deck body
- * per player who submitted a list.
- * Staged through the shared ingest, so review, linking and accept are shared.
- *
- * The card bridge is what makes this cleaner than uvsgames: each `cardNo`
- * resolves deterministically to our SC card, so the canonical name we hand the
- * ingest matches its alias index exactly rather than hoping a transcription does.
- */
-
-/**
- * The standings page.
- *
- * The endpoint ignores `pageNum` entirely and cursors on rank instead, so this
- * only sets how many trips a large field costs. Ranks are a dense sequence
- * from 1, so the cursor never straddles a tie.
- */
 const STANDINGS_PAGE_SIZE = 1000;
 
-/** A field past this is not a field; the cursor is stuck. */
 const MAX_STANDINGS_PAGES = 200;
 
 export interface PlayloltcgDeepFetchResult {
@@ -42,24 +23,12 @@ export interface PlayloltcgDeepFetchResult {
   requests: number;
   players: number;
   decks: number;
-  /** Deck requests spent, which is what the run's budget is measured in. */
   deckRequests: number;
-  /**
-   * Decks the run's budget could not reach. Above zero, the caller holds the
-   * ladder and comes back soon instead of decaying to the next rung.
-   */
   decksRemaining: number;
   acceptedPlayers: number;
   skippedPlayers: number;
-  /** The shop id the detail exposed, so the run can report the link it made. */
   shopId: number | null;
-  /** The source's definitive results-published flag. */
   publishedResults: boolean;
-  /**
-   * False when the standings could not be read whole, so nothing was staged.
-   * The caller holds the recheck ladder where it is rather than treating a
-   * failed pass as a completed one.
-   */
   complete: boolean;
   errors: string[];
 }
@@ -80,26 +49,14 @@ function failure(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/**
- * A refusal is not this event's problem: it holds for the whole run, so it has
- * to reach the job that stands the source down rather than being collected as
- * one more per-event error.
- */
+/** PlayloltcgBlockedError blocks the whole run and must propagate past the caller's per-event error collection. */
 function rethrowIfBlocked(error: unknown): void {
   if (error instanceof PlayloltcgBlockedError) {
     throw error;
   }
 }
 
-/**
- * One cheap detail read: the exact shop id, the shop name, and the definitive
- * results-published flag. The recheck reads this first to decide whether the
- * event is worth the full standings-and-decks fetch.
- *
- * @returns The facts, or null when the source could not be read. A failed read
- *   is never a "not published yet" answer: reporting one would walk a finished
- *   event's ladder back to the event-day poll.
- */
+/** Returns null only on a failed read, never to mean "not published yet" (that would reset a finished event's ladder). */
 export async function readPlayloltcgDetail(
   deps: PlayloltcgSyncDeps,
   activityShopId: number,
@@ -123,16 +80,8 @@ export async function readPlayloltcgDetail(
 }
 
 /**
- * The whole standings table, walked by rank.
- *
- * A short page is the end of the field, so the common event costs exactly one
- * request. A full page is followed until the cursor stops moving, because the
- * source will not say how many rows it holds and counting the page as the
- * total is how this walk used to cut every large field off at its first page.
- *
- * @returns Every row, or null when any page failed. A partial table must never
- *   reach the ingest: it replaces the event's staged players wholesale, so the
- *   pages that did not load would be deleted along with their accepts.
+ * The source never reports a row total. A full page means keep paging
+ * until the cursor stops advancing, not the last page.
  */
 async function readStandings(
   deps: PlayloltcgSyncDeps,
@@ -168,15 +117,9 @@ async function readStandings(
   return null;
 }
 
-/** Nothing is recorded: the failure looked transient, so the id stays fetchable. */
 const SKIPPED = Symbol("deck skipped");
 
-/**
- * One deck body, or what its failure means for the mirror: an answered refusal
- * is recorded as `refused` so the id is never requested again, while a
- * transient failure (the client's own retries already spent) records nothing
- * and is tried on the next pass.
- */
+/** A refusal is recorded as `refused` so the id is never retried; any other failure records nothing and retries next pass. */
 async function readDeck(
   deps: PlayloltcgSyncDeps,
   cardGroupId: string,
@@ -195,32 +138,14 @@ async function readDeck(
   }
 }
 
-/** What one pass of deck reads got through, and what it left. */
 interface PlayloltcgDeckFetch {
-  /** Bodies the source served this pass, by source deck id. */
   bodies: Map<string, Record<string, unknown>[]>;
-  /** Ids the source answered with a refusal or with nothing. */
   refused: string[];
-  /** Deck requests spent, so the run can hold the rest of its batch to budget. */
   requests: number;
-  /** Ids still owed once the budget ran out. */
   remaining: number;
 }
 
-/**
- * The deck bodies for one event, the stored ones reused. Decks are locked once
- * an event runs, so a body already held is never requested again and each pass
- * only closes the gap.
- *
- * The budget is the run's, not the event's: one huge field spends what is left
- * and the recheck comes straight back for the rest rather than advancing the
- * decaying ladder, so a field of any size is finished within hours instead of
- * being abandoned when the ladder runs out.
- *
- * Missing is derived from the standings just read, not the mirror's previous
- * pass: on a first visit the mirror holds no standings yet, and reading the
- * gap from it would fetch nothing.
- */
+/** Missing decks are diffed against the standings just read, not the mirror's prior fetch, which holds nothing on a first visit. */
 async function fetchDecks(
   deps: PlayloltcgSyncDeps,
   activityShopId: number,
@@ -262,14 +187,8 @@ function num(value: unknown): number | null {
 }
 
 /**
- * The staged key for one standings row.
- *
- * Placement cannot be it. The source re-ranks provisional standings into final
- * ones, and an ingested event replaces its staged players wholesale, so a
- * rank-keyed row is deleted and re-staged under a new key on every re-fetch,
- * losing the accept and the live link it carried. The source's own user id is
- * the key where the payload carries one; otherwise the player's name, numbered
- * among same-name rows so a shared name still yields one key per seat.
+ * Keyed by source user id, or name+occurrence as fallback, never rank:
+ * the source re-ranks standings on finalization.
  */
 function playerKey(
   row: Record<string, unknown>,
@@ -292,13 +211,7 @@ interface PlayloltcgDeckLine {
   cardName: string;
 }
 
-/**
- * One deck's lines for the mirror, with the name the source published.
- *
- * The catalog bridge is consulted only to place a card in its zone, never to
- * rewrite its name: the mirror stores what the source said, and promotion is
- * what matches it.
- */
+/** The bridge is consulted only for zone placement, never to rewrite the source's published card name. */
 function projectPlayloltcgDeckLines(
   cards: readonly unknown[],
   bridge: Map<string, { cardId: string; name: string; type: string }>,
@@ -323,16 +236,11 @@ function projectPlayloltcgDeckLines(
   return lines;
 }
 
-/** The legend a deck's lines imply, for the standings row's own column. */
 function legendFromLines(lines: readonly { zone: string; cardName: string }[]): string | null {
   return lines.find((line) => line.zone === WellKnown.deckZone.LEGEND)?.cardName ?? null;
 }
 
-/**
- * Pulls one event into this source's mirror, then promotes it. Individual
- * failures are collected, not thrown: a deck body that 404s still leaves a full
- * standings table worth archiving.
- */
+/** Failures are collected, not thrown; a bad deck body doesn't block the rest of the standings table. */
 export async function playloltcgDeepFetch(
   deps: PlayloltcgSyncDeps,
   row: PlayloltcgListRow,
@@ -371,11 +279,7 @@ export async function playloltcgDeepFetch(
   }
 
   const fetched = await fetchDecks(deps, activityShopId, standings, held, deckBudget, errors);
-  // Lines the mirror already holds, so a row whose deck was fetched on an
-  // earlier pass keeps its legend instead of losing it to an empty body.
   const heldLines = await deps.repos.playloltcgResults.decklistCards(activityShopId);
-  // Every card the served bodies name, resolved through the bridge in one
-  // lookup so the per-deck loop below is pure.
   const shortCodes = [...fetched.bodies.values()]
     .flat()
     .map((card) => normalizeCardNo((record(card) ?? {}).cardNo))
@@ -391,8 +295,7 @@ export async function playloltcgDeepFetch(
       lines,
     );
   }
-  // Recorded with no lines rather than left out, which is what stops the next
-  // pass asking again and spending the budget on an answer that will not change.
+  // Refused decks are still recorded (with no lines) so the next pass doesn't re-request them.
   for (const sourceDeckId of fetched.refused) {
     await deps.repos.playloltcgResults.putDecklist(
       { sourceDeckId, activityShopId, fetchStatus: "refused", fetchedAt: clock(deps) },

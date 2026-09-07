@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import type { UvsgamesCoverageRow, UvsgamesTemplateRow } from "../repositories/uvsgames-events.js";
 import { toMetaCatalogRow, toMetaSourceTemplate } from "./meta-catalog-presenters.js";
 
-/** A template an admin watches, and one the same admin left alone. */
 const WATCHED = "0cbcab3e-be80-4d1d-a450-9485e584906d";
 const UNWATCHED = "f0c650f5-ab18-4d69-8112-19e5cff8b7b2";
 

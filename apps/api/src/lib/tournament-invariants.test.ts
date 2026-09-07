@@ -15,11 +15,6 @@ import {
 
 const STATUSES: TournamentStatus[] = ["setup", "running", "completed", "cancelled"];
 
-/**
- * The forward-only lifecycle, spelled out independently of the module's own
- * table so a change to that table has to be made here too rather than sailing
- * through a self-referential sweep.
- */
 const PERMITTED: Record<TournamentStatus, TournamentStatus[]> = {
   setup: ["setup", "running", "completed", "cancelled"],
   running: ["running", "completed", "cancelled"],
@@ -30,7 +25,6 @@ const PERMITTED: Record<TournamentStatus, TournamentStatus[]> = {
 /**
  * Runs the assertion and returns the AppError it threw, failing the test when
  * it returned normally.
- * @returns The thrown AppError.
  */
 function thrown(run: () => unknown): AppError {
   try {
@@ -76,8 +70,6 @@ describe("assertDateOrder", () => {
   });
 
   it("leaves a close instant unconstrained when the tournament has no end", () => {
-    // Deliberate: with no end instant there is nothing to close before, so a
-    // late close is a valid open-ended schedule rather than an error.
     expect(() => assertDateOrder(START, null, new Date("2027-01-01T00:00:00Z"))).not.toThrow();
   });
 });
@@ -127,7 +119,6 @@ describe("assertStatusTransition", () => {
   });
 
   it("matches the lifecycle matrix in both directions", () => {
-    // The full 4x4: every pair is either permitted by the matrix or a 409.
     for (const current of STATUSES) {
       for (const next of STATUSES) {
         const allowed = PERMITTED[current].includes(next);
@@ -144,8 +135,6 @@ describe("assertStatusTransition", () => {
   });
 
   it("moves forward only, and treats cancelled as terminal", () => {
-    // Spot-checks of the matrix's intent, so a careless edit to the table
-    // fails here and not only in the generated sweep above.
     expect(() => assertStatusTransition("setup", "completed")).not.toThrow();
     expect(() => assertStatusTransition("completed", "cancelled")).not.toThrow();
     expect(() => assertStatusTransition("running", "setup")).toThrow();
@@ -154,7 +143,6 @@ describe("assertStatusTransition", () => {
 });
 
 describe("assertParticipantsOpen", () => {
-  /** @returns A minimal tournament row carrying just the status. */
   function rowWith(status: TournamentStatus): Tournament {
     return { status } as unknown as Tournament;
   }
@@ -174,7 +162,6 @@ describe("assertParticipantsOpen", () => {
 });
 
 describe("assertValidRegion", () => {
-  /** @returns Repos whose custom-tag lookup returns the given tags. */
   function reposWith(tags: { slug: string; category: string }[]): Repos {
     return {
       customTags: { listBySlugs: vi.fn(() => Promise.resolve(tags)) },

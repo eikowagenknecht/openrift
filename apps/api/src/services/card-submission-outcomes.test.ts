@@ -16,15 +16,9 @@ interface StubOptions {
   reviewState?: { checked: boolean; uncheckedPrintings: number };
   proposal?: unknown;
   liveCard?: { id: string; slug: string } | null;
-  /** What the comparison says *now*; drives accepted vs not_applied. */
   currentlyDiffering?: string[];
 }
 
-/**
- * Build a repos stub for the resolution service.
- * @param options Which pending rows, review state and live values to serve.
- * @returns The stub repos plus the mocks worth asserting on.
- */
 function stubRepos(options: StubOptions = {}) {
   const resolve = vi.fn();
   const reopen = vi.fn();
@@ -34,9 +28,6 @@ function stubRepos(options: StubOptions = {}) {
       pendingByCandidateCardIds: vi.fn(async () => options.pending ?? []),
       findByExternalId: vi.fn(async () => null),
       liveCardByNormName: vi.fn(async () => options.liveCard ?? null),
-      // Mirrors what the real repo does: a live card exists only when the name
-      // resolved. With the default proposal ("Jinx", no printings), that makes
-      // the current diff empty, so the submit-time "card.new" reads as adopted.
       liveSnapshot: vi.fn(async () => ({
         snapshot: {
           card: options.liveCard
@@ -72,10 +63,6 @@ function stubRepos(options: StubOptions = {}) {
   return { repos, resolve, reopen };
 }
 
-/**
- * @param proposedDiff What the submission proposed to change.
- * @returns A pending ledger row.
- */
 function pendingSubmission(proposedDiff: string[]) {
   return { id: "sub-1", candidateCardId: "cc-1", status: "pending", proposedDiff };
 }
@@ -108,8 +95,6 @@ describe("resolveCheckedSubmissions", () => {
   });
 
   it("accepts a submission whose proposal the catalog now matches", async () => {
-    // Proposed "card.new" at submit time; the card exists now, so the current
-    // comparison no longer reports it and the field counts as adopted.
     const { repos, resolve } = stubRepos({
       pending: [pendingSubmission(["card.new"])],
       liveCard: { id: "card-1", slug: "jinx" },
@@ -145,7 +130,6 @@ describe("resolveCheckedSubmissions", () => {
   });
 
   it("marks a still-unmatched proposal as not_applied", async () => {
-    // Proposed card.new and there is still no card, so nothing was adopted.
     const { repos, resolve } = stubRepos({
       pending: [pendingSubmission(["card.new"])],
       liveCard: null,
@@ -163,7 +147,6 @@ describe("resolveCheckedSubmissions", () => {
   });
 
   it("waits for the printings before settling a submission", async () => {
-    // Checking one printing of a multi-printing submission must not resolve it.
     const { repos, resolve } = stubRepos({
       pending: [pendingSubmission(["card.new"])],
       reviewState: { checked: true, uncheckedPrintings: 2 },

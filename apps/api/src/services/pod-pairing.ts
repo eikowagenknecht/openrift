@@ -43,18 +43,14 @@ function pairingModeOf(tournament: Tournament): PairingMode {
 }
 
 /**
- * An all-bye round (no seated players) yields an empty pairing rather than
- * erroring, so the runner can always produce a valid round.
+ * An all-bye round (no seated players) produces an empty pairing, never an error.
  *
- * A Swiss round with an odd seated count auto-byes one player (fewest byes, then
- * lowest score) on top of any organizer byes; the returned `byePlayerIds` are the
- * effective byes the caller must persist, so a re-roll (which re-reads the stored
- * byes) keeps the count even without a second auto-bye.
+ * Swiss auto-byes one player on an odd seated count (fewest byes, then lowest
+ * score); the caller must persist the returned `byePlayerIds`, since a re-roll
+ * re-reads them to avoid a second auto-bye.
  *
- * On a region-aware tournament, every seated player must have a region before
- * the round can be paired (byed players are exempt) — otherwise the region
- * penalty silently treats the gaps as "no conflict" and the pairing looks fine
- * while ignoring the feature the organizer turned on.
+ * On a region-aware tournament every seated player (byed players exempt) needs
+ * a region before pairing, or the region penalty treats the gap as no conflict.
  */
 async function runPairing(
   repos: Repos,
@@ -198,13 +194,8 @@ export async function pairNextRound(
       run.byePlayerIds,
     );
   } catch (error) {
-    // The findOpenRound guard above is a check-then-act: a concurrent pair (an
-    // organizer double-click) can insert the same round number between the
-    // check and this insert. uq_pod_rounds_number rejects the loser — turn that
-    // into the same 409 rather than a raw 500. The redundant pairing run is
-    // wasted work, but no duplicate round is created. Scope the catch to that
-    // one constraint so a 23505 from anywhere else inside createRound (e.g. a
-    // future pod/member insert bug) still surfaces as a real error.
+    // findOpenRound is check-then-act; a concurrent insert races it and
+    // uq_pod_rounds_number rejects the loser. Catch only that constraint.
     if (isUniqueViolationOn(error, "uq_pod_rounds_number")) {
       throw roundAlreadyOpen();
     }

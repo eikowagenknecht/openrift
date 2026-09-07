@@ -2,28 +2,6 @@ import type { Repos } from "../deps.js";
 import { withUniqueShareToken } from "../lib/share-token.js";
 import type { MetaArchivedDeckInput, MetaEventPlayerInput } from "../repositories/meta.js";
 
-/**
- * Mints one standings row, and the archived deck behind it when a list is
- * known: the `decks` row under the synthetic archive owner, its cards, and the
- * link, all in the repo's transaction.
- *
- * Every path that creates standings rows goes through here — the admin's
- * manual form and promotion alike — so the owner, the public flag, and the
- * share token are stamped in exactly one place.
- *
- * A standings-only entry gets no token at all: it has no public page, so there
- * is nothing for a permalink to address. It gains one if a list ever lands,
- * through {@link setMetaPlayerList}.
- *
- * The token is minted outside the transaction and a collision retries the whole
- * thing, because the collision invalidates the insert that carried the token,
- * not just the column. The retry is pinned to the token's own constraint: this
- * transaction also writes `deck_cards` and the standings row, and a unique
- * violation from either of those is a real fault that must surface as itself
- * instead of being re-attempted twice and reported as a token collision.
- *
- * Returns the new row's ids, or `undefined` when the event doesn't exist.
- */
 interface CreatedMetaEventPlayer {
   metaEventPlayerId: string;
   deckId: string | null;
@@ -38,6 +16,8 @@ export async function createMetaEventPlayer(
     const created = await meta.createPlayer(input, null);
     return created === undefined ? undefined : { ...created, shareToken: null };
   }
+  // Retry only catches decks_share_token_key violations; a violation from
+  // deck_cards or the standings insert must propagate as a real fault.
   return withUniqueShareToken<CreatedMetaEventPlayer | undefined>(
     async (shareToken) => {
       const created = await meta.createPlayer(input, shareToken);
@@ -47,26 +27,13 @@ export async function createMetaEventPlayer(
   );
 }
 
-/**
- * Attaches a decklist to a standings row, or replaces the one already there.
- *
- * Every path that gives an entry a list goes through here — the admin PATCH and
- * promotion alike — because an entry that leaves `"none"` has to gain its
- * permalink in the same step. A page that only exists once the list does is
- * the whole point of withholding the token, and two copies of that rule would
- * eventually disagree.
- *
- * A replacement keeps the token the deck already has: it is only ever added,
- * never rotated, so links already published do not rot.
- *
- * Returns the deck's id, or `undefined` when the standings row is gone.
- */
 export function setMetaPlayerList(
   meta: Repos["meta"],
   metaEventPlayerId: string,
   deck: MetaArchivedDeckInput,
   options?: { preserveName?: boolean },
 ): Promise<{ deckId: string } | undefined> {
+  // Never rotates the share token: an already-published link must keep resolving.
   return withUniqueShareToken(
     (shareToken) => meta.setPlayerDeck(metaEventPlayerId, deck, shareToken, options),
     { constraint: "decks_share_token_key" },

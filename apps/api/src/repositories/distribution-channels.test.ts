@@ -4,9 +4,6 @@ import { createRecordingDb } from "../test/recording-db.js";
 import { distributionChannelsRepo } from "./distribution-channels.js";
 
 describe("distributionChannelsRepo.setForPrinting", () => {
-  // Regression: the delete and the insert ran on the bare db, and two of the
-  // callers in printing-admin.ts pass a non-transactional repo set — so a
-  // failure between them left the printing with no channels at all.
   it("runs the delete and the insert in one transaction", async () => {
     const { db, queries, events } = createRecordingDb();
 
@@ -37,8 +34,6 @@ describe("distributionChannelsRepo.setForPrinting", () => {
     expect(events).toEqual(["begin", "commit"]);
   });
 
-  // The transactional callers (deletePrinting, the printing-create path) hand
-  // in a trx-bound repo set; opening a second transaction there would nest.
   it("reuses an open transaction instead of nesting", async () => {
     const { db, events } = createRecordingDb();
 

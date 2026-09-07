@@ -476,9 +476,6 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     expect(rows[0]?.quantity).toBe(2);
   });
 
-  // A later call against an existing entry must bump its quantity rather than
-  // report it skipped — the user can drag the same card onto a list multiple
-  // times to build up the desired count.
   it("bulkCreateEntries bumps quantity on a later call against an existing entry", async () => {
     const list = await repo.create({ userId, name: "Bulk repeat", intent: "wish", kind: "card" });
     createdListIds.push(list.id);
@@ -634,10 +631,6 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     expect(result).toEqual({ added: 1, updated: 0, skipped: 0 });
   });
 
-  // Drag-readd on card/printing-kind lists bumps the existing entry's
-  // quantity instead of being silently rejected. The second call surfaces as
-  // `updated`. Copy-kind lists have the opposite contract — see the
-  // "stays singular on re-drag" test below.
   it("bulkCreateEntriesFromCopies bumps quantity on a second drag of the same copies", async () => {
     const copy = await createTestCopy();
     const list = await repo.create({
@@ -721,9 +714,6 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     expect(result).toEqual({ added: 0, updated: 0, skipped: 1 });
   });
 
-  // Mixed-ownership accounting: with one owned copy and one bogus ID, the
-  // non-owned ID must surface in `skipped` rather than drop silently, or the
-  // toast under-reports.
   it("bulkCreateEntriesFromCopies counts non-owned in skipped on mixed input", async () => {
     const copy = await createTestCopy();
     const list = await repo.create({
@@ -999,8 +989,6 @@ describe.skipIf(!ctx)("listsRepo (integration)", () => {
     expect(await repo.decrementEntryQuantity(entry.id, userId, 2)).toBe(3);
     expect(await repo.decrementEntryQuantity(entry.id, userId, 2)).toBe(1);
 
-    // Exhausting (1 - 2 <= 0) deletes the entry rather than writing a
-    // constraint-violating non-positive quantity; the caller gets undefined.
     expect(await repo.decrementEntryQuantity(entry.id, userId, 2)).toBeUndefined();
     const gone = await repo.getEntryByIdForUser(entry.id, userId);
     expect(gone).toBeUndefined();

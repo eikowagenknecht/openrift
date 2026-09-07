@@ -7,10 +7,8 @@ import { createRepos } from "../deps.js";
 import { createDbContext, seedTestUser, syncCardCardTypes } from "../test/integration-context.js";
 import { ingestMetaOverlays, playerSourceKey } from "./ingest-meta-overlays.js";
 
-// Uses the prefix IMO- / imo- for everything it creates, under its own push
-// provider so the ignore lists and the source-key indexes never collide with
-// another file's rows.
-
+// Prefixes all fixtures with IMO- / imo- under its own provider so this file's rows
+// never collide with another test file's.
 const ctx = createDbContext(crypto.randomUUID());
 
 const PROVIDER = "imopush";
@@ -71,7 +69,6 @@ if (ctx) {
   });
 }
 
-/** One upload payload, through the request schema so its defaults apply. */
 function payload(event: Record<string, unknown>): MetaIngestEvent[] {
   return metaUploadSchema.parse({ provider: PROVIDER, events: [event] }).events;
 }
@@ -136,8 +133,6 @@ describe.skipIf(!ctx)("ingestMetaOverlays", () => {
       updatedPlayers: 0,
       unchangedPlayers: 2,
     });
-    // Untouched, not rewritten with the same values: an unchanged upload must
-    // not walk over a decision somebody already made.
     const after = await playerOverlays();
     expect(after.map((row) => row.id)).toEqual(before.map((row) => row.id));
     expect(after.map((row) => row.updatedAt)).toEqual(before.map((row) => row.updatedAt));
@@ -252,7 +247,6 @@ describe.skipIf(!ctx)("ingestMetaOverlays", () => {
     expect(result.updatedEventDetails).toEqual([
       { externalId: BASE_EVENT, name: "IMO Summoner Skirmish" },
     ]);
-    // A producer that changed its mind must not have the old decision stand.
     expect(await repos.metaOverlays.eventOverlayById(existing.id)).toMatchObject({
       organizer: "IMO Renamed Bazaar",
       status: "pending",

@@ -47,11 +47,7 @@ const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const SHOPS_PATH = "/xcx/shop/searchShop";
 
-/**
- * A page the crawl must follow with another one. The rows carry no id, so they
- * project to nothing: these tests are about which pages are requested, not what
- * lands.
- */
+// Rows carry no id and project to nothing; these tests check which pages are requested, not what lands.
 const FULL_PAGE = Array.from({ length: MAX_PAGE_SIZE }, () => ({}));
 
 interface WindowRequest {
@@ -111,13 +107,10 @@ function dueRow(overrides: Partial<PlayloltcgListRow> = {}): PlayloltcgListRow {
 }
 
 function fakeDeps(options: {
-  /** The rows one window answers with, keyed `start..end`. A window with no entry answers empty. */
   rows?: Record<string, unknown[]>;
-  /** Every window overflows, however narrow: a source that will not be split. */
   overflowing?: boolean;
   blockOn?: string;
   due?: PlayloltcgListRow[];
-  /** Deck ids the mirror still owes, which is what holds the ladder open. */
   outstandingDecks?: string[];
   priorResult?: unknown;
 }): {
@@ -145,8 +138,6 @@ function fakeDeps(options: {
       const items = options.overflowing
         ? FULL_PAGE
         : (options.rows?.[`${startTime}..${endTime}`] ?? []);
-      // The source never reports a total for these listings, which is exactly
-      // what makes a full page ambiguous and the split necessary.
       return Promise.resolve({ items: items as T[], total: null });
     },
   } as unknown as PlayloltcgClient;
@@ -221,8 +212,6 @@ describe("syncPlayloltcgCatalog", () => {
 
     const result = await syncPlayloltcgCatalog(deps);
 
-    // The wide window overflowed, so its two halves were asked for separately
-    // and both fit, which is the only way past the source's result ceiling.
     expect(windows.map((entry) => `${entry.startTime}..${entry.endTime}`)).toEqual([
       "2026-08-23..2028-08-29",
       "2026-08-23..2027-08-26",
@@ -232,8 +221,6 @@ describe("syncPlayloltcgCatalog", () => {
   });
 
   it("does not flag rows missing on a run that could not read the whole window", async () => {
-    // Even a single day overflows, so there is nothing left to narrow and the
-    // crawl has to admit the gap.
     const { deps, missing } = fakeDeps({ overflowing: true });
 
     const result = await syncPlayloltcgCatalog(deps);
@@ -268,7 +255,6 @@ describe("backfillPlayloltcg", () => {
 
     const june = windows.filter((entry) => entry.startTime.startsWith("2025-06"));
     expect(june.map((entry) => `${entry.startTime}..${entry.endTime}`)).toEqual([
-      // The chunks either side fit, so they cost one call each.
       "2025-06-01..2025-06-14",
       "2025-06-15..2025-06-28",
       "2025-06-15..2025-06-21",
@@ -389,8 +375,6 @@ describe("processPlayloltcgRechecks", () => {
 
     const result = await processPlayloltcgRechecks(deps);
 
-    // The ladder's next rung is days out, and taking it here is what used to
-    // abandon the rest of a large field.
     expect(rechecks).toEqual([
       { activityShopId: 109_991, nextCheckAt: new Date(NOW.getTime() + 60_000), checkStage: 1 },
     ]);

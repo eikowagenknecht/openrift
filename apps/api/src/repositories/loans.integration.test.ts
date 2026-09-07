@@ -38,9 +38,8 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
   });
 
   afterAll(async () => {
-    // Loans first (cascading loan_copies), then trades, groups, lists, copies
-    // (before their collections — a trigger blocks deleting a non-empty
-    // collection), and collections. Users are file-owned and deleted last.
+    // Collections must be emptied before deletion, a trigger blocks deleting
+    // a non-empty one; loans, trades, groups, lists, and copies go first.
     await db
       .deleteFrom("loans")
       .where((eb) =>
@@ -220,7 +219,6 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
     const collectionId = await freshCollection(LENDER_ID);
     await addCopies(collectionId, 1);
 
-    // OUTSIDER shares no group with LENDER.
     await expect(
       createLoan(transact, {
         lenderUserId: LENDER_ID,
@@ -412,8 +410,6 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
   });
 
   it("keeps loaned copies out of trade supply and reservation", async () => {
-    // Match shape: borrower wishes 2, lender offers 2 shared tradelist copies,
-    // then one of them goes out on a loan.
     const group = await groupWithBorrower();
 
     const wish = await db
@@ -448,8 +444,6 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
     }
     await groupsRepo.share(group.id, tradeList.id, LENDER_ID);
 
-    // Both copies are buildable stock right now: deck-available collection,
-    // neither lent out nor reserved.
     const buildableCountsBefore = await repos.copies.buildableCountByCard(LENDER_ID);
     const buildableBefore = buildableCountsBefore.get(CARD_FURY_UNIT.id) ?? 0;
 
@@ -463,7 +457,6 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
     const loanedPins = await repos.loans.listPinnedCopyIds(loan.id);
     const loanedCopyId = loanedPins[0]!;
 
-    // With one copy on loan only one is offerable, so a request for 2 fails.
     await expect(
       createTrade(repos, {
         callerUserId: BORROWER_ID,
@@ -490,15 +483,11 @@ describe.skipIf(!ctx)("loansRepo (integration)", () => {
     expect(reserved).toHaveLength(1);
     expect(reserved[0]).not.toBe(loanedCopyId);
 
-    // Deck-building inventory excludes both the loaned and the reserved copy,
-    // so the buildable count fell by exactly the two copies committed away.
     const buildableCountsAfter = await repos.copies.buildableCountByCard(LENDER_ID);
     const buildableAfter = buildableCountsAfter.get(CARD_FURY_UNIT.id) ?? 0;
     expect(buildableAfter).toBe(buildableBefore - 2);
   });
 
-  // A borrowed-in copy is in hand and buildable, so it reduces the borrower's
-  // deck shortfall, but only once the loan is acknowledged.
   it("counts acknowledged borrower loans in borrowedCountByCard, not pending ones", async () => {
     await groupWithBorrower();
     const collectionId = await freshCollection(LENDER_ID);

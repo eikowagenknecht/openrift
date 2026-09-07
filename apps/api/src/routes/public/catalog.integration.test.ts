@@ -10,8 +10,6 @@ const ctx = createTestContext(USER_ID);
 const SEED_SET_ID = OGS_SET.id;
 const SEED_PRINTING_ID = PRINTING_1.id;
 
-// Marketplace used to seed snapshots for the /api/v1/prices integration tests.
-// The /catalog route no longer joins prices — they live on /api/v1/prices.
 const MARKETPLACE = "tcgplayer";
 
 describe.skipIf(!ctx)("Catalog route (integration)", () => {
@@ -19,11 +17,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
 
   let productId = "";
 
-  // A dedicated printing + active rehosted image, used only by the "images
-  // array" assertion. The seed printings all have images too, but sibling
-  // tests (printing-images / candidate-cards repos) deactivate and reactivate
-  // them mid-run, so asserting against a seed printing is racy. This printing
-  // is created here and touched by nobody else.
+  // Other tests deactivate/reactivate seed printings' images mid-run; this printing must stay dedicated to avoid that race.
   let imagePrintingId = "";
   let imageFileId = "";
 
@@ -51,8 +45,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       .execute();
     imagePrintingId = imagePrinting.id;
 
-    // rehosted_url must be non-null — the public catalog only surfaces rehosted
-    // images (see imageId() in query-helpers).
+    // The public catalog only surfaces images with a non-null rehosted_url.
     const [imageFile] = await db
       .insertInto("imageFiles")
       .values({
@@ -79,7 +72,6 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
     if (existing) {
       productId = existing.productId;
     } else {
-      // If seed data was somehow removed, create our own product + variant.
       const groupRow = await db
         .selectFrom("marketplaceGroups")
         .select("groupId")
@@ -107,7 +99,6 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
           externalId: 999_001,
           productName: "Annie Fiery (Cat Test)",
           finish: "normal",
-          // tcgplayer has no per-language SKU axis.
           language: null,
         })
         .returning("id")
@@ -229,9 +220,6 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       expect(printing.images[0].face).toBe("front");
     });
 
-    // The language split (see `catalogContract`): `?langs=` carries the core plus
-    // the caller's languages, `?exceptLangs=` the rest without the core. The seed
-    // has both EN and SC printings, so each half is non-empty here.
     describe("language split", () => {
       const languagesOf = (json: { printings: Record<string, { language: string }> }): string[] => [
         ...new Set(Object.values(json.printings).map((p) => p.language)),
@@ -257,7 +245,6 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
         expect(languages).not.toContain("EN");
         expect(json.cards).toEqual({});
         expect(json.customTagAssignments).toEqual({});
-        // Sets ride along so the tail response stands on its own.
         expect(json.sets.length).toBeGreaterThan(0);
       });
 
@@ -290,9 +277,6 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       );
     });
 
-    // Conditional-GET wiring: the catch-all applies `etag()` to ETAG_PATHS, so a
-    // matching If-None-Match must short-circuit to 304 (covered here because the
-    // pure cache-policy unit test cannot exercise the middleware).
     it("returns an ETag and serves 304 for a matching If-None-Match", async () => {
       const first = await app.fetch(req("GET", "/catalog"));
       const etag = first.headers.get("ETag");
@@ -305,10 +289,6 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       expect(second.status).toBe(304);
     });
 
-    // The web app fetches the catalog as `?v=<bare etag>` (a content-addressed
-    // URL — see lib/catalog-version.ts there). A matching token means the body
-    // can never change under that URL, so the response upgrades to immutable;
-    // a stale or absent token keeps the regular long-tier header.
     it("serves immutable Cache-Control when ?v matches the ETag, long tier otherwise", async () => {
       const first = await app.fetch(req("GET", "/catalog"));
       const bareTag = (first.headers.get("ETag") as string).replaceAll('"', "");
@@ -322,12 +302,6 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       );
     });
 
-    // The real client request is a language variant carrying the FULL catalog's
-    // token (that is the only version the SSR loader knows). This is why the
-    // ETag is the catalog's content version rather than a hash of the body: a
-    // body hash would give the variant a tag that could never equal the token,
-    // and every production catalog fetch would silently fall back to the
-    // 1-hour tier.
     it("serves immutable Cache-Control for a language variant carrying the full catalog's token", async () => {
       const full = await app.fetch(req("GET", "/catalog"));
       const bareTag = (full.headers.get("ETag") as string).replaceAll('"', "");
@@ -346,8 +320,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       expect(tag).toBeTruthy();
       expect(head.headers.get("ETag")).toBe(tag);
       expect(tail.headers.get("ETag")).toBe(tag);
-      // Sharing a tag across URLs is well-formed — If-None-Match is only ever
-      // compared within one URL — but the bodies must still differ.
+      // If-None-Match is compared per-URL, so sharing a tag is well-formed even though the bodies differ.
       expect(await head.text()).not.toBe(await tail.text());
     });
 

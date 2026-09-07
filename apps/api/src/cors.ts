@@ -1,10 +1,3 @@
-/**
- * Match a request Origin against the allowed origins string.
- * Supports comma-separated origins and wildcard subdomains
- * (e.g. "https://openrift.app,https://*.workers.dev").
- *
- * @returns The origin if allowed, undefined otherwise.
- */
 export function matchOrigin(origin: string, allowed?: string): string | undefined {
   if (!allowed || allowed === "*") {
     return origin;
@@ -27,14 +20,7 @@ export function matchOrigin(origin: string, allowed?: string): string | undefine
   return undefined;
 }
 
-/**
- * True when the origin points at a loopback or private-LAN address (any scheme
- * or port). Used to trust local devices — a phone or tablet on the same Wi-Fi
- * hitting the dev server by its LAN IP — without listing their rotating
- * addresses. Dev-only: never use this to gate production origin checks.
- *
- * @returns Whether the origin's host is localhost or an RFC 1918 private IPv4.
- */
+/** Dev-only: never use this to gate production origin checks. */
 export function isLocalDevOrigin(origin: string): boolean {
   let host: string;
   try {

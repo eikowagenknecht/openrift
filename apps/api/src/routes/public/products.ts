@@ -17,11 +17,7 @@ import type { ApiContext } from "../../orpc/context.js";
 
 const os = implement(productsContract).$context<ApiContext>().use(requireUser);
 
-/**
- * Public preconstructed-product reads (ADR-015). No visibility filtering:
- * a product is public the moment it exists. The detail payload carries
- * printing ids + quantities; the web client resolves them against the catalog.
- */
+/** No visibility filtering: a product is public the moment it exists. */
 export const productsRouter = {
   list: os.list.handler(async ({ context }): Promise<ProductsListResponse> => {
     const products = await context.repos.products.listWithCounts();
@@ -43,8 +39,6 @@ export const productsRouter = {
       repos.products.coverCards([product.id]),
     ]);
 
-    // Inline the catalog slice behind the contents so the page server-renders
-    // from this response alone (same shape as the set detail read).
     const printingIds = contents.map((content) => content.printingId);
     const [printingRows, imageRows] = await Promise.all([
       repos.catalog.printingsByIds(printingIds),

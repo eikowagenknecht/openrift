@@ -10,12 +10,7 @@ export interface GroupContext {
   membership: GroupMember;
 }
 
-/**
- * Loads the group by slug + the viewer's membership; 404 if either missing.
- * Resolves rename aliases (`previous_slug`) so old bookmarks and email links
- * keep working — callers can compare the returned slug to redirect.
- * @returns The matched group and the viewer's membership row.
- */
+/** Resolves rename aliases (`previous_slug`) too, so old bookmarks and email links keep working. */
 export async function loadGroupForMember(
   repos: Repos,
   slug: string,
@@ -45,10 +40,6 @@ const ROLE_MINIMUM_MESSAGE: Record<FriendGroupRole, string> = {
   owner: "Owner only",
 };
 
-/**
- * Rank comparison for the linear role hierarchy (owner > admin > member).
- * @returns True when `role` meets or exceeds `minimum`.
- */
 export function hasRole(role: FriendGroupRole, minimum: FriendGroupRole): boolean {
   return ROLE_RANK[role] >= ROLE_RANK[minimum];
 }

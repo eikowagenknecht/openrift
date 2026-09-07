@@ -66,10 +66,8 @@ export async function claimParticipantByToken(
   if (participant.claimBlockedAt !== null) {
     return { status: "blocked", tournamentId: null, entryId: null };
   }
-  // One account per tournament (uq_tournament_participants_user): if the caller
-  // already holds a different spot here, linking this one too would violate that
-  // key. Catch it as a friendly outcome (pointing at the spot they already have)
-  // instead of letting the unique violation surface as a 500.
+  // uq_tournament_participants_user: one account per tournament. Pre-check so a
+  // caller who already holds a spot gets a "duplicate" outcome, not a 500.
   const existing = await repos.tournaments.findParticipantByUser(participant.tournamentId, userId);
   if (existing) {
     const entryId = await repos.deckCheck.findEntryIdByParticipant(existing.id);
@@ -89,10 +87,8 @@ export async function claimParticipantByToken(
       "claim_link",
     );
   } catch (error) {
-    // A concurrent claim of a *different* spot in this tournament can land
-    // between the duplicate pre-check above and this write, tripping
-    // uq_tournament_participants_user (23505). Convert that race to the same
-    // friendly duplicate outcome instead of letting it surface as a 500.
+    // A concurrent claim can trip uq_tournament_participants_user (23505)
+    // between the pre-check above and this write; treat it as "duplicate", not a 500.
     if (error instanceof Error && "code" in error && error.code === "23505") {
       const existingSpot = await repos.tournaments.findParticipantByUser(
         participant.tournamentId,
@@ -218,12 +214,7 @@ async function linesFromOwnDeck(
     .map((row) => ({ name: row.cardName, zone: row.zone, quantity: row.quantity }));
 }
 
-/**
- * Decodes a pasted deck code and maps its short codes onto catalog cards,
- * inferring zones the lossy format does not carry. An unknown short code
- * becomes an unmatched line carrying the code as its raw name, so a judge
- * sees a flagged placeholder instead of a silently dropped card.
- */
+/** An unknown short code becomes an unmatched line carrying the code as its raw name, not a silently dropped card. */
 async function linesFromDeckCode(repos: Repos, deckCode: string): Promise<DeckCheckCardLine[]> {
   // parsePiltoverDeckCode owns the decode and the champion split (the encoder
   // counts the chosen champion inside mainDeck, since it is a marker rather

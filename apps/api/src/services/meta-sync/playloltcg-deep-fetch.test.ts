@@ -61,29 +61,21 @@ function catalogRow(overrides: Partial<PlayloltcgListRow> = {}): PlayloltcgListR
 
 interface Harness {
   deps: PlayloltcgSyncDeps;
-  /** Every deck id the client was actually asked for. */
   deckRequests: number[];
-  /** The `startFinalRanking` of each standings call, in order. */
   standingsCursors: (number | null)[];
-  /** The standings rows written into this source's mirror. */
   mirrored: Record<string, unknown>[];
-  /** The decklists recorded, each with the lines projected from its body. */
   storedDecklists: { row: Record<string, unknown>; cards: Record<string, unknown>[] }[];
 }
 
 /**
- * The source as it actually answers: standings come back as a bare array with
- * no total, `pageNum` is ignored, and the only cursor is `startFinalRanking`.
- * A fake that reports a total instead is what let the truncation ship.
+ * The source returns a bare array with no total; `pageNum` is ignored, the
+ * only cursor is `startFinalRanking`.
  */
 function fakeDeps(options: {
   standings: Record<string, unknown>[] | Error;
   decks?: Record<number, Record<string, unknown>[]>;
-  /** Failures to answer a specific deck id with, keyed by id. */
   deckErrors?: Record<number, Error>;
-  /** Deck ids the mirror already holds, which the fetch never asks for again. */
   heldDecks?: string[];
-  /** Lines the mirror holds for a deck an earlier pass fetched, by deck id. */
   heldLines?: Map<string, { zone: string; quantity: number; cardName: string }[]>;
 }): Harness {
   const deckRequests: number[] = [];
@@ -137,7 +129,6 @@ function fakeDeps(options: {
     },
   };
 
-  // Promotion is its own unit; the fetch's job is to mirror and then call it.
   const meta = { sourceByKey: () => Promise.resolve(undefined) };
 
   const deps: PlayloltcgSyncDeps = {
@@ -150,7 +141,6 @@ function fakeDeps(options: {
   return { deps, deckRequests, standingsCursors, mirrored, storedDecklists };
 }
 
-/** The budget the recheck hands a visit; tests that do not care get a wide one. */
 const BUDGET = 10_000;
 
 function standingsRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -168,8 +158,6 @@ describe("playloltcgDeepFetch", () => {
 
     const result = await playloltcgDeepFetch(deps, catalogRow(), DETAIL, BUDGET);
 
-    // The event's own fields are promotion's, read from the listing mirror.
-    // What the fetch writes is the field.
     expect(result).toMatchObject({ players: 2, decks: 0, complete: true });
     expect(mirrored.map((player) => player.rank)).toEqual([1, 2]);
     expect(mirrored.map((player) => player.playerName)).toEqual(["张三", "李四"]);
@@ -249,7 +237,6 @@ describe("playloltcgDeepFetch", () => {
 
     const result = await playloltcgDeepFetch(deps, catalogRow(), DETAIL, BUDGET);
 
-    // Deck 11 is already held, so it costs no request and is not rewritten.
     expect(deckRequests).toEqual([12]);
     expect(result.decks).toBe(1);
     expect(storedDecklists.map((entry) => entry.row.sourceDeckId)).toEqual(["12"]);
@@ -264,8 +251,6 @@ describe("playloltcgDeepFetch", () => {
 
     await playloltcgDeepFetch(deps, catalogRow(), DETAIL, BUDGET);
 
-    // The body is never re-requested, so the legend has to come off the stored
-    // lines rather than the empty body this pass has for that deck.
     expect(deckRequests).toEqual([]);
     expect(mirrored[0]?.legendName).toBe("亚索");
   });

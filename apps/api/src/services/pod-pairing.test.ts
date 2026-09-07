@@ -40,11 +40,6 @@ function player(id: string, overrides: Partial<TeamSnapshotPlayer> = {}): TeamSn
   };
 }
 
-/**
- * Builds a repos stub for `pairNextRound` with an all-bye (empty) snapshot so
- * the pairing engine is skipped and only the createRound outcome matters.
- * @returns The repos stub.
- */
 function reposFor(createRound: () => Promise<unknown>): Repos {
   return {
     podTournaments: {
@@ -58,14 +53,7 @@ function reposFor(createRound: () => Promise<unknown>): Repos {
   } as unknown as Repos;
 }
 
-/**
- * Builds a repos stub whose snapshot returns the given players and whose
- * createRound records its arguments for assertions.
- * @returns The repos stub plus the createRound mock.
- */
 function reposWithSnapshot(players: TeamSnapshotPlayer[]) {
-  // Typed against the real signature so `createRound.mock.calls[0]` indexes as
-  // (tournamentId, roundNumber, pairing, byePlayerIds) instead of an empty tuple.
   const createRound = vi.fn(
     async (..._args: Parameters<Repos["podTournaments"]["createRound"]>) => ({
       id: "round-1",
@@ -99,8 +87,6 @@ describe("pairNextRound round-number race", () => {
   });
 
   it("re-throws a unique violation from a different constraint (not the round race)", async () => {
-    // A 23505 from some other index inside createRound is a real bug, not a
-    // pairing collision, so it must not be masked as "round already open".
     const boom = Object.assign(new Error("duplicate key"), {
       code: "23505",
       constraint_name: "some_other_unique",
@@ -140,7 +126,6 @@ describe("pairNextRound swiss auto-bye", () => {
     expect(createRound).toHaveBeenCalledTimes(1);
     const call = createRound.mock.calls[0]!;
     const [pairing, byes] = [call[2], call[3]];
-    // "c" has 0 byes and the lowest score among the bye-less (c/e tie at 3; id breaks it).
     expect(byes).toEqual(["c"]);
     expect(pairing.pods).toHaveLength(2);
     expect(pairing.pods.every((pod: { size: number }) => pod.size === 2)).toBe(true);
@@ -180,8 +165,6 @@ describe("pairNextRound swiss auto-bye", () => {
   it("never auto-byes a pod-style tournament", async () => {
     const players = [player("a"), player("b"), player("c"), player("d"), player("e")];
     const { repos } = reposWithSnapshot(players);
-    // 5 players are unrepresentable in pods; without organizer byes this must
-    // stay a 400, not silently sit someone out.
     await expect(pairNextRound(repos, TOURNAMENT)).rejects.toMatchObject({ status: 400 });
   });
 });
@@ -247,7 +230,6 @@ describe("pairNextRound 2v2 team pairing", () => {
     expect(pairing.pods[0].size).toBe(4);
     const seated = pairing.pods[0].playerIds as string[];
     expect(seated.toSorted()).toEqual(["a1", "a2", "b1", "b2"]);
-    // Sides stay adjacent: the first two seats are one team, the last two the other.
     const firstSide = new Set(seated.slice(0, 2));
     expect(firstSide.has("a1") === firstSide.has("a2")).toBe(true);
   });

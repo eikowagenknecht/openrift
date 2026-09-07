@@ -11,14 +11,8 @@ import type {
 import { rowBatches } from "../lib/bind-batches.js";
 
 /**
- * What a uvsgames deep fetch read, as the source published it (ADR-014
- * revision 3).
- *
- * Everything here is keyed by the source's own ids and holds the source's own
- * vocabulary: card names are strings, no format is mapped and no tier is
- * classified. Promotion is what turns any of it into live rows, which is what
- * lets a mapping fix be a re-promote instead of a re-fetch. No response body
- * is stored: an unprojected field is discarded on arrival.
+ * Keyed by the source's own ids, in the source's own vocabulary (unmapped
+ * formats, unclassified tiers). Promotion turns this into live rows; a mapping fix can re-promote.
  */
 
 export type UvsgamesStandingRow = Selectable<UvsgamesEventStandingsTable>;
@@ -26,11 +20,8 @@ export type UvsgamesPhaseRow = Selectable<UvsgamesEventPhasesTable>;
 export type UvsgamesMatchRow = Selectable<UvsgamesEventMatchesTable>;
 export type UvsgamesDecklistCardRow = Selectable<UvsgamesDecklistCardsTable>;
 
-/** One event's deck coverage, for the recheck ladder's "are we done here" test. */
 export interface UvsgamesDeckCoverage {
-  /** Registrations naming a deck the source has not served yet. */
   outstanding: string[];
-  /** Deck ids already held, whether fetched or refused. */
   held: number;
 }
 
@@ -46,11 +37,8 @@ export function uvsgamesResultsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Replaces the whole field in one transaction. A re-fetch of a running
-     * event corrects provisional ranks wholesale, and the registration key is
-     * stable across that, so nothing downstream loses its identity.
-     */
+    // The registration key stays stable across a re-fetch, so nothing
+    // downstream loses its identity when provisional ranks are corrected.
     async replaceStandings(
       externalId: string,
       rows: readonly Insertable<UvsgamesEventStandingsTable>[],
@@ -98,10 +86,7 @@ export function uvsgamesResultsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * The rounds already held. A completed round's pairings are immutable, so
-     * the fetcher skips these rather than asking again.
-     */
+    // A completed round's pairings are immutable; the fetcher skips them.
     async heldRoundIds(externalId: string): Promise<string[]> {
       const rows = await db
         .selectFrom("uvsgamesEventMatches")
@@ -112,7 +97,6 @@ export function uvsgamesResultsRepo(db: Kysely<Database>) {
       return rows.map((row) => row.roundId);
     },
 
-    /** Per round, so a mid-event capture is corrected without disturbing its neighbours. */
     async replaceRoundMatches(
       externalId: string,
       roundId: string,
@@ -130,11 +114,8 @@ export function uvsgamesResultsRepo(db: Kysely<Database>) {
       });
     },
 
-    /**
-     * Which decks this event still owes, and how many it holds. A refused deck
-     * counts as held: the id was tried and came back unreadable, and asking
-     * again would only spend the budget.
-     */
+    // A refused deck counts as held: the id was tried and came back
+    // unreadable, and asking again would only spend the budget.
     async deckCoverage(externalId: string): Promise<UvsgamesDeckCoverage> {
       const referenced = await db
         .selectFrom("uvsgamesEventStandings")
@@ -155,7 +136,6 @@ export function uvsgamesResultsRepo(db: Kysely<Database>) {
       return { outstanding, held: heldIds.size };
     },
 
-    /** The lines of every deck this event holds, keyed by the source's deck id. */
     async decklistCards(externalId: string): Promise<Map<string, UvsgamesDecklistCardRow[]>> {
       const rows = await db
         .selectFrom("uvsgamesDecklistCards")
@@ -171,12 +151,7 @@ export function uvsgamesResultsRepo(db: Kysely<Database>) {
       return Map.groupBy(rows, (row) => row.sourceDeckId);
     },
 
-    /**
-     * Records one deck and its lines, or the fact that the source refused it.
-     *
-     * Idempotent on the deck id: a published list never changes, so a second
-     * write of the same id replaces rather than duplicates.
-     */
+    // Idempotent on the deck id: a second write of the same id replaces, not duplicates.
     async putDecklist(
       row: Insertable<UvsgamesDecklistsTable>,
       cards: readonly Omit<Insertable<UvsgamesDecklistCardsTable>, "sourceDeckId">[],

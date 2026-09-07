@@ -6,10 +6,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminCatalogRouter } from "./catalog";
 
-// ---------------------------------------------------------------------------
-// Mock repo
-// ---------------------------------------------------------------------------
-
 const mockSetsRepo = {
   listAll: vi.fn(),
   cardCountsBySet: vi.fn(),
@@ -23,11 +19,7 @@ const mockSetsRepo = {
   reorder: vi.fn(),
 };
 
-// ---------------------------------------------------------------------------
-// Test app — mount the oRPC router directly (without the requireAdmin gate).
 // AppErrors are bridged to ORPCErrors, so the error body is `{ message, code }`.
-// ---------------------------------------------------------------------------
-
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
 const app = new Hono<{ Variables: Variables }>();
@@ -38,11 +30,8 @@ app.use("*", async (c, next) => {
 });
 registerRouterForTest(app, adminCatalogRouter);
 
-// ---------------------------------------------------------------------------
-// Test data — `setType` is a real `sets` column and the release periods come
-// from the `set_releases` join, so the fixtures carry both (the output schema
-// requires them).
-// ---------------------------------------------------------------------------
+// setType is a real sets column; release periods come from the set_releases join.
+// Fixtures carry both since the output schema requires them.
 
 const setId1 = "a0000000-0001-4000-a000-000000000010";
 const setId2 = "a0000000-0001-4000-a000-000000000020";
@@ -64,10 +53,6 @@ const dbSet2 = {
   sortOrder: 1,
   setType: "supplemental" as const,
 };
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("GET /api/admin/v1/sets", () => {
   beforeEach(() => {
@@ -279,8 +264,6 @@ describe("POST /api/admin/v1/sets", () => {
     });
   });
 
-  // The chosen type used to be dropped on create, so every new set was born
-  // "main" and had to be edited straight afterwards.
   it("creates a supplemental set as supplemental", async () => {
     mockSetsRepo.createIfNotExists.mockResolvedValue(setId1);
     const res = await app.request("/api/admin/v1/sets", {

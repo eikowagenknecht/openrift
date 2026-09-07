@@ -28,12 +28,9 @@ function createMockRepos(overrides: {
     collectionId: string;
     collectionName: string;
   }[];
-  /** Copies pinned by a live (pending/reserved) trade. */
   reservedCopies?: string[];
-  /** Copies still pinned by a completed trade whose giver sync is unresolved. */
   completedReservedCopies?: string[];
   loanedCopies?: string[];
-  /** Collects the copy ids whose trade-list entries the move dropped. */
   droppedTradeEntryCopyIds?: string[];
 }) {
   const targetExists = overrides.targetCollection !== undefined;
@@ -54,8 +51,6 @@ function createMockRepos(overrides: {
       ensureInbox: () => Promise.resolve(overrides.inboxId ?? "inbox-id"),
       filterWritableByViewer: (ids: readonly string[]) => {
         const writable = new Set<string>(overrides.writableCollections);
-        // The target collection is implicitly writable when provided —
-        // mirrors the route's "you must have write access to the target".
         if (targetExists && overrides.targetCollection) {
           writable.add(overrides.targetCollection.id);
         }
@@ -88,8 +83,6 @@ function createMockRepos(overrides: {
         ),
       listReservationsForCopies: (copyIds: readonly string[]) =>
         Promise.resolve(pins.filter((pin) => copyIds.includes(pin.copyId))),
-      // The unfillable sweep runs after every move/dispose. These fixtures
-      // leave the actor with no pending trades, so it stops here.
       listPendingForGiverPrinting: () => Promise.resolve([]),
     },
     loans: {
@@ -97,8 +90,6 @@ function createMockRepos(overrides: {
         Promise.resolve((overrides.loanedCopies ?? []).filter((id) => copyIds.includes(id))),
     },
     lists: {
-      // Only reached for a move into a group collection: the copy stops being
-      // the owner's to offer, so their trade-list entries for it go.
       deleteTradeEntriesForCopies: (copyIds: readonly string[]) => {
         overrides.droppedTradeEntryCopyIds?.push(...copyIds);
         return Promise.resolve({ numDeletedRows: BigInt(copyIds.length) });
@@ -258,8 +249,6 @@ describe("moveCopies", () => {
     ).resolves.toBeUndefined();
   });
 
-  // Supply is built from trade-list membership, not ownership, so an entry left
-  // behind would keep advertising a copy the group now owns.
   it("drops the owner's trade-list entries when a copy moves into a group collection", async () => {
     const dropped: string[] = [];
     const repos = createMockRepos({
@@ -404,10 +393,6 @@ describe("disposeCopies", () => {
 });
 
 describe("copy mutations sweep unfillable pending trades", () => {
-  /**
-   * Repos for the sweep wiring: one copy of `p-1`, one pending request for it,
-   * and a supply read that reports the stack empty once the mutation ran.
-   */
   function sweepRepos() {
     const markAutoCancelled = vi.fn(() => Promise.resolve(1));
     const repos = {
@@ -437,7 +422,6 @@ describe("copy mutations sweep unfillable pending trades", () => {
         markAutoCancelled,
       },
       friendGroupMatches: {
-        // Read after the mutation: the giver no longer offers the printing.
         giverPrintingSupply: () => Promise.resolve({ unreservedCopyIds: [], hasAny: false }),
       },
     } as unknown as Repos;

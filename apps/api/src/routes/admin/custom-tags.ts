@@ -16,13 +16,7 @@ import type { ApiContext } from "../../orpc/context.js";
 
 const os = implement(adminCustomTagsContract).$context<ApiContext>().use(requireAuthedUser);
 
-/**
- * Admin custom-tags taxonomy: tag categories, tags, and per-card assignment.
- * Conflict / not-found / bad-request states are thrown as `AppError` and mapped
- * by the handler's appErrorInterceptor.
- */
 export const adminCustomTagsRouter = {
-  // ── Categories ────────────────────────────────────────────────────────────
   listCategories: os.listCategories.handler(
     async ({ context }): Promise<AdminCustomTagCategoryListResponse> => {
       const { customTagCategories: catRepo, customTags: tagRepo } = context.repos;
@@ -97,7 +91,6 @@ export const adminCustomTagsRouter = {
     await repo.deleteById(id);
   }),
 
-  // ── Tags ──────────────────────────────────────────────────────────────────
   listTags: os.listTags.handler(async ({ context }): Promise<AdminCustomTagListResponse> => {
     const { customTags: repo } = context.repos;
     const [rows, assignments] = await Promise.all([repo.listAll(), repo.assignmentsByCard()]);
@@ -213,7 +206,6 @@ export const adminCustomTagsRouter = {
     return { removed };
   }),
 
-  // ── Per-card assignment ─────────────────────────────────────────────────
   getCardTags: os.getCardTags.handler(async ({ input, context }) => {
     const { customTags: repo, catalog } = context.repos;
     const card = await catalog.cardById(input.id);

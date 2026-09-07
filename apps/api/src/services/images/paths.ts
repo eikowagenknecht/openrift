@@ -3,11 +3,6 @@ import { existsSync } from "node:fs";
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side file needs filesystem access
 import { dirname, join } from "node:path";
 
-/**
- * Build the canonical rehosted URL for an image by its UUID.
- * Uses the last 2 hex characters of the UUID as a directory prefix for even distribution.
- * @returns The URL path like `/media/cards/{prefix}/{imageId}`
- */
 export function imageRehostedUrl(imageId: string): string {
   return `/media/cards/${imageId.slice(-2)}/${imageId}`;
 }

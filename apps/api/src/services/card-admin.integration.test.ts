@@ -7,13 +7,6 @@ import { catalogMutationsRepo } from "../repositories/catalog-mutations.js";
 import { createDbContext, seedTestUser, syncCardCardTypes } from "../test/integration-context.js";
 import { deleteCard } from "./card-admin.js";
 
-// ---------------------------------------------------------------------------
-// deleteCard against a real database: the blocker check must refuse while a
-// user's copy references one of the card's printings, and after the copy is
-// gone the delete must remove the card, its printings, and cascading children
-// (aliases) in one transaction.
-// ---------------------------------------------------------------------------
-
 // Random per-file user (seeded via seedTestUser in beforeAll) so this file
 // cannot collide with pre-seeded registry users or other files' fixtures.
 const USER_ID = crypto.randomUUID();

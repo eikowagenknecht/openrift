@@ -144,8 +144,6 @@ describe("buildCandidateCardList", () => {
   });
 
   it("keeps non-Latin candidate names in separate rows", async () => {
-    // `[^a-z0-9]` used to normalize every CJK name to "", landing all seven in
-    // one bucket. The normalizer now preserves the script, so each keeps its own key.
     const cjk = [
       { name: "影流之主", normName: "影流之主", shortCode: "VEN-189*" },
       { name: "沙漠皇帝", normName: "沙漠皇帝", shortCode: "VEN-191*" },
@@ -179,8 +177,6 @@ describe("buildCandidateCardList", () => {
   });
 
   it("does not merge distinct names that both normalize to empty", async () => {
-    // A name with no letters or digits at all still normalizes to "". Grouping
-    // on that key would collapse unrelated rows, so they group by raw name.
     const repo = createMockRepo({
       listCardsForSourceList: vi.fn().mockResolvedValue([]),
       listCandidateCardsForSourceList: vi.fn().mockResolvedValue([
@@ -196,8 +192,6 @@ describe("buildCandidateCardList", () => {
 
     expect(result).toHaveLength(2);
     expect(result.map((r) => r.name).toSorted()).toEqual(["!?!", "★☆"]);
-    // The response still reports the real (empty) key so the client can
-    // suppress the link and accept/assign controls that need one.
     for (const row of result) {
       expect(row.normalizedName).toBe("");
       expect(row.candidateCount).toBe(1);
@@ -265,9 +259,7 @@ describe("buildCandidateCardList", () => {
 
     const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
-    // OGN-001 (unchecked, unlinked) + OGN-003 (unchecked, linked) = 2
     expect(result[0].uncheckedPrintingCount).toBe(2);
-    // stagingShortCodes still only includes unlinked printings
     expect(result[0].stagingShortCodes).toEqual(["OGN-001"]);
   });
 
@@ -300,9 +292,6 @@ describe("buildCandidateCardList", () => {
     expect(result[0].stagingShortCodes).toEqual(["SFD-100", "SFD-101"]);
   });
 
-  // Staging codes used to be concatenated one candidate card at a time, so
-  // with several providers the merged list came out in provider blocks
-  // instead of the repo's canonical printing order.
   it("keeps staging short codes in repo order when merged across providers", async () => {
     const repo = createMockRepo({
       listCardsForSourceList: vi
@@ -313,8 +302,6 @@ describe("buildCandidateCardList", () => {
         { id: "cc-2", normName: "bolt", name: "Bolt", provider: "gallery", checkedAt: null },
       ]),
       listPrintingsForSourceList: vi.fn().mockResolvedValue([]),
-      // Repo rows arrive in canonical printing order, interleaved across the
-      // two candidate cards.
       listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([
         { candidateCardId: "cc-2", shortCode: "OGN-001", checkedAt: null, printingId: null },
         { candidateCardId: "cc-1", shortCode: "OGN-002", checkedAt: null, printingId: null },
@@ -498,11 +485,9 @@ describe("buildCandidateCardList", () => {
       listAliasesForSourceList: vi.fn().mockResolvedValue([]),
     });
 
-    // "gallery" is checked, "ocr" is not a favorite, so unchecked count is 0
     const result = await buildCandidateCardList(repo, new Set(["gallery"]));
     expect(result[0].uncheckedCardCount).toBe(0);
 
-    // With both as favorites, "ocr" is unchecked so count is 1
     const result2 = await buildCandidateCardList(repo, new Set(["gallery", "ocr"]));
     expect(result2[0].uncheckedCardCount).toBe(1);
   });
@@ -541,18 +526,14 @@ describe("buildCandidateCardList", () => {
       ]),
       listPrintingsForSourceList: vi.fn().mockResolvedValue([]),
       listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([
-        // Favorite + unchecked + unlinked: the only one the codes column shows.
         { candidateCardId: "cc-fav", shortCode: "OGN-001", checkedAt: null, printingId: null },
-        // Checked but still unlinked, so the detail page keeps showing it.
         {
           candidateCardId: "cc-fav",
           shortCode: "OGN-002",
           checkedAt: new Date(),
           printingId: null,
         },
-        // Non-favorite provider, also unlinked.
         { candidateCardId: "cc-other", shortCode: "OGN-003", checkedAt: null, printingId: null },
-        // Already accepted onto a printing: not a new printing any more.
         { candidateCardId: "cc-fav", shortCode: "OGN-004", checkedAt: null, printingId: "p-1" },
       ]),
       listAliasesForSourceList: vi.fn().mockResolvedValue([]),
@@ -654,8 +635,6 @@ describe("buildCandidateCardList", () => {
   });
 
   it("includes pending candidate-printing sets in an unmatched row's setSlugs", async () => {
-    // A new-set candidate has no accepted printing, so setSlugs must come from
-    // its candidate printings, otherwise ?set=VEN hides it.
     const repo = createMockRepo({
       listCandidateCardsForSourceList: vi.fn().mockResolvedValue([
         {
@@ -698,7 +677,6 @@ describe("buildCandidateCardList", () => {
           { cardId: "card-1", shortCode: "OGN-001", language: "EN", setSlug: "ogn" },
         ]),
       listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([
-        // A new VEN reprint candidate plus a duplicate OGN candidate.
         {
           candidateCardId: "cc-1",
           shortCode: "VEN-050",
@@ -1204,7 +1182,6 @@ describe("buildExport", () => {
 });
 
 describe("buildCardDetail", () => {
-  /** Minimal matched card for tests that need candidates to be fetched. */
   const matchedCard = {
     id: "card-1",
     slug: "x",
@@ -1285,10 +1262,6 @@ describe("buildCardDetail", () => {
   });
 
   it("matches candidates by the card's own normName even when the self-alias is missing", async () => {
-    // A rename left the old-name alias ("akalirogueassassin") behind and never
-    // created the new-name self-alias ("rogueassassin"). The detail view must
-    // still match candidates under the current normName, otherwise it desyncs
-    // from the list view, which matches by cards.norm_name.
     const candidateCardsForDetail = vi.fn().mockResolvedValue([]);
     const repo = createMockRepo({
       cardForDetailBySlug: vi.fn().mockResolvedValue({
@@ -1603,7 +1576,6 @@ describe("buildCardDetail", () => {
     expect(result.candidatePrintingGroups).toHaveLength(1);
     expect(result.candidatePrintingGroups[0].shortCodes).toEqual(["cp-1", "cp-2"]);
     expect(result.candidatePrintingGroups[0].expectedPrintingId).toBe("OGN-001::normal");
-    // No accepted printings in this setup, so there is nothing to suggest.
     expect(result.candidatePrintingGroups[0].suggestedPrintingId).toBeNull();
   });
 
@@ -1675,9 +1647,7 @@ describe("buildCardDetail", () => {
       cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
       candidateCardsForDetail: vi.fn().mockResolvedValue([candidateCard]),
       candidatePrintingsForDetail: vi.fn().mockResolvedValue([
-        // Marker drift: source says promo, catalogue has {} and {launch-exclusive}.
         makeCandidatePrinting({ id: "cp-1", externalId: "ext-p1", markerSlugs: ["promo"] }),
-        // Case drift + finish drift: lowercased code, normal where only foil exists.
         makeCandidatePrinting({
           id: "cp-2",
           externalId: "ext-p2",
@@ -1685,7 +1655,6 @@ describe("buildCardDetail", () => {
           finish: "normal",
           rarity: null,
         }),
-        // No counterpart at all.
         makeCandidatePrinting({ id: "cp-3", externalId: "ext-p3", shortCode: "OGN-999" }),
       ]),
       printingsForDetail: vi.fn().mockResolvedValue([
@@ -1706,9 +1675,7 @@ describe("buildCardDetail", () => {
     const bySuggestion = new Map(
       result.candidatePrintingGroups.map((g) => [g.shortCodes[0], g.suggestedPrintingId]),
     );
-    // Both are missing {promo}; {launch-exclusive} also carries an extra marker.
     expect(bySuggestion.get("cp-1")).toBe("p-plain");
-    // Code matches case-insensitively; finish mismatch still yields the foil.
     expect(bySuggestion.get("cp-2")).toBe("p-plain");
     expect(bySuggestion.get("cp-3")).toBeNull();
   });
@@ -1761,8 +1728,6 @@ describe("buildCardDetail", () => {
           checkedAt: null,
         },
       ]),
-      // The unmarked printing sorts first canonically, so a symmetric marker
-      // distance would tie and hand it the suggestion.
       printingsForDetail: vi.fn().mockResolvedValue([
         {
           id: "p-plain",
@@ -1840,7 +1805,6 @@ describe("buildCardDetail", () => {
       cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
       candidateCardsForDetail: vi.fn().mockResolvedValue([candidateCard]),
       candidatePrintingsForDetail: vi.fn().mockResolvedValue([
-        // Several sources report the foil-only promo as a normal finish.
         {
           id: "cp-1",
           candidateCardId: "cc-1",
@@ -1864,8 +1828,6 @@ describe("buildCardDetail", () => {
           checkedAt: null,
         },
       ]),
-      // The unmarked printing matches on finish and sorts first canonically, so
-      // a dominant finish cost would hand it the suggestion.
       printingsForDetail: vi.fn().mockResolvedValue([
         {
           id: "p-plain",
@@ -2514,8 +2476,6 @@ describe("buildCardDetail", () => {
       }),
       cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
       candidateCardsForDetail: vi.fn().mockResolvedValue([]),
-      // Mock returns out-of-order by canonicalRank (higher rank first) to
-      // prove the service sorts ascending even when the repo doesn't.
       printingsForDetail: vi.fn().mockResolvedValue([
         {
           id: "p-2",
@@ -2753,7 +2713,6 @@ describe("buildCardDetail", () => {
           ownerLanguage: "EN",
         },
         {
-          // unsupported marketplace — should be filtered out
           targetPrintingId: "p-en",
           marketplace: "ebay",
           externalId: 999,
@@ -2898,7 +2857,6 @@ describe("provider scoping (allowedProviders)", () => {
 
     const result = await buildCandidateCardList(repo, new Set(), new Set(["gallery"]));
 
-    // beta's only candidate is from a disallowed provider; alpha survives
     expect(result.map((r) => r.cardSlug)).toEqual(["alpha"]);
   });
 
@@ -2923,7 +2881,6 @@ describe("provider scoping (allowedProviders)", () => {
       listCandidateCardsForSourceList: vi.fn().mockResolvedValue([]),
     });
 
-    // full admin: matched cards without candidates stay in the list
     const result = await buildCandidateCardList(repo, new Set(), null);
     expect(result).toHaveLength(1);
     expect(result[0].candidateCount).toBe(0);
@@ -2959,7 +2916,6 @@ describe("provider scoping (allowedProviders)", () => {
     const result = await buildCardDetail(repo, mpRepo(), "x", new Set(["gallery"]));
 
     expect(result.sources.map((s) => s.provider)).toEqual(["gallery"]);
-    // candidate printings are fetched only for the filtered candidate ids
     expect(candidatePrintingsForDetail).toHaveBeenCalledWith(["cc-1"]);
   });
 

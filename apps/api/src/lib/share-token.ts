@@ -3,11 +3,7 @@ import { isUniqueViolation, isUniqueViolationOn } from "./pg-errors.js";
 const SHARE_TOKEN_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 const SHARE_TOKEN_LENGTH = 12;
 
-/**
- * Generates an unguessable base62 share token. 12 chars × log2(62) ≈ 71 bits
- * of entropy. Unbiased via rejection sampling: we only accept bytes below the
- * largest multiple of 62 that fits in a byte (248).
- */
+/** Rejection-samples bytes below the largest multiple of 62 that fits in a byte, to keep the base62 mapping unbiased. */
 export function generateShareToken(): string {
   const threshold = Math.floor(256 / SHARE_TOKEN_ALPHABET.length) * SHARE_TOKEN_ALPHABET.length;
   const out: string[] = [];
@@ -27,15 +23,8 @@ export function generateShareToken(): string {
 }
 
 /**
- * Runs a token-consuming write, regenerating the token and retrying when the
- * write fails on a unique-constraint violation. At ~71 bits a collision is
- * astronomically unlikely, but tokens are UNIQUE-constrained, so without this
- * the once-in-forever collision would surface as a raw 500 instead of a
- * transparent retry. Non-unique-violation errors propagate immediately.
- *
  * Pass `constraint` when the callback writes more than the token-bearing row:
- * without it any 23505 the write raises — a duplicate satellite row, say —
- * burns all three attempts and then surfaces as a token problem.
+ * without it, a unique violation on any other row also burns retries as if it were a token collision.
  */
 export async function withUniqueShareToken<Result>(
   attempt: (token: string) => Promise<Result>,

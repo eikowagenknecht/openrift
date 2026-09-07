@@ -450,9 +450,6 @@ export const friendGroupsRouter = {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "No pending invite");
     }
 
-    // Every pending row is now a join request (migration 259 cleared the last
-    // of the invite-by-email rows), so accepting is always an admin acting on
-    // someone else's request.
     const membership = await friendGroups.getMembership(group.id, viewerId);
     if (!membership || !hasRole(membership.role, "admin")) {
       throw new AppError(403, ERROR_CODES.FORBIDDEN, "Admin only");
@@ -697,10 +694,7 @@ export const friendGroupsRouter = {
       return;
     }
 
-    // Pulling a trade list out of the group drops the supply behind the
-    // viewer's live offers and the requests aimed at them, so re-check both in
-    // the same transaction as the unshare. Only the printings that still have
-    // a pending trade are worth a supply read.
+    // The unshare and the pending-trade supply recheck must run in the same transaction.
     await context.transact(async (trxRepos) => {
       await trxRepos.friendGroups.unshare(ctx.group.id, input.listId);
       const printingIds = await trxRepos.cardTrades.listPendingPrintingIdsForGiverInGroup(

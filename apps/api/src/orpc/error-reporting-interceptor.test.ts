@@ -12,8 +12,6 @@ vi.mock("@sentry/bun", () => ({
 const logError = vi.fn();
 const log = { error: logError } as unknown as Parameters<typeof makeReportingErrorInterceptor>[0];
 
-/** An output-validation failure in the exact shape oRPC throws it.
- * @returns The wrapping 500 whose `cause` carries the issues. */
 function outputValidationError(
   issues: { message: string; path?: unknown[] }[],
 ): ORPCError<string, unknown> {
@@ -75,9 +73,6 @@ describe("reporting error interceptor: server-fault classification", () => {
   });
 
   it("reports the offending field paths of an output-validation failure", async () => {
-    // Regression: the wrapping ORPCError's message is the
-    // bare "Output validation failed", so without lifting the cause's issues
-    // neither Sentry nor the log says which field 500'd the endpoint.
     await runThrowing(
       outputValidationError([
         { message: "Invalid option", path: ["defaultCurrency"] },
@@ -101,7 +96,6 @@ describe("reporting error interceptor: server-fault classification", () => {
   });
 
   it("does not report the rejected payload alongside the issues", async () => {
-    // `cause.data` is the whole rejected output — caller data, not diagnostics.
     await runThrowing(outputValidationError([{ message: "Invalid option", path: ["theme"] }]));
     expect(JSON.stringify(captureException.mock.calls[0]?.[1])).not.toContain("never logged");
   });

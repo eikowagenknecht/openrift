@@ -38,7 +38,6 @@ describe("splitDeckZones", () => {
       card("Expensive spell", "main", 1, 8),
       card("Late champion", "champion", 1, 6),
     ]);
-    // The champion comes first despite costing more than either spell.
     expect(zones.gridCards.map((entry) => entry.cardName)).toEqual([
       "Late champion",
       "Cheap spell",
@@ -67,7 +66,6 @@ describe("splitDeckZones", () => {
     ]);
     expect(zones.mainCardCount).toBe(6);
     expect(zones.sideboardCount).toBe(2);
-    // The overflow copies still show in the grid, they are just not counted.
     expect(zones.gridCards).toHaveLength(3);
   });
 
@@ -142,15 +140,12 @@ describe("packGrid", () => {
     const grid = packGrid(15, 1024, 980, CARD_ASPECT);
     expect(grid.cols).toBeGreaterThan(1);
     expect(grid.tileW).toBe(Math.floor(grid.tileH * CARD_ASPECT));
-    // Every tile has to fit the area it was measured against.
     const rows = Math.ceil(15 / grid.cols);
     expect(grid.cols * grid.tileW + (grid.cols - 1) * 10).toBeLessThanOrEqual(1024);
     expect(rows * grid.tileH + (rows - 1) * 10).toBeLessThanOrEqual(980);
   });
 
   it("stacks a two-card deck into one column on a tall area by default", () => {
-    // One column of two tiles beats two columns of one by a single pixel here,
-    // which is what `preferWider` exists to overrule.
     expect(packGrid(2, 1024, 1431, CARD_ASPECT).cols).toBe(1);
   });
 

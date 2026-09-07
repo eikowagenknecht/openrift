@@ -33,7 +33,6 @@ describe.skipIf(!ctx)("userContactMethodsRepo (integration)", () => {
     const updated = await repo.update(first.id, userId, "discord", "seb#5678");
     expect(updated?.value).toBe("seb#5678");
 
-    // A different user owns nothing, so the update is a no-op.
     const foreign = await repo.update(
       first.id,
       "a0000000-0057-4000-a000-000000000001",
@@ -61,7 +60,6 @@ describe.skipIf(!ctx)("userContactMethodsRepo (integration)", () => {
     const methods = await repo.listForUser(userId);
     const revealedId = methods[0].id;
 
-    // A foreign id is silently dropped; only the owned one is revealed.
     await groups.setRevealedContacts(GROUP_ID, userId, [
       revealedId,
       "a0000000-dead-4000-a000-000000000001",
@@ -70,7 +68,6 @@ describe.skipIf(!ctx)("userContactMethodsRepo (integration)", () => {
     const byUser = await groups.getRevealedContactsForMembers(GROUP_ID);
     expect(byUser.get(userId)?.map((method) => method.id)).toEqual([revealedId]);
 
-    // Re-setting with an empty list clears the reveal.
     await groups.setRevealedContacts(GROUP_ID, userId, []);
     const cleared = await groups.getRevealedContactsForMembers(GROUP_ID);
     expect(cleared.get(userId)).toBeUndefined();

@@ -4,11 +4,7 @@ import type { DeckFormatConfig } from "@openrift/shared";
 import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";
 
-/**
- * Rejects a deck format that isn't in the `deck_formats` reference table. The
- * column FKs to that table, so without this a bad slug surfaces as a raw
- * constraint violation instead of a 400.
- */
+/** Rejects a format not in `deck_formats`, before the FK turns it into a raw constraint violation. */
 export async function assertKnownFormat(
   deckFormats: Repos["deckFormats"],
   format: string,
@@ -19,16 +15,7 @@ export async function assertKnownFormat(
   }
 }
 
-/**
- * Per-format validation of `formatConfig`. Each format declares its own
- * shape; this helper dispatches by slug and rejects malformed values at the
- * API boundary so the DB never holds a config the runtime can't honor.
- *
- * Custom-Region accepts `null` (no regions picked yet) or
- * `{ tagSlugs: <slug>[] }` where each slug references an existing
- * custom_tags row with category='region'. At least one slug is required;
- * duplicates are deduped to keep the persisted payload tidy.
- */
+/** Validates `formatConfig` against the shape the given format's slug declares. */
 export async function validateFormatConfig(
   customTagsRepo: Repos["customTags"],
   format: string,
@@ -75,8 +62,6 @@ export async function validateFormatConfig(
     return { tagSlugs: slugs };
   }
 
-  // Other formats don't accept config today; reject anything non-null so we
-  // don't silently persist data that has no consumer.
   throw new AppError(
     400,
     ERROR_CODES.BAD_REQUEST,

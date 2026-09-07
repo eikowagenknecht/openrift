@@ -3,7 +3,6 @@ import type { Kysely } from "kysely";
 import type { Database } from "../db/index.js";
 import { slugTaxonomyRepo } from "./slug-taxonomy.js";
 
-/** @returns The deck-format taxonomy repo; formats are referenced by `decks.format`. */
 export function deckFormatsRepo(db: Kysely<Database>) {
   return slugTaxonomyRepo(db, {
     table: "deckFormats",

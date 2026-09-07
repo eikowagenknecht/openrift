@@ -1,18 +1,12 @@
 /**
- * The one key that identifies a live printing across the candidate pipelines.
- *
- * It lives here rather than beside the resolvers in `services/candidate-links.ts`
- * because both the card-submission repository and the submission diff key on it,
- * and a repository must not reach into a service for it.
+ * Not in `services/candidate-links.ts`: the card-submission repository keys on
+ * this, and a repository must not reach into a service.
  */
 import { WellKnown } from "@openrift/shared";
 
 /**
- * Composite key identifying one live printing. Short codes are uppercased on
- * both sides so source-side casing drift ("VEN-sp3" vs "VEN-SP3") still links,
- * and marker slugs are sorted so payload order never blocks a match.
- * @param printing The printing (live or candidate) to key.
- * @returns The `SHORTCODE:finish:markers:language` key.
+ * Short codes are uppercased on both sides so source-side casing drift
+ * ("VEN-sp3" vs "VEN-SP3") still links, and marker slugs are sorted.
  */
 export function buildPrintingLinkKey(printing: {
   shortCode: string;

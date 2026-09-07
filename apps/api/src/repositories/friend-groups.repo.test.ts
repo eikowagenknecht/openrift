@@ -33,7 +33,6 @@ const INVITE = {
 };
 
 describe("friendGroupsRepo", () => {
-  // ── Groups ─────────────────────────────────────────────────────────────────
   it("getById returns the group", async () => {
     const repo = friendGroupsRepo(createMockDb([GROUP]));
     expect(await repo.getById("grp-1")).toEqual(GROUP);
@@ -74,7 +73,6 @@ describe("friendGroupsRepo", () => {
     await expect(repo.deleteById("grp-1")).resolves.toBeUndefined();
   });
 
-  // ── Membership ────────────────────────────────────────────────────────────
   it("getMembership returns the row", async () => {
     const repo = friendGroupsRepo(createMockDb([MEMBER]));
     expect(await repo.getMembership("grp-1", "u1")).toEqual(MEMBER);
@@ -95,7 +93,7 @@ describe("friendGroupsRepo", () => {
     const raw = {
       ...GROUP,
       viewerRole: "owner",
-      memberCount: null, // simulate the worst-case typing
+      memberCount: null,
       pendingRequestCount: 2n,
       sharedListCount: "3",
     };
@@ -146,9 +144,6 @@ describe("friendGroupsRepo", () => {
     expect(events).toEqual(["begin", "commit"]);
   });
 
-  // Regression: the promote was unguarded, so a `toUserId` who is no longer a
-  // member updated nothing while the demote still committed — leaving the group
-  // with no owner at all, and no way to appoint one.
   it("transferOwnership rolls back when the target is not a member", async () => {
     const { db, events } = createRecordingDb([{ numAffectedRows: 1n }, []]);
     await expect(friendGroupsRepo(db).transferOwnership("grp-1", "u-owner", "u1")).rejects.toThrow(
@@ -157,7 +152,6 @@ describe("friendGroupsRepo", () => {
     expect(events).toEqual(["begin", "rollback"]);
   });
 
-  // ── Invites ───────────────────────────────────────────────────────────────
   it("getInvite returns the row", async () => {
     const repo = friendGroupsRepo(createMockDb([INVITE]));
     expect(await repo.getInvite("grp-1", "u2")).toEqual(INVITE);
@@ -201,9 +195,8 @@ describe("friendGroupsRepo", () => {
     await expect(repo.deleteInvite("grp-1", "u2")).resolves.toBeUndefined();
   });
 
-  // The ON CONFLICT DO NOTHING makes a repeat request indistinguishable from a
-  // first one unless the affected-row count is read back, and the caller mails
-  // the group's admins off exactly that answer.
+  // ON CONFLICT DO NOTHING makes a repeat request indistinguishable from a
+  // first one unless the affected-row count is read back.
   it("createInvite reports whether a row was actually inserted", async () => {
     const inserted = createRecordingDb([{ numAffectedRows: 1n }]);
     expect(await friendGroupsRepo(inserted.db).createInvite("grp-1", "u2", "request")).toBe(true);
@@ -214,7 +207,6 @@ describe("friendGroupsRepo", () => {
     );
   });
 
-  // ── Shares ────────────────────────────────────────────────────────────────
   it("listSharesForGroup returns enriched rows", async () => {
     const row = {
       groupId: "grp-1",

@@ -7,25 +7,11 @@ import type { Repos } from "../deps.js";
 
 const tracer = trace.getTracer("openrift-api/jobs");
 
-/**
- * How a tracked run ended. {@link runJob} collapses this to `T | null`;
- * {@link runJobOutcome} hands it back intact for callers that have to tell a
- * failure apart from a skipped run — an admin endpoint answering a click, say,
- * which would otherwise report both as success.
- */
 export type JobOutcome<T> =
   | { status: "succeeded"; result: T }
   | { status: "failed"; message: string }
   | { status: "already_running"; runId: string };
 
-/**
- * Report a job failure to Sentry.
- *
- * Jobs run outside the request path, so neither the Hono `onError` handler nor
- * the oRPC reporting interceptor ever sees them. Without this, a failed cron is
- * visible only in the `job_runs` table and the logs, and nothing pushes an
- * alert anywhere.
- */
 function captureJobFailure(
   error: unknown,
   scope: { kind: string; trigger: JobTrigger; runId: string },
@@ -37,12 +23,7 @@ function captureJobFailure(
 }
 
 interface RunJobOptions<T> {
-  /** If provided, its return value is stored as the run's `result` JSONB. */
   summarize?: (result: T) => unknown;
-  /** If provided, classifies a successful run's activity: `true` when the run
-   *  found no work to do, `false` when it did work. Runs without a classifier
-   *  (and all failures) leave `noop` null. Operates on the raw job result, not
-   *  the summarized form. */
   classifyNoop?: (result: T) => boolean;
 }
 
@@ -52,9 +33,8 @@ interface RunJobDeps {
 }
 
 /**
- * Claim the single running row for `kind`. A partial unique index on running
- * rows means only one insert can win; a loser re-reads the winner's row and
- * reports it instead of running a duplicate.
+ * A partial unique index on running rows lets only one insert win; a loser
+ * re-reads the winner's row.
  */
 async function claimRun(
   deps: RunJobDeps,
@@ -71,21 +51,14 @@ async function claimRun(
     if (started !== null) {
       return { started: started.id };
     }
-    // Lost the insert race; loop to read the winner's row (which may already
-    // have finished, in which case the next attempt claims cleanly).
+    // Lost the race; the winner's row may finish before the next attempt reads it.
   }
   throw new Error(`Could not claim a run for job kind "${kind}"`);
 }
 
 /**
- * Execute `fn` while tracking its lifecycle in the `job_runs` table.
- *
- * Awaits completion. On failure, logs the error, reports it to Sentry and
- * writes a failed row rather than re-throwing — so cron handlers can call this
- * without needing their own try/catch to keep the timer alive. Callers that
- * need to know whether the work actually succeeded should check the return
- * value: `T` on success, `null` on failure or if a run was already in progress.
- * Use {@link runJobOutcome} when those two must be told apart.
+ * Never rethrows: a failing `fn` is logged, reported to Sentry, and recorded
+ * as a failed run; the caller gets `null`.
  */
 export async function runJob<T>(
   deps: RunJobDeps,
@@ -99,12 +72,8 @@ export async function runJob<T>(
 }
 
 /**
- * {@link runJob} without the `null` collapse: the same tracked run, reported as
- * a discriminated {@link JobOutcome}. Use it where "the job failed" and "a run
- * was already in flight" need different answers, e.g. an admin endpoint that
- * would otherwise return 200 for a failed run. A failing `fn` yields a
- * `failed` outcome rather than a rejection; only a `job_runs` write that
- * itself throws propagates.
+ * A failing `fn` becomes a `failed` outcome, not a rejection; only a
+ * `job_runs` write failure propagates.
  */
 export function runJobOutcome<T>(
   deps: RunJobDeps,
@@ -155,10 +124,7 @@ async function runJobInner<T>(
   } catch (error) {
     const durationMs = Date.now() - startMs;
     const message = error instanceof Error ? error.message : String(error);
-    // Jobs swallow their errors so cron timers stay alive, so this catch is the
-    // only place a failed background run can be reported. Report before the row
-    // write, so a failing `fail()` (the DB being the reason the job died, say)
-    // cannot swallow the only push-based signal.
+    // Report to Sentry before the row write: a failing `fail()` must not swallow the only signal.
     captureJobFailure(error, { kind, trigger, runId: id });
     await repos.jobRuns.fail(id, { durationMs, errorMessage: message });
     log.error({ err: error, kind, runId: id, durationMs }, "Job failed");
@@ -168,12 +134,8 @@ async function runJobInner<T>(
 }
 
 /**
- * Kick off `fn` in the background and return the new run's id immediately.
- * Use for admin endpoints that would otherwise time out behind a gateway
- * (Cloudflare 502) on long operations.
- *
  * If a run of the same `kind` is already `running`, returns the existing
- * runId with status `already_running` instead of starting a duplicate.
+ * runId as `already_running` and does not start a duplicate.
  */
 export async function runJobAsync<T>(
   deps: RunJobDeps,
@@ -201,9 +163,7 @@ export async function runJobAsync<T>(
     attributes: { "job.kind": kind, "job.trigger": trigger, "job.run_id": id },
   });
 
-  // Fire-and-forget: schedule the work on the event loop and return the
-  // runId immediately. Errors go to the row and to Sentry, never rethrown —
-  // there is no caller left to catch them by the time `fn` settles.
+  // Fire-and-forget: no caller remains to catch a throw once `fn` settles.
   setImmediate(() => {
     void context.with(trace.setSpan(context.active(), span), async () => {
       try {
@@ -217,8 +177,6 @@ export async function runJobAsync<T>(
         const durationMs = Date.now() - startMs;
         const message = error instanceof Error ? error.message : String(error);
         span.setStatus({ code: SpanStatusCode.ERROR, message });
-        // See the note in runJobInner: fire-and-forget work has no caller left
-        // to surface the throw, so this is the only reporting path.
         captureJobFailure(error, { kind, trigger, runId: id });
         try {
           await repos.jobRuns.fail(id, { durationMs, errorMessage: message });

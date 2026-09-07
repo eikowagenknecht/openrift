@@ -52,7 +52,6 @@ function proposedPrinting(overrides: Partial<ProposedPrinting> = {}): ProposedPr
   };
 }
 
-/** The printing key format, spelled out so the tests read as identities. */
 const EN_NORMAL = "OGN-042:normal::EN";
 const FR_NORMAL = "OGN-042:normal::FR";
 
@@ -109,10 +108,6 @@ describe("computeProposedDiff", () => {
   });
 
   it("keeps a card's finishes and languages apart", () => {
-    // Eight printings of one card can share a short code and differ only by
-    // finish and language. Keying the live side by short code alone collapses
-    // them onto one row, so the French printing phantom-differs on language
-    // and an artist fix accepted on the English one goes unnoticed.
     const live: LiveSnapshot = {
       card: LIVE_CARD,
       printings: new Map([
@@ -130,14 +125,10 @@ describe("computeProposedDiff", () => {
       },
       live,
     );
-    // Only the French artist differs. Nothing is reported against the English
-    // row, and no language entry appears for either.
     expect(diff).toEqual([`printing.${FR_NORMAL}.artist`]);
   });
 
   it("skips a printing that carries no finish", () => {
-    // It cannot be told apart from its siblings, and calling it new would add a
-    // field that can never be adopted, pinning the submission to not_applied.
     const diff = computeProposedDiff(
       { card: { name: "Jinx" }, printings: [proposedPrinting({ finish: null, artist: "Nobody" })] },
       liveSnapshot(),
@@ -146,8 +137,6 @@ describe("computeProposedDiff", () => {
   });
 
   it("ignores casing and surrounding whitespace", () => {
-    // A contributor typing "riot games" is not proposing a change, and counting
-    // it as one would credit them for a correction nobody made.
     const diff = computeProposedDiff(
       { card: { name: "  jinx " }, printings: [proposedPrinting({ artist: "riot games" })] },
       liveSnapshot(),
@@ -197,8 +186,6 @@ describe("computeProposedDiff", () => {
   });
 
   it("counts no change when the printing already has artwork", () => {
-    // We cannot verify a replacement image by comparison, so this resolves as
-    // already_correct rather than as an accept nobody made.
     const withArt = computeProposedDiff(
       {
         card: { name: "Jinx" },

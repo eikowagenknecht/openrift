@@ -21,9 +21,8 @@ const TRADE = {
   groupId: "group-1",
   giverUserId: "giver-1",
   receiverUserId: "receiver-1",
-  // The initiator can't accept their own trade (assertRecipient) — make the
-  // giver the initiator so the receiver, who calls acceptTrade below, is the
-  // eligible recipient.
+  // assertRecipient rejects the initiator accepting their own trade, so the
+  // giver is the initiator here and the receiver calls acceptTrade below.
   initiator: "giver",
   printingId: "printing-1",
   quantity: 1,
@@ -74,7 +73,6 @@ describe("acceptTrade cross-claim with a concurrent loan", () => {
         markReserved,
       },
       friendGroupMatches: {
-        // Pre-check reports the copy as unreserved...
         giverPrintingSupply: vi.fn(async () => ({
           unreservedCopyIds: ["copy-1"],
           hasAny: true,
@@ -84,8 +82,6 @@ describe("acceptTrade cross-claim with a concurrent loan", () => {
         lockByIds: vi.fn(async (ids: string[]) => ids),
       },
       loans: {
-        // ...but by the time the row is locked, a concurrent createLoan has
-        // already pinned it.
         filterLoanedCopyIds: vi.fn(async () => ["copy-1"]),
       },
     } as unknown as Repos;
@@ -126,8 +122,8 @@ interface Pending {
 }
 
 /**
- * `supplyByGroup` is the giver's unreserved copies per group; `pending` stands
- * in for the giver's other live trades across every group.
+ * `supplyByGroup`: the giver's unreserved copies per group.
+ * `pending`: the giver's other live trades across every group.
  */
 function supplyRepos(supplyByGroup: Record<string, string[]>, pending: Pending[] = []) {
   const listPendingForGiverPrinting = vi.fn(async () => pending);
@@ -175,7 +171,6 @@ function runCreate(repos: Repos, role: "giver" | "receiver", quantity: number): 
 
 describe("createTrade supply accounting", () => {
   it("refuses a second offer of the giver's only copy", async () => {
-    // One unreserved copy, already claimed by a pending offer to someone else.
     const { repos, create } = supplyRepos({ [GROUP.id]: ["copy-1"] }, [
       { id: "existing-offer", groupId: GROUP.id, quantity: 1, initiator: "giver" },
     ]);
@@ -189,7 +184,6 @@ describe("createTrade supply accounting", () => {
   });
 
   it("reports the netted available count, not the raw copy count", async () => {
-    // Three copies, two of them already claimed by a pending offer.
     const { repos } = supplyRepos({ [GROUP.id]: ["copy-1", "copy-2", "copy-3"] }, [
       { id: "existing-offer", groupId: GROUP.id, quantity: 2, initiator: "giver" },
     ]);
@@ -200,22 +194,17 @@ describe("createTrade supply accounting", () => {
   });
 
   it("reads the giver's pending trades across every group, not just the caller's", async () => {
-    // No pending offers anywhere, so nothing competes with this one.
     const { repos, listPendingForGiverPrinting, create } = supplyRepos({
       [GROUP.id]: ["copy-1"],
     });
 
     await runCreate(repos, "giver", 1);
 
-    // The read isn't scoped to the caller's group: it's the giver's whole
-    // pending list, which `readSupplyByGroup` then splits out per group.
     expect(listPendingForGiverPrinting).toHaveBeenCalledWith("giver-1", "printing-1");
     expect(create).toHaveBeenCalled();
   });
 
   it("nets a request against the giver's supply, not the caller's", async () => {
-    // The receiver asks for a card. Pending trades are always read for the
-    // side that owns the copies (the giver), never the caller.
     const { repos, listPendingForGiverPrinting, create } = supplyRepos({
       [GROUP.id]: ["copy-1"],
     });
@@ -227,7 +216,6 @@ describe("createTrade supply accounting", () => {
   });
 
   it("refuses a request for a copy the giver already offered elsewhere", async () => {
-    // The knock-on effect of committed supply: the copy is genuinely spoken for.
     const { repos, create } = supplyRepos({ [GROUP.id]: ["copy-1"] }, [
       { id: "existing-offer", groupId: GROUP.id, quantity: 1, initiator: "giver" },
     ]);
@@ -239,10 +227,6 @@ describe("createTrade supply accounting", () => {
   });
 
   it("lets a second offer through when it draws on a different group's copies", async () => {
-    // Group A only ever sees copy-a; group B (the caller's group) only ever
-    // sees copy-b. A live offer already sits in group A, but it can't touch
-    // copy-b, so group B's offer still has a copy to give — a global count
-    // would report 0 here.
     const { repos, create } = supplyRepos({ [GROUP.id]: ["copy-b"], "group-a": ["copy-a"] }, [
       { id: "offer-in-group-a", groupId: "group-a", quantity: 1, initiator: "giver" },
     ]);
@@ -256,8 +240,6 @@ describe("createTrade supply accounting", () => {
 
 describe("setTradeQuantity supply accounting", () => {
   it("excludes the resized offer from its own claim", async () => {
-    // Three copies; the only pending offer is this trade itself, so excluding
-    // it from the claim pass leaves the giver's full stack to raise it into.
     const { repos, listPendingForGiverPrinting, setPendingQuantity } = supplyRepos(
       { [GROUP.id]: ["copy-1", "copy-2", "copy-3"] },
       [{ id: OFFER.id, groupId: GROUP.id, quantity: OFFER.quantity, initiator: "giver" }],
@@ -270,8 +252,6 @@ describe("setTradeQuantity supply accounting", () => {
   });
 
   it("still refuses a resize past the supply another pending offer holds", async () => {
-    // Two copies; one is held by a different pending offer, so raising this
-    // one to the full stack is still refused even though its own row is excluded.
     const { repos, setPendingQuantity } = supplyRepos({ [GROUP.id]: ["copy-1", "copy-2"] }, [
       { id: OFFER.id, groupId: GROUP.id, quantity: OFFER.quantity, initiator: "giver" },
       { id: "other-offer", groupId: GROUP.id, quantity: 1, initiator: "giver" },
@@ -335,8 +315,7 @@ describe("autoCancelUnfillablePendingTrades", () => {
     expect(markAutoCancelled).not.toHaveBeenCalled();
   });
 
-  it("cancels a request for 2 when only one copy remains", async () => {
-    // The threshold is the trade's own quantity, not zero.
+  it("cancels a request for 2 when only one copy remains, below its own quantity", async () => {
     const { repos } = sweepRepos(
       [{ id: "bob", groupId: "g1", quantity: 2, initiator: "receiver" }],
       { g1: ["copy-1"] },
@@ -361,8 +340,6 @@ describe("autoCancelUnfillablePendingTrades", () => {
   });
 
   it("keeps the older of two offers competing for one copy", async () => {
-    // Both offers hold a commitment but only one copy is left. The list arrives
-    // oldest first, so the first promise survives and the later one is closed.
     const { repos } = sweepRepos(
       [
         { id: "older", groupId: "g1", quantity: 1, initiator: "giver" },
@@ -387,8 +364,7 @@ describe("autoCancelUnfillablePendingTrades", () => {
   });
 
   it("cancels a request the giver's surviving offer has already spoken for", async () => {
-    // One copy left, committed by an offer. The request behind it is dead, but
-    // the offer stands: offers are settled before requests are judged.
+    // Offers are settled before requests are judged.
     const { repos } = sweepRepos(
       [
         { id: "offer", groupId: "g1", quantity: 1, initiator: "giver" },
@@ -403,8 +379,6 @@ describe("autoCancelUnfillablePendingTrades", () => {
   });
 
   it("does not cancel a request whose group still sees a copy an offer elsewhere cannot claim", async () => {
-    // Different copies shared with different groups: the offer in g1 claims
-    // copy-1, which g2 never saw, so the request in g2 is still fillable.
     const { repos, markAutoCancelled } = sweepRepos(
       [
         { id: "offer", groupId: "g1", quantity: 1, initiator: "giver" },

@@ -73,7 +73,6 @@ describe("notifyAdminsOfCardSubmission", () => {
     expect(first.subject).toContain("Azir, Emperor of the Sands");
     expect(first.html).toContain("Garen");
     expect(first.html).toContain("The art is from the alternate printing");
-    // Each recipient gets their own one-click link (the token is per user).
     expect(first.listUnsubscribeUrl).not.toBe(second.listUnsubscribeUrl);
   });
 
@@ -95,7 +94,6 @@ describe("notifyAdminsOfCardSubmission", () => {
     await notifyAdminsOfCardSubmission(repos, SUBMISSION, deps);
 
     expect(sendEmail).not.toHaveBeenCalled();
-    // Not even the submitter lookup runs — there is nobody to address.
     expect(findById).not.toHaveBeenCalled();
   });
 

@@ -52,7 +52,6 @@ export const setsRouter = {
       catalog.printingImagesBySetId(set.id),
     ]);
 
-    // Get unique card IDs and printing IDs for scoped lookups
     const cardIds = [...new Set(printingRows.map((p) => p.cardId))];
     const printingIds = printingRows.map((p) => p.id);
     const [cardRows, banRows, errataRows, decorations] = await Promise.all([
@@ -62,7 +61,6 @@ export const setsRouter = {
       loadPrintingDecorations(repos, printingIds),
     ]);
 
-    // Build card lookup with errata and bans
     const cards = buildCardsResponse(cardRows, banRows, errataRows);
     const printings = buildPrintingsResponse(printingRows, imageRows, decorations);
 

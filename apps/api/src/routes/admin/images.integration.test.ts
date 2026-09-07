@@ -5,13 +5,6 @@ import type { Io } from "../../io.js";
 import { adminReq, createTestContext } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Admin image management routes
-//
-// Uses the shared integration database. A mock io object is injected so
-// the image pipeline doesn't hit the real filesystem or network.
-// ---------------------------------------------------------------------------
-
 const FAKE_BUFFER = Buffer.from("img");
 
 const mockSharpPipeline = {
@@ -43,7 +36,6 @@ const USER_ID = "a0000000-0020-4000-a000-000000000001";
 
 const ctx = createTestContext(USER_ID, { io: mockIo });
 
-// Ensure user is an admin
 if (ctx) {
   await ctx.db
     .insertInto("admins")
@@ -52,15 +44,9 @@ if (ctx) {
     .execute();
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe.skipIf(!ctx)("Admin image routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app, db } = ctx!;
-
-  // ── POST /admin/rehost-images ──────────────────────────────────────────
 
   describe("POST /admin/rehost-images", () => {
     it("returns 200 with rehost result shape", async () => {
@@ -84,8 +70,6 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
     });
   });
 
-  // ── POST /admin/regenerate-images ──────────────────────────────────────
-
   describe("POST /admin/regenerate-images", () => {
     it("returns kickoff shape with runId and status", async () => {
       const res = await app.fetch(adminReq("POST", "/regenerate-images"));
@@ -108,14 +92,10 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
     });
   });
 
-  // ── POST /admin/clear-rehosted ─────────────────────────────────────────
-
   describe("POST /admin/clear-rehosted", () => {
     it("returns 200 with cleared count", async () => {
-      // Ensure no card_images have rehostedUrl without originalUrl (would violate
-      // chk_image_files_has_url). The URL must be unique per row
-      // (idx_image_files_original_url), and the seed contains several uploaded
-      // images with a NULL originalUrl, so derive it from the row id.
+      // chk_image_files_has_url forbids rehostedUrl without originalUrl, and
+      // idx_image_files_original_url requires it unique, so derive it from the row id.
       await db
         .updateTable("imageFiles")
         .set({ originalUrl: sql<string>`'https://example.com/placeholder-' || id || '.png'` })
@@ -130,8 +110,6 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       expect(typeof json.cleared).toBe("number");
     });
   });
-
-  // ── GET /admin/rehost-status ───────────────────────────────────────────
 
   describe("GET /admin/rehost-status", () => {
     it("returns status shape", async () => {
@@ -149,8 +127,6 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
     });
   });
 
-  // ── POST /admin/cleanup-orphaned ──────────────────────────────────────
-
   describe("POST /admin/cleanup-orphaned", () => {
     it("returns cleanup result shape", async () => {
       const res = await app.fetch(adminReq("POST", "/cleanup-orphaned"));
@@ -163,8 +139,6 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
     });
   });
 
-  // ── GET /admin/broken-images ──────────────────────────────────────────
-
   describe("GET /admin/broken-images", () => {
     it("returns broken images result shape", async () => {
       const res = await app.fetch(adminReq("GET", "/broken-images"));
@@ -176,8 +150,6 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
     });
   });
 
-  // ── GET /admin/low-res-images ─────────────────────────────────────────
-
   describe("GET /admin/low-res-images", () => {
     it("returns low-res images result shape", async () => {
       const res = await app.fetch(adminReq("GET", "/low-res-images"));
@@ -188,8 +160,6 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       expect(json.lowRes).toEqual(expect.any(Array));
     });
   });
-
-  // ── GET /admin/missing-images ─────────────────────────────────────────
 
   describe("GET /admin/missing-images", () => {
     it("returns cards with missing images", async () => {

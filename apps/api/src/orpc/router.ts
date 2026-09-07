@@ -110,11 +110,7 @@ import { publicUserShareRouter } from "../routes/public/user-share.js";
 import { cacheControlInterceptor } from "./cache-control-interceptor.js";
 import { makeReportingErrorInterceptor } from "./error-reporting-interceptor.js";
 
-/**
- * Every migrated oRPC domain router, keyed arbitrarily (OpenAPI paths come from
- * each procedure's contract `.route({ path })`, so the nesting is only for
- * traversal).
- */
+/** Keyed arbitrarily; OpenAPI paths come from each procedure's contract `.route({ path })`. */
 const apiRouter = {
   adminArtVariantsRouter,
   adminAuditEventsRouter,
@@ -219,17 +215,8 @@ const apiRouter = {
   publicUserShareRouter,
 };
 
-/**
- * Builds the single handler for all oRPC routes, bound to `log` so the reporting
- * interceptor can capture 5xx faults to Sentry + the structured error log that
- * Hono's `onError` can no longer see (oRPC encodes handler throws into a
- * Response). The interceptor also performs the AppError -> ORPCError mapping.
- *
- * The client interceptor runs per matched procedure (the procedure, and so its
- * contract cache meta, in scope) to resolve the public read's `Cache-Control`
- * onto the context for the catch-all to apply.
- * @returns The oRPC handler for the assembled router.
- */
+/** Bound to `log`: oRPC encodes handler throws into a Response, so Hono's
+ * `onError` never sees them and the reporting interceptor is the only path to Sentry. */
 export function createApiHandler(log: Logger) {
   return new OpenAPIHandler(apiRouter, {
     interceptors: [makeReportingErrorInterceptor(log)],

@@ -12,8 +12,6 @@ describe("keywordsRepo", () => {
     expect(result).toEqual(rows);
   });
 
-  // ── Derivation (cards.keywords) ─────────────────────────────────────────
-
   it("recomputeForPrintingCard resolves once the card's keywords are written", async () => {
     const db = createMockDb([{ cardId: "c-1" }]);
     await expect(keywordsRepo(db).recomputeForPrintingCard("p-1")).resolves.toBeUndefined();

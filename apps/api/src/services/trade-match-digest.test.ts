@@ -66,8 +66,7 @@ describe("isTradeMatchDigestNoop", () => {
   });
 });
 
-/** Two recipients, one group each, one new match each.
- *  @returns Stubbed repos covering only what the digest reads. */
+/** Stubbed repos covering only what the digest reads: two recipients, one group each, one new match each. */
 function digestRepos(): Repos {
   return {
     siteSettings: { getBool: async () => true },
@@ -121,7 +120,6 @@ describe("sendTradeMatchDigest", () => {
     );
 
     expect(sendEmail).toHaveBeenCalledTimes(2);
-    // Without the failure counters this is byte-identical to a quiet day.
     expect(result).toEqual({
       recipients: 2,
       emailsSent: 0,

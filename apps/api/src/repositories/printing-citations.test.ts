@@ -57,7 +57,6 @@ describe("printingCitationsRepo", () => {
 
       expect(queries[0]).toContain('order by "sort_order" desc');
       expect(queries[1]).toContain('insert into "printing_citations"');
-      // The new row sorts last, so an admin adding one never has to reorder.
       expect(parameters[1]).toContain(5);
       expect(row.id).toBe("citation-1");
     });
@@ -96,13 +95,10 @@ describe("printingCitationsRepo", () => {
 
       expect(queries[0]).toContain('update "printing_citations"');
       expect(queries[0]).toContain('"source_url"');
-      // The label was not sent, so it must not appear in the SET clause at all.
       expect(queries[0]).not.toContain('"label"');
       expect(parameters[0]).toEqual(["https://web.archive.org/x", "citation-1"]);
     });
 
-    // An explicit null clears the link. `?? undefined` anywhere on this path
-    // would turn that into "leave it alone".
     it("clears the link when sourceUrl is explicitly null", async () => {
       const { db, queries, parameters } = createRecordingDb([[{ id: "citation-1" }]]);
 
@@ -112,8 +108,6 @@ describe("printingCitationsRepo", () => {
       expect(parameters[0]).toEqual([null, "citation-1"]);
     });
 
-    // Never writable: a citation moves only by being added, so an edit cannot
-    // reorder the list behind the reader's back.
     it("never writes sortOrder", async () => {
       const { db, queries } = createRecordingDb([[{ id: "citation-1" }]]);
 
@@ -122,8 +116,6 @@ describe("printingCitationsRepo", () => {
       expect(queries[0]).not.toContain("sort_order");
     });
 
-    // Kysely compiles an empty SET to invalid SQL, and the caller still needs
-    // to learn whether the row exists.
     it("falls back to an existence check when nothing was sent", async () => {
       const { db, queries } = createRecordingDb([[{ id: "citation-1" }]]);
 

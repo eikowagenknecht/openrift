@@ -43,7 +43,6 @@ const mockCatalogRepo = {
   landingPromoSections: vi.fn(() => Promise.resolve([] as ReturnType<typeof promoSection>[])),
 };
 
-// Mounts the oRPC handler exactly as production does, with the repos injected.
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   // oxlint-disable-next-line no-explicit-any -- test stub doesn't match full Repos type

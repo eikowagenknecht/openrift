@@ -3,12 +3,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-/**
- * Hosts that are allowed to appear in the checked-in seed fixture. Everything
- * here is synthetic; the fixture must never reference a real host.
- * generate-seed.ts replaces every original_url with an images.example.com
- * placeholder; this test keeps regenerated fixtures honest.
- */
+/** Everything here is synthetic; the fixture must never reference a real host. */
 const ALLOWED_HOSTS = new Set(["example.com", "images.example.com"]);
 
 describe("seed fixture", () => {

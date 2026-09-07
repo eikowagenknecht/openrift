@@ -11,10 +11,6 @@ const log = createLogger("admin");
 
 const os = implement(adminScanContract).$context<ApiContext>().use(requireAuthedUser);
 
-/**
- * Admin scanner-bank operations: kick off a full rebuild in the background
- * (202 + run handle; progress lands in job_runs).
- */
 export const adminScanRouter = {
   rebuildBank: os.rebuildBank.handler(async ({ context }) => {
     const { repos, config, io } = context;

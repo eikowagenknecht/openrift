@@ -8,20 +8,12 @@ import {
 } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Unified marketplace mappings route
-//
-// GET /admin/marketplace-mappings merges TCGPlayer + Cardmarket data per card.
-// POST/DELETE /admin/marketplace-mappings?marketplace=<mp> for mutations.
-// Uses the shared integration database. Requires INTEGRATION_DB_URL.
-// Uses prefix UNM- for entities it creates.
-// ---------------------------------------------------------------------------
+// Requires INTEGRATION_DB_URL. Entities created here use prefix UNM-.
 
 const USER_ID = "a0000000-0014-4000-a000-000000000001";
 
 const ctx = createTestContext(USER_ID);
 
-// Seed IDs populated during setup
 let setId: string;
 let cardId: string;
 let printingId: string;
@@ -30,7 +22,6 @@ let secondCardId: string;
 if (ctx) {
   const { db } = ctx;
 
-  // Seed set
   const [setRow] = await db
     .insertInto("sets")
     .values({ slug: "UNM-TEST", name: "UNM Unified Test Set", printedTotal: 2, sortOrder: 101 })
@@ -38,7 +29,6 @@ if (ctx) {
     .execute();
   setId = setRow.id;
 
-  // Seed first card
   const [cardRow] = await db
     .insertInto("cards")
     .values({
@@ -59,7 +49,6 @@ if (ctx) {
 
   await db.insertInto("cardDomains").values({ cardId, domainSlug: "mind", ordinal: 0 }).execute();
 
-  // Seed first printing
   const [printingRow] = await db
     .insertInto("printings")
     .values({
@@ -83,7 +72,6 @@ if (ctx) {
     .execute();
   printingId = printingRow.id;
 
-  // Seed second card (for filter-behavior tests)
   const [secondCardRow] = await db
     .insertInto("cards")
     .values({
@@ -107,7 +95,6 @@ if (ctx) {
     .values({ cardId: secondCardId, domainSlug: "chaos", ordinal: 0 })
     .execute();
 
-  // Seed second printing
   await db
     .insertInto("printings")
     .values({
@@ -130,7 +117,6 @@ if (ctx) {
     .returning("id")
     .execute();
 
-  // Marketplace groups
   await db
     .insertInto("marketplaceGroups")
     .values({ marketplace: "tcgplayer", groupId: 10_300, name: "UNM TCG Group" })
@@ -144,7 +130,6 @@ if (ctx) {
     .values({ marketplace: "cardtrader", groupId: 10_302, name: "UNM CT Group" })
     .execute();
 
-  // TCGPlayer product + price for Alpha Card
   await db
     .insertInto("marketplaceProducts")
     .values({
@@ -182,7 +167,6 @@ if (ctx) {
     .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
     .execute();
 
-  // Cardmarket product + price for Alpha Card
   await db
     .insertInto("marketplaceProducts")
     .values({
@@ -220,7 +204,6 @@ if (ctx) {
     .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
     .execute();
 
-  // TCGPlayer product + price for Beta Card
   await db
     .insertInto("marketplaceProducts")
     .values({
@@ -258,7 +241,6 @@ if (ctx) {
     .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
     .execute();
 
-  // CardTrader product + price for Alpha Card (covers ctMapPrices in marketplace-configs.ts)
   await db
     .insertInto("marketplaceProducts")
     .values({
@@ -299,15 +281,9 @@ if (ctx) {
   await refreshCardAggregates(db);
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app, db } = ctx!;
-
-  // ── Empty state ────────────────────────────────────────────────────────────
 
   describe("GET /admin/marketplace-mappings (baseline)", () => {
     it("returns groups, unmatchedProducts, and allCards", async () => {
@@ -323,8 +299,6 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
     });
   });
 
-  // ── Merged data ────────────────────────────────────────────────────────────
-
   describe("GET /admin/marketplace-mappings (seeded data)", () => {
     it("returns merged groups with both tcgplayer and cardmarket data per card", async () => {
       const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
@@ -336,20 +310,17 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       );
       expect(alphaGroup).toBeDefined();
 
-      // Should have both marketplace staged products
       expect(alphaGroup.tcgplayer).toBeDefined();
       expect(alphaGroup.tcgplayer.stagedProducts).toEqual(expect.any(Array));
       expect(alphaGroup.cardmarket).toBeDefined();
       expect(alphaGroup.cardmarket.stagedProducts).toEqual(expect.any(Array));
 
-      // TCGPlayer staged product
       expect(alphaGroup.tcgplayer.stagedProducts.length).toBeGreaterThanOrEqual(1);
       const tcgStaged = alphaGroup.tcgplayer.stagedProducts.find(
         (p: { externalId: number }) => p.externalId === 11_111,
       );
       expect(tcgStaged).toBeDefined();
 
-      // Cardmarket staged product
       expect(alphaGroup.cardmarket.stagedProducts.length).toBeGreaterThanOrEqual(1);
       const cmStaged = alphaGroup.cardmarket.stagedProducts.find(
         (p: { externalId: number }) => p.externalId === 22_222,
@@ -367,7 +338,6 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       expect(alphaGroup).toBeDefined();
 
       for (const printing of alphaGroup.printings) {
-        // Both fields should exist (null when unmapped)
         expect("tcgExternalId" in printing).toBe(true);
         expect("cmExternalId" in printing).toBe(true);
       }
@@ -406,19 +376,13 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       );
       expect(betaGroup).toBeDefined();
 
-      // TCGPlayer has a staged product for Beta Card
       expect(betaGroup.tcgplayer.stagedProducts.length).toBeGreaterThanOrEqual(1);
-      // Cardmarket has no staged product for Beta Card
       expect(betaGroup.cardmarket.stagedProducts).toHaveLength(0);
     });
   });
 
-  // ── After mapping: verify merged external IDs ──────────────────────────────
-
   describe("merged external IDs after mapping", () => {
     it("printings reflect tcgExternalId after TCGPlayer mapping", async () => {
-      // Re-seed TCGPlayer product + price (idempotent in case state changed
-      // between tests; phase 4 mapping leaves the product row in place).
       await db
         .insertInto("marketplaceProducts")
         .values({
@@ -477,10 +441,8 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       );
       expect(mapped).toBeDefined();
       expect(mapped.tcgExternalId).toBe(11_111);
-      // cmExternalId should still be null (not mapped for Cardmarket)
       expect(mapped.cmExternalId).toBeNull();
 
-      // Clean up
       await app.fetch(
         adminReq(
           "DELETE",
@@ -490,7 +452,6 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
     });
 
     it("printings reflect cmExternalId after Cardmarket-only mapping", async () => {
-      // Re-seed Cardmarket product + price (idempotent).
       await db
         .insertInto("marketplaceProducts")
         .values({
@@ -548,12 +509,9 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         (p: { printingId: string }) => p.printingId === printingId,
       );
       expect(mapped).toBeDefined();
-      // cmExternalId should be set from the Cardmarket merge loop
       expect(mapped.cmExternalId).toBe(22_222);
-      // tcgExternalId should be null (not mapped for TCGPlayer)
       expect(mapped.tcgExternalId).toBeNull();
 
-      // Clean up
       await app.fetch(
         adminReq(
           "DELETE",
@@ -563,7 +521,6 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
     });
 
     it("printings reflect both tcgExternalId and cmExternalId after dual mapping", async () => {
-      // Re-seed both products + prices (idempotent).
       await db
         .insertInto("marketplaceProducts")
         .values({
@@ -642,7 +599,6 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
         .execute();
 
-      // Map both marketplaces
       await app.fetch(
         adminReq("POST", "/marketplace-mappings?marketplace=tcgplayer", {
           mappings: [{ printingId, externalId: 11_111, finish: "normal", language: null }],
@@ -666,11 +622,9 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         (p: { printingId: string }) => p.printingId === printingId,
       );
       expect(mapped).toBeDefined();
-      // Both external IDs should be populated
       expect(mapped.tcgExternalId).toBe(11_111);
       expect(mapped.cmExternalId).toBe(22_222);
 
-      // Clean up
       await app.fetch(
         adminReq(
           "DELETE",
@@ -685,8 +639,6 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       );
     });
   });
-
-  // ── Printing detail fields ───────────────────────────────────────────────
 
   describe("printing detail fields in merged groups", () => {
     it("printings contain all expected metadata fields", async () => {
@@ -725,8 +677,6 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
     });
   });
 
-  // ── allCards structure ──────────────────────────────────────────────────
-
   describe("allCards response field", () => {
     it("allCards entries have cardId, cardName, setName, and shortCodes", async () => {
       const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
@@ -748,8 +698,6 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
     });
   });
 
-  // ── unmatchedProducts structure ────────────────────────────────────────
-
   describe("unmatchedProducts response field", () => {
     it("unmatchedProducts has separate tcgplayer and cardmarket arrays", async () => {
       const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
@@ -761,11 +709,8 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
     });
   });
 
-  // ── Cardmarket merge into existing TCGPlayer entry ────────────────────
-
   describe("Cardmarket data merged into TCGPlayer-initialized group", () => {
     it("Alpha Card has both marketplace assignedProducts after dual mapping", async () => {
-      // Re-seed both products + prices (idempotent).
       await db
         .insertInto("marketplaceProducts")
         .values({
@@ -844,7 +789,6 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
         .execute();
 
-      // Map both marketplaces
       await app.fetch(
         adminReq("POST", "/marketplace-mappings?marketplace=tcgplayer", {
           mappings: [{ printingId, externalId: 11_111, finish: "normal", language: null }],
@@ -864,19 +808,15 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       );
       expect(alphaGroup).toBeDefined();
 
-      // TCGPlayer assignedProducts should contain the mapped product
       expect(alphaGroup.tcgplayer.assignedProducts).toEqual(expect.any(Array));
       expect(alphaGroup.tcgplayer.assignedProducts.length).toBeGreaterThanOrEqual(1);
 
-      // Cardmarket assignedProducts should also contain the mapped product
       expect(alphaGroup.cardmarket.assignedProducts).toEqual(expect.any(Array));
       expect(alphaGroup.cardmarket.assignedProducts.length).toBeGreaterThanOrEqual(1);
 
-      // Staged products should be empty after mapping (consumed by assignment)
       expect(alphaGroup.tcgplayer.stagedProducts).toHaveLength(0);
       expect(alphaGroup.cardmarket.stagedProducts).toHaveLength(0);
 
-      // Clean up
       await app.fetch(
         adminReq(
           "DELETE",
@@ -900,16 +840,13 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       );
       expect(betaGroup).toBeDefined();
 
-      // Cardmarket was initialized empty in the TCGPlayer loop
       expect(betaGroup.cardmarket.stagedProducts).toHaveLength(0);
       expect(betaGroup.cardmarket.assignedProducts).toHaveLength(0);
     });
   });
 
-  // Regression: CardTrader fans one blueprint id out across multiple
-  // (finish, language) rows. Binding both to the same printing and unmapping
-  // one used to silently delete the wrong one because the lookup ignored
-  // finish/language.
+  // Lookup must key on (finish, language), not just the blueprint id, which
+  // CardTrader fans out across multiple variant rows.
   describe("DELETE /admin/marketplace-mappings unmaps the exact CT SKU", () => {
     const ctBlueprintId = 44_445;
     const ctGroupId = 10_302;
@@ -944,8 +881,6 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       const enProductId = await seedCtSibling("EN");
       const scProductId = await seedCtSibling("SC");
 
-      // Bind both CT variants to the same printing (the user's reported flow:
-      // EN+normal and SC+normal both attached to EN:ENL-T08::normal).
       await app.fetch(
         adminReq("POST", "/marketplace-mappings?marketplace=cardtrader", {
           mappings: [
@@ -965,7 +900,6 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         [enProductId, scProductId].sort(),
       );
 
-      // Unmap the SC sibling. The EN one must survive.
       const res = await app.fetch(
         adminReq(
           "DELETE",
@@ -982,7 +916,6 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         .execute();
       expect(afterUnmap.map((v) => v.marketplaceProductId)).toEqual([enProductId]);
 
-      // Clean up the EN binding so the test is hermetic.
       await app.fetch(
         adminReq(
           "DELETE",

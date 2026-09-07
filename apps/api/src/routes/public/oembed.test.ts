@@ -111,9 +111,7 @@ describe("GET /api/v1/oembed", () => {
     expect(body.url).toBe(`https://openrift.app/api/v1/lists/share/tok-list/image.png?v=${NOW_MS}`);
   });
 
-  it("resolves a tier-list share URL (regression: the advertised endpoint 404'd)", async () => {
-    // The tier-list share page emits the oEmbed discovery tag, so every consumer
-    // that followed it hit this endpoint — which did not know the kind and 404'd.
+  it("resolves a tier-list share URL", async () => {
     mockTierListsRepo.findByShareToken.mockResolvedValue({
       tierList: { title: "Origins power ranking", updatedAt: NOW },
       ownerName: "drawphasetcg",
@@ -136,8 +134,6 @@ describe("GET /api/v1/oembed", () => {
   });
 
   it("returns 404 for a tier list whose share link was revoked", async () => {
-    // `findByShareToken` requires is_public, so a revoked list resolves to
-    // nothing and the embed must not fall back to anything.
     mockTierListsRepo.findByShareToken.mockResolvedValue(undefined);
 
     const res = await request({ url: "https://openrift.app/tier-lists/share/tok-tier" });
@@ -159,7 +155,6 @@ describe("GET /api/v1/oembed", () => {
 
     const body = await readJson(res);
     expect(body.title).toBe("Alice's wish & tradelists");
-    // Latest of the two list updates, folded with the list count (2).
     expect(body.url).toBe(
       `https://openrift.app/api/v1/users/share/tok-bundle/image.png?v=${NOW_MS}-2`,
     );
@@ -181,7 +176,6 @@ describe("GET /api/v1/oembed", () => {
     const body = await readJson(res);
     expect(body.width).toBe(600);
     expect(body.height).toBe(315);
-    // No owner name → author_name omitted.
     expect(body.author_name).toBeUndefined();
   });
 

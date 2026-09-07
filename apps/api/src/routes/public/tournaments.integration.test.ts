@@ -7,12 +7,6 @@ import {
 } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// Route-level integration tests for the ADR-033 public request-to-join surface:
-// the unauthenticated submission-token landing, the authenticated request-to-join
-// that lands a `requested` participant behind the approval gate (respecting the
-// one-participant-per-account index), and the staff-invite link whose grant fires
-// only on the explicit confirm POST (never the scanner-reachable GET landing).
-
 const HOST_ID = crypto.randomUUID();
 const JOINER_ID = crypto.randomUUID();
 
@@ -76,7 +70,6 @@ describe.skipIf(!hostCtx || !joinerCtx || !anonCtx)(
       expect(body.name).toBe("Open Store Event");
       expect(body.selfRegistrationOpen).toBe(true);
       expect(body.deckExpected).toBe(true);
-      // Anonymous viewer never holds a spot.
       expect(body.viewerIsParticipant).toBe(false);
 
       const missing = await anon.app.fetch(req("GET", "/tournaments/submit/nope"));
@@ -110,14 +103,10 @@ describe.skipIf(!hostCtx || !joinerCtx || !anonCtx)(
     });
 
     it("reports the signed-in viewer's participant status on the landing", async () => {
-      // The host runs the event but holds no player spot.
       const hostView = await host.app.fetch(req("GET", `/tournaments/submit/${token}`));
       const hostBody = (await readJson(hostView)) as { viewerIsParticipant: boolean };
       expect(hostBody.viewerIsParticipant).toBe(false);
 
-      // The joiner requested a spot in the previous test, so the landing reflects
-      // it. This gates deck submission when self-registration is later closed
-      // (ADR-033): a claimed participant can still submit, a stranger cannot.
       const joinerView = await joiner.app.fetch(req("GET", `/tournaments/submit/${token}`));
       const joinerBody = (await readJson(joinerView)) as { viewerIsParticipant: boolean };
       expect(joinerBody.viewerIsParticipant).toBe(true);
@@ -141,15 +130,12 @@ describe.skipIf(!hostCtx || !joinerCtx || !anonCtx)(
       const closedToken = ((await readJson(enabled)) as { submissionToken: string })
         .submissionToken;
 
-      // Self-registration stays open, but completing the tournament closes entries
-      // with a terminal-state conflict (409), distinct from the 403 self-reg gate.
       await host.app.fetch(req("PATCH", `/tournaments/${closedId}`, { status: "completed" }));
       const afterComplete = await joiner.app.fetch(
         req("POST", `/tournaments/submit/${closedToken}/request`),
       );
       expect(afterComplete.status).toBe(409);
 
-      // Cancelling is likewise closed to new entrants.
       await host.app.fetch(req("PATCH", `/tournaments/${closedId}`, { status: "cancelled" }));
       const afterCancel = await joiner.app.fetch(
         req("POST", `/tournaments/submit/${closedToken}/request`),
@@ -170,8 +156,6 @@ describe.skipIf(!hostCtx || !joinerCtx || !anonCtx)(
       const inviteToken = ((await readJson(enabled)) as { judgeInviteToken: string })
         .judgeInviteToken;
 
-      // The landing is public so a signed-out visitor can see what the link
-      // leads to, and reports no grant to a viewer it cannot identify.
       const anonLanding = await anon.app.fetch(
         req("GET", `/tournaments/staff-invite/${inviteToken}`),
       );
@@ -180,7 +164,6 @@ describe.skipIf(!hostCtx || !joinerCtx || !anonCtx)(
         (await readJson(anonLanding)) as { role: string; alreadyStaff: boolean },
       ).toMatchObject({ role: "judge", alreadyStaff: false });
 
-      // Opening the landing (a GET) reveals the role but must NOT grant it.
       const landing = await joiner.app.fetch(
         req("GET", `/tournaments/staff-invite/${inviteToken}`),
       );
@@ -193,7 +176,6 @@ describe.skipIf(!hostCtx || !joinerCtx || !anonCtx)(
       const beforeItems = ((await readJson(beforeClaim)) as { items: { userId: string }[] }).items;
       expect(beforeItems.some((member) => member.userId === JOINER_ID)).toBe(false);
 
-      // The explicit confirm POST is what grants the role.
       const claim = await joiner.app.fetch(
         req("POST", `/tournaments/staff-invite/${inviteToken}/claim`),
       );
@@ -210,7 +192,6 @@ describe.skipIf(!hostCtx || !joinerCtx || !anonCtx)(
         afterItems.some((member) => member.userId === JOINER_ID && member.role === "judge"),
       ).toBe(true);
 
-      // Claiming again is idempotent and reports the existing grant.
       const reclaim = await joiner.app.fetch(
         req("POST", `/tournaments/staff-invite/${inviteToken}/claim`),
       );

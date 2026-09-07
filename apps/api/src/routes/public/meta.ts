@@ -37,24 +37,15 @@ import type { ApiContext } from "../../orpc/context.js";
 
 const os = implement(metaContract).$context<ApiContext>().use(requireUser);
 
-/** Bursts on the front page's "Fresh in the archive" list. */
 const ACTIVITY_LIMIT = 6;
 
-/** Placings a legend's page leads with. */
 const BEST_FINISH_COUNT = 5;
 
-/** Rows of a legend's record per page. */
 const FINISH_PAGE_SIZE = 25;
 
 /**
- * Resolves the canonical front image of each card in one batch, so a standings
- * table or a deck list costs one printing lookup rather than one per row.
- * Passing `preferredPrintingId: null` is what asks for the card's canonical
- * default — these surfaces show the card, not a particular printing of it.
- *
- * @param canonicalPrintings The canonical-printings repo.
- * @param cardIds Card ids to resolve; duplicates and nulls are the caller's to avoid.
- * @returns Image id per card id, `null` where the card has no usable artwork.
+ * Resolves each card's canonical image in one batch (`preferredPrintingId: null`
+ * asks for the card's default, not a particular printing).
  */
 async function imageIdsForCards(
   canonicalPrintings: Repos["canonicalPrintings"],
@@ -70,11 +61,6 @@ async function imageIdsForCards(
   return new Map(unique.map((cardId, index) => [cardId, metas[index]?.imageId ?? null]));
 }
 
-/**
- * Collects the legend and champion card ids across a batch of rows.
- * @param rows Rows carrying a legend and a champion card id.
- * @returns Every non-null card id the rows reference.
- */
 function referencedCardIds(
   rows: readonly { legendCardId: string | null; championCardId: string | null }[],
 ): string[] {
@@ -83,21 +69,13 @@ function referencedCardIds(
   );
 }
 
-/**
- * Public meta archive (ADR-014), mounted under `/api/v1/meta`. Every route is
- * anonymous and SSR-facing.
- *
- * The deck read resolves the share token first and then checks archive
- * membership, so a regular user's shared deck 404s here instead of rendering
- * as an archive entry under someone else's byline.
- */
+/** Public meta archive, mounted under `/api/v1/meta`. Every route is anonymous and SSR-facing. */
 export const metaRouter = {
   events: os.events.handler(async ({ input, context }): Promise<MetaEventListResponse> => {
     const { meta, canonicalPrintings } = context.repos;
 
     const rows = await meta.allEvents(input);
     const finishes = await meta.topFinishesForEvents(rows.map((row) => row.id));
-    // Legends only: a list row shows a finish's legend, never their champion.
     const images = await imageIdsForCards(
       canonicalPrintings,
       finishes.map((finish) => finish.legendCardId).filter((id) => id !== null),
@@ -132,8 +110,6 @@ export const metaRouter = {
       meta.matchesForEvent(event.id),
       meta.phasesForEvent(event.id),
       meta.sourcesForEvent(event.id),
-      // Already filtered by the repo: anyone on `hidden`, and anyone whose
-      // chosen profile field is blank, never reaches this payload.
       meta.contributorsForEvent(event.id),
     ]);
     const images = await imageIdsForCards(canonicalPrintings, referencedCardIds(players));
@@ -173,9 +149,6 @@ export const metaRouter = {
       throw errors.NOT_FOUND({ message: "Deck not found" });
     }
 
-    // Membership check, not decoration: without it this endpoint would render
-    // any shared user deck as an archive entry. A standings-only entry has no
-    // deck at all, so it can never resolve here.
     const metaContext = await meta.contextForDeck(found.deck.id);
     if (!metaContext) {
       throw errors.NOT_FOUND({ message: "Deck not found" });
@@ -183,8 +156,6 @@ export const metaRouter = {
 
     const [payload, contributors] = await Promise.all([
       buildPublicDeckDetail(context.repos, found),
-      // The entry's own credit line: whoever contributed this list, not everyone
-      // who fed its event. Already filtered by the repo, as on the event page.
       meta.contributorsForPlayer(metaContext.playerId),
     ]);
     return { ...payload, meta: toMetaDeckContext(metaContext, contributors) };
@@ -206,8 +177,7 @@ export const metaRouter = {
     return {
       legends: rows
         .map((row) => toMetaLegendSummary(row, images, recordsByLegend.get(row.cardId) ?? []))
-        // By the name a reader sees, so a legend files under its champion. The
-        // repo orders by the stored epithet, which would file Azir under E.
+        // Sorted by display name; the repo orders by stored epithet (files Azir under E).
         .toSorted((a, b) => a.legend.name.localeCompare(b.legend.name)),
     };
   }),
@@ -216,10 +186,8 @@ export const metaRouter = {
     async ({ input, context, errors }): Promise<MetaLegendDetailResponse> => {
       const { meta, canonicalPrintings } = context.repos;
 
-      // The route key is composed from the card's champion tag and its slug, so
-      // it cannot be looked up by a column. The archive holds one row per legend
-      // and a few dozen legends in all, so the set is scanned rather than a
-      // denormalized key column being kept in sync with the catalogue.
+      // The route key is composed from the card's champion tag and slug, so it
+      // can't be looked up by a column; the archive holds only a few dozen legends.
       const legends = await meta.archiveLegends();
       const row = legends.find((candidate) => archiveLegendSlug(candidate) === input.slug);
       if (!row) {

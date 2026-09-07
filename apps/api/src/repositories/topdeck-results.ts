@@ -8,12 +8,6 @@ import type {
 } from "../db/index.js";
 import { rowBatches } from "../lib/bind-batches.js";
 
-/**
- * The search body carries standings and lists together, so there is no coverage
- * question and nothing to re-request. The source publishes no per-round
- * pairings and no phase structure, so neither has a table.
- */
-
 export type TopdeckStandingRow = Selectable<TopdeckEventStandingsTable>;
 export type TopdeckDecklistCardRow = Selectable<TopdeckDecklistCardsTable>;
 

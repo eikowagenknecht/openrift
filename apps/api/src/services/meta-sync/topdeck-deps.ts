@@ -5,13 +5,11 @@ import type { Fetch } from "../../io.js";
 import type { TopdeckClient } from "./topdeck-client.js";
 import { createTopdeckClient } from "./topdeck-client.js";
 
-/** Parallel to `MetaSyncDeps`, with the source's own authenticated client. Repos are shared across all three sources. */
 export interface TopdeckSyncDeps {
   repos: Repos;
   transact: Transact;
   client: TopdeckClient;
   log: Logger;
-  /** Injected in tests; production reads the wall clock. */
   now?: () => Date;
 }
 

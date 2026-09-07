@@ -65,17 +65,8 @@ async function findActiveTeammate(
 
 const os = implement(tournamentsContract).$context<ApiContext>().use(requireAuthedUser);
 
-/**
- * The authenticated tournaments umbrella, mounted at
- * `/api/v1/tournaments`. The handlers here own request shape and ordering only;
- * the three concerns they compose live in `lib/`, where each is reachable from
- * a test without mounting a route:
- * - `tournament-access.ts` — the loaders, the host/organizer/judge gates, and
- *   org-host resolution.
- * - `tournament-invariants.ts` — the cross-field CHECK mirrors, re-validated
- *   as 422s (and the status lifecycle as a 409).
- * - `tournament-builders.ts` / `pod-tournament-builders.ts` — response assembly.
- */
+// Handlers own request shape and ordering only; access, invariants, and
+// response assembly live in tournament-access/-invariants/-builders.ts.
 export const tournamentsRouter = {
   list: os.list.handler(async ({ context }): Promise<TournamentListResponse> => {
     const repos = context.repos;
@@ -160,11 +151,7 @@ export const tournamentsRouter = {
         startsAt: new Date(input.startsAt),
         endsAt: input.endsAt ? new Date(input.endsAt) : null,
       });
-      // Seed the creator as organizer staff for clarity (org owner/manager are
-      // implicit organizers too, but the row documents who set it up).
       await txRepos.tournaments.addStaff(tournament.id, userId, "organizer");
-      // Mint the share link as soon as it's needed (open self-registration or
-      // a tournament that expects decks); the host never generates it by hand.
       if ((input.selfRegistration ?? false) || input.deckSubmission !== "none") {
         await txRepos.tournaments.setSubmissionToken(tournament.id, generateShareToken());
       }
@@ -195,13 +182,11 @@ export const tournamentsRouter = {
     }
     // Status moves follow the forward-only lifecycle; an unchanged value is a no-op.
     assertStatusTransition(currentStatus, patch.status);
-    // The pairing engine can change only before any round exists (rounds/pods
-    // depend on it).
+    // Rounds/pods depend on the pairing engine, so it can change only before any round exists.
     const pairingChanging =
       patch.pairingStyle !== undefined && patch.pairingStyle !== tournament.pairingStyle;
-    // The match format shapes result entry, so it is frozen alongside the
-    // pairing engine once rounds exist. The play mode shapes both, so it
-    // freezes with them.
+    // The match format and play mode shape result entry, so they freeze with
+    // the pairing engine once rounds exist.
     const matchFormatChanging =
       patch.matchFormat !== undefined && patch.matchFormat !== tournament.matchFormat;
     const playModeChanging = patch.playMode !== undefined && patch.playMode !== tournament.playMode;
@@ -237,8 +222,7 @@ export const tournamentsRouter = {
         throw new AppError(403, ERROR_CODES.FORBIDDEN, "Not a member of that group");
       }
     }
-    // Host reassignment is host-only, in any direction. The target binds to the
-    // caller (personal = themselves; org = an org they belong to).
+    // Host reassignment is host-only; the target binds to the caller (personal = themselves).
     let hostPatch: Partial<TournamentHostColumns> = {};
     const hostChanging =
       patch.host !== undefined &&
@@ -278,15 +262,11 @@ export const tournamentsRouter = {
       allowedSets: patch.allowedSets,
       selfRegistration: patch.selfRegistration,
     });
-    // Leaving 2v2 dissolves the (never-played — the rounds guard above)
-    // teams, so no stale team ids survive into 1v1 responses.
+    // The rounds guard above means these teams never played.
     if (playModeChanging && patch.playMode === "1v1") {
       await repos.podTournaments.dissolveAllTeams(id);
     }
-    // The follow-along report is a pod-engine surface. Leaving the pod engine
-    // revokes its share token so the now-meaningless report link stops resolving
-    // (the public report also gates on pairingStyle, but clearing the token keeps
-    // the manage UI and any cached link honest).
+    // Leaving the pod engine revokes the follow-along report token.
     if (pairingChanging && patch.pairingStyle !== "pod" && patch.pairingStyle !== "swiss") {
       if (tournament.reportToken) {
         await repos.tournaments.setReportToken(id, null);
@@ -455,9 +435,7 @@ export const tournamentsRouter = {
       const repos = context.repos;
       const userId = context.userId;
       const tournament = await loadTournament(repos, input.id);
-      // Region assignment is judge work (checking decks against the entered
-      // region is part of deck check), so a region-only patch needs staff, not
-      // manage. Name/seed/fixed-table edits stay organizer/host-only.
+      // Region assignment is judge work, so a region-only patch needs staff, not manage.
       const touchesManagedFields =
         input.displayName !== undefined ||
         input.seed !== undefined ||
@@ -574,10 +552,8 @@ export const tournamentsRouter = {
       await requireManage(repos, tournament, userId);
       await loadParticipant(repos, input.id, input.participantId);
       await context.transact(async (trxRepos) => {
-        // Lock before the membership check: a concurrent pairing holds FOR KEY
-        // SHARE on this row through its pod_members inserts, so the check here
-        // sees the committed seat and refuses, instead of the delete cascading
-        // a freshly seated pod member away mid-round.
+        // Locked first: a concurrent pairing holds FOR KEY SHARE on this row
+        // through its pod_members inserts, so the check below sees it.
         const exists = await trxRepos.tournaments.lockParticipant(input.participantId);
         if (!exists) {
           return;
@@ -683,11 +659,8 @@ export const tournamentsRouter = {
     },
   ),
 
-  // The pod pairings + standings surface, keyed by the same tournament id.
-  // `runState` is readable by anyone with a relationship to the tournament (so
-  // participants and judges can follow pairings/standings); the 404 mirrors the
-  // `get` gate. Round-running mutations require manage authority (host, org
-  // owner/manager, or organizer staff) — never owner-only.
+  // runState is readable by anyone with a relationship to the tournament;
+  // round-running mutations require manage authority, never owner-only.
 
   runState: os.runState.handler(
     async ({ input, context }): Promise<PodTournamentDetailResponse> => {

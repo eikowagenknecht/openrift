@@ -11,7 +11,6 @@ import {
   venueLocalDay,
 } from "./uvsgames-catalog.js";
 
-/** The template the source's Regional Qualifiers run on. */
 const OFFICIAL_TEMPLATE = "0cbcab3e-be80-4d1d-a450-9485e584906d";
 
 function listingRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -74,7 +73,6 @@ describe("projectCatalogRow", () => {
   it("reads the store name from either shape the source has used", () => {
     const flat = projectCatalogRow(listingRow({ store: null, store_name: "Flat" }));
     expect(flat?.storeName).toBe("Flat");
-    // Only the nested shape carries the id, so a flat name has no store to key.
     expect(flat?.storeId).toBeNull();
     expect(projectCatalogRow(listingRow({ store: undefined }))?.storeName).toBeNull();
   });
@@ -161,8 +159,6 @@ describe("catalogContentHash", () => {
       eventConfigurationTemplate: null,
     };
 
-    // Joined on a space these two are one string ("Store Championship Sealed"),
-    // so only a separator no field can contain tells them apart.
     expect(
       catalogContentHash({ ...base, eventType: "Store", eventFormat: "Championship Sealed" }),
     ).not.toBe(
@@ -231,7 +227,6 @@ describe("isNotableEventName", () => {
 
 describe("venueLocalDay", () => {
   it("uses the venue's own calendar day, not the UTC one", () => {
-    // 20:00 in New York is already the next day in UTC.
     expect(venueLocalDay(new Date("2026-08-16T00:00:00Z"), "America/New_York")).toBe("2026-08-15");
   });
 

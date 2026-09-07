@@ -57,33 +57,18 @@ import { sourceEventFacts } from "../../services/meta-promote.js";
 import { recordAdminEvent } from "../../services/record-admin-event.js";
 
 /**
- * The overlay queue, the drift view, and the push endpoint (ADR-014 revision 3),
- * on the same `/api/admin/v1/meta` prefix the Hono `requireAdmin` middleware
- * gates. The upload endpoint needs no extra auth work: an `x-api-key` from the
- * maintainer's tooling resolves to an admin session through better-auth, so
- * the prefix check already covers script callers.
- *
- * Reviewing is two jobs. The queue settles what people proposed; drift shows
- * where the sources and the live row disagree, and its remedies are a source
- * priority or an overlay. Neither screen writes a field directly, which is what
- * keeps "who owns this value" answerable from the data rather than from
- * whichever handler last ran.
- *
- * Admin events are recorded only for the upload, the one action a
- * non-interactive caller performs.
+ * Queue, drift, and upload endpoints on `/api/admin/v1/meta`, gated by Hono's `requireAdmin` middleware.
+ * An `x-api-key` header resolves to an admin session via better-auth, so the prefix check covers script callers too.
+ * Only the upload endpoint records an admin event.
  */
 
 const os = implement(adminMetaCandidatesContract).$context<ApiContext>().use(requireAuthedUser);
 
-/** Providers with a crawler, and therefore a mirror promotion can read. */
 const CRAWLED_PROVIDERS: ReadonlySet<string> = new Set(META_CATALOG_PROVIDERS);
 
 /**
- * Which linked source the live value came from.
- *
- * The last source to publish it, because promotion applies them in priority
- * order and the highest priority wins. Null when no source published it, which
- * is what a hand-entered value looks like.
+ * `bySource` is ordered by priority, highest last; the last matching entry wins.
+ * Returns null when no source published the live value.
  */
 function winningSource(
   sources: readonly { label: string; provider: string | null }[],
@@ -107,10 +92,7 @@ function display(value: unknown): string | null {
 
 /**
  * The claimed fields of one overlay, each paired with what live holds.
- *
- * `from` is read off the live row rather than recomputed, so the reviewer sees
- * the change they are actually approving rather than what promotion would
- * produce in isolation.
+ * `from` is read off the live row; do not recompute it via promotion.
  */
 function eventChanges(
   overlay: MetaEventOverlayRow,
@@ -408,10 +390,7 @@ export const adminMetaCandidatesRouter = os.router({
 
   /**
    * What each linked mirror says about one event, beside what live shows.
-   *
-   * A field an accepted overlay claims is marked rather than compared: the
-   * sources no longer decide it, so showing it as a conflict would invite the
-   * reviewer to fix something that is already settled.
+   * A field an accepted overlay claims is marked, not shown as a conflict.
    */
   drift: os.drift.handler(async ({ input, context, errors }): Promise<MetaEventDrift> => {
     const { meta, metaOverlays } = context.repos;
@@ -424,9 +403,7 @@ export const adminMetaCandidatesRouter = os.router({
     const overlays = await metaOverlays.acceptedEventOverlays(input.id);
     const claimed = new Set(overlays.flatMap((overlay) => overlay.claimedFields));
 
-    // Promotion's own view of each source, not the raw mirror columns: a drift
-    // table built from the mirror would disagree with the promote that follows
-    // it, because the mapping and classification happen on the way through.
+    // Uses sourceEventFacts, not raw mirror columns: must match what promotion computes.
     const perSource: (Awaited<ReturnType<typeof sourceEventFacts>> | null)[] = [];
     for (const source of sources) {
       perSource.push(
@@ -502,10 +479,6 @@ export const adminMetaCandidatesRouter = os.router({
     );
   }),
 
-  /**
-   * Files a card name against a card, then re-resolves every overlay line
-   * holding it. The alias is what makes the fix stick for the next fetch too.
-   */
   resolveName: os.resolveName.handler(async ({ input, context }) => {
     const updated = await context.repos.metaOverlays.resolveCardName(input.name, input.cardId);
     return { updated };

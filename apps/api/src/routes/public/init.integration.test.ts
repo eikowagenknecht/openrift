@@ -3,14 +3,6 @@ import { afterAll, describe, expect, it } from "vitest";
 import { createUnauthenticatedTestContext, req } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Init route
-//
-// GET /init — returns enums + keywords in a single response
-// Uses the shared integration database. Requires INTEGRATION_DB_URL.
-// Uses prefix INIT- for entities it creates.
-// ---------------------------------------------------------------------------
-
 const ctx = createUnauthenticatedTestContext();
 
 if (ctx) {

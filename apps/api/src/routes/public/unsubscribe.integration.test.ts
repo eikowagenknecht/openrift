@@ -20,7 +20,6 @@ describe.skipIf(!ctx)("unsubscribe (integration)", () => {
   });
 
   beforeEach(async () => {
-    // Both channels on, so a flip is observable and the sibling is checkable.
     await repos.userPreferences.upsert(USER_ID, {
       emailNotifications: { tradeMatches: true, tradeRequests: true },
     });
@@ -37,7 +36,6 @@ describe.skipIf(!ctx)("unsubscribe (integration)", () => {
   }
 
   function oneClick(token: string) {
-    // Mimics the mail-client one-click POST: form body, token in the query.
     return app.request(`/api/v1/unsubscribe/one-click?token=${encodeURIComponent(token)}`, {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -86,7 +84,6 @@ describe.skipIf(!ctx)("unsubscribe (integration)", () => {
         channel: "tradeMatches",
         alreadyUnsubscribed: false,
       });
-      // The critical guarantee: a GET never changes state.
       expect(await readChannels()).toEqual({ tradeMatches: true, tradeRequests: true });
     });
 

@@ -14,32 +14,7 @@ import type { MetaSyncDeps } from "./deps.js";
 import { clock, errorText } from "./deps.js";
 import { MAX_PAGE_SIZE, UvsHttpError } from "./uvsgames-client.js";
 
-/**
- * One accepted event's results: the detail, the whole registration list, the
- * final standings, the last completed round's standings for the legend each
- * player played, and every completed round's match list. About five requests
- * plus one per round, plus one per decklist and only when the organizer
- * published them.
- *
- * The output is this source's own mirror tables (ADR-014 revision 3). Every
- * response is projected into named columns as it arrives and then dropped: no
- * body is stored, so nothing the archive did not ask for can land. Promotion is
- * what turns any of it into live rows.
- *
- * Two things are fetched once and never again, because the source cannot change
- * them: a completed round's pairings, and a published decklist. Both are
- * recorded as held so the next pass can tell "already have it" from "not asked
- * yet" with a query rather than a scan.
- */
-
-/**
- * The ceiling on decklist requests for one event. A published 500-player event
- * would otherwise spend five minutes of the sync's whole weekly budget in one
- * pass; the remainder is picked up by the next ladder step.
- */
 const MAX_DECK_FETCHES = 400;
-
-/** How often a long deck crawl reports progress into its job run. */
 const DECK_HEARTBEAT = 25;
 
 export interface MetaDeepFetchResult {
@@ -47,20 +22,15 @@ export interface MetaDeepFetchResult {
   requests: number;
   players: number;
   decks: number;
-  /** Registrations with no name or no placement. */
   dropped: number;
-  /** Matches newly mirrored this pass, across every round fetched. */
   stagedMatches: number;
-  /** Mirror matches promoted onto the live event this pass. */
   liveMatches: number;
-  /** Phase rows the live event now carries. */
   phases: number;
   acceptedPlayers: number;
   skippedPlayers: number;
   errors: string[];
 }
 
-/** The zeroed result: what a pass that wrote nothing reports, and where one that writes starts. */
 function emptyFetchResult(
   externalId: string,
   requests: number,
@@ -84,18 +54,11 @@ function emptyFetchResult(
 /** The `tv/*` endpoints page at 500 where everything else caps at 250. */
 const TV_PAGE_SIZE = 500;
 
-/**
- * The bound on a paginated read, so a source bug that never stops handing out
- * next pointers cannot spin a fetch forever. Reaching it is a failed read, not
- * a short one: every caller replaces stored rows with what it is handed.
- */
 const MAX_PAGES = 100;
 
 /**
- * Every page of a paginated endpoint, following the envelope's own next
- * pointer, or null when any page failed. A short list is worse than no list:
- * the mirror replaces an event's standings with what it is handed, so a
- * missing page would delete the players it did not carry.
+ * Reaching MAX_PAGES is treated as a failed read, not a short one: callers
+ * replace stored rows wholesale, so a partial list would delete rows.
  */
 async function allPages(
   deps: MetaSyncDeps,
@@ -138,16 +101,9 @@ async function readPage(
 }
 
 /**
- * The rounds whose standings carry each player's legend and tiebreakers, latest
- * first. One round is not enough on an event with a top cut: that round's
- * standings only cover the players who made the cut, leaving the rest of the
- * field with no legend at all. Walking the phases backwards and taking each
- * one's last completed round stops at the first phase nobody was cut from,
- * which is the last round every remaining player was still seated in.
- *
- * A phase the source gives no `rank_required_to_enter_phase` is treated as
- * ungated, so an event with no phase metadata reads exactly one round the way
- * it always did.
+ * Walks phases latest-first, taking each one's last completed round, and stops
+ * after the first ungated phase: a top-cut round's standings omit players cut
+ * before it, so this is the last round every remaining player was still seated in.
  */
 function standingsRounds(rounds: readonly UvsRoundMeta[], detail: unknown): UvsRoundMeta[] {
   const gated = new Map(
@@ -172,10 +128,9 @@ function standingsRounds(rounds: readonly UvsRoundMeta[], detail: unknown): UvsR
 }
 
 /**
- * The picked rounds' standings, concatenated in the order they were picked.
- * The projection keeps the first row it sees per registration, so latest first
- * is what gives a cut player their top-cut row and everyone else their last
- * swiss one.
+ * The projection keeps the first row it sees per registration, so passing
+ * rounds latest-first gives a cut player their top-cut row and everyone else
+ * their last swiss one.
  */
 async function readStandings(
   deps: MetaSyncDeps,
@@ -213,13 +168,9 @@ async function readOne(
 }
 
 /**
- * Pulls one event into this source's mirror, then promotes it. Failures are
- * collected rather than thrown, since the run has other events to visit, but a
- * read that came back short or failed stops the pass before anything is
- * written: the event keeps what it already has, and the next visit refetches.
- *
- * `knownDetail` is the recheck's already-fetched detail row, so a visit that
- * decides to fetch does not read the same URL twice.
+ * A short or failed read aborts the whole pass before anything is written: the
+ * event keeps what it already has, and the next visit refetches. `knownDetail`
+ * is the recheck's already-fetched detail row, so this does not re-read it.
  */
 export async function deepFetchEvent(
   deps: MetaSyncDeps,
@@ -254,7 +205,6 @@ async function fetchEvent(
     errors,
     "Registrations",
   );
-  // Paged: a Regional's field runs to ~2 000 players, four tv pages deep.
   const standings = await allPages(
     deps,
     `/api/v2/player/events/${id}/tv/standings/`,
@@ -279,8 +229,7 @@ async function fetchEvent(
   };
   const projected = projectUvsStandings(responses);
 
-  // Participants first: the standings rows reference them by user id, and a
-  // seat the registrations named still needs its player row.
+  // Must precede the standings write: those rows reference players by user id.
   await deps.repos.uvsgamesEvents.upsertPlayers(
     projected.players.map((player) => ({ id: player.userId, displayName: player.displayName })),
   );
@@ -292,8 +241,7 @@ async function fetchEvent(
       fetchedAt: clock(deps),
     })),
   );
-  // Standings or no standings: a cancelled event's fetch also completed, and
-  // the recheck ladder must not revisit it forever.
+  // Called even with zero standings, or a cancelled event's recheck never stops.
   await deps.repos.uvsgamesEvents.markResultsFetched(id, clock(deps));
 
   const phases = projectPhases(detail);
@@ -304,9 +252,8 @@ async function fetchEvent(
     );
   }
 
-  // Read after the standings write, so a first pass sees the deck ids it just
-  // mirrored; decks already held, or already refused, are never requested
-  // twice.
+  // Must run after the standings write, so a first pass sees the deck ids it
+  // just mirrored.
   const coverage = await deps.repos.uvsgamesResults.deckCoverage(id);
   const fetchedDecks = await fetchDecks(deps, row, id, coverage.outstanding, errors, runId);
 
@@ -319,10 +266,6 @@ async function fetchEvent(
     stagedMatches,
   };
 
-  // Everything above wrote this source's mirror. Turning it into live rows is
-  // promotion's job, and it is safe to run whether or not this pass changed
-  // anything: it re-reads the mirrors, re-applies the accepted overlays, and
-  // updates the live rows in place.
   const source = await deps.repos.meta.sourceByKey(UVSGAMES_PROVIDER, id);
   if (source !== undefined) {
     const promoted = await promoteMetaEvent(deps.repos, source.metaEventId);
@@ -330,8 +273,6 @@ async function fetchEvent(
     result.liveMatches = promoted.matches;
     result.phases = promoted.phases;
     errors.push(...promoted.errors);
-    // Names the catalog could not match are the reviewer's queue, not a
-    // failure: the standings row is live, only its list is withheld.
     result.skippedPlayers = promoted.unresolvedNames.length;
   }
 
@@ -339,14 +280,9 @@ async function fetchEvent(
 }
 
 /**
- * Every completed round's matches, mirrored as `uvsgames_event_matches`.
- *
- * Rounds already held are skipped for good, because a completed round's
- * pairings are locked at the source. A round whose pages did not all arrive is
- * not written at all, so the next visit retries it whole instead of leaving
- * half a round mirrored forever.
- *
- * @returns How many matches were newly mirrored.
+ * Rounds already held are skipped for good: a completed round's pairings are
+ * locked at the source. A round whose pages did not all arrive is not written
+ * at all, so the next visit retries it whole.
  */
 async function stageEventMatches(
   deps: MetaSyncDeps,
@@ -374,9 +310,7 @@ async function stageEventMatches(
     if (projected.matches.length === 0) {
       continue;
     }
-    // Participants first: the staged rows reference them, and a seat the
-    // registrations never named (a late add, a dropped row) still needs its
-    // player row.
+    // Must precede the match write: staged rows reference players by id.
     await deps.repos.uvsgamesEvents.upsertPlayers(
       [...projected.players].map(([id, displayName]) => ({ id, displayName })),
     );
@@ -387,8 +321,6 @@ async function stageEventMatches(
         projected.matches.map((match) => ({ ...match, externalId })),
       );
     } catch (error) {
-      // A refused round (say, a participant no player row could be written
-      // for) stays unmirrored, so the next visit retries it whole.
       errors.push(errorText(error, `Round ${round.roundNumber}`));
       continue;
     }
@@ -397,7 +329,6 @@ async function stageEventMatches(
   return staged;
 }
 
-/** One round's match pages, or null when any page failed. */
 async function readRoundMatches(
   deps: MetaSyncDeps,
   round: UvsRoundMeta,
@@ -430,13 +361,6 @@ async function readRoundMatches(
   return null;
 }
 
-/**
- * The decklists this event still owes, up to the per-pass ceiling.
- *
- * A published 500-player event would otherwise spend minutes of the weekly
- * budget in one visit; the remainder is picked up by the next ladder step,
- * because `outstanding` is recomputed from what the mirror already holds.
- */
 async function fetchDecks(
   deps: MetaSyncDeps,
   row: UvsgamesListRow,
@@ -454,10 +378,7 @@ async function fetchDecks(
     const deck = await readDeck(deps, deckId, errors);
     fetched++;
     if (deck !== SKIPPED) {
-      // A refused deck is recorded with no lines rather than left out, which is
-      // what stops the next pass asking again. Same for one the source served
-      // whose sections held nothing readable: it was answered, and re-reading
-      // it would answer the same way.
+      // Recorded with null lines, not skipped, or the next pass re-fetches it.
       const lines = deck === null ? null : projectUvsDecklistCards(deck);
       await deps.repos.uvsgamesResults.putDecklist(
         {
@@ -479,12 +400,7 @@ async function fetchDecks(
 /** Nothing is recorded: the failure looked transient, so the id stays fetchable. */
 const SKIPPED = Symbol("deck skipped");
 
-/**
- * One decklist, or what its failure means for the mirror: a 4xx is the source
- * refusing the deck for good and is recorded as `refused`, while a transient
- * failure (the client's retries already exhausted) records nothing so the next
- * pass tries again.
- */
+/** A 4xx means the source refuses the deck for good; anything else is transient. */
 async function readDeck(deps: MetaSyncDeps, deckId: string, errors: string[]): Promise<unknown> {
   try {
     return await deps.client.get<unknown>(`/api/v2/deckbuilder/decks/${deckId}/`);
@@ -496,9 +412,8 @@ async function readDeck(deps: MetaSyncDeps, deckId: string, errors: string[]): P
 }
 
 /**
- * A published Regional spends minutes here at one request per second. The
- * progress is merged, not written: a deck fetch runs inside a recheck pass, and
- * a plain write would replace that pass's counters with this event's.
+ * Merged, not written: a deck fetch runs inside a recheck pass, and a plain
+ * write would replace that pass's counters with this event's.
  */
 async function deckHeartbeat(
   deps: MetaSyncDeps,

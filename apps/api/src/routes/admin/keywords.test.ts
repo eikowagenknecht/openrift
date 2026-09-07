@@ -5,8 +5,6 @@ import { registerRouterForTest } from "../../test/mount-router.js";
 import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 
-// The discoverTranslations handler calls the discovery service; mock it so no
-// real translation discovery runs.
 vi.mock("../../services/keyword-translation-discovery.js", () => ({
   discoverKeywordTranslations: vi.fn(),
 }));
@@ -32,9 +30,6 @@ const mockKeywords = {
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-// Mount the oRPC router directly (without the requireAdmin gate). AppErrors are
-// bridged to ORPCErrors inside the router, so 4xx/5xx responses carry
-// `{ message }`.
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);

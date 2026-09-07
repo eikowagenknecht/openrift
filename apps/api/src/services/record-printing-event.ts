@@ -2,12 +2,7 @@ import type { printingEventsRepo } from "../repositories/printing-events.js";
 
 type PrintingEventsRepo = ReturnType<typeof printingEventsRepo>;
 
-/**
- * Record a "new printing" event for the Discord notification queue.
- * Best-effort: errors are swallowed.
- *
- * @returns Resolves when the event has been recorded.
- */
+/** Best-effort: errors are swallowed. */
 export async function recordNewPrintingEvent(
   repo: PrintingEventsRepo,
   printingId: string,
@@ -15,6 +10,6 @@ export async function recordNewPrintingEvent(
   try {
     await repo.recordNew(printingId);
   } catch {
-    // Non-fatal: the printing was created successfully, notification is best-effort
+    // Swallowed: best-effort notification, printing creation already succeeded.
   }
 }

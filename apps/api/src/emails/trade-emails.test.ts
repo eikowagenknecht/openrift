@@ -23,8 +23,6 @@ describe("buildTradeRequestEmail", () => {
     expect(html).toContain("wants to trade for");
     expect(html).toContain("Garen");
     expect(html).toContain("expire 7 days");
-    // The email is about this one trade, so the button lands on the sheet with
-    // the initiator, not the group's Trades tab.
     expect(html).toContain(REQUEST_BASE.sheetUrl);
     expect(html).toContain(REQUEST_BASE.unsubscribeUrl);
   });
@@ -89,8 +87,6 @@ describe("buildCoalescedTradeRequestsEmail", () => {
     expect(html).toContain("Garen</strong> sent you 2 trade requests");
     expect(html).not.toContain("more trade requests");
     expect(html).not.toContain("waiting for you");
-    // The intro names the sender once; the lines are grouped under direction
-    // headers and carry only the card.
     expect(html).toContain(">Wants from you</p>");
     expect(html).toContain(">Offers you</p>");
     expect(html).toContain("<strong>Azir</strong>");
@@ -121,8 +117,6 @@ describe("buildCoalescedTradeRequestsEmail", () => {
 
   it("keeps the sender the subject: a single shared group rides on the button, not a header", () => {
     const { html } = buildCoalescedTradeRequestsEmail(BASE);
-    // The group lives on the CTA so the player stays the actor of each line; it
-    // is never rendered as a standalone "In {group}" location line.
     expect(html).toContain("View the trades in Playgroup");
     expect(html).not.toContain("In Playgroup");
   });
@@ -145,7 +139,6 @@ describe("buildCoalescedTradeRequestsEmail", () => {
     });
     expect(html).toContain("In Playgroup");
     expect(html).toContain("In LGS Night");
-    // The group name moves into the location line, so the button stays generic.
     expect(html).toContain("View the trades<");
     expect(html).not.toContain("View the trades in");
   });
@@ -164,7 +157,6 @@ describe("buildCoalescedTradeRequestsEmail", () => {
     expect(subject).toBe("Garen wants to trade for C");
     expect(html).toContain("New trade request");
     expect(html).toContain("Garen</strong> wants to trade for your <strong>C</strong>.");
-    // No direction header over a single card.
     expect(html).not.toContain(">Wants from you</p>");
     expect(html).toContain("expire 7 days");
     expect(html).toContain("View the trades in G");
@@ -206,11 +198,8 @@ describe("buildTradeStatusUpdateEmail", () => {
   it("counts each verdict in the subject and groups the body by outcome", () => {
     const { subject, html } = buildTradeStatusUpdateEmail(BASE);
     expect(subject).toBe("Garen accepted 1, declined 1, and cancelled 1 of your trades");
-    // Single shared group: rides on the button, not a standalone header.
     expect(html).toContain("View the trades in Playgroup");
     expect(html).not.toContain("In Playgroup");
-    // The intro names the actor once; the lines are grouped under verdict
-    // headers and carry only the card.
     expect(html).toContain("Garen</strong> updated some of your trades");
     expect(html).toContain(">Accepted</p>");
     expect(html).toContain(">Declined</p>");
@@ -288,7 +277,6 @@ describe("buildTradeStatusUpdateEmail", () => {
     });
     expect(subject).toBe("Garen accepted your trade request");
     expect(html).toContain("Garen</strong> accepted your request for <strong>C</strong>.");
-    // No verdict header over a single bullet.
     expect(html).not.toContain(">Accepted</p>");
     expect(html).toContain("View the trades in G");
   });
@@ -341,13 +329,11 @@ describe("buildTradeMatchDigestEmail", () => {
       ],
     });
     expect(subject).toBe("3 new matches in your trading groups");
-    // One "X has" header per counterparty, cards listed beneath it.
     expect(html).toContain(">Garen has</p>");
     expect(html).toContain(">Lux has</p>");
     expect(html).toContain("<strong>Card A</strong>");
     expect(html).toContain("<strong>Card B</strong>");
     expect(html).not.toContain("from Garen");
-    // Single shared group: rides on the button, not a standalone header.
     expect(html).toContain("View the trades in Playgroup");
     expect(html).not.toContain("In Playgroup");
     expect(html).toContain("https://openrift.app/groups/playgroup/trades");

@@ -10,9 +10,7 @@ import type { ApiContext } from "../../orpc/context.js";
 const os = implement(adminDeckZonesContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
- * Admin deck-zones taxonomy. Deck zones are a fixed set, so only list /
- * reorder / relabel are exposed. Not-found / bad-request states are thrown as
- * `AppError` and mapped by the handler's appErrorInterceptor.
+ * Deck zones are a fixed set, so only list / reorder / relabel are exposed.
  */
 export const adminDeckZonesRouter = {
   list: os.list.handler(async ({ context }) => {

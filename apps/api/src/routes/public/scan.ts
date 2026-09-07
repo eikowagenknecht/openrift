@@ -8,11 +8,6 @@ import { bankFileName, labelsFileName } from "../../services/scan-bank.js";
 
 const os = implement(scanContract).$context<ApiContext>().use(requireUser);
 
-/**
- * Public scanner manifest.
- * `GET /api/v1/scan/manifest` — the current bank generation plus the URLs of
- * every immutable scanner asset under /media/scan/.
- */
 export const scanRouter = {
   manifest: os.manifest.handler(async ({ context }): Promise<ScanManifest> => {
     const { scanIndex } = context.repos;

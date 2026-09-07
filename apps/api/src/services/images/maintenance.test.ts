@@ -119,7 +119,6 @@ describe("getRehostStatus", () => {
     });
 
     const result = await getRehostStatus(mockIo, repo);
-    // Only set1 should appear in disk stats — .gitkeep skipped via continue
     expect(result.disk.sets).toHaveLength(1);
     expect(result.disk.sets[0].setId).toBe("set1");
   });
@@ -218,7 +217,6 @@ describe("getRehostStatus", () => {
     const repo = makeMockRepo({
       selectResult: [{ setId: "s", setName: "Set", total: 1, rehosted: 1 }],
     });
-    // allRehostedUrls returns empty → every disk file is orphaned
     repo.allRehostedUrls = vi.fn(() => Promise.resolve([]));
     mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
       if (opts?.withFileTypes) {
@@ -242,7 +240,6 @@ describe("getRehostStatus", () => {
       if (opts?.withFileTypes) {
         return [dirent("s1", true)];
       }
-      // img-1 has 2 orig (1 duplicate); img-2 has 3 orig (2 duplicates)
       return [
         "img-1-orig.png",
         "img-1-orig.webp",
@@ -286,7 +283,6 @@ describe("cleanupOrphanedFiles", () => {
       }
       return ["img-1-orig.png", "img-1-orig.webp", "img-1-400w.webp", "img-1-full.webp"];
     });
-    // png is older, webp is newer → keep webp, delete png
     mockStat.mockImplementation(async (path: any) => {
       if (String(path).endsWith("img-1-orig.png")) {
         return { size: 1000, mtime: new Date("2024-01-01") };
@@ -312,8 +308,6 @@ describe("cleanupOrphanedFiles", () => {
       if (opts?.withFileTypes) {
         return [dirent("g1", true)];
       }
-      // img-1 has a DB entry so its base matches, but -300w is no longer in SIZES
-      // → treated as orphaned. -full and -orig remain valid.
       return ["img-1-300w.webp", "img-1-400w.webp", "img-1-full.webp", "img-1-orig.png"];
     });
 
@@ -394,7 +388,7 @@ describe("findBrokenImages", () => {
 
   it("flags images missing any current SIZES variant", async () => {
     const repo = { listAllRehostedWithContext: vi.fn(async () => [sampleImage]) } as any;
-    mockReaddir.mockResolvedValue(["img-1-orig.png", "img-1-400w.webp"]); // no -full.webp
+    mockReaddir.mockResolvedValue(["img-1-orig.png", "img-1-400w.webp"]);
 
     const result = await findBrokenImages(mockIo, repo);
 
@@ -433,7 +427,6 @@ describe("findLowResImages", () => {
   });
 
   it("identifies portrait images with short edge below the threshold", async () => {
-    // 300×500 portrait → short edge = 300 < 400 threshold
     const mockSharpMeta: any = {
       metadata: () => Promise.resolve({ width: 300, height: 500 }),
     };
@@ -465,7 +458,6 @@ describe("findLowResImages", () => {
   });
 
   it("identifies landscape images with short edge (height) below the threshold", async () => {
-    // 700×350 landscape → short edge = 350 < 400 threshold
     const mockSharpMeta: any = {
       metadata: () => Promise.resolve({ width: 700, height: 350 }),
     };

@@ -2,10 +2,7 @@ import type { Kysely, Selectable } from "kysely";
 
 import type { Database, MetaPlayerLinksTable } from "../db/index.js";
 
-/**
- * One decision on a cited-but-unread mirror's standing (ADR-014, "Two mirrors
- * on one event"), confirmed by a human.
- */
+/** One decision on a cited-but-unread mirror's standing, confirmed by a human. */
 
 export type MetaPlayerLinkRow = Selectable<MetaPlayerLinksTable>;
 

@@ -3,11 +3,7 @@ import { WellKnown } from "@openrift/shared";
 import type { Database } from "../db/index.js";
 import type { wellKnownRepo } from "../repositories/well-known.js";
 
-/**
- * Reference table info for each WellKnown category.
- * `pk` is the primary-key column; most reference tables use `slug`, but
- * `keywords` uses `name` and `languages` uses `code`.
- */
+/** `pk` varies per table: most use `slug`, `keywords` uses `name`, `languages` uses `code`. */
 const TABLE_MAP: Record<string, { table: keyof Database; pk: string }> = {
   cardType: { table: "cardTypes", pk: "slug" },
   domain: { table: "domains", pk: "slug" },
@@ -22,12 +18,7 @@ const TABLE_MAP: Record<string, { table: keyof Database; pk: string }> = {
   language: { table: "languages", pk: "code" },
 };
 
-/**
- * Verifies that every slug in `WellKnown` exists in its reference table
- * and has `is_well_known = true`. Throws if any are missing.
- *
- * Call this at startup after migrations have run, before accepting traffic.
- */
+/** Call at startup after migrations have run, before accepting traffic. */
 export async function validateWellKnownSlugs(
   repo: ReturnType<typeof wellKnownRepo>,
 ): Promise<void> {

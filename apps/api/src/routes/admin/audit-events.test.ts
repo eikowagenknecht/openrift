@@ -7,10 +7,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminAuditEventsRouter } from "./audit-events";
 
-// ---------------------------------------------------------------------------
-// Mock repo
-// ---------------------------------------------------------------------------
-
 const mockRepo = {
   list: vi.fn(),
   listActors: vi.fn(),
@@ -44,10 +40,6 @@ function eventRow(id: string, createdAt: Date) {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe("GET /audit-events", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -65,7 +57,6 @@ describe("GET /audit-events", () => {
     expect(json.items[0].createdAt).toBe(createdAt.toISOString());
     expect(json.items[0].oldValues).toEqual({ energy: 2 });
     expect(json.nextCursor).toBeNull();
-    // default limit is 50
     expect(mockRepo.list).toHaveBeenCalledWith(
       { actorUserId: undefined, action: undefined, search: undefined },
       50,
@@ -95,7 +86,6 @@ describe("GET /audit-events", () => {
     const t1 = new Date("2026-07-08T10:00:00.000Z");
     const t2 = new Date("2026-07-08T09:00:00.000Z");
     const t3 = new Date("2026-07-08T08:00:00.000Z");
-    // limit 2, repo returns limit + 1 rows → hasMore
     mockRepo.list.mockResolvedValue([
       eventRow("00000000-0000-7000-a000-000000000001", t1),
       eventRow("00000000-0000-7000-a000-000000000002", t2),

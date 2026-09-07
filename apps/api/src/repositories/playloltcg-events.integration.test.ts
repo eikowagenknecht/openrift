@@ -5,11 +5,9 @@ import { createDbContext } from "../test/integration-context.js";
 import type { PlayloltcgUpsertInput } from "./playloltcg-events.js";
 import { playloltcgEventsRepo } from "./playloltcg-events.js";
 
-// The mirror is one source's table with no provider column, so isolation is by
-// key: the source's own `activityShopId`s are six-digit, and every row this file
-// writes sits in a 990_0xx block nothing else touches. The candidate rows it
-// links do carry a provider, and it has to be the real one, since the mirror's
-// joins pin it.
+// The mirror table has no provider column, so isolation is by key: the
+// source's own `activityShopId`s are six-digit, and every row this file
+// writes sits in a 990_0xx block nothing else touches.
 
 const ctx = createDbContext(crypto.randomUUID());
 
@@ -31,12 +29,10 @@ const KEYS = {
 } as const;
 const ALL_KEYS = Object.values(KEYS);
 
-/** The store this file invents, well clear of the source's own id space. */
 const DETAIL_SHOP_ID = 990_101;
 
-// The bulk-write blocks, each sized past postgres's 65534 bind parameters for
-// the write under test: events bind 21 columns a row (so 3120 rows is the
-// ceiling), shops bind 8 (8191), and an id list binds one.
+// Sized past postgres's 65534 bind parameters for the write under test:
+// events bind 21 columns a row, shops bind 8, an id list binds one.
 const BULK_EVENTS_FROM = 1_990_000;
 const BULK_EVENTS_COUNT = 4000;
 const BULK_SHOPS_FROM = 2_000_000;
@@ -73,7 +69,6 @@ function row(overrides: Partial<PlayloltcgUpsertInput> = {}): PlayloltcgUpsertIn
   };
 }
 
-/** A live event and a candidate linking the given catalogue key to it. */
 async function seedAcceptedCandidate(
   activityShopId: number,
   values: { fetchedAt?: Date } = {},
@@ -190,7 +185,6 @@ describe.skipIf(!ctx)("playloltcgEventsRepo", () => {
     const flaggedRow = await repo().byKey(KEYS.gone);
     expect(flaggedRow?.missingSince).not.toBeNull();
 
-    // A crawl that sees it again clears the flag.
     await repo().upsertBatch(
       [row({ activityShopId: KEYS.gone, contentHash: "h-gone" })],
       new Date(SEEN.getTime() + 2000),
@@ -261,7 +255,6 @@ describe.skipIf(!ctx)("playloltcgEventsRepo", () => {
 
     const stored = await repo().byKey(KEYS.linked);
     expect(stored?.shopId).toBe(DETAIL_SHOP_ID);
-    // The linked store's current name wins over the listing's own fallback.
     expect(stored?.shopDisplayName).toBe("元宇宙卡牌");
   });
 
@@ -318,7 +311,7 @@ describe.skipIf(!ctx)("playloltcgEventsRepo", () => {
         .filter((key) => SORTED_KEYS.includes(key as (typeof SORTED_KEYS)[number]));
 
       // The tiebreak stays descending in both directions so a page boundary
-      // lands in the same place, which is what uvsgames does too.
+      // lands in the same place.
       expect(ours).toEqual([KEYS.sortA, KEYS.sortC, KEYS.sortB]);
     });
 

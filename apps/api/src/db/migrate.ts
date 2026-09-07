@@ -15,11 +15,7 @@ function createMigrator(db: Kysely<Database>) {
   });
 }
 
-/**
- * The canonical migration order is the name sort: Kysely resolves the migration
- * list with the default JS string sort (`Object.keys(migrations).sort()`), so we
- * order names the same way here rather than relying on the database's collation.
- */
+// Must match Kysely's migration order: the default JS string sort, not the database's collation.
 function canonicalOrder(names: string[]): string[] {
   return [...names].sort();
 }

@@ -237,9 +237,8 @@ export interface MetaPlayerFinishRow {
 
 /**
  * The standings context an archived deck's page prints. Also the
- * archive-membership test the public deck endpoint uses — `undefined` means the
- * token belongs to a deck outside the archive, which must 404 rather than
- * render as an archive entry.
+ * archive-membership test the public deck endpoint uses: `undefined` means
+ * the token's deck exists but is outside the archive, and must 404.
  */
 export interface MetaDeckContextRow {
   playerId: string;
@@ -489,10 +488,8 @@ export interface MetaEventPlayerInput {
   entryStatus?: MetaEntryStatus | null;
   legendCardId: string | null;
   championCardId: string | null;
-  /** The promotion identity this row is filed under; null for hand-entered rows. */
   sourceIdentity?: string | null;
   mintedByOverlayId?: string | null;
-  /** Null leaves the entry standings-only, which is what most of a field is. */
   deck: MetaArchivedDeckInput | null;
 }
 
@@ -648,9 +645,8 @@ function eventOrderBy(order: MetaEventOrder) {
 }
 
 /**
- * The archive holds fewer standings rows than the source said played. An event
- * whose field size was never reported cannot be short of it, so it is left out
- * rather than counted as complete.
+ * The archive holds fewer standings rows than the source said played. An
+ * event with no reported field size is excluded, not counted as complete.
  */
 const standingsShort = sql<boolean>`meta_events.player_count is not null
   and c.player_row_count < meta_events.player_count`;
@@ -678,14 +674,11 @@ function sourcedBy(source: MetaEventSourceFilter) {
 
 export function metaRepo(db: Kysely<Database>) {
   /**
-   * The roster and deck counts, joined once per event rather than as two
-   * correlated subqueries. Lateral so the counts are also filterable and
-   * sortable: the list works down the events whose standings or decklists are
-   * still short, and neither is a column on `meta_events`.
+   * Lateral so the roster and deck counts stay filterable and sortable:
+   * neither is a column on `meta_events`.
    *
-   * The lateral body is an ungrouped aggregate, so it yields one row of zeroes
-   * for an event with no standings rather than no row: every reader of
-   * `c.player_row_count` / `c.deck_count` can take them as non-null.
+   * The lateral body is an ungrouped aggregate: it always yields one row, so
+   * `c.player_row_count` / `c.deck_count` are non-null for every event.
    */
   function eventQuery() {
     return db
@@ -709,20 +702,14 @@ export function metaRepo(db: Kysely<Database>) {
       ]);
   }
 
-  /**
-   * The legend and champion are columns on the standings row, not zones of a
-   * deck: the archive knows which legend a player played for nearly every entry,
-   * and only a fraction of those entries ever gain a decklist.
-   */
   function playerQuery() {
     return (
       db
         .selectFrom("metaEventPlayers as p")
         .leftJoin("cards as lc", "lc.id", "p.legendCardId")
         .leftJoin("cards as cc", "cc.id", "p.championCardId")
-        // Left, like every other join onto the view: it is refreshed on demand,
-        // and an inner join would drop a fresh Legend's standings row entirely
-        // rather than just naming it without its champion.
+        // Left join: mvCardAggregates is refreshed on demand, so an inner
+        // join would drop a standings row for a card not in it yet.
         .leftJoin("mvCardAggregates as lmca", "lmca.cardId", "p.legendCardId")
         .leftJoin("mvCardAggregates as cmca", "cmca.cardId", "p.championCardId")
         .leftJoin("uvsgamesPlayers as up", "up.id", "p.uvsgamesPlayerId")
@@ -771,13 +758,7 @@ export function metaRepo(db: Kysely<Database>) {
     return query;
   }
 
-  /**
-   * The display string is resolved in SQL so the filter and the ordering agree
-   * with it: a contributor on `riot_id` falls back to their display name, a
-   * blank result drops the row rather than printing part of a user id, and the
-   * `DISTINCT` collapses the several entries one person contributed into one
-   * name per event.
-   */
+  /** A blank result drops the row; it never partially prints a user id. */
   function contributorQuery() {
     const displayName = sql<string>`nullif(btrim(case
       when u.meta_credit_visibility = 'riot_id' then coalesce(nullif(btrim(u.riot_id), ''), u.name)
@@ -993,10 +974,8 @@ export function metaRepo(db: Kysely<Database>) {
      * The newest additions to the archive, one row per burst (one kind, one
      * event, one UTC day), newest first.
      *
-     * Deck and standings bursts landing on the UTC day the event itself was
-     * created are folded into that event's `event-added` row rather than
-     * reported again: an import that creates an event brings its rows along,
-     * and three lines for one upload would be noise, not news.
+     * Deck and standings bursts on the UTC day the event was created are
+     * folded into that event's `event-added` row, not reported separately.
      */
     async recentActivity(limit: number): Promise<MetaActivityRow[]> {
       const eventDay = sql`(e.created_at at time zone 'UTC')::date`;
@@ -1174,21 +1153,19 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Writes materialized matches, converging on the source's own match id so a
-     * replayed materialization refreshes facts instead of failing, and so a
-     * re-paired round moves its rows rather than duplicating them.
+     * Writes materialized matches, upserting on the source's own match id.
      *
-     * @returns Each written row's live id beside its source id. Postgres returns
-     * `ON CONFLICT` rows in whatever order it wrote them, so the caller pairs
-     * them up by key rather than by position.
+     * @returns Each written row's live id beside its source id. Postgres
+     * returns `ON CONFLICT` rows in arbitrary order; pair them by key, not
+     * position.
      */
     async upsertEventMatches(rows: NewMetaEventMatch[]): Promise<UpsertedMetaEventMatch[]> {
       if (rows.length === 0) {
         return [];
       }
-      // Every round of a whole event at once: a 1000-player Swiss binds past
-      // one statement's parameter ceiling, so this is batched, and wrapped so
-      // readers still see a whole materialization or none of it.
+      // Batched: a 1000-player Swiss binds past one statement's parameter
+      // ceiling. Wrapped in a transaction so readers see a whole
+      // materialization or none of it.
       return await db.transaction().execute(async (trx) => {
         const written: UpsertedMetaEventMatch[] = [];
         for (const batch of rowBatches(rows)) {
@@ -1197,9 +1174,8 @@ export function metaRepo(db: Kysely<Database>) {
               .insertInto("metaEventMatches")
               .values(batch)
               .onConflict((oc) =>
-                // The source key, as a partial index, so the conflict target
-                // names its predicate. Every row this path writes carries a
-                // source id; the seat index covers only the rows that do not.
+                // The conflict target must match the partial index's
+                // predicate; this path only writes rows with a source id.
                 oc
                   .columns(["metaEventId", "sourceMatchId"])
                   .where("sourceMatchId", "is not", null)
@@ -1308,8 +1284,8 @@ export function metaRepo(db: Kysely<Database>) {
      * Every legend the archive holds a standings row for, with the count of
      * lists filed under it.
      *
-     * Grouped by the card rather than the champion: two legends of one champion
-     * are two entries, which is what the route key keeps apart.
+     * Grouped by the card, not the champion: two legends of one champion are
+     * two entries.
      */
     archiveLegends(): Promise<MetaArchiveLegendRow[]> {
       return db
@@ -1469,10 +1445,9 @@ export function metaRepo(db: Kysely<Database>) {
           fn.sum<string>("dc.quantity").as("quantity"),
           isSideboard.as("sideboard"),
         ])
-        // An `exists` rather than a join, so the quantities stay the deck's own
-        // however many standings rows reference it. `uq_meta_event_players_deck`
-        // caps that at one today, and a join would silently double every
-        // quantity the day it does not.
+        // `exists`, not a join: a join would double quantities if
+        // `uq_meta_event_players_deck` ever allows more than one standings
+        // row per deck.
         .where((eb) => {
           if (from === undefined && to === undefined) {
             return eb.exists(
@@ -1706,10 +1681,9 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Writes the reclassify pass's per-field decisions in one statement. A field
-     * the pass left alone is not in the patch and must keep its live value, so
-     * each column reads its own flag out of the VALUES list rather than being
-     * overwritten with a null.
+     * Writes the reclassify pass's per-field decisions in one statement. A
+     * field left out of the patch must keep its live value, not be
+     * overwritten with null.
      *
      * @returns How many rows the statement touched.
      */
@@ -1752,10 +1726,9 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Deleting the event cascades its standings rows, which is what releases
-     * the RESTRICT on their decks; the decks themselves are then removed
-     * explicitly, or they would survive under the synthetic owner with nothing
-     * pointing at them.
+     * Deleting the event cascades its standings rows, releasing the RESTRICT
+     * on their decks. Decks are then deleted explicitly or they would
+     * survive under the synthetic owner.
      */
     deleteEvent(id: string): Promise<boolean> {
       return db.transaction().execute(async (trx) => {
@@ -1982,15 +1955,12 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Attaches a list, or replaces the one already there. The permalink is
-     * minted with the deck and never rotated afterwards, so `shareToken` is
-     * only written when the deck is created — a replacement keeps the token the
-     * published links already use.
+     * Attaches a list, or replaces the one already there.
      *
-     * `preserveName` keeps the existing deck's name (a maintainer rename must
-     * survive a re-promote); the input name is still used when the deck is
-     * created. An unchanged card list is left alone rather than deleted and
-     * reinserted, so a re-promote of an unmoved list writes nothing.
+     * `shareToken` is written only when the deck is created; a replacement
+     * keeps the token published links already use. `preserveName` keeps the
+     * existing name across a re-promote. An unchanged card list is left
+     * alone, not deleted and reinserted.
      */
     setPlayerDeck(
       playerId: string,
@@ -2057,11 +2027,6 @@ export function metaRepo(db: Kysely<Database>) {
       });
     },
 
-    /**
-     * Renames a standings row's archived deck. Durable by construction:
-     * promotion preserves an existing deck's name, so a rename is curation of
-     * the derived artifact rather than a fight with the sources.
-     */
     async renamePlayerDeck(playerId: string, name: string): Promise<boolean> {
       const player = await db
         .selectFrom("metaEventPlayers")
@@ -2165,11 +2130,7 @@ export function metaRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * The live event a source key already feeds, if any. This is the only link
-     * between a mirror and live, so accept and promotion both resolve through
-     * it rather than keeping a second pointer of their own.
-     */
+    /** The only link between a mirror and live event; accept and promotion resolve through it. */
     sourceByKey(provider: string, externalId: string): Promise<MetaEventSourceRow | undefined> {
       return db
         .selectFrom("metaEventSources")
@@ -2247,10 +2208,6 @@ export function metaRepo(db: Kysely<Database>) {
       return (result.numDeletedRows ?? 0n) > 0n;
     },
 
-    /**
-     * Removes a provider's citation by its source key, for callers that hold
-     * the key rather than the row id.
-     */
     async deleteEventSourceByKey(provider: string, externalId: string): Promise<boolean> {
       const result = await db
         .deleteFrom("metaEventSources")
@@ -2294,9 +2251,8 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Consent is `users.meta_credit_visibility`, read here rather than frozen
-     * onto the credit row: opting in later credits every past contribution and
-     * opting out removes them all, without touching an archive row.
+     * Reads `users.meta_credit_visibility` live, not frozen onto the credit
+     * row: opting out removes all past credits immediately.
      */
     contributorsForEvent(eventId: string): Promise<MetaContributorRow[]> {
       return contributorQuery().where("mc.metaEventId", "=", eventId).execute();
@@ -2321,9 +2277,9 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Nothing else moves on a visibility change: opting in credits every past
-     * contribution and opting out removes them all, because the public read
-     * resolves the name at render rather than freezing it onto a credit row.
+     * No row changes here: the public read resolves visibility live, so
+     * opting in credits every past contribution and opting out removes them
+     * all.
      */
     async setCreditVisibility(userId: string, visibility: MetaCreditVisibility): Promise<boolean> {
       const result = await db
@@ -2335,9 +2291,8 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * `updatedAt` drives the `<lastmod>` the sitemap generator emits. Only the
-     * competitive tiers are listed while the archive ramps up: store nights are
-     * most of the archive and the least worth a crawler's budget.
+     * `updatedAt` drives the `<lastmod>` the sitemap generator emits. Store
+     * night events are excluded while the archive ramps up.
      */
     async sitemapEntries(): Promise<{
       events: { slug: string; updatedAt: string }[];

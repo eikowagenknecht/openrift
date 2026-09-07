@@ -1,19 +1,9 @@
 /**
- * Ingest a single in-app user card submission into the candidate pipeline.
- *
- * This is deliberately NOT `ingestCandidates`: that function treats a provider
- * as a full-replace namespace and deletes any candidate rows absent from its
- * payload. User submissions all share `provider = "usersubmission"`, so a batch
- * ingest of one card would wipe every other user's pending submission. Instead
- * this inserts exactly one candidate card (+ its printings) with a
- * per-submission-unique `external_id`, never deleting anything. Everything
- * downstream — the admin review tabs, accept/promote, and reject/ignore — is
- * the shared candidate-review machinery, untouched.
- *
- * The payload mapping and the live card/printing link resolution are shared
- * with the batch ingest (candidate-fields.ts, candidate-links.ts) rather than
- * restated here — they had already drifted once when only the batch path was
- * updated.
+ * Not `ingestCandidates`: that function deletes candidate rows absent from
+ * its payload, and all user submissions share `provider = "usersubmission"`,
+ * so it would wipe every other user's pending submission. This inserts one
+ * candidate card with a per-submission-unique `external_id` and never deletes.
+ * Payload mapping and link resolution are shared with candidate-fields.ts / candidate-links.ts.
  */
 import { WellKnown } from "@openrift/shared";
 import { USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/card-submissions";
@@ -117,13 +107,8 @@ export function buildUserSubmissionCard(
 }
 
 /**
- * Classify a submission for the contributor's own history.
- *
- * Inferred rather than taken from the client: the three `/contribute` flows all
- * post the same payload shape, and a label the server can derive is one less
- * thing to trust. The correction flow prefills every card field from the live
- * card, so card-level data present means a correction; the image flow sends
- * only what identifies the printing plus the URL.
+ * Inferred from the payload, not the client: card-level data present means a
+ * correction; its absence means the image flow (printing ID + URL only).
  */
 export function inferSubmissionKind(card: IngestCard, cardLinked: boolean): CardSubmissionKind {
   if (!cardLinked) {
@@ -165,10 +150,8 @@ interface IngestUserSubmissionArgs {
 
 /**
  * Insert one user-submitted candidate card and its printings under the
- * `usersubmission` provider. Enforces the per-user daily cap, validates against
- * the same DB-constraint rules as the admin ingest, and resolves the live
- * card/printing links so corrections and image suggestions land in the admin
- * Updates tab rather than as spurious new rows. Never deletes.
+ * `usersubmission` provider. Enforces the per-user daily cap and resolves
+ * live card/printing links so corrections land in the admin Updates tab.
  */
 export function ingestUserSubmission(
   transact: Transact,
@@ -183,11 +166,10 @@ export function ingestUserSubmission(
 
     // The advisory lock serializes this user's concurrent submissions: without
     // it, parallel requests all read the same COUNT under READ COMMITTED and
-    // all pass the cap. The lock releases when the transaction ends.
+    // all pass the cap. It releases when the transaction ends.
     //
-    // Counted on the submission ledger rather than on candidate_cards: the
-    // ledger is append-only, so purging staging can't hand a spammer a fresh
-    // allowance mid-day.
+    // Counted on the submission ledger, not candidate_cards: the ledger is
+    // append-only, so purging staging can't reset the daily allowance.
     await repo.lockUserSubmissions(userId);
     const recent = await submissions.countRecentByUser(userId, since);
     if (recent >= USER_SUBMISSION_DAILY_LIMIT) {
@@ -251,10 +233,7 @@ export function ingestUserSubmission(
       });
     }
 
-    // Snapshotting what actually differs from the live catalog *now* is what
-    // later lets review credit the contributor without attributing an admin's
-    // cell click to a column. A submission that changes nothing records an
-    // empty diff and resolves as already_correct rather than as an accept.
+    // A submission that changes nothing against the live catalog records an empty diff and resolves as already_correct, not an accept.
     const { snapshot, cardSlug } = await submissions.liveSnapshot(
       liveCardId,
       card.printings.map((printing) => printing.short_code),

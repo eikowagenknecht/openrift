@@ -70,8 +70,6 @@ describe.skipIf(!ctx)("siteSettingsRepo (integration)", () => {
 
   it("deletes a setting by key", async () => {
     await repo.create({ key: "test_delete_34", value: "bye", scope: "web" });
-    // Don't track — we're deleting it
-
     const result = await repo.deleteByKey("test_delete_34");
     expect(result.numDeletedRows).toBe(1n);
   });

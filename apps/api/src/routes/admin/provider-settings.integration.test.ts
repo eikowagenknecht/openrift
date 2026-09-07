@@ -3,12 +3,8 @@ import { describe, expect, it } from "vitest";
 import { adminReq, createTestContext } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
-// ---------------------------------------------------------------------------
-// Integration tests: Admin provider-settings routes
-//
-// Uses the shared integration database. Requires INTEGRATION_DB_URL.
-// Uses provider name prefix "ips-" to avoid collisions with real providers.
-// ---------------------------------------------------------------------------
+// Uses the shared integration database (requires INTEGRATION_DB_URL) and a
+// provider name prefix of "ips-" to avoid collisions with real providers.
 
 const ADMIN_ID = "a0000000-0046-4000-a000-000000000001";
 const NON_ADMIN_ID = "a0000000-0049-4000-a000-000000000001";
@@ -16,17 +12,11 @@ const NON_ADMIN_ID = "a0000000-0049-4000-a000-000000000001";
 const adminCtx = createTestContext(ADMIN_ID);
 const nonAdminCtx = createTestContext(NON_ADMIN_ID);
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app } = adminCtx!;
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app: nonAdminApp } = nonAdminCtx!;
-
-  // ── Non-admin access control ──────────────────────────────────────────────
 
   describe("admin-only access control (non-admin)", () => {
     it("GET /admin/provider-settings returns 403 for non-admin", async () => {
@@ -41,8 +31,6 @@ describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () =>
       expect(res.status).toBe(403);
     });
   });
-
-  // ── GET /admin/provider-settings (initial) ────────────────────────────────
 
   describe("GET /admin/provider-settings (initial)", () => {
     it("returns 200 with a list", async () => {
@@ -59,8 +47,6 @@ describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () =>
     });
   });
 
-  // ── PATCH /admin/provider-settings/:provider (upsert) ────────────────────
-
   describe("PATCH /admin/provider-settings/:provider", () => {
     it("upserts a new provider setting (ips-test-provider)", async () => {
       const res = await app.fetch(
@@ -71,7 +57,6 @@ describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () =>
       );
       expect(res.status).toBe(204);
 
-      // Verify it appears in the list
       const listRes = await app.fetch(adminReq("GET", "/provider-settings"));
       const json = await readJson(listRes);
       const ipsEntry = json.providerSettings.find(
@@ -121,8 +106,6 @@ describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () =>
     });
   });
 
-  // ── PUT /admin/provider-settings/reorder ──────────────────────────────────
-
   describe("PUT /admin/provider-settings/reorder", () => {
     it("reorders providers", async () => {
       const res = await app.fetch(
@@ -146,15 +129,12 @@ describe.skipIf(!adminCtx)("Admin provider-settings routes (integration)", () =>
     });
   });
 
-  // ── Cleanup: remove test provider settings directly via DB ────────────────
-
   describe("cleanup", () => {
     it("removes ips- test provider settings", async () => {
       // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
       const { db } = adminCtx!;
       await db.deleteFrom("providerSettings").where("provider", "like", "ips-%").execute();
 
-      // Verify no ips- entries remain
       const res = await app.fetch(adminReq("GET", "/provider-settings"));
       const json = await readJson(res);
       const ipsEntries = json.providerSettings.filter((s: { provider: string }) =>

@@ -6,10 +6,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminIgnoredCandidatesRouter } from "./ignored-candidates";
 
-// ---------------------------------------------------------------------------
-// Mock repo
-// ---------------------------------------------------------------------------
-
 const mockRepo = {
   listIgnoredCards: vi.fn(),
   listIgnoredPrintings: vi.fn(),
@@ -19,21 +15,15 @@ const mockRepo = {
   unignorePrinting: vi.fn(),
 };
 
-// Audit event sink (record-admin-event.ts); handlers write here best-effort.
 const mockAdminEvents = { insert: vi.fn() };
 
-// The ignore/unignore handlers also settle any user submission behind the key
-// (ADR-036). Returning null here is the scraped-provider case: no ledger row,
-// so the outcome service no-ops.
+// Returning null is the scraped-provider case: no ledger row, so the
+// outcome service no-ops.
 const mockCardSubmissions = {
   findByExternalId: vi.fn().mockResolvedValue(null),
   resolve: vi.fn(),
   reopen: vi.fn(),
 };
-
-// ---------------------------------------------------------------------------
-// Test app — mount the oRPC router directly (without the requireAdmin gate).
-// ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
@@ -48,10 +38,6 @@ app.use("*", async (c, next) => {
   await next();
 });
 registerRouterForTest(app, adminIgnoredCandidatesRouter);
-
-// ---------------------------------------------------------------------------
-// Test data
-// ---------------------------------------------------------------------------
 
 const now = new Date("2026-03-17T00:00:00Z");
 
@@ -84,10 +70,6 @@ const dbIgnoredPrintingNullFinish = {
   finish: null,
   createdAt: now,
 };
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("GET /api/admin/v1/ignored-candidates", () => {
   beforeEach(() => {
@@ -164,8 +146,6 @@ describe("POST /api/admin/v1/ignored-candidates/cards", () => {
   });
 
   it("rejects the user submission behind an ignored candidate", async () => {
-    // ADR-036: the per-submission external_id makes this key exact, so ignoring
-    // a submission column is its rejection.
     mockRepo.ignoreCard.mockResolvedValue(undefined);
     mockCardSubmissions.findByExternalId.mockResolvedValue({ id: "sub-1", status: "pending" });
     const res = await app.request("/api/admin/v1/ignored-candidates/cards", {

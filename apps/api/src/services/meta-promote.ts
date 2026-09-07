@@ -43,21 +43,10 @@ import { loadCardNameIndex, resolveCardIdByName } from "./candidate-links.js";
 import { createMetaEventPlayer, setMetaPlayerList } from "./meta-event-players.js";
 
 /**
- * Promotion: source mirrors to live rows (ADR-014 revision 3).
- *
- * `live = promote(sources) + accepted overlays`, and this is the whole of it.
- * There is no staging tier in between, and nothing anywhere has to guess
- * whether a live value was set by a human: an overridden field is one an
- * accepted overlay claims, which is a fact rather than an inference.
- *
- * That makes this idempotent and re-runnable, which is the point. A mapping
- * fix, a classification rule change, a late decklist and a corrected standing
- * are all "promote again", not four different repair paths.
- *
- * **Live identity is load-bearing.** `decks`, `meta_event_matches` and the
- * public share tokens all hang off `meta_event_players.id`, so a re-promote
- * matches existing rows on their stored source identity and updates in place.
- * It never deletes and re-inserts a field it has already published.
+ * `live = promote(sources) + accepted overlays`; there is no staging tier
+ * in between. `decks`, `meta_event_matches`, and public share tokens hang
+ * off `meta_event_players.id`, so a re-promote matches existing rows by
+ * their stored source identity and updates in place, never deleting and re-inserting a published field.
  */
 
 /**
@@ -75,7 +64,7 @@ export interface MetaPromoteContext extends MetaSourceContext {
   cardIndex: CardNameIndex;
 }
 
-/** @returns The mapping tables one pass reuses across every event it promotes. */
+/** The mapping tables one pass reuses across every event it promotes. */
 async function createMetaSourceContext(repos: Repos): Promise<MetaSourceContext> {
   const [formatMappings, templateTiers, settings] = await Promise.all([
     repos.uvsgamesEvents.formatMappings(),
@@ -85,7 +74,7 @@ async function createMetaSourceContext(repos: Repos): Promise<MetaSourceContext>
   return { formatMappings, templateTiers, competitivePlayerFloor: settings.competitivePlayerFloor };
 }
 
-/** @returns Everything {@link promoteMetaEvent} would otherwise load per event. */
+/** Everything {@link promoteMetaEvent} would otherwise load per event. */
 export async function createMetaPromoteContext(repos: Repos): Promise<MetaPromoteContext> {
   const [source, cardIndex] = await Promise.all([
     createMetaSourceContext(repos),
@@ -109,13 +98,7 @@ export interface MetaPromotedEventFacts extends Record<string, unknown> {
 
 /** One standings row as a source published it, plus the identity promotion files it under. */
 export interface StandingFacts extends Record<string, unknown> {
-  /** Stable within the event, across re-fetches and renames. */
   identity: string;
-  /**
-   * The identity a pre-repair promote derived from the row's columns, so live
-   * rows written before `source_identity` existed still match instead of
-   * duplicating. Matching stamps the stored identity, retiring this key.
-   */
   legacyIdentity: string;
   uvsgamesPlayerId: number | null;
   playerName: string | null;
@@ -131,22 +114,13 @@ export interface StandingFacts extends Record<string, unknown> {
   entryStatus: MetaEntryStatus | null;
   legendName: string | null;
   sourceDeckId: string | null;
-  /** Which mirror produced this row, so the deck lines can be found again. */
   provider: string;
 }
 
-/**
- * The source's own words for the fields the projection rewrote.
- *
- * Only where a transformation actually happened: a pass-through field has
- * nothing to show twice. The drift view prints these under the mapped value, so
- * a reviewer can see that "constructed" came from the source saying
- * "Constructed" rather than from a mapping nobody meant.
- */
+/** The source's raw value for fields the projection rewrote; empty where nothing changed. */
 export type MetaSourceRawTerms = Partial<Record<MetaEventOverlayField, string>>;
 
 interface SourceFacts {
-  /** See {@link MetaSourceRawTerms}. */
   raw: MetaSourceRawTerms;
   event: MetaPromotedEventFacts;
   standings: StandingFacts[];
@@ -159,14 +133,7 @@ export interface MetaPromoteResult {
   decks: number;
   matches: number;
   phases: number;
-  /** Card names no catalog entry matched, deduplicated. Reviewer-facing. */
   unresolvedNames: string[];
-  /**
-   * Decklist lines the archive folded into one row, as
-   * `"Card (zone): N lines -> quantity"`, deduplicated. Reviewer-facing: a
-   * source splitting a playset across lines is routine, two different names
-   * collapsing onto one card is worth a look.
-   */
   mergedLines: string[];
   errors: string[];
 }
@@ -201,8 +168,6 @@ function legacyIdentityOf(uvsgamesPlayerId: number | null, playerName: string | 
   }
   return `n${normalizedName(playerName)}`;
 }
-
-// ── Source adapters ───────────────────────────────────────────────────────────
 
 async function uvsgamesFacts(
   repos: Repos,
@@ -305,18 +270,14 @@ async function playloltcgFacts(
 
   return {
     raw: {
-      // This source maps nothing: it publishes no format vocabulary worth
-      // mapping and its geography is always CN, so only the tier rule has an
-      // input worth showing.
+      // This source publishes no format vocabulary; geography is always CN.
       tier: `${playerCount ?? 0} players`,
     },
     event: {
       name: listing.name.slice(0, 120),
-      // The source publishes day granularity only, so the listing's own start
-      // date is already the venue-local day.
+      // The source publishes day granularity only; startAt is already the venue-local day.
       eventDate: listing.startAt ?? new Date().toISOString().slice(0, 10),
-      // `activityType` is too blunt to map (city qualifiers and play nights
-      // share a bucket), so everything here is filed as constructed.
+      // activityType conflates city qualifiers and play nights; not mapped, filed as constructed.
       format: WellKnown.deckFormat.CONSTRUCTED,
       playerCount,
       organizer: listing.shopName === null ? null : listing.shopName.slice(0, 120),
@@ -412,22 +373,7 @@ async function topdeckFacts(
   };
 }
 
-/**
- * What one source would contribute to an event's live row, without writing it.
- *
- * The drift view reads this rather than the mirror directly, so what a reviewer
- * is shown is exactly what promotion would use: the same format mapping, the
- * same tier classification, the same trimming. A drift table built from raw
- * mirror columns would disagree with the promote that follows it.
- *
- * Never throws. Drift is a diagnostic read, and one source whose mirror row is
- * odd (an unmappable format, a listing the crawl half-wrote) must blank its own
- * column rather than take the page down with it. Promotion itself still
- * surfaces those failures, through `MetaPromoteResult.errors`.
- *
- * @returns Null for a provider with no mirror to read (a push provider), a key
- *   its mirror no longer holds, or a row this cannot make sense of.
- */
+/** Never throws: an unreadable mirror row returns null. */
 export async function sourceEventFacts(
   repos: Repos,
   provider: string,
@@ -450,9 +396,6 @@ export async function sourceEventFacts(
 /**
  * One mirror's standings as promotion would read them, identities included.
  * Never throws, for the same reason {@link sourceEventFacts} does not.
- *
- * @returns The rows, or none for a push provider and for a mirror row this
- *   cannot make sense of.
  */
 export async function sourceStandings(
   repos: Repos,
@@ -492,14 +435,9 @@ function factsFor(
   return Promise.resolve(null);
 }
 
-// ── Promotion ─────────────────────────────────────────────────────────────────
-
 /**
- * Rebuilds one live event from its linked mirrors and its accepted overlays.
- *
- * Safe to run at any time and as often as you like. It is what the deep fetch
- * calls when results land, what accepting an overlay calls, and what a
- * classification rule change calls over the affected events.
+ * Rebuilds one live event from its linked mirrors and accepted overlays.
+ * Idempotent, safe to run at any time and as often as needed.
  */
 export async function promoteMetaEvent(
   repos: Repos,
@@ -557,13 +495,8 @@ async function promoteEventRow(
   live: MetaPromotedEventFacts,
   collected: readonly SourceFacts[],
 ): Promise<MetaPromotedEventFacts> {
-  // Only the four columns the live row cannot hold as NULL fall back to it,
-  // because they have no empty value to start from. Every other field starts
-  // unset, so one that no source describes and no overlay claims ends up empty
-  // rather than keeping whatever the last promote wrote. That is what makes
-  // releasing a claim give the value up: a hand-entered value is re-supplied
-  // by the creating admin's own overlay, not by the row it was written to.
-  // Later sources win whole, which is what `priority` orders.
+  // Only the four NOT NULL columns fall back to the live row; every other field
+  // starts unset so it goes empty when unclaimed. Sources apply in priority order.
   let facts: MetaPromotedEventFacts = {
     name: live.name,
     eventDate: live.eventDate,
@@ -584,10 +517,8 @@ async function promoteEventRow(
     (overlay) => ({
       claimedFields: overlay.claimedFields,
       values: {
-        // The four the live row cannot hold as NULL are omitted, not set to
-        // undefined, when an overlay claims them empty: `applyOverlays` copies
-        // any key the values object owns, and an undefined here would reach
-        // the NOT NULL column.
+        // applyOverlays copies any key the object owns: NOT NULL columns must
+        // be omitted here, not set to undefined, when an overlay claims them empty.
         ...(overlay.name === null ? {} : { name: overlay.name }),
         ...(overlay.eventDate === null ? {} : { eventDate: overlay.eventDate }),
         ...(overlay.format === null ? {} : { format: overlay.format }),
@@ -635,14 +566,12 @@ function sameEventFacts(live: MetaPromotedEventFacts, next: MetaPromotedEventFac
 /** One standings row after folding, with the live row it already resolves to. */
 interface MergedStanding {
   standing: StandingFacts;
-  /** Null when nothing resolves the standing to a live row. */
   existing: Selectable<MetaEventPlayersTable> | null;
 }
 
 /**
- * Folds two mirrors' standings for one player, in `priority` order. The later
- * source wins each field it publishes; `identity`, `legacyIdentity`, and the
- * deck reference stay tied to the row that already carries them.
+ * Folds two mirrors' standings for one player; the later source wins each
+ * field it publishes, but identity, legacyIdentity, and the deck stay pinned.
  */
 function foldStanding(under: StandingFacts, over: StandingFacts): StandingFacts {
   const uvsgamesPlayerId = over.uvsgamesPlayerId ?? under.uvsgamesPlayerId;
@@ -715,17 +644,12 @@ function foldStandings(
 }
 
 /**
- * Reconciles the field.
- *
- * Existing rows are matched on their stored source identity and updated; new
- * ones are inserted. Nothing is deleted: a player the source stopped listing is
- * more likely a source hiccup than a retraction, and deleting would take an
- * attached deck's permalink with it.
+ * Matches existing rows by stored source identity and updates them; new
+ * standings insert. Nothing is deleted, since that would drop an attached deck's permalink.
  */
 async function promoteStandings(
   repos: Repos,
   metaEventId: string,
-  /** The event row as {@link promoteEventRow} just left it. */
   live: MetaPromotedEventFacts,
   sources: readonly MetaEventSourceRow[],
   collected: readonly SourceFacts[],
@@ -767,10 +691,8 @@ async function promoteStandings(
       unresolved.add(standing.legendName);
     }
 
-    // A legacy row can be claimed by one standing per pass. Two providers
-    // naming the same player share a legacy identity, and letting both stamp
-    // the row would leave it keyed by whichever ran last — the loser would
-    // then insert a duplicate on the next promote.
+    // A legacy row can be claimed by one standing per pass; two providers sharing
+    // a legacy identity must not both stamp it, or the loser duplicates next promote.
     let existingRow = resolved;
     if (existingRow === null) {
       existingRow = byLegacy.get(standing.legacyIdentity) ?? null;
@@ -926,18 +848,7 @@ async function loadDeckLines(
   return lines;
 }
 
-/**
- * Builds the archived deck for one standing, when its source served a list and
- * every line resolves.
- *
- * An unresolved line means no deck rather than a partial one: a decklist with a
- * hole in it reads as the player's list and is not. The standings row still
- * promotes, which is the pyramid working as intended.
- *
- * The standings legend counts as held: a list whose Legend zone the source left
- * empty gets the resolved standings legend filed into it, and `listStatus` is
- * computed from what the list actually covers rather than assumed full.
- */
+/** An unresolved decklist line yields no deck, never a partial one. */
 function buildDeck(
   standing: StandingFacts,
   playerName: string,
@@ -1021,20 +932,12 @@ function buildDeck(
 }
 
 /**
- * Overlays land after the source, so a correction is never undone by a
- * re-fetch. This runs whether or not any source holds standings: a
- * hand-entered or push-only event's corrections apply the same way.
- *
- * An overlay anchored to the event rather than a row (a submission for an
- * entry the archive may or may not list) is resolved here: matched onto the
- * row whose rendered name it names, or minted as a new row when it names
- * nobody and claims enough to stand alone. Either way the resolution is
- * written back onto the overlay, so the next promote applies it directly.
+ * Overlays apply after sources so a correction survives a re-fetch; one
+ * anchored to the event resolves onto a matched row (or mints one) and self-records that resolution.
  */
 async function applyPlayerOverlays(
   repos: Repos,
   metaEventId: string,
-  /** The event's format as the row now holds it, for a list an overlay supplies. */
   format: string,
   result: MetaPromoteResult,
   cardIndex: CardNameIndex,
@@ -1090,9 +993,8 @@ async function applyPlayerOverlays(
       patches.map((overlay): MetaPlayerOverlayPatch<Partial<typeof base>> => ({
         claimedFields: overlay.claimedFields,
         values: {
-          // A name-keyed live row must keep a name, so a claimed-empty name
-          // falls through to the base there; rank and its flag are NOT NULL
-          // and fall through the same way.
+          // A name-keyed row must keep a name, so a claimed-empty name falls
+          // through to the base; rank and its flag are NOT NULL and do the same.
           playerName:
             player.uvsgamesPlayerId === null
               ? (overlay.playerName ?? undefined)
@@ -1123,13 +1025,8 @@ async function applyPlayerOverlays(
 }
 
 /**
- * Where an event-anchored overlay lands: the row whose rendered name it names
- * (rank breaks a shared name), or a new row when it names nobody the event
- * lists and claims the two columns a row cannot exist without.
- *
- * @returns The live row's id, with the link written back onto the overlay, or
- *   null when the overlay cannot be placed — which is reported, because an
- *   accepted overlay that silently never lands would read as data loss.
+ * Matches an event-anchored overlay onto the row whose rendered name it names
+ * (rank breaks a tie), or mints a new row; an unplaceable overlay is reported, not silently dropped.
  */
 async function resolveOverlayTarget(
   repos: Repos,
@@ -1198,9 +1095,8 @@ async function dropOrphanMintedPlayers(
 }
 
 /**
- * A submitted list becomes the live deck only once every line resolves. A
- * `cards` claim with no lines is the opposite statement — there is no list —
- * and detaches the deck the sources would otherwise re-attach.
+ * A submitted list becomes the live deck only once every line resolves; a
+ * `cards` claim with no lines detaches the deck instead, since it claims there is none.
  */
 async function applyOverlayList(
   repos: Repos,
@@ -1244,11 +1140,8 @@ async function applyOverlayList(
 }
 
 /**
- * Phases and pairings, both uvsgames-only today.
- *
- * A mirror match promotes when both its participants resolve to live player
- * rows. One that does not is simply left; the next promote picks it up once its
- * players exist, with no stamped-back link and no retry queue to maintain.
+ * A mirror match promotes only once both participants resolve to a live row;
+ * one that doesn't is left for the next promote to pick up naturally.
  */
 async function promotePhasesAndMatches(
   repos: Repos,
@@ -1345,7 +1238,7 @@ function samePhases(
   });
 }
 
-/** @returns The pairings whose stored row would actually move. */
+/** The pairings whose stored row would actually move. */
 function changedMatches(
   stored: readonly MetaEventMatchRow[],
   next: readonly NewMetaEventMatch[],
@@ -1380,12 +1273,8 @@ function changedMatches(
 }
 
 /**
- * Mints the live event for a source key that has none, then promotes it.
- *
- * This is what catalogue accept calls. The citation is written first because
- * promotion reads `meta_event_sources` to know what to promote from. A null
- * key is a hand submission: it gets a keyless citation and can never be
- * deduplicated, which is why accept offers linking to an existing event first.
+ * Mints a live event for a source key that has none. The citation writes
+ * first, since promotion reads `meta_event_sources` to know what to promote from.
  */
 export async function promoteNewEvent(
   repos: Repos,

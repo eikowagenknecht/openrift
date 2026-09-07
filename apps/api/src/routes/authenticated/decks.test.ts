@@ -104,10 +104,6 @@ const mockEnums = {
   ),
 };
 
-/**
- * The archive membership check the rotate guard runs. Defaults to "not an
- * archive deck", which is what every deck in this file is.
- */
 const mockMeta = {
   isMetaDeck: vi.fn(() => Promise.resolve(false)),
 };
@@ -227,8 +223,6 @@ describe("GET /api/v1/decks", () => {
     expect(json.items[0].totalCards).toBe(4);
     expect(json.items[0].typeCounts).toEqual([{ cardType: "unit", count: 4 }]);
     expect(json.items[0].isValid).toBe(false);
-    // Build figure for the tile's format badge: the four main-deck cards
-    // against Constructed's 56 required-zone cards.
     expect(json.items[0].requiredProgress).toBe(4);
     expect(json.items[0].requiredTotal).toBe(56);
   });
@@ -242,14 +236,10 @@ describe("GET /api/v1/decks", () => {
     ]);
     const res = await app.request("/api/v1/decks");
     const json = await readJson(res);
-    // totalCards keeps the sideboard, the build figure doesn't — the two
-    // numbers are deliberately different.
     expect(json.items[0].totalCards).toBe(8);
     expect(json.items[0].requiredProgress).toBe(4);
   });
 
-  // The tile's value must be priced on the same basis as the deck page, which
-  // only counts printings in the languages the viewer collects.
   it("prices deck values in the user's preferred languages", async () => {
     mockRepo.listForUser.mockResolvedValue([dbDeck]);
     mockRepo.allCardsForUser.mockResolvedValue([dbDeckCardFull]);
@@ -277,8 +267,6 @@ describe("GET /api/v1/decks", () => {
     );
   });
 
-  // The deck needs 4 of one card. With no buildable/borrowed stock, the whole
-  // playset is missing.
   it("reports the full playset missing when nothing is owned", async () => {
     mockRepo.listForUser.mockResolvedValue([dbDeck]);
     mockRepo.allCardsForUser.mockResolvedValue([dbDeckCardFull]);
@@ -287,12 +275,9 @@ describe("GET /api/v1/decks", () => {
     expect(json.items[0].missingCount).toBe(4);
   });
 
-  // Buildable + borrowed-in stock both count toward the shortfall, and the
-  // shortfall floors at 0 (surplus copies never make missing go negative).
   it("subtracts buildable and borrowed-in stock, flooring at zero", async () => {
     const cardId = dbDeckCardFull.cardId;
     mockRepo.listForUser.mockResolvedValue([dbDeck]);
-    // main needs 4, sideboard needs 1 (5 total across zones).
     mockRepo.allCardsForUser.mockResolvedValue([
       dbDeckCardFull,
       { ...dbDeckCardFull, id: "side", zone: "sideboard", quantity: 1 },
@@ -301,12 +286,9 @@ describe("GET /api/v1/decks", () => {
     mockLoans.borrowedCountByCard.mockResolvedValue(new Map([[cardId, 1]]));
     const res = await app.request("/api/v1/decks");
     const json = await readJson(res);
-    // needed 5 − buildable 2 − borrowed 1 = 2 missing.
     expect(json.items[0].missingCount).toBe(2);
   });
 
-  // Overflow is a parking zone, so cards stashed there aren't part of the deck
-  // and never show up as missing — matching the deck editor's ownership panel.
   it("ignores overflow cards when counting missing", async () => {
     mockRepo.listForUser.mockResolvedValue([dbDeck]);
     mockRepo.allCardsForUser.mockResolvedValue([
@@ -318,9 +300,6 @@ describe("GET /api/v1/decks", () => {
     expect(json.items[0].missingCount).toBe(4);
   });
 
-  // The deck's home collection is the box it lives in: its copies count for
-  // this deck on top of the shared buildable pool, even though the collection
-  // is excluded from deck building everywhere else.
   it("adds the home collection's copies to the deck's own stock", async () => {
     const cardId = dbDeckCardFull.cardId;
     mockRepo.listForUser.mockResolvedValue([{ ...dbDeck, collectionId: COLLECTION_ID }]);
@@ -334,7 +313,6 @@ describe("GET /api/v1/decks", () => {
     expect(mockCopies.buildableCountByCardForCollections).toHaveBeenCalledWith(USER_ID, [
       COLLECTION_ID,
     ]);
-    // needed 4 − buildable 1 − home collection 3 = 0 missing.
     expect(json.items[0].missingCount).toBe(0);
   });
 
@@ -359,8 +337,6 @@ describe("GET /api/v1/decks", () => {
     expect(json.items[0].missingCount).toBe(0);
   });
 
-  // Type counts fan out over the full type set, so a multi-type card (e.g.
-  // Unit Gear) is counted under each of its non-excluded types.
   it("counts a multi-type card under each of its types", async () => {
     mockRepo.listForUser.mockResolvedValue([dbDeck]);
     mockRepo.allCardsForUser.mockResolvedValue([
@@ -521,8 +497,6 @@ describe("PATCH /api/v1/decks/:id", () => {
     expect(mockRepo.update).not.toHaveBeenCalled();
   });
 
-  // A group binder is communal — filling a deck from one would hand personal
-  // copies to the group, so it can't be a deck box.
   it("rejects a group collection as the home collection", async () => {
     mockRepo.update.mockClear();
     mockCollections.getAccessForUser.mockResolvedValue({
@@ -724,9 +698,6 @@ describe("PATCH /api/v1/decks/:id — field updates", () => {
     expect(json.format).toBe("freeform");
   });
 
-  // isPublic is no longer patchable — a deck's public state is owned solely by
-  // the /share sub-resource. A PATCH that includes isPublic must strip it and
-  // apply only the real fields.
   it("ignores isPublic in PATCH (public state is controlled via /share)", async () => {
     const updated = { ...dbDeck, name: "Renamed" };
     mockRepo.update.mockResolvedValue(updated);

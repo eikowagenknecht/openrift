@@ -7,10 +7,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { copiesRouter } from "./copies";
 
-// ---------------------------------------------------------------------------
-// Mock repo and services
-// ---------------------------------------------------------------------------
-
 const mockRepo = {
   listForAccessibleCollections: vi.fn(() => Promise.resolve([] as object[])),
 };
@@ -18,11 +14,6 @@ const mockRepo = {
 const mockAddCopies = vi.fn(() => Promise.resolve([] as object[]));
 const mockMoveCopies = vi.fn(() => Promise.resolve());
 const mockDisposeCopies = vi.fn(() => Promise.resolve());
-
-// ---------------------------------------------------------------------------
-// Test app — mounts the oRPC handler as production does; a pre-set user
-// satisfies requireAuth (resolveSession is idempotent).
-// ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
@@ -50,10 +41,6 @@ app.onError((err, c) => {
   throw err;
 });
 
-// ---------------------------------------------------------------------------
-// Test data
-// ---------------------------------------------------------------------------
-
 const now = new Date("2026-03-17T00:00:00Z");
 
 const dbCopy = {
@@ -76,10 +63,6 @@ const dbCopy = {
 const COPY_ID = "a0000000-0001-4000-a000-000000000020";
 const PRINTING_ID = "a0000000-0001-4000-a000-000000000030";
 const COLLECTION_ID = "a0000000-0001-4000-a000-000000000010";
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("GET /api/v1/copies", () => {
   beforeEach(() => {

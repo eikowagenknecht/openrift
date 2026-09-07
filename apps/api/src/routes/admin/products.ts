@@ -12,9 +12,9 @@ import { createProductFromList, resyncProductContents } from "../../services/pro
 const os = implement(adminProductsContract).$context<ApiContext>().use(requireAuthedUser);
 
 /**
- * Admin product management (ADR-015; grantable section "products", gated by
- * the `/api/admin/v1/*` mount). Contents are written only by the list
- * snapshot service; metadata edits are a plain PATCH.
+ * Admin product management, gated by the `/api/admin/v1/*` mount. Contents
+ * are written only by the list snapshot service; metadata edits are a plain
+ * PATCH.
  */
 export const adminProductsRouter = {
   create: os.create.handler(async ({ input, context }) => {

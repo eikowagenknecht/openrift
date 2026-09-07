@@ -76,7 +76,6 @@ describe("downloadImage", () => {
   });
 
   it("blocks hosts where any resolved address is private", async () => {
-    // DNS round-robin mixing a public and a private address must still block.
     const io = {
       ...mockIo,
       dnsLookupAll: async () => [{ address: "203.0.113.10" }, { address: "127.0.0.1" }],

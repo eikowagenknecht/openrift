@@ -94,8 +94,6 @@ const dbPrinting = {
   cardId: CARD_ID,
 };
 
-// One channel link for the printing, resolved by listForPrintingIds, so the
-// rollup-count branch is exercised.
 const dbChannelLink = {
   printingId: PRINTING_ID,
   channelId: CHANNEL_ID,

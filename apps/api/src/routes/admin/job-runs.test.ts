@@ -13,9 +13,6 @@ const mockJobRuns = {
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-// Mount the oRPC router directly (without the requireAdmin gate). AppErrors are
-// bridged to ORPCErrors inside the router, so 4xx/5xx responses carry
-// `{ message }`.
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
@@ -67,7 +64,6 @@ describe("GET /job-runs", () => {
     expect(json.limit).toBe(50);
     expect(json.kinds).toEqual(["tcgplayer.refresh", "cardmarket.refresh"]);
 
-    // Default paging: page 1, limit 50, offset 0, no filters.
     expect(mockJobRuns.listPage).toHaveBeenCalledWith({
       kind: undefined,
       kindPrefix: undefined,
@@ -89,7 +85,6 @@ describe("GET /job-runs", () => {
     expect(json.page).toBe(2);
     expect(json.limit).toBe(10);
 
-    // page 2 with limit 10 → offset (2 - 1) * 10 = 10.
     expect(mockJobRuns.listPage).toHaveBeenCalledWith({
       kind: "foo",
       kindPrefix: undefined,

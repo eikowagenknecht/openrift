@@ -12,11 +12,7 @@ import type { ApiContext } from "../../orpc/context.js";
 
 const NAME_TAKEN = "You already have a folder with that name";
 
-/**
- * Turns the case-insensitive name collision into a 409. Any other error is
- * rethrown untouched.
- * @returns Never — always throws.
- */
+/** Turns the case-insensitive name collision into a 409; other errors rethrow. */
 function rethrowFolderError(error: unknown): never {
   if (isUniqueViolationOn(error, "uq_deck_folders_user_name")) {
     throw new AppError(409, ERROR_CODES.CONFLICT, NAME_TAKEN);
@@ -26,12 +22,7 @@ function rethrowFolderError(error: unknown): never {
 
 const os = implement(deckFoldersContract).$context<ApiContext>().use(requireAuthedUser);
 
-/**
- * User-authored deck folders (migration 231), mounted at
- * `/api/v1/deck-folders` plus the per-deck membership route at
- * `/api/v1/decks/{id}/folders`. Not-found and conflict states are thrown as
- * `AppError` and mapped by the handler's appErrorInterceptor.
- */
+/** Not-found and conflict states must be thrown as `AppError`; the handler's appErrorInterceptor maps only that type. */
 export const deckFoldersRouter = {
   list: os.list.handler(async ({ context }): Promise<DeckFolderListResponse> => {
     const rows = await context.repos.deckFolders.listForUser(context.userId);
@@ -44,7 +35,7 @@ export const deckFoldersRouter = {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Folder name cannot be blank");
     }
     // Not a check-then-act: the unique index is the arbiter, so two concurrent
-    // creates of the same name give one folder and one 409 rather than two rows.
+    // creates of the same name give one folder and one 409.
     let row;
     try {
       row = await context.repos.deckFolders.create(context.userId, name);

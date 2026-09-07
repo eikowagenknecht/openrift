@@ -30,12 +30,6 @@ const STATUS_TO_CODE: Readonly<Record<number, ErrorCode>> = {
   503: ERROR_CODES.SERVICE_UNAVAILABLE,
 };
 
-/**
- * Maps an HTTP status to the canonical {@link ErrorCode} for that status
- * family. Used to normalize framework-thrown HTTPExceptions, which carry a
- * status but no code of their own, into the standard envelope.
- * @returns The ErrorCode matching the status (INTERNAL_ERROR for any 5xx, BAD_REQUEST for other 4xx).
- */
 export function codeForStatus(status: number): ErrorCode {
   return (
     STATUS_TO_CODE[status] ?? (status >= 500 ? ERROR_CODES.INTERNAL_ERROR : ERROR_CODES.BAD_REQUEST)

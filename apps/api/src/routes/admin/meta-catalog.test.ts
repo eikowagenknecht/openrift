@@ -10,10 +10,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminMetaCatalogRouter } from "./meta-catalog";
 
-// ---------------------------------------------------------------------------
-// Mocked services
-// ---------------------------------------------------------------------------
-
 const {
   acceptPlayloltcgEvent,
   autoAcceptCatalogBacklog,
@@ -75,10 +71,6 @@ vi.mock("../../services/meta-retier.js", async (importOriginal) => ({
   ...(await importOriginal<typeof metaRetier>()),
   retierMetaEvents,
 }));
-
-// ---------------------------------------------------------------------------
-// Mock repos
-// ---------------------------------------------------------------------------
 
 const mockJobRuns = {
   findRunning: vi.fn(),

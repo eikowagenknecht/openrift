@@ -25,7 +25,6 @@ if (ctx) {
     })
     .execute();
 
-  // Seed product + price row (needed for POST /admin/ignored-products to find product names)
   await db
     .insertInto("marketplaceProducts")
     .values({
@@ -66,19 +65,9 @@ if (ctx) {
     .execute();
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app, db } = ctx!;
-
-  // ── GET /admin/ignored-products (empty) ─────────────────────────────────
-  // Note: other test files may have their own ignored products, but we only
-  // care about our IGP- scoped external IDs.
-
-  // ── POST /admin/ignored-products ────────────────────────────────────────
 
   describe("POST /admin/ignored-products", () => {
     it("ignores a product that exists in staging (L2)", async () => {
@@ -108,7 +97,6 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
       const json = await readJson(res);
       expect(json.ignored).toBe(0);
 
-      // Verify it was not actually inserted
       const rows = await db
         .selectFrom("marketplaceIgnoredProducts")
         .select("externalId")
@@ -129,8 +117,6 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
     });
   });
 
-  // ── GET /admin/ignored-products (after ignoring) ────────────────────────
-
   describe("GET /admin/ignored-products (after ignoring)", () => {
     it("returns the ignored product", async () => {
       const res = await app.fetch(adminReq("GET", "/ignored-products"));
@@ -146,8 +132,6 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
       expect(igpProduct.createdAt).toBeTypeOf("string");
     });
   });
-
-  // ── DELETE /admin/ignored-products ──────────────────────────────────────
 
   describe("DELETE /admin/ignored-products", () => {
     it("un-ignores a product", async () => {
@@ -174,8 +158,6 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
     });
   });
 
-  // ── POST /admin/staging-card-overrides ──────────────────────────────────
-
   describe("POST /admin/staging-card-overrides", () => {
     it("creates an override", async () => {
       const res = await app.fetch(
@@ -189,7 +171,6 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify the override exists in the database (joined to the product row).
       const row = await db
         .selectFrom("marketplaceProductCardOverrides as ov")
         .innerJoin("marketplaceProducts as mp", "mp.id", "ov.marketplaceProductId")
@@ -203,8 +184,6 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
     });
   });
 
-  // ── DELETE /admin/staging-card-overrides ─────────────────────────────────
-
   describe("DELETE /admin/staging-card-overrides", () => {
     it("removes an override", async () => {
       const res = await app.fetch(
@@ -215,7 +194,6 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify the override is gone (joined to the product row).
       const row = await db
         .selectFrom("marketplaceProductCardOverrides as ov")
         .innerJoin("marketplaceProducts as mp", "mp.id", "ov.marketplaceProductId")

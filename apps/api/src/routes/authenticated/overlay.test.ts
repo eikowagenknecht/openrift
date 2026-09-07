@@ -11,12 +11,12 @@ import { overlayRouter } from "./overlay";
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const UPDATED_AT = new Date("2026-08-14T10:30:00.000Z");
 
-/** @returns A distinct card id, since the board schema rejects a repeated one. */
+// The board schema rejects a repeated card id.
 function cardId(at: number): string {
   return `c0000000-0001-4000-a000-000000000${String(at).padStart(3, "0")}`;
 }
 
-/** Two ranked cards, which is enough to have a reveal with a middle. */
+// Two ranked cards is enough to have a reveal with a middle.
 const BOARD = {
   title: "Origins, ranked",
   tiers: [
@@ -64,8 +64,7 @@ app.onError((err, c) => {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  // The default for every test: the user already has a channel. Tests that
-  // care about first-use override findByUserId to undefined.
+  // Default: the user already has a channel. First-use tests override findByUserId.
   mockRepo.findByUserId.mockResolvedValue(stubChannel());
   mockRepo.setPayload.mockImplementation((_userId: string, payload: unknown) =>
     Promise.resolve(stubChannel({ payload, version: 4 })),
@@ -282,14 +281,12 @@ describe("POST /api/v1/overlay/me/board/reveal", () => {
       body: JSON.stringify({ revealCount: 3 }),
     });
 
-    // A stale reveal control on a phone must not put an error on the stream.
     expect(res.status).toBe(200);
     expect(mockRepo.setPayload).not.toHaveBeenCalled();
   });
 });
 
 describe("POST /api/v1/overlay/me/hidden", () => {
-  /** @returns The response, after asking for the given curtain state. */
   function setHidden(hidden: boolean) {
     return app.request("/api/v1/overlay/me/hidden", {
       method: "POST",
@@ -306,8 +303,6 @@ describe("POST /api/v1/overlay/me/hidden", () => {
     const res = await setHidden(true);
 
     expect(res.status).toBe(200);
-    // The card surviving is the whole difference from Clear: raising the
-    // curtain has to put the same thing back with no second push.
     expect(mockRepo.setPayload).toHaveBeenCalledWith(USER_ID, {
       ...DEFAULT_OVERLAY_PAYLOAD,
       printingId: "p-1",
@@ -368,11 +363,6 @@ describe("POST /api/v1/overlay/me/hidden", () => {
 });
 
 describe("the curtain is sticky", () => {
-  /**
-   * The board mirror pushes on every reveal step, so a push that raised the
-   * curtain would undo a hide on the creator's next keypress. These three are
-   * the regression that keeps hiding usable mid-ranking.
-   */
   beforeEach(() => {
     mockRepo.findByUserId.mockResolvedValue(
       stubChannel({ payload: { ...DEFAULT_OVERLAY_PAYLOAD, hidden: true } }),
@@ -427,8 +417,6 @@ describe("the curtain is sticky", () => {
 
 describe("POST /api/v1/overlay/me/clear", () => {
   it("raises the curtain, so the next segment's first push is seen", async () => {
-    // Clearing ends a segment. Leaving the curtain down would make the next
-    // push land on a scene that silently shows nothing.
     mockRepo.findByUserId.mockResolvedValue(
       stubChannel({ payload: { ...DEFAULT_OVERLAY_PAYLOAD, printingId: "p-1", hidden: true } }),
     );

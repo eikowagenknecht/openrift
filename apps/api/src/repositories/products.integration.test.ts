@@ -7,14 +7,10 @@ import { createDbContext, syncCardCardTypes } from "../test/integration-context.
 const USER_ID = "a0000000-0197-4000-a000-000000000002";
 const ctx = createDbContext(USER_ID);
 
-// Two printings of the same card (normal + foil promo): finish is part of
-// printing identity, so a product shipping both is two content rows.
 const ANNIE = CARDS["annie-fiery"];
 const ANNIE_NORMAL = PRINTINGS["OGS-001:epic:normal::EN"];
 const ANNIE_FOIL = PRINTINGS["OGS-001:epic:foil:promo:EN"];
-// A printing of a different card, to prove the lookup does not leak across cards.
 const FIRESTORM_NORMAL = PRINTINGS["OGS-002:uncommon:normal::EN"];
-// A card this file never puts in a product, for the empty case.
 const UNUSED_CARD = CARDS["master-yi-meditative"];
 
 describe.skipIf(!ctx)("products repo productsForCard (integration)", () => {
@@ -31,7 +27,6 @@ describe.skipIf(!ctx)("products repo productsForCard (integration)", () => {
     }
   });
 
-  /** Creates a product with the given contents, cleaned up in afterAll. */
   async function makeProduct(name: string, rows: { printingId: string; quantity: number }[]) {
     slugCounter += 1;
     const product = await repos.products.create({
@@ -53,9 +48,7 @@ describe.skipIf(!ctx)("products repo productsForCard (integration)", () => {
 
     const rows = await repos.products.productsForCard(ANNIE.id);
 
-    // Rows of one product across printings have no defined relative order (the
-    // query sorts by product name only); the UI reads one printing at a time,
-    // where the PK makes each product appear at most once.
+    // No defined relative order between rows of one product (sorted by name only).
     expect(rows).toHaveLength(2);
     expect(rows).toEqual(
       expect.arrayContaining([
@@ -158,7 +151,6 @@ describe.skipIf(!ctx)("products repo coverCards (integration)", () => {
     return printing.id;
   }
 
-  /** Attaches a front image; `rehosted: false` leaves only an external URL. */
   async function addImage(
     printingId: string,
     { rehosted = true, active = true } = {},
@@ -196,8 +188,6 @@ describe.skipIf(!ctx)("products repo coverCards (integration)", () => {
     return product.id;
   }
 
-  // The main product exercises ordering, dedupe, exclusions, and the limit in
-  // one pass; ids are captured for the assertions below.
   let kitId: string;
   let legendPrintingId: string;
   let legendImageId: string;
@@ -218,7 +208,6 @@ describe.skipIf(!ctx)("products repo coverCards (integration)", () => {
 
     legendPrintingId = await makePrinting(legendCard, "rare", "COV-100");
     legendImageId = await addImage(legendPrintingId);
-    // Same card twice: the showcase variant must win and appear only once.
     const dualCommonPrinting = await makePrinting(dualVariantCard, "common", "COV-110");
     await addImage(dualCommonPrinting);
     showcasePrintingId = await makePrinting(dualVariantCard, "showcase", "COV-111");
@@ -268,10 +257,6 @@ describe.skipIf(!ctx)("products repo coverCards (integration)", () => {
   it("ranks legends first, then rarity, dedupes variants, and caps at four", async () => {
     const rows = await repos.products.coverCards([kitId]);
 
-    // Legend leads despite its mid rarity; then units by rarity descending.
-    // The common variant of the dual-variant card is folded into its showcase
-    // printing; the common-only card is cut by the limit; battlefield,
-    // unhosted, and inactive-image cards never qualify.
     expect(rows.map((row) => row.printingId)).toEqual([
       legendPrintingId,
       showcasePrintingId,
@@ -346,7 +331,7 @@ describe.skipIf(!ctx)("products repo set grouping (integration)", () => {
   });
 
   it("orders by set sort order, then name, with set-less products last", async () => {
-    // High sort orders keep fixture sets out of the way.
+    // High sort orders keep fixture sets out of the way of real data.
     const laterSetId = await makeSet("Itest Later Wave", 902);
     const earlierSetId = await makeSet("Itest Earlier Wave", 901);
     const laterProductId = await makeProduct("Aaa Later Kit", laterSetId);
@@ -400,8 +385,6 @@ describe.skipIf(!ctx)("products repo set grouping (integration)", () => {
 
     expect(mine).toBeDefined();
     expect(mine?.updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/u);
-    // Every catalogued product belongs in the sitemap: no draft/publish gate,
-    // so each fixture product created above has an entry.
     const slugs = new Set(entries.map((entry) => entry.slug));
     const fixtures = await Promise.all(
       productIds.map((id) => repos.products.getByIdWithCounts(id)),

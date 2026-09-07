@@ -6,10 +6,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminPrintingCitationsRouter } from "./printing-citations";
 
-// ---------------------------------------------------------------------------
-// Mock repos
-// ---------------------------------------------------------------------------
-
 const mockCatalog = { printingById: vi.fn() };
 
 const mockPrintingCitations = {
@@ -36,7 +32,6 @@ app.use("*", async (c, next) => {
 });
 registerRouterForTest(app, adminPrintingCitationsRouter);
 
-/** @returns A stored citation row as the repo hands it back. */
 function citationRow(overrides: Record<string, unknown> = {}) {
   return {
     id: CITATION_ID,
@@ -48,7 +43,6 @@ function citationRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** @returns The response to a citation POST. */
 function createCitation(body: unknown) {
   return app.request(BASE, {
     method: "POST",
@@ -62,7 +56,7 @@ beforeEach(() => {
 });
 
 describe("GET /printings/{printingId}/citations", () => {
-  it("lists the printing's citations", async () => {
+  it("lists the printing's citations without exposing the server-only sortOrder", async () => {
     mockCatalog.printingById.mockResolvedValue({ id: PRINTING_ID });
     mockPrintingCitations.listForPrinting.mockResolvedValue([
       citationRow(),
@@ -75,7 +69,6 @@ describe("GET /printings/{printingId}/citations", () => {
     const json = await readJson(res);
     expect(json.citations).toHaveLength(2);
     expect(json.citations[1].sourceUrl).toBeNull();
-    // sortOrder is how the server orders them, not something a client needs.
     expect(json.citations[0].sortOrder).toBeUndefined();
   });
 
@@ -136,9 +129,7 @@ describe("POST /printings/{printingId}/citations", () => {
     expect(mockPrintingCitations.insert).not.toHaveBeenCalled();
   });
 
-  // The value is rendered as an href, so a javascript: URL must not survive
-  // validation and reach the card page.
-  it("rejects a non-http(s) link", async () => {
+  it("rejects a non-http(s) link, since it is rendered as a raw href", async () => {
     mockCatalog.printingById.mockResolvedValue({ id: PRINTING_ID });
 
     // oxlint-disable-next-line no-script-url -- the payload under test is the point
@@ -176,7 +167,6 @@ describe("POST /printings/{printingId}/citations", () => {
 });
 
 describe("PATCH /printings/{printingId}/citations/{citationId}", () => {
-  /** @returns The response to a citation PATCH. */
   function patchCitation(body: unknown) {
     return app.request(`${BASE}/${CITATION_ID}`, {
       method: "PATCH",
@@ -185,8 +175,6 @@ describe("PATCH /printings/{printingId}/citations/{citationId}", () => {
     });
   }
 
-  // The case the route exists for: a dead link repointed at an archived copy,
-  // keeping the citation's id and its place in the list.
   it("repoints a link without touching the label", async () => {
     mockPrintingCitations.listForPrinting.mockResolvedValue([citationRow()]);
     mockPrintingCitations.update.mockResolvedValue(CITATION_ID);
@@ -211,8 +199,6 @@ describe("PATCH /printings/{printingId}/citations/{citationId}", () => {
     });
   });
 
-  // Distinct from omitting the field: an explicit null means the video came
-  // down and nothing replaced it, so the credit stays but the link goes.
   it("clears the link when sourceUrl is explicitly null", async () => {
     mockPrintingCitations.listForPrinting.mockResolvedValue([citationRow()]);
     mockPrintingCitations.update.mockResolvedValue(CITATION_ID);
@@ -242,8 +228,7 @@ describe("PATCH /printings/{printingId}/citations/{citationId}", () => {
     expect(mockPrintingCitations.update).not.toHaveBeenCalled();
   });
 
-  // Otherwise a caller could move a citation up the list by patching it.
-  it("rejects an attempt to write sortOrder", async () => {
+  it("rejects an attempt to write sortOrder, which would let a caller reorder the list", async () => {
     mockPrintingCitations.listForPrinting.mockResolvedValue([citationRow()]);
 
     const res = await patchCitation({ sortOrder: 0 });
@@ -298,7 +283,6 @@ describe("DELETE /printings/{printingId}/citations/{citationId}", () => {
     expect(mockPrintingCitations.delete).toHaveBeenCalledWith(CITATION_ID);
   });
 
-  // Otherwise one printing's URL would delete another printing's citation.
   it("404s a citation that belongs to a different printing", async () => {
     mockPrintingCitations.listForPrinting.mockResolvedValue([
       citationRow({ id: "c0000000-0001-4000-a000-000000000009" }),

@@ -6,10 +6,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminProviderSettingsRouter } from "./provider-settings";
 
-// ---------------------------------------------------------------------------
-// Mock repo
-// ---------------------------------------------------------------------------
-
 const mockRepo = {
   listAll: vi.fn(),
   reorder: vi.fn(),
@@ -28,10 +24,6 @@ app.use("*", async (c, next) => {
 });
 registerRouterForTest(app, adminProviderSettingsRouter);
 
-// ---------------------------------------------------------------------------
-// Test data
-// ---------------------------------------------------------------------------
-
 const dbSetting1 = {
   provider: "tcgplayer",
   sortOrder: 0,
@@ -47,10 +39,6 @@ const dbSetting2 = {
   isFavorite: true,
   helperReviewable: true,
 };
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("GET /provider-settings", () => {
   beforeEach(() => {

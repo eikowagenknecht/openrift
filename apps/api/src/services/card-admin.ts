@@ -14,8 +14,6 @@ import { cleanupOrphanedImageFiles, deletePrintingRows } from "./printing-admin.
 type CatalogMutationsRepo = ReturnType<typeof catalogMutationsRepo>;
 type CatalogDeleteGuardsRepo = ReturnType<typeof catalogDeleteGuardsRepo>;
 
-// ── deleteCard ───────────────────────────────────────────────────────────────
-
 const BLOCKER_LABELS: Record<keyof CardDeleteBlockers, string> = {
   copies: "collection copies",
   collectionEvents: "collection history entries",
@@ -28,12 +26,10 @@ const BLOCKER_LABELS: Record<keyof CardDeleteBlockers, string> = {
 };
 
 /**
- * Delete a card, all of its printings, and its admin-owned children (bans,
+ * Deletes a card, all of its printings, and its admin-owned children (bans,
  * marketplace card overrides; errata/aliases/junctions cascade). Refuses with
- * CONFLICT while user data (copies, decks, lists, loans, trades, collection
- * history) or marketplace product mappings still reference the card — those
- * must be removed or unmapped first.
- * @returns Promise that resolves when the card and its printings are gone.
+ * CONFLICT while user data or marketplace product mappings still reference
+ * the card.
  */
 export async function deleteCard(
   transact: Transact,
@@ -65,9 +61,7 @@ export async function deleteCard(
       return imageFileIds;
     });
   } catch (error: unknown) {
-    // 23503 = foreign_key_violation: a referencing row appeared between the
-    // blocker check and the delete — re-check so the client gets the same
-    // CONFLICT it would have gotten had the row existed up front.
+    // 23503 = foreign_key_violation: a row appeared after the blocker check, re-check for CONFLICT.
     if (error instanceof Error && "code" in error && error.code === "23503") {
       throwIfBlocked(await repos.catalogDeleteGuards.countForCard(card.id));
     }
@@ -77,10 +71,7 @@ export async function deleteCard(
   await cleanupOrphanedImageFiles(io, mut, orphanCandidateImageIds);
 }
 
-/**
- * Throw a CONFLICT AppError naming every non-zero blocker count.
- * @returns Nothing; returns normally when all counts are zero.
- */
+/** Throws a CONFLICT AppError naming every non-zero blocker count. */
 function throwIfBlocked(blockers: CardDeleteBlockers): void {
   const blocking = Object.entries(blockers).filter(([, count]) => count > 0);
   if (blocking.length > 0) {

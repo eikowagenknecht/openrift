@@ -63,7 +63,6 @@ const PRICE_FLAME_FOIL = {
   directLowPrice: null,
 };
 
-/** Normal price entry for Ice Shard — marketPrice is null (should be skipped) */
 const PRICE_ICE_NULL_MARKET = {
   productId: 5002,
   subTypeName: "Normal",
@@ -74,7 +73,6 @@ const PRICE_ICE_NULL_MARKET = {
   directLowPrice: null,
 };
 
-/** Normal price entry for Ice Shard — marketPrice is 0 (should be skipped) */
 const PRICE_ICE_ZERO_MARKET = {
   productId: 5002,
   subTypeName: "Normal",
@@ -145,7 +143,6 @@ interface MockApiData {
   productsByGroup?: Map<number, Record<string, unknown>[]>;
   pricesByGroup?: Map<number, Record<string, unknown>[]>;
   lastModified?: Date | null;
-  /** Per-group Last-Modified overrides; takes precedence over lastModified. */
   lastModifiedByGroup?: Map<number, Date | null>;
 }
 
@@ -434,7 +431,6 @@ describe("refreshTcgplayerPrices", () => {
       setupFetchJson(fetchJsonSpy, {
         groups: [GROUP_A],
         productsByGroup: new Map([[101, [PRODUCT_FLAME]]]),
-        // No pricesByGroup entry for 101 → empty prices
       });
 
       await refreshTcgplayerPrices(stubFetch, repos, log);
@@ -569,7 +565,6 @@ describe("refreshTcgplayerPrices", () => {
 
       expect(result.transformed.groups).toBe(2);
       expect(result.transformed.products).toBe(3);
-      // prices = staging rows count (only products with valid market price)
       expect(result.transformed.prices).toBe(2);
     });
 
@@ -663,10 +658,8 @@ describe("refreshTcgplayerPrices", () => {
     it("handles groups with missing products or prices gracefully", async () => {
       const { repos } = createMockRepos();
       const { log } = makeMockLogger();
-      // Group exists but neither products nor prices are set in the maps
       setupFetchJson(fetchJsonSpy, {
         groups: [GROUP_A],
-        // No productsByGroup or pricesByGroup entries for GROUP_A
       });
 
       await refreshTcgplayerPrices(stubFetch, repos, log);

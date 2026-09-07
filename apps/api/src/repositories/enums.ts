@@ -24,11 +24,6 @@ interface LanguageEnumRow {
   isWellKnown: boolean;
 }
 
-/**
- * Every reference table's rows, keyed by table name — the source of the /init
- * `enums` payload. Spelled out per key rather than as a `Record<string, …>` so
- * the route can map it onto the contract without casting.
- */
 export interface AllEnumRows {
   cardTypes: EnumRow[];
   rarities: RarityRow[];
@@ -66,14 +61,9 @@ export function enumsRepo(db: Kysely<Database>) {
 
   return {
     /**
-     * A token that changes whenever any reference table's *content* changes.
-     *
+     * A token that changes whenever any reference table's content changes.
      * Only `languages` and `markers` carry `updated_at`, so this hashes each
-     * table's whole row set (`t::text` captures every column, including ones
-     * added later) rather than probing timestamps. All thirteen tables hold ~71
-     * rows between them, so the digest is far cheaper than the thirteen round
-     * trips it lets a caller skip — and unlike a TTL it has no staleness
-     * window, so an admin edit is visible on the next read.
+     * table's whole row set instead.
      */
     async contentVersion(): Promise<string> {
       const digest = (table: string) =>

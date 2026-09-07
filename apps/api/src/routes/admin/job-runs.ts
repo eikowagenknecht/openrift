@@ -7,10 +7,6 @@ import type { ApiContext } from "../../orpc/context.js";
 
 const os = implement(adminJobRunsContract).$context<ApiContext>().use(requireAuthedUser);
 
-/**
- * Admin job-runs table. Any thrown `AppError` is mapped by the handler's
- * {@link appErrorInterceptor}.
- */
 export const adminJobRunsRouter = {
   list: os.list.handler(async ({ input, context }): Promise<JobRunsListResponse> => {
     const { jobRuns } = context.repos;
@@ -19,7 +15,7 @@ export const adminJobRunsRouter = {
     const pageSize = limit ?? 50;
     const pageNumber = page ?? 1;
     const offset = (pageNumber - 1) * pageSize;
-    // "did-work" maps to noop=false (excludes unclassified null rows), "noop" to true.
+    // noop=false excludes rows where noop is null (SQL null <> false).
     const noop = activity === undefined ? undefined : activity === "noop";
 
     const [{ rows, total }, kinds] = await Promise.all([

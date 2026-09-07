@@ -7,10 +7,6 @@ import { fetchJson } from "./fetch";
 import { logUpsertCounts } from "./log";
 import type { UpsertCounts } from "./types";
 
-// ---------------------------------------------------------------------------
-// toCents
-// ---------------------------------------------------------------------------
-
 describe("toCents", () => {
   it("returns null for null", () => {
     expect(toCents(null)).toBeNull();
@@ -43,10 +39,7 @@ describe("toCents", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// cmProductUrl (inlined — function is private in cardmarket.ts)
-// ---------------------------------------------------------------------------
-
+// cmProductUrl is private in cardmarket.ts; reimplemented here for testing.
 function cmProductUrl(externalId: number): string {
   return `https://www.cardmarket.com/en/Riftbound/Products?idProduct=${externalId}`;
 }
@@ -62,10 +55,6 @@ describe("cmProductUrl", () => {
     expect(cmProductUrl(1)).toBe("https://www.cardmarket.com/en/Riftbound/Products?idProduct=1");
   });
 });
-
-// ---------------------------------------------------------------------------
-// logUpsertCounts
-// ---------------------------------------------------------------------------
 
 function makeMockLogger(): { log: Logger; messages: string[] } {
   const messages: string[] = [];
@@ -125,10 +114,6 @@ describe("logUpsertCounts", () => {
     expect(messages[0]).not.toContain("staged");
   });
 });
-
-// ---------------------------------------------------------------------------
-// fetchJson
-// ---------------------------------------------------------------------------
 
 describe("fetchJson", () => {
   const stubFetch: Fetch = async () => Response.json({ hello: "world" }, { status: 200 });

@@ -6,10 +6,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminCacheRouter } from "./cache";
 
-// ---------------------------------------------------------------------------
-// Test app
-// ---------------------------------------------------------------------------
-
 const mockFetch = vi.fn();
 
 // Mount the oRPC router directly (without the requireAdmin gate). AppErrors are
@@ -28,10 +24,6 @@ function buildApp(cloudflare: { apiToken: string; zoneId: string } | undefined) 
 }
 
 const configured = { apiToken: "token-abc", zoneId: "zone-xyz" };
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("GET /cache/status", () => {
   beforeEach(() => {
@@ -95,7 +87,6 @@ describe("POST /cache/purge", () => {
     expect(res.status).toBe(502);
     const json = await readJson(res);
     expect(json.message).toContain("Cloudflare purge failed");
-    // The upstream body is logged server-side, not reflected to the client.
     expect(json.message).not.toContain("bad zone");
   });
 });

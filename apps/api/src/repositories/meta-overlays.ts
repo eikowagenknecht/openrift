@@ -11,21 +11,9 @@ import type {
 import { keyBatches, rowBatches } from "../lib/bind-batches.js";
 
 /**
- * The overlay layer: sparse patches applied on top of promotion (ADR-014
- * revision 3).
- *
- * An admin's correction and a user's submission are the same row. What differs
- * is who authored it and whether it is accepted, so there is one review queue,
- * one apply path, and one place a field can be overridden.
- *
- * `claimedFields` is what makes a patch expressible. Without it, "clear the
- * organizer" and "say nothing about the organizer" are the same row, and every
- * nullable live column would be unclearable. A generated CHECK per column
- * refuses a value set without being claimed, so this repo never has to defend
- * against a half-written mask.
- *
- * The ignore tables live here too: dismissing a source key and rejecting an
- * overlay are the same reviewer doing the same job.
+ * Sparse patches applied on top of promotion. `claimedFields` distinguishes
+ * "clear this field" from "say nothing about it"; a generated CHECK per
+ * column refuses a value set without being claimed.
  */
 
 export type MetaEventOverlayRow = Selectable<MetaEventOverlaysTable>;
@@ -54,25 +42,19 @@ function escapeLike(value: string): string {
     .replaceAll("_", String.raw`\_`);
 }
 
-/** A player overlay with the card lines it claims, which the review queue needs together. */
 export interface MetaPlayerOverlayWithCards extends MetaPlayerOverlayRow {
   cards: MetaOverlayCardRow[];
 }
 
 export function metaOverlaysRepo(db: Kysely<Database>) {
   return {
-    // ── Event overlays ──────────────────────────────────────────────────────
-
     eventOverlayById(id: string): Promise<MetaEventOverlayRow | undefined> {
       return db.selectFrom("metaEventOverlays").selectAll().where("id", "=", id).executeTakeFirst();
     },
 
     /**
-     * The accepted patches for one event, oldest first.
-     *
-     * Order is the precedence: promotion applies these after the source, so a
-     * later correction beats an earlier one on the same field. Two overlays
-     * claiming one field is normal, not a conflict to resolve.
+     * The accepted patches for one event, oldest first: promotion applies
+     * them in this order, so a later correction wins on a shared field.
      */
     acceptedEventOverlays(metaEventId: string): Promise<MetaEventOverlayRow[]> {
       return db
@@ -85,7 +67,7 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns The events an accepted overlay claims `field` on, deduplicated. */
+    /** The events an accepted overlay claims `field` on, deduplicated. */
     async eventIdsClaimingField(field: MetaEventOverlayField): Promise<string[]> {
       const rows = await db
         .selectFrom("metaEventOverlays")
@@ -120,7 +102,6 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Keyed lookup for push providers, so a re-upload updates instead of duplicating. */
     async eventOverlaysBySourceKeys(
       provider: string,
       externalIds: readonly string[],
@@ -157,8 +138,7 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
 
     /**
      * The one row an admin's field edits merge into: their own accepted,
-     * sourceless, noteless overlay on this event. A user's submission always
-     * carries a provider key or a note, so it can never be mistaken for one.
+     * sourceless, noteless overlay on this event.
      */
     adminEditOverlay(
       metaEventId: string,
@@ -176,15 +156,12 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Removes an overlay outright. Reserved for an admin's own merged edit row
-     * whose last claim was released — a submission is settled by status, never
-     * deleted.
+     * Removes an overlay outright. Reserved for an admin's own merged edit
+     * row whose last claim was released; a submission is settled by status.
      */
     async deleteEventOverlay(id: string): Promise<void> {
       await db.deleteFrom("metaEventOverlays").where("id", "=", id).execute();
     },
-
-    // ── Player overlays ─────────────────────────────────────────────────────
 
     async playerOverlayById(id: string): Promise<MetaPlayerOverlayWithCards | undefined> {
       const overlay = await db
@@ -254,9 +231,8 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Keyed lookup for push providers' standings rows, so a re-upload updates
-     * its overlays instead of duplicating them. The key survives the overlay
-     * being re-anchored when its proposed event is accepted.
+     * Keyed lookup for push providers' standings rows; the key survives the
+     * overlay being re-anchored when its proposed event is accepted.
      */
     async playerOverlaysBySourceKeys(
       provider: string,
@@ -295,9 +271,8 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Re-points the players proposed under an event overlay at the live event
-     * that overlay just minted, so accepting a proposal carries its field with
-     * it instead of stranding the rows.
+     * Re-points the players proposed under an event overlay at the live
+     * event that overlay just minted.
      */
     async adoptProposedPlayers(eventOverlayId: string, metaEventId: string): Promise<void> {
       await db
@@ -307,10 +282,6 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Rewrites one overlay's row and card lines together, which is what a
-     * provider's re-upload of the same standings row is.
-     */
     async updatePlayerOverlay(
       id: string,
       values: Partial<Insertable<MetaEventPlayerOverlaysTable>>,
@@ -328,10 +299,7 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
       });
     },
 
-    /**
-     * The one row an admin's field edits on a standings row merge into. See
-     * {@link adminEditOverlay} for why the filter is provider and note.
-     */
+    /** The one row an admin's field edits on a standings row merge into. See {@link adminEditOverlay}. */
     adminPlayerEditOverlay(
       metaEventPlayerId: string,
       userId: string,
@@ -366,10 +334,8 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Points every overlay line holding one card name at a card.
-     *
-     * The reviewer's fix for an unmatched name. It settles the lines already
-     * queued; the alias table is what keeps the next fetch from re-asking.
+     * The reviewer's fix for an unmatched card name; settles the lines
+     * already queued, while an alias table keeps future fetches from re-asking.
      */
     async resolveCardName(cardName: string, cardId: string): Promise<number> {
       const result = await db
@@ -380,8 +346,6 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
         .executeTakeFirst();
       return Number(result.numUpdatedRows);
     },
-
-    // ── Review ──────────────────────────────────────────────────────────────
 
     playerOverlaysForSourceEvent(
       provider: string,
@@ -437,9 +401,8 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Frees the overlays anchored to a row about to be deleted, parking them on
-     * the event: the anchor FK cascades, and a rejected overlay has to outlive
-     * the row it minted so a corrected file can be accepted again.
+     * Frees the overlays anchored to a row about to be deleted, parking them
+     * on the event: a rejected overlay must outlive the row it minted.
      */
     async unanchorPlayerOverlays(metaEventPlayerId: string, metaEventId: string): Promise<number> {
       const result = await db
@@ -451,9 +414,8 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Settling an overlay is a status change, never a delete: a rejected patch
-     * stays visible to whoever submitted it, and an accepted one has to survive
-     * every future re-promote.
+     * Settling an overlay is a status change, never a delete: a rejected
+     * patch stays visible to its submitter, and an accepted one survives re-promotes.
      */
     async setPlayerOverlayStatuses(
       ids: readonly string[],
@@ -497,8 +459,6 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
         .executeTakeFirst();
       return Number(result.numUpdatedRows) > 0;
     },
-
-    // ── Dismissed source keys ───────────────────────────────────────────────
 
     async ignoredEventIds(provider: string): Promise<string[]> {
       const rows = await db

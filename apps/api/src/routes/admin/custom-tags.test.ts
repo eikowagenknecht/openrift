@@ -78,7 +78,6 @@ const tagRow = {
   updatedAt: now,
 };
 
-// ── Categories ──────────────────────────────────────────────────────────────
 describe("GET /custom-tag-categories", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -195,7 +194,6 @@ describe("DELETE /custom-tag-categories/:id", () => {
   });
 });
 
-// ── Tags ──────────────────────────────────────────────────────────────────
 describe("GET /custom-tags", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -394,7 +392,6 @@ describe("DELETE /custom-tags/:id/cards", () => {
   });
 });
 
-// ── Per-card assignment ─────────────────────────────────────────────────────
 describe("GET /cards/:id/custom-tags", () => {
   beforeEach(() => {
     vi.resetAllMocks();

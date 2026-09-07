@@ -10,58 +10,32 @@ import { emptyMetaSyncResult } from "./result.js";
 import { UvsHttpError } from "./uvsgames-client.js";
 
 /**
- * The id sweep (ADR-014), the only path to an event the listing refuses to
- * serve — an `UNLISTED`/`CANCELED` event, reachable by id alone. One request
- * per id makes this the most expensive job here: a per-run budget bounds the
- * slice, and `uvsgames_id_probes` is why no id is ever paid for twice.
+ * The only path to an event the listing refuses to serve: an
+ * `UNLISTED`/`CANCELED` event, reachable by id alone. One request per id, so a
+ * per-run budget bounds the slice.
  */
 
-/** The source's own name for this archive's game, on the detail endpoint. */
 const RIFTBOUND_GAME_TYPE = "RIFTBOUND";
-
-/** Its numeric id, read when the row carries no `game_type`. */
 const RIFTBOUND_GAME_ID = 3;
-
-/** One run's ceiling. About 50 minutes at the client's pacing. */
 export const MAX_PROBES_PER_SWEEP = 5000;
-
-/** How many undecided ids one candidate query hands back. */
 const CANDIDATE_PAGE = 500;
-
-/** Probes between writes. A run that dies loses at most this many. */
 const FLUSH_PROBES = 50;
-
-/** How often a long sweep reports progress and re-reads the cancel flag. */
 const HEARTBEAT_PROBES = 100;
-
-/** This many failures in a row means the source is down, not a bad row. */
 const MAX_CONSECUTIVE_FAILURES = 20;
-
 const MAX_ERRORS = 50;
 
 export interface MetaIdSweepResult extends MetaSyncResultBase {
-  /** Ids asked about. `requests` is larger when a retry happens. */
   probed: number;
-  /** Ids that turned out to be this game's, and so became mirror rows. */
   found: number;
-  /** Undecided ids left in the range when the run stopped. */
   remaining: number;
-  /** Ids belonging to another game the source runs. */
   otherGame: number;
-  /** Ids the source has no event for. */
   absent: number;
-  /** Ids this game's, in a shape with no usable id, name, or start. */
   unreadable: number;
-  /** Ids that errored and stay undecided, for the next run to retry. */
   failed: number;
-  /**
-   * The range walked, `from..to`. A string, not two numbers: the run summary
-   * treats every number in a result as a counter.
-   */
   range: string | null;
 }
 
-/** Field order matters: the run summary shows the first few keys. */
+/** Field order matters here: the run summary shows the first few keys. */
 function emptyResult(): MetaIdSweepResult {
   return {
     probed: 0,
@@ -92,10 +66,8 @@ interface SweepContext {
   seenAt: Date;
   maxProbes: number;
   runId?: string;
-  /** Projections and probe rows held until the next flush. */
   pendingRows: UvsgamesCatalogProjection[];
   pendingProbes: UvsgamesIdProbeInput[];
-  /** Keys this run inserted or changed, which the auto-accept sweep reads. */
   touched: string[];
   probesAtLastBeat: number;
   consecutiveFailures: number;
@@ -287,7 +259,6 @@ export async function sweepEventIds(
   const fromId = options.fromId ?? stored?.fromId;
   const toId = options.toId ?? stored?.toId;
   if (fromId === undefined || toId === undefined || fromId > toId) {
-    // A backwards window is a typo, not an intentional empty sweep.
     record(ctx, "No id range to sweep");
     ctx.result.complete = false;
     return ctx.result;

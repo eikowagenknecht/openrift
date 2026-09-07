@@ -10,11 +10,6 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
   const { db } = ctx!;
   const repo = jobRunsRepo(db);
 
-  /**
-   * Starts a run that the test expects to win the claim; throws when the
-   * partial unique index refused it (which would mean test-state leakage).
-   * @returns The started run's id handle.
-   */
   async function begin(kind: string, trigger: "cron" | "admin" = "cron"): Promise<{ id: string }> {
     const started = await repo.start({ kind, trigger });
     if (started === null) {
@@ -38,12 +33,8 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
   });
 
   it("start refuses a second concurrent run of the same kind", async () => {
-    // Regression (migration 253): the check-then-insert race used to let a
-    // double-triggered job run twice; the partial unique index now makes the
-    // second insert lose, reported as null instead of a thrown 23505.
     const first = await begin("test.kind");
     expect(await repo.start({ kind: "test.kind", trigger: "admin" })).toBeNull();
-    // A different kind is unaffected, and finishing frees the slot.
     expect(await repo.start({ kind: "other.kind", trigger: "cron" })).not.toBeNull();
     await repo.succeed(first.id, { durationMs: 1 });
     expect(await repo.start({ kind: "test.kind", trigger: "cron" })).not.toBeNull();
@@ -99,9 +90,6 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
     expect(rows).toHaveLength(2);
     expect(rows.every((r) => r.status === "failed")).toBe(true);
     expect(rows.every((r) => r.errorMessage === "server restarted during run")).toBe(true);
-    // The duration is the one part still computed in SQL, per row, off that
-    // row's own started_at — a swept run always gets a finish time and a
-    // non-negative elapsed time rather than the null it was left with.
     expect(rows.every((r) => r.finishedAt instanceof Date)).toBe(true);
     expect(rows.every((r) => (r.durationMs ?? -1) >= 0)).toBe(true);
   });
@@ -171,8 +159,8 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
   });
 
   it("findLatestForResume skips later runs whose result is null", async () => {
-    // Regression: a failure that never wrote a checkpoint must not shadow
-    // the watermark from an earlier partially-progressed run.
+    // A failure that never wrote a checkpoint must not shadow the watermark
+    // from an earlier partially-progressed run.
     const old = await begin("test.kind");
     await repo.updateResult(old.id, { lastPostedDate: "2026-04-17" });
     await repo.fail(old.id, { durationMs: 100, errorMessage: "boom" });
@@ -184,10 +172,8 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
   });
 
   it("stores a result as a real jsonb object and reads it back on every path", async () => {
-    // Regression: results used to be written with a JSON.stringify the driver
-    // then encoded a second time, so the column held a jsonb *string scalar*
-    // and every read had to repair it. `jsonb_typeof` is asserted directly,
-    // because a round trip alone cannot tell the two shapes apart.
+    // `jsonb_typeof` is asserted directly because a round trip alone cannot
+    // tell a real jsonb object apart from a double-encoded string scalar.
     const result = { processed: 5, total: 10, errors: ["a", "b"] };
     const { id } = await begin("test.kind", "admin");
     await repo.updateResult(id, result);
@@ -222,7 +208,6 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
     const lastPage = await repo.listPage({ limit: 2, offset: 4 });
     expect(lastPage.rows).toHaveLength(1);
 
-    // Pages must not overlap — every row id across pages is distinct.
     const ids = [...firstPage.rows, ...secondPage.rows, ...lastPage.rows].map((row) => row.id);
     expect(new Set(ids).size).toBe(5);
   });
@@ -279,7 +264,6 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
 
   it("purgeOlderThan deletes rows whose started_at is before the cutoff", async () => {
     const { id } = await begin("test.kind");
-    // Backdate the row so the cutoff catches it
     await db
       .updateTable("jobRuns")
       .set({ startedAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000) })

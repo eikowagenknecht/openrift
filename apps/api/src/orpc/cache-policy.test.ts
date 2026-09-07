@@ -40,10 +40,7 @@ describe("resolveCacheControl", () => {
 describe("immutableWhenVersionMatches", () => {
   const IMMUTABLE = "public, max-age=31536000, immutable";
 
-  /**
-   * Minimal Hono-context stand-in: a query map plus a mutable response.
-   * @returns The `Cache-Control` the middleware left on the response.
-   */
+  /** Minimal Hono-context stand-in: a query map plus a mutable response. */
   function run(query: Record<string, string>, headers: Record<string, string>) {
     const res = new Response(null, { headers });
     const c = { req: { query: (key: string) => query[key] }, res } as unknown as Context;
@@ -86,11 +83,9 @@ describe("immutableWhenVersionMatches", () => {
 
 describe("ETAG_PATHS", () => {
   it("derives the etag paths from the contracts in Hono :param form", () => {
-    // Parameterised reads keep their segment so Hono can match them precisely.
     expect(ETAG_PATHS).toContain("/api/v1/cards/:cardSlug");
     expect(ETAG_PATHS).toContain("/api/v1/prices/:printingId/history");
     expect(ETAG_PATHS).toContain("/api/v1/sets/:setSlug");
-    // Flat reads are listed verbatim; the short-TTL shares opt out of etag.
     expect(ETAG_PATHS).toContain("/api/v1/catalog");
     expect(ETAG_PATHS).not.toContain("/api/v1/site-settings");
     expect(ETAG_PATHS).not.toContain("/api/v1/decks/share/:token");

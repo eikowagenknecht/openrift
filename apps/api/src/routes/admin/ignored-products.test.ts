@@ -6,10 +6,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminIgnoredProductsRouter } from "./ignored-products";
 
-// ---------------------------------------------------------------------------
-// Mock repo
-// ---------------------------------------------------------------------------
-
 const mockMktAdmin = {
   listIgnoredProducts: vi.fn(),
   getStagingProductNames: vi.fn(),
@@ -18,10 +14,6 @@ const mockMktAdmin = {
   deleteIgnoredProducts: vi.fn(),
   deleteIgnoredVariants: vi.fn(),
 };
-
-// ---------------------------------------------------------------------------
-// Test app — mount the oRPC router directly (without the requireAdmin gate).
-// ---------------------------------------------------------------------------
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
@@ -32,10 +24,6 @@ app.use("*", async (c, next) => {
   await next();
 });
 registerRouterForTest(app, adminIgnoredProductsRouter);
-
-// ---------------------------------------------------------------------------
-// Test data
-// ---------------------------------------------------------------------------
 
 const now = new Date("2026-03-17T00:00:00Z");
 
@@ -56,10 +44,6 @@ const dbIgnoredVariantL3 = {
   productName: "Ice Elemental",
   createdAt: now,
 };
-
-// ---------------------------------------------------------------------------
-// GET /api/admin/v1/ignored-products
-// ---------------------------------------------------------------------------
 
 describe("GET /api/admin/v1/ignored-products", () => {
   beforeEach(() => {
@@ -98,10 +82,6 @@ describe("GET /api/admin/v1/ignored-products", () => {
     expect(json.products).toEqual([]);
   });
 });
-
-// ---------------------------------------------------------------------------
-// POST /api/admin/v1/ignored-products (L2 — product level)
-// ---------------------------------------------------------------------------
 
 describe("POST /api/admin/v1/ignored-products (L2)", () => {
   beforeEach(() => {
@@ -207,10 +187,6 @@ describe("POST /api/admin/v1/ignored-products (L2)", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// POST /api/admin/v1/ignored-products (L3 — variant level)
-// ---------------------------------------------------------------------------
-
 describe("POST /api/admin/v1/ignored-products (L3)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -246,10 +222,6 @@ describe("POST /api/admin/v1/ignored-products (L3)", () => {
     expect(mockMktAdmin.insertIgnoredProducts).not.toHaveBeenCalled();
   });
 });
-
-// ---------------------------------------------------------------------------
-// DELETE /api/admin/v1/ignored-products
-// ---------------------------------------------------------------------------
 
 describe("DELETE /api/admin/v1/ignored-products (L2)", () => {
   beforeEach(() => {

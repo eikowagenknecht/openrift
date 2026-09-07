@@ -6,10 +6,6 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { siteSettingsRouter } from "./site-settings";
 
-// ---------------------------------------------------------------------------
-// Mock repos
-// ---------------------------------------------------------------------------
-
 const mockSiteSettingsRepo = {
   listByScope: vi.fn(() => Promise.resolve([] as { key: string; value: string }[])),
 };
@@ -21,10 +17,6 @@ app.use("*", async (c, next) => {
   await next();
 });
 registerRouterForTest(app, siteSettingsRouter);
-
-// ---------------------------------------------------------------------------
-// GET /api/v1/site-settings
-// ---------------------------------------------------------------------------
 
 describe("GET /api/v1/site-settings", () => {
   beforeEach(() => {

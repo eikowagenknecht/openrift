@@ -4,18 +4,14 @@ import type { PodResponse, PodRoundResponse } from "@openrift/shared";
 import type { Pod, PodRound, PodScoring } from "../repositories/pod-tournaments.js";
 
 /**
- * Pure row → response mappers for the pod engine (ADR-033), plus the scoring
- * helpers they share with the repository's derive-on-read folding. Points are
- * never stored: both the round responses here and `foldFinalized` recompute
- * them from the raw placements, so the two must agree on these helpers.
+ * Points are never stored: both the round responses here and `foldFinalized`
+ * recompute them from the raw placements, so the two must agree on these helpers.
  */
 
-/** Narrows a stored pod size to the literal union (the CHECK guarantees 2/3/4). */
 export function podSizeOf(value: number): 2 | 3 | 4 {
   return value === 2 ? 2 : value === 3 ? 3 : 4;
 }
 
-/** @returns Per-member points for a pod, by placement. */
 export function pointsForPod(placements: number[], size: 2 | 3 | 4, scoring: PodScoring): number[] {
   if (size === 2) {
     return swissPointsForPlacements(placements, scoring.winPoints, scoring.drawPoints);
@@ -23,11 +19,7 @@ export function pointsForPod(placements: number[], size: 2 | 3 | 4, scoring: Pod
   return pointsForPlacements(placements, size, scoring.scheme);
 }
 
-/**
- * The two team ids of a 2v2 team match, or null when the members don't form
- * exactly two full teams (a 1v1 pod, or pre-teams data — those fall back to
- * the per-player scoring paths).
- */
+/** Null when the members don't form exactly two full teams (falls back to per-player scoring). */
 export function teamsOf(members: { teamId: string | null }[]): [string, string] | null {
   if (members.length !== 4 || members.some((member) => member.teamId === null)) {
     return null;
@@ -36,7 +28,6 @@ export function teamsOf(members: { teamId: string | null }[]): [string, string] 
   return distinct.length === 2 ? [distinct[0], distinct[1]] : null;
 }
 
-/** @returns Per-member points for a 2v2 team match, scored like a Swiss match. */
 export function pointsForTeamPod(
   members: { teamId: string | null; placement: number | null }[],
   teams: [string, string],
@@ -76,7 +67,6 @@ interface PodWithMembers {
   members: PodMemberRow[];
 }
 
-/** One round's raw rows, as `loadRounds` reads them. */
 export interface PodRoundRows {
   round: PodRound;
   pods: PodWithMembers[];
@@ -126,7 +116,6 @@ function toPodResponse(pod: Pod, memberRows: PodMemberRow[], scoring: PodScoring
   };
 }
 
-/** @returns The round's rows mapped to the API response, points included. */
 export function toRoundResponse(rows: PodRoundRows, scoring: PodScoring): PodRoundResponse {
   const { round } = rows;
   return {

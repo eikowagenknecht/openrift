@@ -131,16 +131,8 @@ export function friendGroupMatchesRepo(db: Kysely<Database>, providers?: ListRul
     },
 
     /**
-     * The giver's offered copies of one printing in a group — the reservable
-     * supply used to validate and pin a trade. Counts manual `copy` entries and
-     * dynamic trade-rule output alike, reusing the same supply builder as the
-     * match view so the two can never disagree (a copy offered only via a rule
-     * must not read as "0 available" at trade time).
-     *
-     * Deliberately offer-agnostic: copies claimed by the giver's own pending
-     * offers stay in the result, because every caller nets them itself and
-     * `setTradeQuantity` must exclude the very offer it is resizing. The match
-     * view runs that pass in {@link copiesClaimedByPendingOffers}.
+     * Copies claimed by the giver's own pending offers stay in the result;
+     * `setTradeQuantity` must exclude the one offer it is resizing itself.
      */
     giverPrintingSupply(
       scope: GiverSupplyScope,
@@ -149,15 +141,8 @@ export function friendGroupMatchesRepo(db: Kysely<Database>, providers?: ListRul
     },
 
     /**
-     * Every member offering a given card on a tradelist shared with the group
-     * — the Discord bot's "who has this?" view. Same supply builder as matching
-     * (`buildSupply`), so reserved/loaned/altered copies and rule-derived
-     * offers behave exactly like the in-app Trades pages. It stops one step
-     * short of the match view: copies claimed by a pending offer still count,
-     * because the question is who physically holds the card, and the bot's
-     * answer is a pointer to a person rather than something to act on directly.
-     * Not viewer-centric: the group's link to a Discord server is the consent
-     * that scopes it.
+     * Unlike the match view, copies claimed by a pending offer still count here.
+     * Not viewer-scoped: the group's Discord link is what authorizes this query.
      */
     tradelistHoldersForCard(scope: {
       groupId: string;
@@ -263,11 +248,6 @@ interface SupplyEntry {
   sellPref: EffectiveTradePreference;
 }
 
-/**
- * Extends {@link BoxWantDemand} rather than restating its fields, so the bulk-box
- * allocation and the match view can never drift on what a want *is* — a rename
- * on either side stops compiling here.
- */
 interface DemandEntry extends BoxWantDemand {
   buyEntryId: string | null;
   buyListId: string;
@@ -325,11 +305,7 @@ async function loadSharedLists(
   }));
 }
 
-/**
- * The same shape as {@link loadSharedLists}, but keyed on ownership rather than
- * a group share. `sharedAt` carries the list's creation time — it only feeds
- * match-feed timestamps, which no owner-scoped caller reads.
- */
+/** `sharedAt` carries the list's creation time; no owner-scoped caller reads it. */
 async function loadOwnedLists(
   db: Kysely<Database>,
   ownerUserId: string,
@@ -522,23 +498,10 @@ function offerKey(giverUserId: string, printingId: string): string {
 }
 
 /**
- * The supply copies a member's own live offers already commit, so the match
- * view stops advertising a card whose copies are all spoken for.
- *
- * Nothing is pinned until a recipient accepts, so these copies are not
- * `reserved` and `buildSupply` still surfaces them. Without this pass the card
- * kept showing up as requestable and the request then failed at
- * `assertSupplyAvailable` with "Only 0 copies are still available", which reads
- * as "they don't have it any more" rather than "their copy is promised to
- * someone else". The two sides run the same allocation, so what the view offers
- * is what a request can actually claim.
- *
- * Offers living in another group are resolved against *that* group's supply, as
- * {@link claimCopiesForOffers} requires — a giver who shares different copies
- * with different groups must not be emptied out here. That costs one extra
- * supply read per (printing, other group), and only for printings this group
- * can see at all, so the common case of every offer sitting in the group being
- * viewed adds no reads.
+ * These copies are not `reserved` (nothing is pinned until a recipient
+ * accepts), so `buildSupply` still surfaces them without this pass.
+ * Offers living in another group are resolved against that group's supply,
+ * as {@link claimCopiesForOffers} requires.
  */
 async function copiesClaimedByPendingOffers(
   db: Kysely<Database>,
@@ -842,9 +805,7 @@ async function buildRuleEvalContexts(
 
   const ownedCopiesByOwner = new Map<string, OwnedCopyRow[]>();
   if (providers) {
-    // Per owner, the printings any of *their* rule-bearing lists can consult,
-    // unioned across that owner's lists so one read still covers them all but
-    // stays bounded by the rules instead of pulling the whole collection.
+    // Per owner, the printings their rule-bearing lists can consult.
     const scopeByOwner = new Map<string, Set<string>>();
     for (const list of lists) {
       if (
@@ -1298,9 +1259,8 @@ async function resolveGiverPrintingSupply(
     }
   }
 
-  // Altered copies are outside matching entirely (see buildSupply), so they
-  // don't count as an offered basis either — a stack that only has altered
-  // copies left reads as vanished, not as exhausted by reservations.
+  // Altered copies are outside matching entirely (see buildSupply); they
+  // don't count as an offered basis either.
   const hasAny = [...offeredCopyIds].some((copyId) => {
     const meta = copyMeta.get(copyId);
     return meta !== undefined && meta.printingId === scope.printingId && !meta.altered;

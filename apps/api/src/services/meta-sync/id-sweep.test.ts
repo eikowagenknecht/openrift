@@ -13,7 +13,6 @@ import { UvsHttpError } from "./uvsgames-client.js";
 
 const NOW = new Date("2026-09-03T12:00:00Z");
 
-/** One event as the detail endpoint serves it, game and all. */
 function detail(id: number, over: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id,
@@ -64,7 +63,6 @@ interface FakeStore {
   stored: { value: unknown };
 }
 
-/** Fake mirror: candidate queries exclude `known` ids and every probed id, live. */
 function fakeDeps(
   client: UvsClient,
   known: number[],
@@ -105,7 +103,6 @@ function fakeDeps(
         unchanged: [],
       });
     },
-    // Every rule off, so the auto-accept sweep short-circuits.
     settings: () =>
       Promise.resolve({
         autoAcceptMinPlayers: null,
@@ -275,7 +272,6 @@ describe("sweepEventIds", () => {
 
     expect(result.cancelRequested).toBe(true);
     expect(result.complete).toBe(false);
-    // The flag is read on the heartbeat, so the run ends on that boundary.
     expect(asked.length).toBe(100);
     expect(result.found).toBe(100);
   });

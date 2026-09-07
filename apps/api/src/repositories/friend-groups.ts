@@ -64,9 +64,8 @@ export interface GroupSummary extends Group {
 const MEMBER_PREVIEW_LIMIT = 5;
 
 /**
- * When a swap actually happened: its first settle, per ADR-019. `least` ignores
- * nulls in Postgres, so a half-settled row dates from the half that landed, and
- * a row with neither settle is null and falls out of any window.
+ * Postgres `least()` ignores nulls, so a half-settled row dates from the half
+ * that landed, and a row with neither settle is null.
  */
 const SETTLED_AT = sql<Date | null>`least(t.giver_sync_applied_at, t.receiver_sync_applied_at)`;
 

@@ -8,13 +8,8 @@ import type {
 } from "../db/index.js";
 import { rowBatches } from "../lib/bind-batches.js";
 
-/**
- * What a playloltcg deep fetch read, as the source published it.
- *
- * Same contract as `uvsgamesResultsRepo` on a smaller surface: this source
- * publishes standings and decks, but no per-round pairings and no phase
- * structure, so it has neither table.
- */
+// This source publishes standings and decks, but no per-round pairings and no
+// phase structure, so it has neither table.
 
 export type PlayloltcgStandingRow = Selectable<PlayloltcgEventStandingsTable>;
 export type PlayloltcgDecklistCardRow = Selectable<PlayloltcgDecklistCardsTable>;
@@ -36,11 +31,7 @@ export function playloltcgResultsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /**
-     * Wholesale, because the source re-ranks provisional standings into final
-     * ones. `playerKey` is what survives that, which is why it is the key
-     * instead of the placement.
-     */
+    /** Wholesale, because the source re-ranks provisional standings into final ones. */
     async replaceStandings(
       activityShopId: number,
       rows: readonly Insertable<PlayloltcgEventStandingsTable>[],

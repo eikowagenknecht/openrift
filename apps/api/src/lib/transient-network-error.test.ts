@@ -6,9 +6,8 @@ import {
   isTransientNetworkError,
 } from "./transient-network-error.js";
 
-// The exact mechanism type @sentry/node-core's onunhandledrejection
-// integration sets. Pinned here because an equality check against the bare
-// "onunhandledrejection" silently matches nothing and disables the filter.
+// The exact mechanism type the SDK's onunhandledrejection integration sets;
+// an equality check against the bare "onunhandledrejection" matches nothing.
 const SDK_MECHANISM_TYPE = "auto.node.onunhandledrejection";
 
 function rejectionEvent(mechanismType = SDK_MECHANISM_TYPE): ErrorEvent {
@@ -23,8 +22,6 @@ function hintFor(error: unknown): EventHint {
   return { originalException: error } as EventHint;
 }
 
-// ── isTransientNetworkError ───────────────────────────────────────────────────
-
 describe("isTransientNetworkError", () => {
   it("matches a DNS failure carrying a code", () => {
     const error = Object.assign(new Error("getaddrinfo ESERVFAIL"), { code: "ESERVFAIL" });
@@ -32,8 +29,6 @@ describe("isTransientNetworkError", () => {
   });
 
   it("matches the bare Bun DNSException shape seen in production", () => {
-    // Bun surfaces this with no `code` and no stacktrace, so the message is
-    // the only thing to match on.
     const error = new Error("getaddrinfo ESERVFAIL");
     error.name = "DNSException";
     expect(isTransientNetworkError(error)).toBe(true);
@@ -65,8 +60,6 @@ describe("isTransientNetworkError", () => {
   });
 
   it("does not match a message that merely mentions a transient code", () => {
-    // Guards against a substring match swallowing real errors that quote a
-    // connection code in prose.
     expect(isTransientNetworkError(new Error("retry after ECONNREFUSED was logged"))).toBe(false);
   });
 
@@ -82,8 +75,6 @@ describe("isTransientNetworkError", () => {
   });
 });
 
-// ── isDroppableTransientRejection ─────────────────────────────────────────────
-
 describe("isDroppableTransientRejection", () => {
   it("drops the production DNS-blip event shape", () => {
     const error = new Error("getaddrinfo ESERVFAIL");
@@ -92,11 +83,9 @@ describe("isDroppableTransientRejection", () => {
   });
 
   it("matches the SDK's fully qualified mechanism type, not a bare suffix", () => {
-    // Regression guard: `=== "onunhandledrejection"` never fires against the
-    // real SDK value, which makes the whole filter dead code.
     expect(SDK_MECHANISM_TYPE).not.toBe("onunhandledrejection");
     const event = rejectionEvent();
-    event.extra = {}; // force the decision onto the mechanism check alone
+    event.extra = {};
     const error = Object.assign(new Error("connect failed"), { code: "ECONNREFUSED" });
     expect(isDroppableTransientRejection(event, hintFor(error))).toBe(true);
   });
@@ -108,7 +97,6 @@ describe("isDroppableTransientRejection", () => {
   });
 
   it("keeps a transient error thrown on a real request path", () => {
-    // Not an unhandled rejection: a caller saw this one, so it still reports.
     const event = {
       type: undefined,
       exception: { values: [{ type: "Error", mechanism: { type: "generic" } }] },

@@ -6,12 +6,9 @@ import { createDbContext } from "../test/integration-context.js";
 const ctx = createDbContext("a0000000-0193-4000-a000-000000000001");
 
 /**
- * Migration 193 (ADR-037 hardening): the deferred constraint triggers that
- * guarantee every card keeps at least one `card_card_types` row and that the
- * denormalized `cards.type` scalar tracks the position-0 slug. An empty type
- * set would violate the non-empty `types` catalog contract and 500 the public
- * catalog, so the database itself must make that state unreachable — even for
- * hand-written SQL that bypasses the repositories.
+ * Deferred constraint triggers guarantee every card keeps at least one
+ * `card_card_types` row and that `cards.type` tracks the position-0 slug,
+ * even for hand-written SQL that bypasses the repositories.
  */
 describe.skipIf(!ctx)("card type junction triggers (integration, migration 193)", () => {
   const { db } = ctx!;
@@ -95,7 +92,6 @@ describe.skipIf(!ctx)("card type junction triggers (integration, migration 193)"
       db.deleteFrom("cardCardTypes").where("cardId", "=", card.id).execute(),
     ).rejects.toThrow(/at least one card_card_types row/u);
 
-    // The rejected delete must have rolled back
     const junction = await db
       .selectFrom("cardCardTypes")
       .select("typeSlug")
@@ -111,8 +107,6 @@ describe.skipIf(!ctx)("card type junction triggers (integration, migration 193)"
       .where("slug", "=", "TRG193-MULTI")
       .executeTakeFirstOrThrow();
 
-    // Delete-then-insert like replaceCardTypesById, but WITHOUT updating the
-    // scalar — the trigger must bring it along.
     await db.transaction().execute(async (trx) => {
       await trx.deleteFrom("cardCardTypes").where("cardId", "=", card.id).execute();
       await trx

@@ -2,11 +2,6 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createDbContext } from "../test/integration-context.js";
 
-// ADR-033 schema invariants. The umbrella's database guarantees — the
-// polymorphic-host CHECK, the pairing-style enum, and host-delete cascade —
-// exercised directly against the shared integration DB. An empty tournament (no
-// pairings, no decks) is allowed since the format collapse (178); the deck-check
-// toggle and its coupling are gone since 179, so collecting lists is all it takes.
 const HOST_ID = crypto.randomUUID();
 const ctx = createDbContext(HOST_ID);
 
@@ -25,8 +20,8 @@ describe.skipIf(!ctx)("tournaments schema invariants (integration)", () => {
         image: null,
       })
       .execute();
-    // One transaction: the owner-guard trigger is deferred, so the org and its
-    // owner's membership row have to commit together.
+    // The owner-guard trigger is deferred, so the org and its owner's
+    // membership row must commit in the same transaction.
     orgId = await db.transaction().execute(async (trx) => {
       const org = await trx
         .insertInto("organizations")
@@ -68,10 +63,6 @@ describe.skipIf(!ctx)("tournaments schema invariants (integration)", () => {
   });
 
   it("accepts a host-less tournament (detached host after account deletion)", async () => {
-    // Since migration 186, deleting a host account SET NULLs host_user_id
-    // instead of cascading the whole event away, so a NULL same-side host id
-    // is a legal "deleted host" state — only the cross-side column must stay
-    // NULL (covered by the both-FKs test below).
     const row = await db
       .insertInto("tournaments")
       .values({ hostType: "user", name: "No host" })
@@ -152,8 +143,6 @@ describe.skipIf(!ctx)("tournaments schema invariants (integration)", () => {
   });
 
   it("accepts an empty tournament with no pairings and no decks", async () => {
-    // A roster/schedule-only event is legitimate since the format collapse; the
-    // old chk_tournaments_nonempty rule that rejected this is gone (migration 178).
     const row = await db
       .insertInto("tournaments")
       .values({
@@ -190,7 +179,6 @@ describe.skipIf(!ctx)("tournaments schema invariants (integration)", () => {
       .values({ hostType: "user", hostUserId: HOST_ID, name: "Roster" })
       .returning("id")
       .executeTakeFirstOrThrow();
-    // Two walk-ins (null user_id) are fine.
     await db
       .insertInto("tournamentParticipants")
       .values([
@@ -198,12 +186,10 @@ describe.skipIf(!ctx)("tournaments schema invariants (integration)", () => {
         { tournamentId: tournament.id, displayName: "Walk-in B" },
       ])
       .execute();
-    // First linked participant for HOST_ID is fine.
     await db
       .insertInto("tournamentParticipants")
       .values({ tournamentId: tournament.id, displayName: "Linked", userId: HOST_ID })
       .execute();
-    // A second linked participant for the same account is rejected.
     await expect(
       db
         .insertInto("tournamentParticipants")

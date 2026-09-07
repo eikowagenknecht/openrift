@@ -4,14 +4,10 @@ import { defaultIo } from "../io.js";
 import type { DeckImageCard } from "./deck-image.js";
 import { renderDeckImage, truncateTitle } from "./deck-image.js";
 
-// Exercises the real pipeline (font load + glyph rasterize + QR + satori +
-// sharp). No DB or media: a null imageId falls back to a name-only tile, which
-// still renders, and the rune glyphs ship as bundled assets.
+// Exercises the real pipeline (font load + glyph rasterize + QR + satori + sharp), no DB or media.
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 // Canvas geometry mirrored from deck-image.ts, to locate the QR mark in output.
-// The mark sits at the right end of the title row, which is exactly as tall as
-// the mark, so its box starts at the canvas padding on both axes.
 const WIDTH = 1200;
 const HEIGHT = 630;
 const PAD = 22;
@@ -88,7 +84,6 @@ describe("renderDeckImage", () => {
 
   it("renders the QR dark-on-white so the code is not inverted", async () => {
     const png = await renderDeckImage(defaultIo, { ...baseInput, cards: constructedDeck });
-    // The mark sits at the right end of the title row, inside the canvas padding.
     const { data, info } = await defaultIo
       .sharp(png)
       .extract({
@@ -110,15 +105,11 @@ describe("renderDeckImage", () => {
       }
     }
 
-    // Gold-on-transparent (the previous treatment) composited over the #14161d
-    // background tops out around 205 per channel, so any near-white at all means
-    // the light plate is there.
+    // Gold-on-transparent over the #14161d background tops out around 205 per channel.
     expect(white).toBeGreaterThan(HEADER_QR_SIZE * HEADER_QR_SIZE * 0.2);
   });
 
   it("leaves the title row's right end clear when there is no share link", async () => {
-    // The same box the mark occupies above. Without a share URL the row shrinks
-    // back to the type's height, so nothing near-white should land here.
     const png = await renderDeckImage(defaultIo, {
       ...baseInput,
       shareUrl: undefined,

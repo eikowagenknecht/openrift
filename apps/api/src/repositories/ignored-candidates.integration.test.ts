@@ -20,14 +20,11 @@ describe.skipIf(!ctx)("ignoredCandidatesRepo (integration)", () => {
       .execute();
   });
 
-  // ── Candidate cards ──────────────────────────────────────────────────────
-
   it("ignoreCard inserts without error", async () => {
     await repo.ignoreCard({ provider: "test-prov-39", externalId: "ext-card-1" });
   });
 
   it("ignoreCard is a no-op on conflict", async () => {
-    // Should not throw
     await repo.ignoreCard({ provider: "test-prov-39", externalId: "ext-card-1" });
   });
 
@@ -48,8 +45,6 @@ describe.skipIf(!ctx)("ignoredCandidatesRepo (integration)", () => {
     const result = await repo.unignoreCard("test-prov-39", "nonexistent");
     expect(result.numDeletedRows).toBe(0n);
   });
-
-  // ── Candidate printings ──────────────────────────────────────────────────
 
   it("ignorePrinting inserts without error", async () => {
     await repo.ignorePrinting({
@@ -73,7 +68,6 @@ describe.skipIf(!ctx)("ignoredCandidatesRepo (integration)", () => {
       externalId: "ext-print-1",
       finish: "foil",
     });
-    // Should not throw
   });
 
   it("listIgnoredPrintings returns all ignored printings", async () => {

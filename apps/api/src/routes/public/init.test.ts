@@ -6,9 +6,8 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { initRouter } from "./init";
 
-// Must include every enum key the response schema declares (languages +
-// markers included) — oRPC validates the handler output, so an incomplete
-// fixture 500s where the old unvalidated Hono response let it slide.
+// Must include every enum key the response schema declares; oRPC validates
+// the handler output, so an incomplete fixture 500s.
 interface EnumRow {
   slug: string;
   label: string;
