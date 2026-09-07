@@ -32,24 +32,7 @@ describe("computeScanSessionSummary", () => {
     expect(summary.unpricedCards).toBe(0);
   });
 
-  it("picks the highest unit value as the best pull, not the highest row total", () => {
-    const summary = computeScanSessionSummary(
-      [
-        { printing: p1, count: 10 },
-        { printing: p2, count: 1 },
-      ],
-      {
-        priceOf: (id) => prices[id],
-        isWished: noWishes,
-        ownedBefore: null,
-      },
-    );
-
-    expect(summary.best?.printing.id).toBe("p2");
-    expect(summary.best?.value).toBe(10);
-  });
-
-  it("counts unpriced cards instead of adding them as zero, and keeps them out of best", () => {
+  it("counts unpriced cards instead of adding them as zero", () => {
     const summary = computeScanSessionSummary(
       [
         { printing: p1, count: 1 },
@@ -64,19 +47,6 @@ describe("computeScanSessionSummary", () => {
 
     expect(summary.unpricedCards).toBe(3);
     expect(summary.totalValue).toBe(2.5);
-    expect(summary.best?.printing.id).toBe("p1");
-  });
-
-  it("leaves best null when nothing scanned had a price", () => {
-    const summary = computeScanSessionSummary([{ printing: p1, count: 2 }], {
-      priceOf: () => undefined,
-      isWished: noWishes,
-      ownedBefore: null,
-    });
-
-    expect(summary.best).toBeNull();
-    expect(summary.totalValue).toBe(0);
-    expect(summary.unpricedCards).toBe(2);
   });
 
   it("weights wished cards by count", () => {
@@ -150,7 +120,6 @@ describe("computeScanSessionSummary", () => {
     expect(summary.totalValue).toBe(10);
     expect(summary.wishedCards).toBe(1);
     expect(summary.newCards).toBe(1);
-    expect(summary.best?.printing.id).toBe("p2");
   });
 
   it("ignores a negative count the same way", () => {
@@ -164,7 +133,7 @@ describe("computeScanSessionSummary", () => {
     expect(summary.totalValue).toBe(0);
   });
 
-  it("returns zeros and no best for an empty session", () => {
+  it("returns zeros for an empty session", () => {
     const summary = computeScanSessionSummary([], {
       priceOf: (id) => prices[id],
       isWished: noWishes,
@@ -177,7 +146,6 @@ describe("computeScanSessionSummary", () => {
       unpricedCards: 0,
       wishedCards: 0,
       newCards: 0,
-      best: null,
     });
   });
 

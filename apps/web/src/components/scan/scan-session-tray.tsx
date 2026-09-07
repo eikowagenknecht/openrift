@@ -146,7 +146,7 @@ export function ScanSessionTray({
         <div className="min-h-0 flex-auto overflow-y-auto overscroll-contain pt-1">
           <p className="font-medium">Nothing scanned yet</p>
           <p className="text-muted-foreground">
-            Hold a card in the frame. It lands here, and in your collection only when you add it.
+            Scanned cards appear here. Add them to a collection when you are done.
           </p>
           <UnidentifiedList
             cards={unidentified}
@@ -225,10 +225,12 @@ export function ScanSessionTray({
         {head}
         <ul className="-mx-2 flex flex-col">{newest && renderRow(newest)}</ul>
         {footer}
-        <div className="-mx-2 min-h-0 flex-auto overflow-x-hidden overflow-y-auto overscroll-contain border-t px-2 pt-2">
+        <div className="-mx-2 min-h-0 flex-auto overflow-x-hidden overflow-y-auto overscroll-contain px-2 [&:has(>*)]:border-t [&:has(>*)]:pt-2">
           {facts}
           {alerts}
-          <ul className="-mx-2 flex flex-col">{older.map((row) => renderRow(row))}</ul>
+          {older.length > 0 && (
+            <ul className="-mx-2 flex flex-col">{older.map((row) => renderRow(row))}</ul>
+          )}
         </div>
       </div>
     );
@@ -324,8 +326,7 @@ function TrayFooter({
       </ButtonGroup>
       {!compact && (
         <p className="text-muted-foreground text-sm">
-          Nothing is in your collection until you add it. The list is kept on this device until you
-          do.
+          The list stays on this device until you add it to a collection.
         </p>
       )}
     </div>
@@ -537,7 +538,6 @@ function SummaryFacts({
   formatValue: ((value?: number | null) => string) | null;
   showNew: boolean;
 }) {
-  const bestName = summary.best ? legendDisplayName(summary.best.printing.card) : null;
   const facts: { key: string; node: ReactNode }[] = [];
   if (showNew && summary.newCards !== null && summary.newCards > 0) {
     facts.push({
@@ -555,19 +555,6 @@ function SummaryFacts({
       node: (
         <span className="text-destructive tabular-nums" title="Cards on your wishlists">
           {summary.wishedCards} wished
-        </span>
-      ),
-    });
-  }
-  if (formatValue !== null && summary.best !== null && summary.cards > 1) {
-    facts.push({
-      key: "best",
-      node: (
-        <span className="text-muted-foreground">
-          Best pull: {bestName}{" "}
-          <span className={cn("tabular-nums", priceColorClass(summary.best.value))}>
-            {formatValue(summary.best.value)}
-          </span>
         </span>
       ),
     });

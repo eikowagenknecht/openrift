@@ -206,7 +206,7 @@ export function FeaturesPage() {
           id: "scan",
           title: "Scan cards with your phone",
           description:
-            "Point your camera at a card and it lands in a list on your device, with its price and whether you own it already. One button adds the whole list to a collection when you are done. The scanner works offline, is not fooled easily by bad lighting, and takes less than a second to recognize cards on modern phones. Works with desktop webcams as well. No usage limits and completely free.",
+            "Point your camera at a card and it appears in a list on your device, with its price and whether you own it already. One button adds the whole list to a collection when you are done. The scanner works offline, is not fooled easily by bad lighting, and takes less than a second to recognize cards on modern phones. Works with desktop webcams as well. No usage limits and completely free.",
           action: sectionAction("Open the scanner", "/scan"),
           vignette: <ScanVignette cards={thumbnailCards.slice(8, 12)} />,
           emphasis: true,

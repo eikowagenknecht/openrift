@@ -50,7 +50,7 @@ export function ScanStartPanel({
         {ready ? (
           <>
             <p className="text-white/70">
-              Hold a card in the frame. Recognised cards land in the list{" "}
+              Hold a card in the frame. Recognised cards appear in the list{" "}
               <span className="md:hidden">below</span>
               <span className="hidden md:inline">on the right</span>.
             </p>

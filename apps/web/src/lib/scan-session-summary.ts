@@ -11,7 +11,6 @@ export interface ScanSessionSummaryData {
   unpricedCards: number;
   wishedCards: number;
   newCards: number | null;
-  best: { printing: Printing; value: number } | null;
 }
 
 interface ScanSummaryDeps {
@@ -29,7 +28,6 @@ export function computeScanSessionSummary(
   let unpricedCards = 0;
   let wishedCards = 0;
   let newCards = 0;
-  let best: { printing: Printing; value: number } | null = null;
 
   for (const row of rows) {
     if (row.count <= 0) {
@@ -41,9 +39,6 @@ export function computeScanSessionSummary(
       unpricedCards += row.count;
     } else {
       totalValue += value * row.count;
-      if (best === null || value > best.value) {
-        best = { printing: row.printing, value };
-      }
     }
     if (deps.isWished(row.printing.cardId, row.printing.id)) {
       wishedCards += row.count;
@@ -59,6 +54,5 @@ export function computeScanSessionSummary(
     unpricedCards,
     wishedCards,
     newCards: deps.ownedBefore === null ? null : newCards,
-    best,
   };
 }

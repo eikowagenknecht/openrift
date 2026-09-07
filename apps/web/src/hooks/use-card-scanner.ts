@@ -51,17 +51,20 @@ import { useScanEngine } from "./use-scan-engine";
 
 export interface ScannerSettings {
   mode: ScannerMode;
+  paused: boolean;
   processingSize: number;
   candidatesToTry: number;
 }
 
 export const DEFAULT_SCANNER_SETTINGS: ScannerSettings = {
   mode: "single",
+  paused: false,
   processingSize: 848,
   candidatesToTry: DEFAULT_SESSION_OPTIONS.candidatesToTry,
 };
 
 const IDLE_PACE_DELAY_MS = 300;
+const PAUSED_POLL_MS = 250;
 const IDLE_PACE_MIN_FRAME_MS = 400;
 
 const WATCH_LONG_SIDE = 128;
@@ -1155,6 +1158,10 @@ export function useCardScanner(
     // hoisted function by name; the React Compiler bails out on that.
     const loop = () => {
       if (!runningRef.current) {
+        return;
+      }
+      if (settingsRef.current.paused) {
+        setTimeout(() => requestAnimationFrame(loop), PAUSED_POLL_MS);
         return;
       }
       // Live scanning always wins the frame slot; the second look only runs

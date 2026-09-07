@@ -21,7 +21,7 @@ export function ScanTrayShell({ layout, anchorRef, children }: ScanTrayShellProp
     return (
       <div
         ref={anchorRef}
-        className="bg-card/40 flex min-h-0 flex-col rounded-lg px-3 pb-3 md:col-start-2 md:row-start-2 md:h-full md:border"
+        className="md:bg-card/40 flex min-h-0 flex-col md:col-start-2 md:row-start-2 md:h-full md:rounded-lg md:border md:px-3 md:pb-3"
       >
         {children}
       </div>

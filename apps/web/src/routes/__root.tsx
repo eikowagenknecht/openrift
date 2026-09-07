@@ -243,8 +243,9 @@ function RootComponent() {
         <ResolvedViewPrefsProvider value={resolvedViewPrefs}>
           <Outlet />
         </ResolvedViewPrefsProvider>
-        <Toaster position="bottom-right" />
       </div>
+      {/* Outside the isolate div: portalled sheets and dialogs sit at body level. */}
+      <Toaster position="bottom-right" />
       {!import.meta.env.VITE_DISABLE_DEVTOOLS && (
         // Workaround for TanStack/devtools#444: devtools-vite 0.7.0 strips only
         // <TanStackDevtools>, leaving `&& ( )`; this wraps it into valid `<>{ }</>`.

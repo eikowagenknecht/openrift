@@ -338,6 +338,9 @@ export function ScanPage() {
   if (settings.mode !== mode) {
     setSettings((previous) => ({ ...previous, mode }));
   }
+  if (settings.paused !== detailOpen) {
+    setSettings((previous) => ({ ...previous, paused: detailOpen }));
+  }
 
   const [identify, setIdentify] = useState<{
     snapshot: string | null;
@@ -820,7 +823,7 @@ export function ScanPage() {
       destination={destination}
       adding={adding}
       failedCount={shownFailedCount}
-      compact={layout === "portrait"}
+      compact={immersive && layout === "portrait"}
       resumed={resumeNotice !== null}
       notice={
         resumeNotice !== null && (
