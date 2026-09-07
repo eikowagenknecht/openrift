@@ -1,6 +1,7 @@
 import type { Repos } from "../../../deps.js";
 import { withUniqueShareToken } from "../../../lib/share-token.js";
-import type { MetaArchivedDeckInput, MetaEventPlayerInput } from "../repositories/meta.js";
+import type { MetaArchivedDeckInput } from "../repositories/meta-decks.js";
+import type { MetaEventPlayerInput } from "../repositories/meta-players.js";
 
 interface CreatedMetaEventPlayer {
   metaEventPlayerId: string;

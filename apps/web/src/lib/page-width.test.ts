@@ -19,7 +19,8 @@ const EXEMPT = new Set([
   "components/landing/feature-showcase.tsx",
   "components/landing/landing-closing.tsx",
   "components/landing/landing-page.tsx",
-  "routes/_app/promos_.$language.lazy.tsx",
+  "components/promos/promo-compact-section.tsx",
+  "components/promos/promo-section-divider.tsx",
 ]);
 
 async function listSourceFiles(dir: string): Promise<string[]> {

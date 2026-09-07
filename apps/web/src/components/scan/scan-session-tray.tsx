@@ -35,7 +35,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Pressable } from "@/components/ui/pressable";
-import type { UnidentifiedCard } from "@/hooks/use-card-scanner";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useHydrated } from "@/hooks/use-hydrated";
@@ -45,6 +44,7 @@ import { useScanTrayDisclosure } from "@/hooks/use-scan-tray-disclosure";
 import { useWishEntries } from "@/hooks/use-wish-entries";
 import { frontImageId } from "@/lib/card-meta";
 import { formatterForMarketplace, priceColorClass } from "@/lib/format";
+import type { UnidentifiedCard } from "@/lib/scan-catchup";
 import type { ScanPrintingIndex } from "@/lib/scan-resolve";
 import { finishSiblingsOf } from "@/lib/scan-resolve";
 import type { ScanSessionSummaryData } from "@/lib/scan-session-summary";

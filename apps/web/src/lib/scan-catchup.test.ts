@@ -7,6 +7,7 @@ import {
   CATCH_UP_CAPACITY,
   catchUpVerdict,
   createCatchUpQueue,
+  rankedArtworks,
   shouldRunCatchUp,
 } from "@/lib/scan-catchup";
 
@@ -120,5 +121,40 @@ describe("shouldRunCatchUp", () => {
 
   it("does not start a second catch-up while one is running", () => {
     expect(shouldRunCatchUp({ ...idle, busy: true })).toBe(false);
+  });
+});
+
+describe("rankedArtworks", () => {
+  const artKeys = new Map([
+    ["OGN-001-en", "art-lux"],
+    ["OGN-001-en-foil", "art-lux"],
+    ["OGN-014-en", "art-jinx"],
+  ]);
+
+  function rank(...keys: string[]) {
+    return keys.map((key, index) => ({ key, distance: 0.1 * index, rotation: 0 }));
+  }
+
+  it("keeps the ranking's order", () => {
+    expect(rankedArtworks(rank("OGN-014-en", "OGN-001-en"), artKeys)).toEqual([
+      { key: "OGN-014-en", artKey: "art-jinx" },
+      { key: "OGN-001-en", artKey: "art-lux" },
+    ]);
+  });
+
+  it("offers one entry per artwork, keeping the printing that ranked highest", () => {
+    expect(rankedArtworks(rank("OGN-001-en", "OGN-001-en-foil"), artKeys)).toEqual([
+      { key: "OGN-001-en", artKey: "art-lux" },
+    ]);
+  });
+
+  it("falls back to the printing key for a card the bank has no artwork for", () => {
+    expect(rankedArtworks(rank("OGN-999-en"), artKeys)).toEqual([
+      { key: "OGN-999-en", artKey: "OGN-999-en" },
+    ]);
+  });
+
+  it("offers nothing for an empty ranking", () => {
+    expect(rankedArtworks([], artKeys)).toEqual([]);
   });
 });

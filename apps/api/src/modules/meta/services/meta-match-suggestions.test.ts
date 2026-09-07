@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { Repos } from "../../../deps.js";
-import type { AdminMetaPlayerRow, MetaEventWithCounts } from "../repositories/meta.js";
+import type { MetaEventWithCounts } from "../repositories/meta-events.js";
+import type { AdminMetaPlayerRow } from "../repositories/meta-players.js";
 import {
   MAX_EVENT_MATCH_DAY_DELTA,
   nameSimilarity,

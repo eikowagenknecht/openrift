@@ -11,7 +11,7 @@ import {
   syncCardCardTypes,
 } from "../../../test/integration-context.js";
 import { readJson } from "../../../test/read-json.js";
-import { META_ARCHIVE_USER_ID } from "../repositories/meta.js";
+import { META_ARCHIVE_USER_ID } from "../repositories/meta-shared.js";
 
 // Uses prefix mtr- / MTR for everything it creates. The user starts as a
 // non-admin so the 403 cases run before promotion — the isAdmin cache only

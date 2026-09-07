@@ -19,14 +19,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { LockedCard, ScannerReadout, ScannerSettings } from "@/hooks/use-card-scanner";
-import { DEFAULT_SCANNER_SETTINGS, useCardScanner } from "@/hooks/use-card-scanner";
+import { useCardScanner } from "@/hooks/use-card-scanner";
 import { useHydrated } from "@/hooks/use-hydrated";
 import type { ScanServing } from "@/hooks/use-scan-serving";
 import { useLatestScanBankRun, useRebuildScanBank, useScanServing } from "@/hooks/use-scan-serving";
 import type { CameraInfo, CameraInfoEntry } from "@/lib/camera-info";
 import type { LoadedScanBank } from "@/lib/scan-bank";
 import { describeKey, isLandscapeKey, loadScanBank } from "@/lib/scan-bank";
+import type { LockedCard } from "@/lib/scan-locks";
+import type { ScannerReadout } from "@/lib/scan-readout";
+import type { ScannerSettings } from "@/lib/scan-session";
+import { DEFAULT_SCANNER_SETTINGS } from "@/lib/scan-session";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 const MODES: { value: string; label: string }[] = [

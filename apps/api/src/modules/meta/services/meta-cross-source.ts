@@ -6,7 +6,7 @@ import type { MetaCrossSourceState } from "@openrift/shared/types/enums";
 import type { Repos } from "../../../deps.js";
 import { AppError } from "../../../errors.js";
 import { resolvedStandingName } from "../lib/meta-event-naming.js";
-import type { MetaEventSourceRow } from "../repositories/meta.js";
+import type { MetaEventSourceRow } from "../repositories/meta-sources.js";
 import { rankPlayerMatches } from "./meta-match-suggestions.js";
 import { promoteMetaEvent, sourceStandings } from "./meta-promote.js";
 

@@ -25,6 +25,20 @@ import { fetchReference } from "@/lib/scan-reference-image";
  */
 export type ScannerMode = "single" | "auto" | "capture" | "pan";
 
+export interface ScannerSettings {
+  mode: ScannerMode;
+  paused: boolean;
+  processingSize: number;
+  candidatesToTry: number;
+}
+
+export const DEFAULT_SCANNER_SETTINGS: ScannerSettings = {
+  mode: "single",
+  paused: false,
+  processingSize: 848,
+  candidatesToTry: DEFAULT_SESSION_OPTIONS.candidatesToTry,
+};
+
 function isContinuousGuideMode(mode: ScannerMode): boolean {
   return mode === "single" || mode === "auto";
 }

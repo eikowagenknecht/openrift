@@ -9,13 +9,11 @@ import type { Repos } from "../../../deps.js";
 import { createRepos } from "../../../deps.js";
 import { createDbContext } from "../../../test/integration-context.js";
 import { promoteMetaEvent } from "../services/meta-promote.js";
-import type {
-  MetaArchivedDeckInput,
-  MetaDeckCardInput,
-  MetaEventPlayerInput,
-  NewMetaEventPhase,
-} from "./meta.js";
-import { META_ARCHIVE_USER_ID, metaRepo } from "./meta.js";
+import type { MetaArchivedDeckInput, MetaDeckCardInput } from "./meta-decks.js";
+import type { NewMetaEventPhase } from "./meta-events.js";
+import type { MetaEventPlayerInput } from "./meta-players.js";
+import { META_ARCHIVE_USER_ID } from "./meta-shared.js";
+import { metaRepo } from "./meta.js";
 
 // Uses prefix MTA- / mta- for everything it creates. The `meta-archive` user
 // itself is seeded by the migration and shared with every other file, so this

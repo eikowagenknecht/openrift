@@ -12,7 +12,7 @@ import type { ApiContext } from "../../../orpc/context.js";
 import { assertKnownFormat, validateFormatConfig } from "../../decks/lib/deck-format-validation.js";
 import { classifyMetaEventTier } from "../lib/meta-event-classify.js";
 import { toAdminMetaEvent, toAdminMetaPlayer, toMetaEventSource } from "../lib/meta-presenters.js";
-import type { MetaArchivedDeckInput, MetaDeckCardInput } from "../repositories/meta.js";
+import type { MetaArchivedDeckInput, MetaDeckCardInput } from "../repositories/meta-decks.js";
 import { createMetaEventPlayer } from "../services/meta-event-players.js";
 import type { MetaEventFieldEdit } from "../services/meta-overlay-review.js";
 import { writeEventOverlayFields } from "../services/meta-overlay-review.js";

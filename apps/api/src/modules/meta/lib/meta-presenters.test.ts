@@ -1,18 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import type { MetaSubmissionRow } from "../repositories/meta-submissions.js";
+import type { MetaContributorRow } from "../repositories/meta-credits.js";
+import type { MetaDeckContextRow, MetaDeckSummaryRow } from "../repositories/meta-decks.js";
+import type { MetaEventWithCounts } from "../repositories/meta-events.js";
 import type {
-  AdminMetaPlayerRow,
   MetaArchiveLegendRow,
-  MetaContributorRow,
-  MetaDeckContextRow,
-  MetaDeckSummaryRow,
-  MetaEventPlayerRow,
-  MetaEventSourceRow,
-  MetaEventWithCounts,
   MetaLegendFinishRow,
   MetaPlayerFinishRow,
-} from "../repositories/meta.js";
+} from "../repositories/meta-legends.js";
+import type { AdminMetaPlayerRow, MetaEventPlayerRow } from "../repositories/meta-players.js";
+import type { MetaEventSourceRow } from "../repositories/meta-sources.js";
+import type { MetaSubmissionRow } from "../repositories/meta-submissions.js";
 import {
   archiveLegendSlug,
   toMetaLegendFinish,

@@ -326,6 +326,14 @@
       }
     },
     {
+      // A route file is the route definition; the page body lives in components/
+      // (docs/contributing.md, Web module layout).
+      "files": ["apps/web/src/routes/**/*.tsx"],
+      "rules": {
+        "max-lines": ["error", { "max": 300, "skipBlankLines": true, "skipComments": true }]
+      }
+    },
+    {
       "files": ["**/*.test.ts", "**/*.test.tsx"],
       "rules": {
         "require-await": "off",

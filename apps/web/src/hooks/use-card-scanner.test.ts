@@ -16,14 +16,17 @@ import type * as CameraInfoModule from "@/lib/camera-info";
 import type { CameraInfo } from "@/lib/camera-info";
 import { readCameraInfo } from "@/lib/camera-info";
 import type { LoadedScanBank } from "@/lib/scan-bank";
+import type { IdentifyAttempt } from "@/lib/scan-catchup";
 import type * as ScanEmbedderModule from "@/lib/scan-embedder";
 import { loadScanEmbedder, measuredEmbedMsPerImage } from "@/lib/scan-embedder";
+import type { LockedCard } from "@/lib/scan-locks";
 import { loadOpenCv } from "@/lib/scan-opencv";
 import { GUIDE_COLOR, RETICLE_COLOR } from "@/lib/scan-overlay";
 import { fetchReference } from "@/lib/scan-reference-image";
+import type { ScannerSettings } from "@/lib/scan-session";
+import { DEFAULT_SCANNER_SETTINGS } from "@/lib/scan-session";
 
-import type { IdentifyAttempt, LockedCard, ScannerSettings } from "./use-card-scanner";
-import { DEFAULT_SCANNER_SETTINGS, useCardScanner } from "./use-card-scanner";
+import { useCardScanner } from "./use-card-scanner";
 
 vi.mock("@/lib/scan-opencv", () => ({
   loadOpenCv: vi.fn(),

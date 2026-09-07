@@ -19,7 +19,7 @@ import type { Repos } from "../../../deps.js";
 import { AppError } from "../../../errors.js";
 import type { MetaPlayerOverlayRow } from "../repositories/meta-overlays.js";
 import { sourceEventKeyPrefix } from "../repositories/meta-overlays.js";
-import type { MetaEventPlayerRow } from "../repositories/meta.js";
+import type { MetaEventPlayerRow } from "../repositories/meta-players.js";
 import { promoteMetaEvent, promoteNewEvent } from "./meta-promote.js";
 
 /** Compares the display form: the two sides type dates and numbers differently. */

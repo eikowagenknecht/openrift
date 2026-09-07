@@ -17,7 +17,7 @@
 - **`stores/`**: Zustand stores. A pure predicate or constant a store exports for others (`isLocalDeckId`) lives in `lib/` and the store imports it.
 - **`hooks/`**: React hooks, server functions and query options. A React context a hook consumes lives here; the provider component stays in `components/`.
 - **`components/`**: UI. The route object comes from `getRouteApi("/path")`, search-param types from `lib/`.
-- **`routes/`**: route definitions only.
+- **`routes/`**: route definitions only: `createFileRoute` with its `validateSearch`, loaders, `head` and a one-line `component`. The page body is a component under `components/<domain>/`, and lint fails a route file over 300 lines.
 
 When the rule fires, move the definition down to the layer that needs it and update every importer. Never leave a re-export behind as a shim, and never move a module up just to silence the rule unless it belongs there (a `lib/` module that writes to a store is a store action, not lib).
 

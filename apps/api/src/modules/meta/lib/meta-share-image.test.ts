@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { MetaDeckContextRow } from "../repositories/meta.js";
+import type { MetaDeckContextRow } from "../repositories/meta-decks.js";
 import { metaDeckImageFraming } from "./meta-share-image.js";
 
 function context(overrides: Partial<MetaDeckContextRow> = {}): MetaDeckContextRow {

@@ -29,21 +29,22 @@ import { PLAYLOLTCG_PROVIDER } from "../lib/playloltcg-catalog.js";
 import { TOPDECK_PROVIDER, topdeckFormat, topdeckLocalDay } from "../lib/topdeck-catalog.js";
 import { mapSourceFormat, UVSGAMES_PROVIDER, venueLocalDay } from "../lib/uvsgames-catalog.js";
 import { listStatusFor, withSingleChampion } from "../lib/uvsgames-transform.js";
-import type { MetaPlayerOverlayRow } from "../repositories/meta-overlays.js";
-import type { MetaPlayerLinkRow } from "../repositories/meta-player-links.js";
 import type {
   MetaArchivedDeckInput,
   MetaDeckCardInput,
+  MetaStoredPlayerDeck,
+} from "../repositories/meta-decks.js";
+import { deckCardMergeKey, mergeDeckCards, sameDeckCards } from "../repositories/meta-decks.js";
+import type {
   MetaEventMatchRow,
   MetaEventPhaseRow,
-  MetaEventPlayerPatch,
-  MetaEventPlayerUpdate,
-  MetaEventSourceRow,
-  MetaStoredPlayerDeck,
   NewMetaEventMatch,
   NewMetaEventPhase,
-} from "../repositories/meta.js";
-import { deckCardMergeKey, mergeDeckCards, sameDeckCards } from "../repositories/meta.js";
+} from "../repositories/meta-events.js";
+import type { MetaPlayerOverlayRow } from "../repositories/meta-overlays.js";
+import type { MetaPlayerLinkRow } from "../repositories/meta-player-links.js";
+import type { MetaEventPlayerPatch, MetaEventPlayerUpdate } from "../repositories/meta-players.js";
+import type { MetaEventSourceRow } from "../repositories/meta-sources.js";
 import { createMetaEventPlayer, setMetaPlayerList } from "./meta-event-players.js";
 
 /**

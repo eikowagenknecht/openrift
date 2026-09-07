@@ -1,5 +1,7 @@
 import type { DeckZone } from "@openrift/shared/types/enums";
 
+export const DEFAULT_IMPORT_DECK_NAME = "Imported Deck";
+
 /** The shape both the server save-cards mutation and the local-decks store accept. */
 export interface ImportedDeckCard {
   cardId: string;

@@ -6,7 +6,8 @@ import type { MetaOverlayRowMatch } from "@openrift/shared/types/api/meta";
 import { normalizeNameForIdentity } from "@openrift/shared/utils";
 
 import type { Repos } from "../../../deps.js";
-import type { AdminMetaPlayerRow, MetaEventWithCounts } from "../repositories/meta.js";
+import type { MetaEventWithCounts } from "../repositories/meta-events.js";
+import type { AdminMetaPlayerRow } from "../repositories/meta-players.js";
 
 export interface MetaEventMatchSuggestion {
   metaEventId: string;

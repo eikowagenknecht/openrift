@@ -8,7 +8,8 @@ import {
   seedTestUser,
   syncCardCardTypes,
 } from "../../../test/integration-context.js";
-import { META_ARCHIVE_USER_ID, metaRepo } from "../repositories/meta.js";
+import { META_ARCHIVE_USER_ID } from "../repositories/meta-shared.js";
+import { metaRepo } from "../repositories/meta.js";
 import { playerSourceKey } from "./ingest-meta-overlays.js";
 import {
   acceptMetaEventOverlay,

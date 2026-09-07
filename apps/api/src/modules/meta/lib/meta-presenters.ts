@@ -22,27 +22,30 @@ import type {
 import type { CardType, MetaEventTier } from "@openrift/shared/types/enums";
 import { legendDisplayName, metaLegendSlug, metaPlayerKey } from "@openrift/shared/utils";
 
+import type { MetaContributorRow } from "../repositories/meta-credits.js";
+import type {
+  MetaDeckCardRow,
+  MetaDeckContextRow,
+  MetaDeckSummaryRow,
+} from "../repositories/meta-decks.js";
+import type {
+  MetaActivityRow,
+  MetaEventMatchRow,
+  MetaEventPhaseRow,
+  MetaEventWithCounts,
+} from "../repositories/meta-events.js";
+import type {
+  MetaArchiveLegendRow,
+  MetaLegendEventRecordRow,
+  MetaLegendFinishRow,
+  MetaPlayerFinishRow,
+} from "../repositories/meta-legends.js";
+import type { AdminMetaPlayerRow, MetaEventPlayerRow } from "../repositories/meta-players.js";
+import type { MetaEventSourceRow } from "../repositories/meta-sources.js";
 import type {
   MetaEventCorrectionRow,
   MetaSubmissionRow,
 } from "../repositories/meta-submissions.js";
-import type {
-  AdminMetaPlayerRow,
-  MetaArchiveLegendRow,
-  MetaContributorRow,
-  MetaDeckCardRow,
-  MetaDeckContextRow,
-  MetaDeckSummaryRow,
-  MetaLegendEventRecordRow,
-  MetaLegendFinishRow,
-  MetaPlayerFinishRow,
-  MetaEventMatchRow,
-  MetaEventPhaseRow,
-  MetaActivityRow,
-  MetaEventPlayerRow,
-  MetaEventSourceRow,
-  MetaEventWithCounts,
-} from "../repositories/meta.js";
 
 /**
  * One citation as a page prints it. `provider` and `externalId` are null

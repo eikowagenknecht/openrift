@@ -4,7 +4,7 @@ import type { Repos } from "../../../deps.js";
 import { classifyMetaEventTier } from "../lib/meta-event-classify.js";
 import { PLAYLOLTCG_PROVIDER } from "../lib/playloltcg-catalog.js";
 import { mapSourceFormat, UVSGAMES_PROVIDER } from "../lib/uvsgames-catalog.js";
-import type { MetaEventSourceRow } from "../repositories/meta.js";
+import type { MetaEventSourceRow } from "../repositories/meta-sources.js";
 import { countOrNull } from "./meta-promote.js";
 import type { MetaRepromoteResult } from "./meta-repromote.js";
 import { promoteEach } from "./meta-repromote.js";

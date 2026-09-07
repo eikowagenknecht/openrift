@@ -1,6 +1,6 @@
 import { formatRank, formatRecord } from "@openrift/shared/meta-standings";
 
-import type { MetaDeckContextRow } from "../repositories/meta.js";
+import type { MetaDeckContextRow } from "../repositories/meta-decks.js";
 
 export interface MetaDeckImageFraming {
   deckName: string;

@@ -14,16 +14,13 @@ import { assertExisted } from "../../../lib/assertions.js";
 import { requireAuthedUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
 import { recordAdminEvent } from "../../system/services/record-admin-event.js";
+import type { MetaEventWithCounts } from "../repositories/meta-events.js";
 import type {
   MetaEventOverlayRow,
   MetaOverlayCardRow,
   MetaPlayerOverlayRow,
 } from "../repositories/meta-overlays.js";
-import type {
-  AdminMetaPlayerRow,
-  LiveMetaPlayerRow,
-  MetaEventWithCounts,
-} from "../repositories/meta.js";
+import type { AdminMetaPlayerRow, LiveMetaPlayerRow } from "../repositories/meta-players.js";
 import { ingestMetaOverlays, splitSourcePlayerKey } from "../services/ingest-meta-overlays.js";
 import {
   linkMetaCrossSourcePlayers,

@@ -8,7 +8,8 @@ import type {
 import type { Repos } from "../../../deps.js";
 import { createRepos } from "../../../deps.js";
 import { createDbContext, syncCardCardTypes } from "../../../test/integration-context.js";
-import { META_ARCHIVE_USER_ID, metaRepo } from "../repositories/meta.js";
+import { META_ARCHIVE_USER_ID } from "../repositories/meta-shared.js";
+import { metaRepo } from "../repositories/meta.js";
 import { promoteMetaEvent } from "./meta-promote.js";
 
 // Uses the prefix MPI- / mpi- for everything it creates, and shop ids well
