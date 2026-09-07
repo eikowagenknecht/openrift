@@ -11,20 +11,12 @@ import { DEFAULT_EVENT_DIRECTION, DEFAULT_EVENT_SORT } from "@/lib/meta-events-s
 import type { MetaEra, MetaScope } from "@/lib/meta-scope";
 import { scopeMatches } from "@/lib/meta-scope-match";
 
-/**
- * Premier first, local last. Ascending puts the events that count for most at
- * the top, which is the order a reader means by "sort by tier".
- */
 const TIER_RANK: Record<MetaEventTier, number> = {
   premier: 0,
   competitive: 1,
   local: 2,
 };
 
-/**
- * The countries the index can offer, which is the set its own payload covers.
- * Uppercase ISO codes, alphabetical; an event with no country contributes none.
- */
 export function metaEventCountries(events: readonly MetaEventSummary[]): string[] {
   const codes = new Set<string>();
   for (const event of events) {
@@ -36,13 +28,6 @@ export function metaEventCountries(events: readonly MetaEventSummary[]): string[
   return [...codes].sort((left, right) => left.localeCompare(right));
 }
 
-/**
- * The events left after the search box, the scope bar and the holdings filter.
- *
- * The whole archive ships as one payload (ADR-014), so all three narrow
- * client-side and the count under the title is always the truth about what is on
- * screen.
- */
 export function filterMetaEvents(
   events: readonly MetaEventSummary[],
   filter: {
@@ -87,14 +72,7 @@ function matchesText(event: MetaEventSummary, needle: string): boolean {
   );
 }
 
-/**
- * The events in the reader's chosen order, newest first by default.
- *
- * Ties always fall back to the event name, so a column of equal values keeps a
- * stable order instead of reshuffling between renders. A country nobody
- * recorded sorts last whichever way the column runs: an event with no country
- * is not the answer to "which country comes first", in either direction.
- */
+/** Ties break by event name for a stable render order. */
 export function sortMetaEvents(
   events: readonly MetaEventSummary[],
   sort: MetaEventIndexSort = DEFAULT_EVENT_SORT,
@@ -160,11 +138,6 @@ function compareValues(
   }
 }
 
-/**
- * Where a click on a sort header lands. The same column flips direction; a new
- * column starts at the order that reads as "most interesting first" — newest
- * dates and biggest fields, but A-Z for names and premier-first for tiers.
- */
 export function nextEventSort(
   current: { sort: MetaEventIndexSort; direction: MetaEventIndexSortDirection },
   column: MetaEventIndexSort,

@@ -11,26 +11,13 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { deckCheckEntryInvalidationKeys } from "@/lib/tournament-invalidation";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-/**
- * Tournament-scoped judge deck-check hooks (ADR-033). The deck-check "event" is
- * the tournament, so everything keys off `tournamentId` and goes through
- * `/api/v1/tournaments/{tournamentId}/deck-check`. The response shapes are the
- * same `DeckCheck*` types the legacy group surface used, so the verification UI
- * is reused verbatim.
- */
-
-/** Multi-judge shared state is polled; this is the reconcile cadence. */
 const POLL_INTERVAL_MS = 5000;
-
-// ── Server functions: queries ───────────────────────────────────────────────
 
 const fetchEntries = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: tournamentId }): Promise<DeckCheckEventDetailResponse> => {
-    // Map the 404 (deleted tournament, or deck submission disabled) to the
-    // Sentry-ignored sentinel like the use-tournaments fetchers, so the 5s
-    // entry poll doesn't spam raw ORPCErrors.
+    // Map the 404 (deleted tournament, or deck submission disabled) to the Sentry-ignored sentinel.
     const { error, data } = await safe(
       apiOrpcClient(tournamentDeckCheckContract, context.cookie).listEntries({ tournamentId }),
     );
@@ -59,14 +46,8 @@ const fetchEntry = createServerFn({ method: "GET" })
     return entry;
   });
 
-// ── Query hooks ─────────────────────────────────────────────────────────────
-
-/**
- * Polls so all judges in the room see the same entry list state. Pass
- * `enabled: false` to skip the query for viewers who can't read deck-check
- * (the endpoint is staff-only, so an enabled query would 403 for participants).
- * @returns The tournament's entry-list query, refreshed every few seconds.
- */
+// `enabled: false` skips the query for viewers who can't read deck-check; the endpoint
+// is staff-only and 403s participants otherwise.
 export function useTournamentDeckCheckEntries(tournamentId: string, enabled = true) {
   const userId = useRequiredUserId();
   return useQuery({
@@ -78,10 +59,6 @@ export function useTournamentDeckCheckEntries(tournamentId: string, enabled = tr
   });
 }
 
-/**
- * Polls so concurrent judges' ticks and state changes reconcile.
- * @returns The entry-detail query, refreshed every few seconds.
- */
 export function useTournamentDeckCheckEntry(tournamentId: string, entryId: string) {
   const userId = useRequiredUserId();
   return useQuery({
@@ -91,8 +68,6 @@ export function useTournamentDeckCheckEntry(tournamentId: string, entryId: strin
     refetchOnWindowFocus: true,
   });
 }
-
-// ── Server functions: mutations ─────────────────────────────────────────────
 
 const createEntryFn = createServerFn({ method: "POST" })
   .validator(
@@ -230,8 +205,6 @@ const tickCardFn = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     await apiOrpcClient(tournamentDeckCheckContract, context.cookie).tickCard(data);
   });
-
-// ── Mutation hooks ──────────────────────────────────────────────────────────
 
 export function useCreateTournamentDeckCheckEntry() {
   const userId = useRequiredUserId();

@@ -25,9 +25,6 @@ describe("useRowActionHandlers", () => {
   });
 
   it("re-registers on every render so cells dispatch the freshest closure", () => {
-    // The handlers close over per-render state (item lists, mutation results,
-    // pending flags), so a stale registration would dispatch against data the
-    // surface has already moved past.
     const { rerender } = renderHook(({ handler }) => useRowActionHandlers("list", handler), {
       initialProps: { handler: { onRowClick: vi.fn() } },
     });
@@ -48,8 +45,6 @@ describe("useRowActionHandlers", () => {
   });
 
   it("does not clear a registration another surface has already taken over", () => {
-    // Route transitions mount the incoming surface before the outgoing one's
-    // cleanup runs, so the late cleanup has to stand down.
     const outgoing = renderHook(() => useRowActionHandlers("catalog", { onRowClick: vi.fn() }));
     const successor = vi.fn();
     renderHook(() => useRowActionHandlers("collection", { onRowClick: successor }));

@@ -16,10 +16,6 @@ import {
 
 const resetDisplayStore = createStoreResetter(useDisplayStore);
 
-/**
- * Builds a minimal wire-shaped catalog response for the given printings.
- * @returns The catalog response stub.
- */
 function wireCatalog(
   printings: Record<string, { language: string }>,
   overrides?: Partial<CatalogResponse>,
@@ -90,7 +86,7 @@ describe("hasPrintingsOutside", () => {
 });
 
 describe("split fetch + tail merge", () => {
-  it("fetches the primary variant, then merges the tail into the query entry", async () => {
+  it("fetches the primary variant, merges the tail, then no-ops on a second call", async () => {
     useDisplayStore.setState({ languages: ["EN"] });
     const primary = wireCatalog({ p1: { language: "EN" } });
     const tail = wireCatalog({ p2: { language: "SC" } });
@@ -107,8 +103,6 @@ describe("split fetch + tail merge", () => {
 
     const queryClient = new QueryClient();
     const data = await queryClient.query(catalogQueryOptions);
-    // query() stores the RAW response (select runs on read); the raw entry
-    // is what loadCatalogTail merges into.
     const raw = queryClient.getQueryData<CatalogResponse>(queryKeys.catalog.all);
     expect(raw).toBeDefined();
     expect(data).toBeDefined();
@@ -121,7 +115,6 @@ describe("split fetch + tail merge", () => {
     expect(merged).toBeDefined();
     expect(Object.keys((merged as CatalogResponse).printings).toSorted()).toEqual(["p1", "p2"]);
 
-    // A second tail call is a no-op (already complete).
     await loadCatalogTail(queryClient);
     expect(calls).toHaveLength(2);
   });
@@ -137,7 +130,6 @@ describe("split fetch + tail merge", () => {
     await queryClient.query(catalogQueryOptions);
 
     await loadCatalogTail(queryClient);
-    // No tail request went out: the "primary" already contained everything.
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 

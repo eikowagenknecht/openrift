@@ -8,21 +8,10 @@ import { useCardSearch } from "@/hooks/use-card-search";
 import { useCards } from "@/hooks/use-cards";
 
 /**
- * Free-text catalog lookup for the card pickers, on top of the shared
- * {@link useCardSearch} matcher. Adds the two things a catalog-backed picker
- * can supply for free that a lean admin list cannot: the card's representative
- * art, and printing-code lookups.
- *
- * The searchable list is memoized because {@link useCardSearch} keys its index
- * on the array's identity; `useCards` returns identity-stable data, so this
- * recomputes only when the catalog itself changes.
- *
- * @param query What the user typed; short queries return nothing.
- * @param filter Restricts the searchable set (e.g. legends only). Must be
- *   identity-stable — a module-level predicate — or the index rebuilds every
- *   render.
- * @returns Ranked results in the {@link CardSearchResult} shape the shared
- *   dropdown renders, each with a thumbnail.
+ * Free-text catalog lookup for card pickers, adding thumbnails and
+ * printing-code lookups on top of {@link useCardSearch}. `filter` must be
+ * identity-stable (a module-level predicate) or the search index rebuilds
+ * every render.
  */
 export function useCatalogCardSearch(
   query: string,

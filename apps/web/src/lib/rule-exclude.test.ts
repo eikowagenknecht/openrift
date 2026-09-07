@@ -6,8 +6,6 @@ import { stubPrinting } from "@/test/factories";
 
 import { entryToExcludeTarget, excludeEntryFromRules } from "./rule-exclude";
 
-// A common printing of card A and a rare printing of card B. The "common" and
-// "rare" rules below each match exactly one of them.
 const commonA: Printing = stubPrinting({ id: "p-a", cardId: "card-a", rarity: "common" });
 const rareB: Printing = stubPrinting({ id: "p-b", cardId: "card-b", rarity: "rare" });
 const catalog = [commonA, rareB];
@@ -50,8 +48,6 @@ describe("excludeEntryFromRules", () => {
   });
 
   it("adds the id to every wish rule that matches, leaving non-matching rules untouched", () => {
-    // Two rules both match card A (one by rarity, one by the empty all-match
-    // filter); a third matches only card B and must stay empty.
     const rules = [
       wishRule(),
       wishRule({ filter: EMPTY_CARD_FILTERS }),

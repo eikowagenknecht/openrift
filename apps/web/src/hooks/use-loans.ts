@@ -10,8 +10,6 @@ import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-// ── Server functions: queries ───────────────────────────────────────────────
-
 const fetchLoans = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }) => apiOrpcClient(loansContract, context.cookie).list());
@@ -23,8 +21,6 @@ const fetchLoanActionCounts = createServerFn({ method: "GET" })
 const fetchBorrowerOptions = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }) => apiOrpcClient(loansContract, context.cookie).borrowerOptions());
-
-// ── Server functions: mutations ─────────────────────────────────────────────
 
 const createLoanFn = createServerFn({ method: "POST" })
   .validator(
@@ -43,7 +39,6 @@ const loanActionFn = createServerFn({ method: "POST" })
   .validator((input: { loanId: string; action: "acknowledge" | "reject" }) => input)
   .middleware([withCookies])
   .handler(({ context, data }): Promise<LoanResponse> =>
-    // acknowledge/reject share the same { id } → LoanResponse shape.
     apiOrpcClient(loansContract, context.cookie)[data.action]({ id: data.loanId }),
   );
 
@@ -74,14 +69,7 @@ const deleteLoanFn = createServerFn({ method: "POST" })
     apiOrpcClient(loansContract, context.cookie).remove({ id: loanId }),
   );
 
-// ── Pure helpers ────────────────────────────────────────────────────────────
-
-/**
- * Per-printing counts of copies the viewer is currently borrowing: their
- * acknowledged active borrower-role loans, outstanding quantities summed.
- * Unconfirmed and rejected loans deliberately don't count (ADR-039).
- * @returns Borrowed copy counts keyed by printingId.
- */
+/** Unconfirmed and rejected loans deliberately don't count toward borrowed totals. */
 export function aggregateBorrowedCounts(loans: readonly LoanResponse[]): Record<string, number> {
   const borrowed: Record<string, number> = {};
   for (const loan of loans) {
@@ -96,14 +84,6 @@ export function aggregateBorrowedCounts(loans: readonly LoanResponse[]): Record<
   return borrowed;
 }
 
-/**
- * Who the viewer is borrowing each card from, keyed by cardId rather than
- * printing: a deck row is a card, and it doesn't care that two of its copies
- * came from different printings. Same filter as
- * {@link aggregateBorrowedCounts}. Names are deduped and kept in loan order,
- * so the tooltip lists a lender once however many loans they hold.
- * @returns Lender display names keyed by cardId.
- */
 export function aggregateBorrowedLendersByCard(
   loans: readonly LoanResponse[],
 ): Record<string, string[]> {
@@ -125,13 +105,6 @@ export function aggregateBorrowedLendersByCard(
   return lenders;
 }
 
-// ── Query hooks ─────────────────────────────────────────────────────────────
-
-/**
- * Query options for the viewer's loans — shared by the hooks below and the
- * /loans route loader (SSR prefetch).
- * @returns The loans query options.
- */
 export function loansQueryOptions(userId: string) {
   return queryOptions({
     queryKey: queryKeys.loans.all(userId),
@@ -139,21 +112,12 @@ export function loansQueryOptions(userId: string) {
   });
 }
 
-/**
- * All loans the viewer is a party to (the Loans page).
- * @returns The loans query.
- */
 export function useLoans() {
   const userId = useRequiredUserId();
   return useQuery(loansQueryOptions(userId));
 }
 
-/**
- * Polled "loans awaiting your acknowledgment" count for the nav badge. A plain
- * (non-suspense) query so it can live in the header without an authenticated
- * route boundary.
- * @returns The action-counts query (`{ total }`).
- */
+/** A plain, non-suspense query so this can live in the header outside an authenticated route boundary. */
 export function useLoanActionCounts() {
   const userId = useUserId();
   return useQuery({
@@ -165,11 +129,6 @@ export function useLoanActionCounts() {
   });
 }
 
-/**
- * Borrower-picker data for the lend dialog: co-members across the viewer's
- * groups plus their past free-text borrower names.
- * @returns The borrower-options query.
- */
 export function useLoanBorrowerOptions(enabled: boolean) {
   const userId = useUserId();
   return useQuery({
@@ -179,12 +138,7 @@ export function useLoanBorrowerOptions(enabled: boolean) {
   });
 }
 
-/**
- * Per-printing borrowed counts for the deck builder (ADR-039): acknowledged
- * active loans where the viewer is the borrower. Sourced from the loans API,
- * not the copies collection — borrowed copies are never phantom copy rows.
- * @returns Borrowed counts keyed by printingId, or undefined while loading/disabled.
- */
+/** Sourced from the loans API, not the copies collection: borrowed copies are never phantom copy rows. */
 export function useBorrowedCounts(enabled: boolean): { data: Record<string, number> | undefined } {
   const userId = useUserId();
   const { data } = useQuery({
@@ -197,13 +151,6 @@ export function useBorrowedCounts(enabled: boolean): { data: Record<string, numb
   return { data: aggregateBorrowedCounts(data.items) };
 }
 
-/**
- * Lender names per borrowed card, for the deck rows' borrow tooltip. Self-gates
- * on the session rather than taking an `enabled` flag: every call site is a
- * deck row deep inside the tree, where threading the flag down would be the
- * only thing the prop existed for.
- * @returns Lender names keyed by cardId, or undefined while loading/logged out.
- */
 export function useBorrowedLenders(): { data: Record<string, string[]> | undefined } {
   const userId = useUserId();
   const { data } = useQuery({
@@ -216,17 +163,10 @@ export function useBorrowedLenders(): { data: Record<string, string[]> | undefin
   return { data: aggregateBorrowedLendersByCard(data.items) };
 }
 
-// ── Mutation hooks ──────────────────────────────────────────────────────────
-
 /**
- * Loan mutations pin/release copies, which changes the `onLoan` flag on the
- * copies feed — so every loan mutation also resyncs the client-side copies
- * store (badges, deck-avail buckets). That takes both keys: `copies.all`
- * marks the shared response cache stale, and `copies.syncedStore` makes the
- * react-db collection's own query refetch through it (its queryFn only hits
- * the network when the shared cache is stale). The server picks which copies
- * get pinned or released, so there is nothing to write optimistically.
- * @returns The query keys to invalidate.
+ * Loan mutations change the `onLoan` flag on the copies feed, so both
+ * `copies.all` and `copies.syncedStore` need invalidating to resync the
+ * client-side copies store.
  */
 function loanInvalidationKeys(userId: string): (readonly unknown[])[] {
   return [

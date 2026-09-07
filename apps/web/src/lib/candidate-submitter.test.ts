@@ -38,7 +38,6 @@ describe("buildSourceSubmitters", () => {
   });
 
   it("keeps a note whose submitter account was deleted", () => {
-    // The FK is ON DELETE SET NULL, so the note outlives the account.
     const submitters = buildSourceSubmitters([
       stubSource({ id: "cc2", submittedByUserId: null, submissionNote: "Art is mirrored." }),
     ]);

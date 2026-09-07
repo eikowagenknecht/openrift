@@ -3,10 +3,6 @@
 // `crypto.getRandomValues()` has neither restriction, so fall back to it and
 // assemble an RFC 4122 v4 string by hand when randomUUID is unavailable.
 
-/**
- * @returns A random RFC 4122 v4 UUID, using the native `crypto.randomUUID`
- *   when available and a `crypto.getRandomValues` fallback otherwise.
- */
 export function randomUuid(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();

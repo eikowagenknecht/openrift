@@ -8,18 +8,8 @@ interface Options {
 }
 
 /**
- * Two-way sync between a controlled text input and a URL-backed value.
- *
- * Local state drives the input for immediate feedback. After `delay` ms, the
- * debounced value is pushed to the URL via `onCommit`. External URL changes
- * (e.g. "clear all" buttons) are synced back into local state.
- *
- * The key correctness concern: `onCommit` typically triggers an async router
- * navigate, so `urlValue` lags our commits. We track the last-committed value
- * in `lastSentRef` so filter updates that match our own commit are not
- * mistaken for external changes — otherwise a race during fast typing would
- * clobber the input with the stale URL value.
- * @returns The current local value and its setter.
+ * `onCommit` triggers an async navigate, so `urlValue` lags behind. `lastSentValue`
+ * lets a commit-echoing `urlValue` update be told apart from a real external change.
  */
 export function useSearchUrlSync({ urlValue, onCommit, delay = 200 }: Options) {
   const [localValue, setLocalValue] = useState(urlValue);

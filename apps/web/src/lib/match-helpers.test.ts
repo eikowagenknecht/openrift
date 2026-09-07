@@ -34,7 +34,6 @@ describe("buildSpotlightSequence", () => {
   it("cycles through the roster in order for the given number of loops", () => {
     const ids = ["a", "b", "c"];
     const sequence = buildSpotlightSequence(ids, "a", 2);
-    // 2 loops over 3 ids + winner at index 0 + 1 = 7 steps, ending on "a".
     expect(sequence).toEqual(["a", "b", "c", "a", "b", "c", "a"]);
   });
 

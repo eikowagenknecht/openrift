@@ -42,7 +42,6 @@ type ArrayKey =
   | "keywords"
   | "tags"
   | "owned"
-  // Negation companions (ADR-034). No exclude axis for `cardSizes` / `owned`.
   | "setsEx"
   | "languagesEx"
   | "raritiesEx"
@@ -57,7 +56,6 @@ type ArrayKey =
   | "keywordsEx"
   | "tagsEx";
 
-/** URL search-param name that stores each presence dimension's any/none state. */
 type PresenceParam =
   | "markersPresence"
   | "superTypesPresence"
@@ -66,7 +64,6 @@ type PresenceParam =
   | "keywordsPresence"
   | "tagsPresence";
 
-/** Maps each presence dimension to its URL param (channels → distributionChannels). */
 const PRESENCE_PARAMS: Record<PresenceDimension, PresenceParam> = {
   markers: "markersPresence",
   superTypes: "superTypesPresence",
@@ -76,12 +73,8 @@ const PRESENCE_PARAMS: Record<PresenceDimension, PresenceParam> = {
   tags: "tagsPresence",
 };
 
-/**
- * The include/exclude value params tied to a presence dimension, cleared when
- * that dimension is set to "none" (contradictory) and — reading in reverse —
- * consulted so picking a specific value clears a lingering "none". Keywords have
- * no value picker.
- */
+/** Cleared when the dimension's presence is "none"; consulted in reverse to
+ * clear a lingering "none" when a value is picked. */
 const PRESENCE_VALUE_PARAMS: Record<PresenceDimension, { include?: ArrayKey; exclude?: ArrayKey }> =
   {
     markers: { include: "markers", exclude: "markersEx" },
@@ -92,7 +85,7 @@ const PRESENCE_VALUE_PARAMS: Record<PresenceDimension, { include?: ArrayKey; exc
     tags: { include: "tags", exclude: "tagsEx" },
   };
 
-/** Reverse of PRESENCE_VALUE_PARAMS include side: value array key → presence param. */
+/** Reverse of PRESENCE_VALUE_PARAMS' include side; must mirror it. */
 const ARRAY_KEY_PRESENCE_PARAM: Partial<Record<ArrayKey, PresenceParam>> = {
   markers: "markersPresence",
   superTypes: "superTypesPresence",
@@ -106,13 +99,10 @@ const ARRAY_KEY_PRESENCE_PARAM: Partial<Record<ArrayKey, PresenceParam>> = {
  * Build a `filterState` object from raw search params that matches the shape
  * consumers expect (defaults applied, `undefined` mapped to `null` for
  * nullable fields).
- * @returns The filter state with defaults applied.
  */
-// The sort/group defaults arrive as four primitives rather than one object on
-// purpose: passing a derived object into this call makes React Compiler treat
-// it as maybe-mutated, which stops it caching `toFilterState` and re-mints
-// `filters` every render (the /collections redraw loop — see the note in
-// `useFilterValues` and the source guard in use-card-filters.test.ts).
+// Sort/group defaults are passed as primitives, not one object: a derived
+// object makes React Compiler treat this call as maybe-mutated and stops it
+// memoizing `toFilterState`, causing a render loop.
 function toFilterState(
   raw: FilterSearch,
   defaultView: DefaultCardView,
@@ -137,7 +127,6 @@ function toFilterState(
     customTags: raw.customTags ?? [],
     keywords: raw.keywords ?? [],
     tags: raw.tags ?? [],
-    // Negation companions + standard (ADR-034).
     setsEx: raw.setsEx ?? [],
     languagesEx: raw.languagesEx ?? [],
     raritiesEx: raw.raritiesEx ?? [],
@@ -182,11 +171,8 @@ function toFilterState(
 }
 
 /**
- * Returns the read-only filter, sort, and view state derived from URL query
- * parameters. Components that only need to read (not write) filter state should
- * prefer this hook — it avoids subscribing to the setter functions, which are
- * referentially stable and never cause re-renders on their own.
- * @returns The current filter, sort, and view state.
+ * Read-only filter/sort/view state from URL params. Prefer this over
+ * `useFilterActions` when only reading: it skips subscribing to the setters.
  */
 export function useFilterValues() {
   const raw = useFilterSearch();
@@ -202,12 +188,9 @@ export function useFilterValues() {
   );
   const searchScope = useSearchScopeStore((s) => s.scope);
 
-  // The presence map is built inline, not via a helper. Passing the whole
-  // filterState object into a helper call makes React Compiler treat it as
-  // maybe-mutated, which stops it from caching toFilterState and re-mints
-  // `filters` on every render. useDeferredValue(sortedCards) downstream then
-  // never sees a stable value and re-renders forever (the /collections redraw
-  // loop). A source-level guard test in use-card-filters.test.ts enforces this.
+  // Built inline, not via a helper: passing the whole filterState object into
+  // a helper call makes React Compiler treat it as maybe-mutated, which stops
+  // memoization here and re-mints `filters` (and downstream state) every render.
   const presence: Partial<Record<PresenceDimension, PresenceState>> = {};
   if (filterState.markersPresence) {
     presence.markers = filterState.markersPresence;
@@ -241,8 +224,6 @@ export function useFilterValues() {
     finishes: filterState.finishes as Finish[],
     cardSizes: filterState.cardSizes as CardSize[],
     ownedFilter: filterState.owned as OwnedBucket[],
-    // Copies-owned range — a web-app-only filter (live per-user data, not part
-    // of the shared card catalog) applied alongside the `ownedFilter` buckets.
     ownedCountMin: filterState.ownedCountMin,
     ownedCountMax: filterState.ownedCountMax,
     isSigned: filterState.signed ?? null,
@@ -257,7 +238,6 @@ export function useFilterValues() {
     tags: filterState.tags,
     isBanned: filterState.banned ?? null,
     hasErrata: filterState.errata ?? null,
-    // Negation companions + standard (ADR-034).
     setsExclude: filterState.setsEx,
     languagesExclude: filterState.languagesEx,
     raritiesExclude: filterState.raritiesEx as Rarity[],
@@ -328,9 +308,8 @@ export function useFilterValues() {
     filterState.tagsPresence !== null ||
     filterState.banned !== null ||
     filterState.errata !== null ||
-    // Standard-printing flag + every negation array (ADR-034). Without these,
-    // a "Standard"-only or exclude-only filter silently trims the grid while
-    // the funnel dot, count badge, and clear-all affordance stay dark.
+    // Omitting these lets a "Standard"-only or exclude-only filter silently
+    // trim the grid while the active-filter indicators stay off.
     filterState.standard !== null ||
     filterState.setsEx.length > 0 ||
     filterState.languagesEx.length > 0 ||
@@ -361,12 +340,8 @@ export function useFilterValues() {
 }
 
 /**
- * Returns only the setter / action functions for filter state.
- *
- * Uses TanStack Router's `navigate({ search: (prev) => ... })` for updates.
- * The `prev` callback always receives the latest router state, so rapid clicks
- * are handled correctly without a pending-state workaround.
- * @returns The filter action functions.
+ * Setter / action functions for filter state. Uses `navigate`'s `prev`
+ * callback so rapid clicks stay correct without a pending-state workaround.
  */
 export function useFilterActions() {
   const raw = useFilterSearch();
@@ -386,7 +361,6 @@ export function useFilterActions() {
   const selectAllSearchFields = useSearchScopeStore((s) => s.selectAll);
   const selectOnlySearchField = useSearchScopeStore((s) => s.selectOnly);
 
-  /** Merge a partial update into the current search params via the router. */
   const updateSearch = (patch: Partial<FilterSearch>) => {
     void router.navigate({
       to: ".",
@@ -436,7 +410,6 @@ export function useFilterActions() {
       banned: undefined,
       errata: undefined,
       standard: undefined,
-      // Negation companions (ADR-034).
       setsEx: undefined,
       // Language (incl. its negation companion) is preserved when clearing.
       raritiesEx: undefined,
@@ -490,9 +463,7 @@ export function useFilterActions() {
     updateSearch(patch);
   };
 
-  // Tri-state filter cycle (ADR-034), shared with the dropdowns' cycling rows via
-  // {@link cycleIncludeExclude}: off → include → exclude → off, keeping the axis
-  // in a single mode. See that helper for the full transition table.
+  // Tri-state cycle shared with cycleIncludeExclude: off → include → exclude → off.
   const cycleArrayFilter = (includeKey: ArrayKey, excludeKey: ArrayKey, value: string) => {
     trackEvent("filter-apply", { type: includeKey });
     void router.navigate({
@@ -505,8 +476,8 @@ export function useFilterActions() {
           exclude,
           value,
         );
-        // Naming a specific value clears a lingering "none" presence for the
-        // same dimension (the two contradict). Widening includes/excludes only.
+        // Naming a value clears a lingering "none" presence for the dimension;
+        // the two are contradictory.
         const presenceParam = ARRAY_KEY_PRESENCE_PARAM[includeKey];
         const clearNone =
           presenceParam &&
@@ -528,9 +499,8 @@ export function useFilterActions() {
 
   const setRange = (key: RangeKey, min: number | null, max: number | null) => {
     trackEvent("filter-apply", { type: key });
-    // React Compiler cannot lower TemplateLiteral computed keys in object
-    // expressions, which silently bails this entire hook from memoization.
-    // Hoist the keys to identifiers.
+    // React Compiler can't lower template-literal computed keys in an object
+    // expression, which bails this whole hook from memoization; hoist to identifiers.
     const minKey = `${key}Min` as const;
     const maxKey = `${key}Max` as const;
     return updateSearch({
@@ -565,7 +535,6 @@ export function useFilterActions() {
 
   const clearOwned = () => updateSearch({ owned: undefined });
 
-  // Tri-state flags (ADR-034): null → true → false → null.
   const toggleFlag = (key: "signed" | "overnumbered" | "banned" | "errata" | "standard") => {
     trackEvent("filter-apply", { type: key });
     const current = filterState[key];
@@ -576,9 +545,6 @@ export function useFilterActions() {
   const toggleBanned = () => toggleFlag("banned");
   const toggleErrata = () => toggleFlag("errata");
   const toggleStandard = () => toggleFlag("standard");
-  // Writes a presence state for a dimension. Setting "none" also clears any
-  // specific value selection for the dimension, since requiring "no values"
-  // contradicts naming values.
   const applyPresence = (dimension: PresenceDimension, next: PresenceState | undefined) => {
     const patch: Partial<FilterSearch> = { [PRESENCE_PARAMS[dimension]]: next };
     if (next === "none") {
@@ -592,8 +558,6 @@ export function useFilterActions() {
     }
     updateSearch(patch);
   };
-  // Tri-state presence cycle (folded into each dimension's picker): off → any
-  // (require at least one value) → none (require zero) → off.
   const cyclePresence = (dimension: PresenceDimension) => {
     trackEvent("filter-apply", { type: "presence" });
     const current = filterState[PRESENCE_PARAMS[dimension]];
@@ -608,9 +572,6 @@ export function useFilterActions() {
   const clearErrata = () => updateSearch({ errata: undefined });
   const clearStandard = () => updateSearch({ standard: undefined });
 
-  // Toolbar changes write both: the store remembers the choice for the next
-  // visit, the URL keeps the current view shareable. A param equal to the
-  // (possibly just-updated) default is dropped so a plain visit stays clean.
   const setSortBy = (sort: SortOption) => {
     viewPrefs.setSort(sort);
     updateSearch({ sort: sort === viewDefaults.sort ? undefined : sort });
@@ -622,9 +583,7 @@ export function useFilterActions() {
   };
 
   const setView = (v: "cards" | "printings" | "copies") => {
-    // Marker / distribution-channel grouping is hidden in cards view, so switching
-    // to cards from one of those resets the grouping to the "set" default instead
-    // of leaving a now-unavailable selection in the URL.
+    // Marker/channel grouping is unavailable in cards view.
     const resetGrouping =
       v === "cards" && isPrintingsOnlyGrouping(filterState.groupBy as GroupByField);
     updateSearch({
@@ -678,31 +637,13 @@ export function useFilterActions() {
 }
 
 /**
- * Corrects a stale URL that pairs cards view with a printings-only grouping
- * (e.g. a hand-crafted or bookmarked `?view=cards&groupBy=marker`). Marker /
- * distribution channel collapse every card into a single bucket in cards view,
- * so this rewrites the URL once to drop the grouping (back to the "set"
- * default), rather than rendering a value that disagrees with the URL.
- *
- * Mounted once per card-browser surface (in `CardBrowserFilterProvider`). The
- * effect keys on the stale-state predicate, not on `setGroupBy` (which is
- * referentially unstable), so it fires exactly once per stale episode: after
- * the navigate lands, `groupBy` reads back as "set", the predicate flips false,
- * and the effect does not re-run. That self-termination is what keeps it from
- * looping the way a per-render value override did.
- * @returns Nothing.
+ * The effect below must key on the stale-state predicate, not `setGroupBy`
+ * itself, or it refires on every render during the reset navigation.
  */
 export function useStaleGroupByGuard() {
   const { view, groupBy } = useFilterValues();
   const { setGroupBy } = useFilterActions();
 
-  // Latest-ref so the effect can call the current setter without listing the
-  // unstable `setGroupBy` in its dependency array (which would re-run it every
-  // render and re-fire the navigate while the URL change is still in flight).
-  // The sync happens in an effect, not during render: React Compiler flags
-  // ref mutation during render ("Cannot update ref during render"). React runs
-  // effects in declaration order, so this commits the latest setter before the
-  // stale-grouping effect below reads it.
   const setGroupByRef = useRef(setGroupBy);
   useEffect(() => {
     setGroupByRef.current = setGroupBy;

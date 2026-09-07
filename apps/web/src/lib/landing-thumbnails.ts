@@ -1,10 +1,6 @@
 import type { LandingSummaryResponse } from "@openrift/shared";
 import { centsToDollars, imageUrl } from "@openrift/shared";
 
-/**
- * One sampled printing from the landing summary, ready for a marketing
- * vignette: the art plus the identity of the card that art belongs to.
- */
 export interface LandingThumbnailCard {
   url: string;
   name: string;
@@ -12,17 +8,13 @@ export interface LandingThumbnailCard {
   variantLabel: string | null;
   rarity: string;
   domains: string[];
-  /** Cardmarket headline price in euros, or null when the printing has none. */
+  /** Euros. */
   price: number | null;
 }
 
 /**
- * Maps the landing-summary sample to per-card display data, in payload order so
- * the index slices the pages hand to each vignette stay aligned.
- *
- * Identity fields are read defensively: the payload is edge-cached for up to a
- * day, so a bundle can be served a body that predates them.
- * @returns One entry per sampled thumbnail.
+ * Identity fields are read defensively: the payload is edge-cached for up to
+ * a day, so a bundle can be served a body that predates them.
  */
 export function landingThumbnailCards(
   thumbnails: LandingSummaryResponse["thumbnails"] | undefined,

@@ -8,11 +8,6 @@ import {
   useAdminCardFoldStore,
 } from "./admin-card-fold-store";
 
-/**
- * The card's collapsed set, treating an unseeded card as nothing collapsed.
- *
- * @returns The collapsed printing ids for the card.
- */
 function collapsedOf(cardId: string): ReadonlySet<string> {
   return getStoredCollapsedPrintings(useAdminCardFoldStore.getState(), cardId) ?? new Set();
 }
@@ -126,9 +121,7 @@ describe("useAdminCardFoldStore", () => {
       expect(collapsed.has("printing-3")).toBe(true);
     });
 
-    // A refetch re-runs the seeding effect; it must not re-fold rows the admin
-    // has since opened, nor undo an "Expand all".
-    it("leaves an already-seeded card alone", () => {
+    it("leaves an already-seeded card alone on a refetch, without re-folding or undoing Expand all", () => {
       const { initCollapsedForCard, setCollapsedForCard } = useAdminCardFoldStore.getState();
       setCollapsedForCard("ahri-inquisitive", new Set());
 

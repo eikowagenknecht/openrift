@@ -20,8 +20,6 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 type CreateProductInput = ContractInput<typeof adminProductsContract, "create">;
 type UpdateProductInput = ContractInput<typeof adminProductsContract, "update">;
 
-// ── Public reads ─────────────────────────────────────────────────────────────
-
 const fetchProducts = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }): Promise<ProductsListResponse> =>
@@ -58,24 +56,16 @@ const fetchProductDetail = createServerFn({ method: "GET" })
     return data;
   });
 
-/** A product detail payload with its printings joined to cards and sets. */
 export interface EnrichedProductDetail {
   product: ProductDetailResponse["product"];
   contents: ProductDetailResponse["contents"];
   sets: ProductDetailResponse["sets"];
-  /** The product's printings, in the payload's canonical order. */
   printings: Printing[];
-  /** Same printings keyed by id, for resolving `contents` quantities. */
   printingsById: Record<string, Printing>;
 }
 
-/**
- * Joins the inlined cards and sets onto the wire printings, the same shape
- * `enrichSetDetail` produces. Doing it here (rather than against the global
- * catalog) is what lets the product page render server-side.
- *
- * @returns The payload with `Printing` objects ready for the grid.
- */
+// Joins against the inlined cards/sets, not the global catalog, so the
+// product page can render server-side.
 function enrichProductDetail(response: ProductDetailResponse): EnrichedProductDetail {
   const setById = new Map(response.sets.map((set) => [set.id, set]));
   const today = todayUtc();
@@ -84,8 +74,6 @@ function enrichProductDetail(response: ProductDetailResponse): EnrichedProductDe
   for (const wire of response.printings) {
     const set = setById.get(wire.setId);
     const card = response.cards[wire.cardId];
-    // A printing whose set or card is missing can't be rendered; the catalogue
-    // guarantees both, so this only guards against a partial payload.
     if (!set || !card) {
       continue;
     }
@@ -120,15 +108,8 @@ export function useProductDetail(slug: string) {
   return useSuspenseQuery(productDetailQueryOptions(slug));
 }
 
-// ── Admin mutations (grantable section "products") ───────────────────────────
-
-/**
- * The public products list is served through the shared `serverCache`, which
- * mutations must bust explicitly — otherwise the client-side invalidation
- * refetches through the still-fresh server cache and pins the stale list for
- * another `staleTime` round (empty admin table right after a create).
- * @returns A promise that resolves once the cache entry is invalidated.
- */
+// Mutations must bust this explicitly, or client-side invalidation refetches
+// through the still-fresh server cache and pins the stale list.
 function invalidateProductsServerCache(): Promise<void> {
   return serverCache.invalidateQueries({ queryKey: ["server-cache", "products"] });
 }

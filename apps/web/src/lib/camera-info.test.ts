@@ -2,31 +2,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { flattenTrackInfo, formatTrackValue, readCameraInfo } from "./camera-info";
 
-/**
- * A fake video track. jsdom has no media stream implementation, and the point
- * of the reader is tolerating browsers that omit parts of the API, so each test
- * builds exactly the surface it wants to exercise.
- *
- * @returns The fake track, typed as the real one for the reader's benefit.
- */
 function fakeTrack(track: Partial<MediaStreamTrack>): MediaStreamTrack {
   return { label: "", ...track } as MediaStreamTrack;
 }
 
-/**
- * A fake stream carrying the given video tracks.
- *
- * @returns The fake stream, typed as the real one.
- */
 function fakeStream(tracks: MediaStreamTrack[]): MediaStream {
   return { getVideoTracks: () => tracks } as unknown as MediaStream;
 }
 
-/**
- * Install a fake `navigator.mediaDevices.enumerateDevices`.
- *
- * @returns Nothing.
- */
 function stubEnumerateDevices(result: Promise<MediaDeviceInfo[]>): void {
   vi.stubGlobal("navigator", {
     mediaDevices: { enumerateDevices: () => result },
@@ -96,7 +79,7 @@ describe("flattenTrackInfo", () => {
 });
 
 describe("readCameraInfo", () => {
-  it("reports the track label, settings, capabilities and devices", async () => {
+  it("drops audio inputs but keeps every video device", async () => {
     stubEnumerateDevices(
       Promise.resolve([
         { deviceId: "front-1", kind: "videoinput", label: "Front Camera" },
@@ -120,8 +103,6 @@ describe("readCameraInfo", () => {
     ]);
     expect(info?.capabilities).toEqual([["zoom", "1 to 8 (step 0.1)"]]);
     expect(info?.capabilitiesSupported).toBe(true);
-    // Audio inputs are dropped; both cameras are kept, because deciding which
-    // label means "back facing" is the thing being measured.
     expect(info?.devices).toEqual([
       { deviceId: "front-1", label: "Front Camera" },
       { deviceId: "back-1", label: "Back Ultra Wide Camera" },
@@ -147,7 +128,7 @@ describe("readCameraInfo", () => {
     expect(info?.settings).toEqual([["width", "1280"]]);
   });
 
-  it("survives a getCapabilities that throws", async () => {
+  it("reports capabilities as supported even when getCapabilities throws", async () => {
     stubEnumerateDevices(Promise.resolve([]));
     const track = fakeTrack({
       getSettings: () => ({ width: 640 }) as MediaTrackSettings,
@@ -158,7 +139,6 @@ describe("readCameraInfo", () => {
 
     const info = await readCameraInfo(fakeStream([track]));
 
-    // The call exists, so the browser claims support; it just produced nothing.
     expect(info?.capabilitiesSupported).toBe(true);
     expect(info?.capabilities).toEqual([]);
     expect(info?.settings).toEqual([["width", "640"]]);

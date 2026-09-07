@@ -41,11 +41,9 @@ async function fetchDeckDetailImpl(
   cookie: string | undefined,
   deckId: string,
 ): Promise<DeckDetailResponse> {
-  // 404 is legitimate (unknown/deleted deck id, or one belonging to another
-  // user) — map to NOT_FOUND so the route can render a not-found page
-  // without logging the response as an error.
   const { error, data } = await safe(apiOrpcClient(decksContract, cookie).get({ id: deckId }));
   if (error) {
+    // The route matches this exact message to render its not-found page.
     if (isDefinedError(error) && error.code === "NOT_FOUND") {
       throw new Error("NOT_FOUND");
     }
@@ -80,20 +78,12 @@ export function useDecks() {
 }
 
 /**
- * Synthesize a deck-detail response for a browser-local deck (ADR-035) from the
- * local store — no server fetch, no session. Mirrors {@link DeckDetailResponse}
- * so every read-only builder consumer works unchanged; the owner-only fields
- * (isPublic / shareToken / isPinned / archivedAt) are constants
- * because a local deck has no server-side state.
- *
- * @returns The synthesized detail in `{ data }` form, matching `useDeckDetail`.
+ * Synthesizes a deck-detail response for a browser-local deck from the local
+ * store. Owner-only fields (isPublic / shareToken / isPinned / archivedAt) are
+ * constants because a local deck has no server-side state.
  */
 function useLocalDeckDetail(deckId: string): { data: DeckDetailResponse } {
   const deck = useLocalDecksStore((state) => state.decks[deckId]);
-  // The editor subtree is keyed on deckId and the builder route renders a
-  // not-found for a missing local id before mounting the editor, so `deck` is
-  // present in practice; the fallbacks just keep the type total during the
-  // brief pre-hydration window.
   const data: DeckDetailResponse = {
     deck: {
       id: deckId,
@@ -105,15 +95,12 @@ function useLocalDeckDetail(deckId: string): { data: DeckDetailResponse } {
       shareToken: null,
       isPinned: false,
       archivedAt: null,
-      // Local decks keep their odds settings in the device-local store, not here.
       oddsConfig: null,
       coverCardId: deck?.coverCardId ?? null,
       coverPrintingId: deck?.coverPrintingId ?? null,
       coverPosition: deck?.coverPosition ?? null,
       links: deck?.links ?? [],
-      // A browser-local deck has no server collections to be stored in.
       collectionId: null,
-      // Variant families (ADR-042) are server-only; local decks are standalone.
       familyId: null,
       predecessorDeckId: null,
       isPrimary: false,
@@ -127,13 +114,8 @@ function useLocalDeckDetail(deckId: string): { data: DeckDetailResponse } {
 }
 
 /**
- * Deck detail for the builder. A `local:` id resolves reactively from the local
- * store (works logged out); a server id keeps the suspense query. All hooks are
- * called unconditionally (rules-of-hooks): for a local id the suspense query is
- * inert — seeded with `initialData` and never revalidated — and the reactive
- * store value is returned instead.
- *
- * @returns The deck detail in `{ data }` form.
+ * A `local:` id resolves from the local store; a server id keeps the suspense
+ * query, called unconditionally either way and left inert for a local id.
  */
 export function useDeckDetail(deckId: string): { data: DeckDetailResponse } {
   const isLocal = isLocalDeckId(deckId);
@@ -168,9 +150,7 @@ const createDeckFn = createServerFn({ method: "POST" })
   );
 
 export function useCreateDeck() {
-  // Logged-out-safe: a local-only visitor instantiates this hook (the create
-  // dialog / import page branch on session before ever calling `.mutate`), so
-  // gate the invalidation on a present userId instead of throwing on mount.
+  // A local-only visitor instantiates this hook before ever calling `.mutate`; do not throw on a missing userId.
   const userId = useUserId();
   return useMutationWithInvalidation({
     mutationFn: (body: {
@@ -189,9 +169,7 @@ export const deleteDeckFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: deckId }) => {
-    // A 404 means the deck is already gone (double-click on the delete confirm,
-    // a second tab, a retried request) — the outcome the user asked for, so
-    // accept it as success instead of surfacing a "Not found" error toast.
+    // A 404 means the deck is already gone; treat it as success.
     const { error } = await safe(
       apiOrpcClient(decksContract, context.cookie).remove({ id: deckId }),
     );
@@ -204,9 +182,7 @@ export const deleteDeckFn = createServerFn({ method: "POST" })
   });
 
 export function useDeleteDeck() {
-  // Logged-out-safe: the deck page's delete action is shared with local decks,
-  // which branch to the local store before `.mutate`; gate the invalidation on
-  // a present userId instead of throwing on mount.
+  // Shared with local decks, which branch to the local store before `.mutate`; do not throw on a missing userId.
   const userId = useUserId();
   return useMutationWithInvalidation<unknown, string>({
     mutationFn: (deckId) => deleteDeckFn({ data: deckId }),
@@ -235,9 +211,7 @@ export const saveDeckCardsFn = createServerFn({ method: "POST" })
   );
 
 export function useSaveDeckCards() {
-  // Logged-out-safe: the claim-on-login flow is the only caller and always runs
-  // with a session, but the import page instantiates the hook before knowing
-  // the session, so don't throw on mount.
+  // The import page instantiates this hook before knowing the session; do not throw on a missing userId.
   const userId = useUserId();
   const queryClient = useQueryClient();
 
@@ -258,7 +232,6 @@ export function useSaveDeckCards() {
       if (!userId) {
         return;
       }
-      // Update deck detail cache with the returned cards
       queryClient.setQueryData<DeckDetailResponse>(
         queryKeys.decks.detail(userId, variables.deckId),
         (old) => {
@@ -269,8 +242,7 @@ export function useSaveDeckCards() {
         },
       );
 
-      // Invalidate the deck list (for aggregate stats like type counts, domain distribution)
-      // but don't refetch the detail since we just updated it
+      // exact: true keeps this from also refetching the detail query set above.
       void queryClient.invalidateQueries({
         queryKey: queryKeys.decks.all(userId),
         exact: true,
@@ -302,16 +274,13 @@ const updateDeckFn = createServerFn({ method: "POST" })
     return apiOrpcClient(decksContract, context.cookie).update({
       id: deckId,
       ...fields,
-      // The contract types formatConfig as a loose record; DeckFormatConfig is
-      // the concrete shape (no index signature), so widen it at the boundary.
+      // The contract types formatConfig as a loose record; widen it at the boundary.
       formatConfig: fields.formatConfig as Record<string, unknown> | null | undefined,
     });
   });
 
 export function useUpdateDeck() {
-  // Logged-out-safe: the rename / description / change-format dialogs are shared
-  // with local decks, which branch to the local store before `.mutate`; gate the
-  // cache writes on a present userId instead of throwing on mount.
+  // Shared with local decks, which branch to the local store before `.mutate`; do not throw on a missing userId.
   const userId = useUserId();
   const queryClient = useQueryClient();
 
@@ -337,7 +306,6 @@ export function useUpdateDeck() {
       if (!userId) {
         return;
       }
-      // Update deck detail cache with the returned metadata
       queryClient.setQueryData<DeckDetailResponse>(
         queryKeys.decks.detail(userId, variables.deckId),
         (old) => {
@@ -348,7 +316,6 @@ export function useUpdateDeck() {
         },
       );
 
-      // Update the deck list entry if it exists (spread to preserve summary-only fields)
       queryClient.setQueryData<DeckListResponse>(queryKeys.decks.all(userId), (old) => {
         if (!old) {
           return old;
@@ -376,12 +343,8 @@ export interface DeckMetaPatch {
 }
 
 /**
- * One metadata-update entry point that branches on the `local:` prefix: a local
- * deck writes straight to the local store (synchronous); a server deck goes
- * through {@link useUpdateDeck}. Lets the shared rename / description /
- * change-format surfaces stay single-code-path instead of forking per deck kind.
- *
- * @returns `update(patch, opts?)` plus the server mutation's pending flag.
+ * Branches on the `local:` prefix: a local deck writes straight to the local
+ * store; a server deck goes through {@link useUpdateDeck}.
  */
 export function useUpdateDeckMeta(deckId: string): {
   update: (patch: DeckMetaPatch, opts?: { onSuccess?: () => void }) => void;
@@ -537,11 +500,8 @@ const setDeckPredecessorFn = createServerFn({ method: "POST" })
   );
 
 /**
- * Repoints a variant at the version it came from. Optimistic, because the
- * lineage graph is laid out from these pointers: waiting for the round trip
- * would leave the picker showing one thing and the lines another.
- *
- * @returns A mutation taking `{ deckId, predecessorDeckId }`.
+ * Optimistic: the lineage graph is laid out from these pointers, so waiting
+ * for the round trip would leave the picker and the lines showing different things.
  */
 export function useSetDeckPredecessor() {
   const userId = useRequiredUserId();
@@ -569,12 +529,11 @@ export function useSetDeckPredecessor() {
       if (context?.previous) {
         queryClient.setQueryData(queryKeys.decks.all(userId), context.previous);
       }
-      // Declaring onError here replaces the QueryClient's default one, so the
-      // graph would otherwise snap back with nothing saying why.
+      // Declaring onError here replaces the QueryClient's default one; call it
+      // explicitly or the rollback happens silently with no error toast.
       reportMutationError(error, queryClient);
     },
-    // The rail and the lineage list read every member's pointer, so the whole
-    // decks prefix is refreshed rather than the one row that changed.
+    // The rail and lineage list read every member's pointer; invalidating only the changed row misses them.
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.decks.all(userId) });
     },
@@ -632,8 +591,7 @@ export interface EncodeDeckCardInput {
   domains: Domain[];
 }
 
-// Public (no-cookie) encoder for browser-local decks, which have no server row
-// to `export` by id. Reuses the same server codecs as the authenticated export.
+// Public (no-cookie) encoder for browser-local decks, which have no server row to `export` by id.
 const encodeDeckCardsFn = createServerFn({ method: "POST" })
   .validator((input: { format?: ExportFormat; cards: EncodeDeckCardInput[] }) => input)
   .handler(({ data }): Promise<DeckExportResponse> =>
@@ -649,8 +607,6 @@ export function useEncodeDeckCards() {
     invalidates: [],
   });
 }
-
-// ── Deck sharing ────────────────────────────────────────────────────────────
 
 const shareDeckFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
@@ -697,8 +653,6 @@ export function useUnshareDeck() {
 const fetchPublicDeckFn = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .handler(async ({ data: token }): Promise<PublicDeckDetailResponse> => {
-    // 404 (unknown/expired token) is a typed NOT_FOUND error mapped to the
-    // sentinel the route boundary expects.
     const { error, data } = await safe(apiOrpcClient(publicDecksContract).share({ token }));
     if (error) {
       if (isDefinedError(error) && error.code === "NOT_FOUND") {
@@ -728,10 +682,6 @@ const cloneSharedDeckFn = createServerFn({ method: "POST" })
   );
 
 export function useCloneSharedDeck() {
-  // Hook runs on the public /decks/share/$token route. Logged-out
-  // viewers see a "Sign in to clone" prompt, so the mutate path
-  // shouldn't fire without a userId — but keep the invalidate
-  // conditional so the hook itself never throws.
   const userId = useUserId();
   return useMutationWithInvalidation<DeckCloneResponse, string>({
     mutationFn: (token) => cloneSharedDeckFn({ data: token }),

@@ -120,9 +120,7 @@ describe("generateExportCSV", () => {
     );
   });
 
-  // ADR-037: the Type column joins every type of a multi-type card, matching
-  // the sibling Domain column's separator, instead of emitting only the primary.
-  it("joins all types for a multi-type card", () => {
+  it("joins all types for a multi-type card, matching the Domain column's separator", () => {
     const stack = makeStack({ shortCode: "OGN-001", name: "Unit Gear", types: ["unit", "gear"] });
     const csv = generateExportCSV([stack]);
     const lines = csv.split("\n");
@@ -138,7 +136,7 @@ describe("generateExportCSV", () => {
     expect(lines[1]).toContain('"Card, the Great"');
   });
 
-  it("splits a stack into one row per metadata combination (ADR-038)", () => {
+  it("splits a stack into one row per metadata combination", () => {
     const stack = makeStack({ shortCode: "OGN-001", name: "Regular Card", copyCount: 4 });
     stack.copyIds = ["c1", "c2", "c3", "c4"];
     const copiesById = new Map<string, CopyResponse>([
@@ -159,7 +157,7 @@ describe("generateExportCSV", () => {
     expect(lines[3]).toBe("OGN-001,Regular Card,common,unit,Arcane,normal,normal,,,EN,1,,,,,,,");
   });
 
-  it("exports grading, notes, and encoded links (ADR-038)", () => {
+  it("exports grading, notes, and encoded links", () => {
     const stack = makeStack({ shortCode: "OGN-001", name: "Regular Card", copyCount: 1 });
     stack.copyIds = ["c1"];
     const copiesById = new Map<string, CopyResponse>([
@@ -186,7 +184,7 @@ describe("generateExportCSV", () => {
     );
   });
 
-  it("round-trips metadata through the OpenRift importer (ADR-038)", () => {
+  it("round-trips metadata through the OpenRift importer", () => {
     const stack = makeStack({ shortCode: "OGN-001", name: "Regular Card", copyCount: 2 });
     stack.copyIds = ["c1", "c2"];
     const copiesById = new Map<string, CopyResponse>([
@@ -249,7 +247,6 @@ describe("generatePiltoverArchiveCSV", () => {
     const [, alwaysFoilRow] = generatePiltoverArchiveCSV([alwaysFoil], LABELS).split("\n");
     expect(commonRow.split(",")[0]).toBe("OGN-004");
     expect(commonRow.split(",")[7]).toBe("true");
-    // The rarity no longer decides it; both foils say so in the same column.
     expect(alwaysFoilRow.split(",")[7]).toBe("true");
   });
 
@@ -317,7 +314,6 @@ describe("generatePiltoverArchiveCSV", () => {
     expect(graded[10]).toBe("");
     expect(graded[11]).toBe("PSA");
     expect(graded[12]).toBe("9");
-    // Grading Label is their rendering of company and value, so we leave it to them.
     expect(graded[13]).toBe("");
     expect(graded[14]).toBe("lolli");
     expect(lines[2].split(",")[8]).toBe("2");
@@ -431,7 +427,7 @@ describe("generateRiftManaCSV", () => {
     expect(lines[2]).toContain("Chinese (Simplified)");
   });
 
-  it("encodes recorded conditions per finish column (ADR-038)", () => {
+  it("encodes recorded conditions per finish column", () => {
     const stack = makeStack({ shortCode: "OGN-001", copyCount: 3 });
     stack.copyIds = ["c1", "c2", "c3"];
     const copiesById = new Map<string, CopyResponse>([
@@ -467,14 +463,13 @@ describe("generateRiftManaCSV", () => {
     );
     expect(byKey.get("OGN-001:normal")).toMatchObject({ quantity: 2, artVariant: "normal" });
     expect(byKey.get("OGN-001:foil")).toMatchObject({ quantity: 1 });
-    // Always-foil rarity exports in the normal column; the importer infers foil.
     expect(byKey.get("OGN-025:foil")).toMatchObject({ quantity: 1 });
     expect(byKey.get("OGN-079a:normal")).toMatchObject({ artVariant: "altart" });
     expect(byKey.get("OGN-123*:normal")?.isOvernumbered).toBeUndefined();
     expect(byKey.get("OGN-010:normal")).toMatchObject({ isPromo: true, language: "SC" });
   });
 
-  it("round-trips conditions as split entries (ADR-038)", () => {
+  it("round-trips conditions as split entries", () => {
     const stack = makeStack({ shortCode: "OGN-001", copyCount: 3 });
     stack.copyIds = ["c1", "c2", "c3"];
     const copiesById = new Map<string, CopyResponse>([
@@ -553,7 +548,6 @@ describe("generateRiftCoreCSV", () => {
     );
     expect(byKey.get("OGN-001:normal")).toMatchObject({ quantity: 2 });
     expect(byKey.get("OGN-001:foil")).toMatchObject({ quantity: 1 });
-    // Always-foil rarity exports in the standard column; the importer infers foil.
     expect(byKey.get("OGN-025:foil")).toMatchObject({ quantity: 1 });
     expect(byKey.get("OGN-030a:normal")).toMatchObject({ artVariant: "altart" });
     expect(byKey.get("OGN-123*:normal")?.isOvernumbered).toBeUndefined();

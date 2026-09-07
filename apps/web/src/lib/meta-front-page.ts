@@ -4,11 +4,9 @@ import { todayUtc } from "@openrift/shared";
 import type { MetaEra, MetaScope } from "@/lib/meta-scope";
 import { scopeMatches } from "@/lib/meta-scope-match";
 
-/** What the front page narrows its three lists by. */
 export interface MetaFrontFilter {
   scope: MetaScope;
   eras: readonly MetaEra[];
-  /** Free text matched against the event's name, organizer and venue. */
   search?: string;
 }
 
@@ -17,12 +15,7 @@ function matchesSearch(event: MetaEventSummary, needle: string): boolean {
   return haystack.toLowerCase().includes(needle);
 }
 
-/**
- * The archived events the scope bar and search box leave standing, newest
- * first. The era ships as one payload, so every list on the page narrows from
- * the same array rather than issuing its own request, which is what keeps the
- * counts line and the lists under it describing one scope.
- */
+/** Every list on the page narrows from this same array; separate requests would let the counts and the lists describe different scopes. */
 export function filterMetaEvents(
   events: readonly MetaEventSummary[],
   filter: MetaFrontFilter,
@@ -36,11 +29,6 @@ export function filterMetaEvents(
   );
 }
 
-/**
- * The country codes the scope bar should offer, which is the set these events
- * actually cover. Offering one nothing was played in is a dead option, and no
- * endpoint knows the page's own scope better than the page.
- */
 export function metaEventCountries(events: readonly MetaEventSummary[]): string[] {
   const codes = new Set<string>();
   for (const event of events) {
@@ -51,12 +39,10 @@ export function metaEventCountries(events: readonly MetaEventSummary[]): string[
   return [...codes].toSorted((left, right) => left.localeCompare(right));
 }
 
-/** The winners of one archived event: its rank-1 finishes, in payload order. */
 export function metaEventWinners(event: MetaEventSummary): MetaEventFinish[] {
   return event.topFinishes.filter((finish) => finish.rank === 1);
 }
 
-/** The front page's tier buckets, in the order the page renders them. */
 export interface MetaFrontSections {
   premier: MetaEventSummary[];
   competitive: MetaEventSummary[];
@@ -70,10 +56,6 @@ const UPCOMING_TIER_RANK: Record<MetaEventTier, number> = {
   local: 2,
 };
 
-/**
- * The tier buckets keep only events with results on file, newest first. Every
- * future event moves to `upcoming` instead, soonest first.
- */
 export function metaFrontSections(
   events: readonly MetaEventSummary[],
   today = todayUtc(),

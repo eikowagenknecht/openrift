@@ -11,12 +11,6 @@ const PROMOS_DESCRIPTION =
 
 const PROBE_LANGUAGE = "EN";
 
-/**
- * Picks a deterministic default language for the /promos redirect. Prefers EN
- * when present; otherwise falls back to the first language alphabetically.
- *
- * @returns The chosen language code, or null when no printings exist.
- */
 function pickDefaultLanguage(languages: readonly string[]): string | null {
   if (languages.includes(PROBE_LANGUAGE)) {
     return PROBE_LANGUAGE;

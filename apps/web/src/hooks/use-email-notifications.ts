@@ -45,11 +45,8 @@ export interface UseEmailNotificationsResult {
 }
 
 /**
- * Reads and writes the two ADR-030 email-notification channels via the shared
- * `/preferences` endpoint (the same query the display-preferences sync uses, so
- * the cache is shared). Each toggle PATCHes the whole `emailNotifications`
- * object, preserving the sibling channel, and optimistically updates the cache.
- * @returns The resolved gate state plus a per-channel setter.
+ * Shares the `/preferences` query cache with the display-preferences sync.
+ * Each toggle PATCHes the whole `emailNotifications` object to preserve the sibling channel.
  */
 export function useEmailNotifications(): UseEmailNotificationsResult {
   const userId = useUserId();
@@ -57,10 +54,8 @@ export function useEmailNotifications(): UseEmailNotificationsResult {
   const queryClient = useQueryClient();
   const queryKey = queryKeys.preferences.all(userId ?? "");
 
-  // Reads the same client-only preferences query as usePreferencesSync (which
-  // owns the fetch); on this page it's usually already cached. `hydrated` keeps
-  // this observer from starting the query during the SSR render (see
-  // usePreferencesSync for why that matters).
+  // `hydrated` keeps this observer from starting the query during SSR;
+  // usePreferencesSync owns the actual fetch.
   const { data, isPending } = useQuery({
     queryKey,
     queryFn: () => fetchPreferencesFn(),
@@ -85,19 +80,13 @@ export function useEmailNotifications(): UseEmailNotificationsResult {
 
   return {
     gates,
-    // Gate on `hydrated`, not just the query's `enabled`. `useUserId()` reads the
-    // session query, which is present during SSR but absent on the first client
-    // render, so `Boolean(userId) && isPending` flips between them. That drags
-    // the controls' `disabled` (and the switches' tabIndex / aria-disabled) with
-    // it, producing a React #418 hydration mismatch. `hydrated` is false on both
-    // the SSR and first client render, so the controls render enabled on both;
-    // the brief loading state only appears afterwards as a client update.
+    // Must gate on `hydrated`, not just `isPending`: `userId` flips between SSR and
+    // the first client render, which would otherwise trigger a React #418 mismatch.
     isLoading: hydrated && Boolean(userId) && isPending,
     isSaving: mutation.isPending,
     setChannel: (channel, value) => {
-      // Until the saved preferences have loaded, a toggle would build its PATCH
-      // from `undefined` and the server's whole-object merge would drop the
-      // sibling channel. Ignore the click until we know the current value.
+      // Ignore the click until the saved value is known, or the PATCH would
+      // build from `undefined` and drop the sibling channel.
       if (data === undefined) {
         return;
       }

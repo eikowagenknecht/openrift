@@ -1,14 +1,7 @@
 import { useLanguageList } from "@/hooks/use-enums";
 import { useDisplayStore } from "@/stores/display-store";
 
-/**
- * Compose the user's effective language sort order. Returns the user's
- * preference list when set, otherwise the DB-driven default from
- * `languages.sort_order` (via `/api/enums`). Pair with `canonicalRank` to
- * sort printings correctly for both authenticated and logged-out users.
- *
- * @returns Ordered language codes, user preference taking priority over the DB default.
- */
+/** Pair with `canonicalRank` to sort printings for both authenticated and logged-out users. */
 export function useEffectiveLanguageOrder(): readonly string[] {
   const userLanguages = useDisplayStore((s) => s.languages);
   const defaultLanguages = useLanguageList().map((l) => l.code);
@@ -16,12 +9,8 @@ export function useEffectiveLanguageOrder(): readonly string[] {
 }
 
 /**
- * Non-hook variant for route loaders, server functions, and other contexts
- * that can't call hooks. Callers pass both the user preference list and the
- * raw language rows from `/api/init` (already fetched via `query()`
- * on `initQueryOptions`).
- *
- * @returns Ordered language codes, user preference taking priority over the DB default.
+ * Non-hook variant of {@link useEffectiveLanguageOrder} for route loaders,
+ * server functions, and other contexts that can't call hooks.
  */
 export function effectiveLanguageOrder(
   userLanguages: readonly string[],

@@ -13,18 +13,14 @@ import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-/** One filtered page of the topdeck catalogue. */
 export interface TopdeckCatalogParams {
   page?: number;
   search?: string;
   triage?: MetaCatalogTriage;
-  /** The source's own format word, the axis playloltcg spends on its lifecycle. */
   format?: string;
   minPlayers?: number;
-  /** Inclusive `YYYY-MM-DD` bounds, read against the instant the source publishes. */
   dateFrom?: string;
   dateTo?: string;
-  /** Only ever true or absent — see the note in the fetcher. */
   missing?: boolean;
   sort?: MetaCatalogSort;
   direction?: MetaCatalogSortDirection;
@@ -47,9 +43,7 @@ const fetchTopdeckCatalog = createServerFn({ method: "GET" })
       dateTo: data.dateTo,
       sort: data.sort,
       direction: data.direction,
-      // The flag filter is coerced from a query string on the way in, and
-      // "false" coerces to true, so an off toggle has to be absent rather than
-      // false.
+      // Query strings coerce "false" to true; an off toggle must be absent, never false.
       missing: data.missing === true ? true : undefined,
     }),
   );
@@ -93,7 +87,6 @@ const dismissFn = createServerFn({ method: "POST" })
     await apiOrpcClient(adminMetaCatalogContract, context.cookie).topdeckDismiss(data);
   });
 
-/** A dismiss moves the row out of the untriaged count the funnel reads. */
 const dismissInvalidates = [
   queryKeys.admin.meta.topdeckCatalogue,
   queryKeys.admin.meta.syncStatus.prefix,
@@ -113,7 +106,6 @@ const undismissFn = createServerFn({ method: "POST" })
     await apiOrpcClient(adminMetaCatalogContract, context.cookie).topdeckUndismiss(data);
   });
 
-/** Removes the ignore key, putting the row back in the new queue. */
 export function useUndismissTopdeckEvent() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { tid: string }) => undismissFn({ data: vars }),

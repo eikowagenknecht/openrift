@@ -3,14 +3,12 @@ import { legendDisplayName, WellKnown } from "@openrift/shared";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 
-/** Zones whose cards are grouped by type in the sidebar. */
 export const GROUPED_ZONES = new Set<DeckZone>([
   WellKnown.deckZone.MAIN,
   WellKnown.deckZone.SIDEBOARD,
   WellKnown.deckZone.OVERFLOW,
 ]);
 
-/** Display order for type groups inside grouped zones. */
 export const TYPE_GROUP_ORDER: CardType[] = [
   WellKnown.cardType.UNIT,
   "spell",
@@ -22,11 +20,7 @@ function typeIndex(cardType: CardType): number {
   return idx === -1 ? TYPE_GROUP_ORDER.length : idx;
 }
 
-/**
- * Comparator for cards inside a grouped zone: type group, then energy asc,
- * then power asc, then name. Matches the sidebar's within-zone ordering.
- * @returns Negative if `a` comes first, positive if `b` comes first.
- */
+/** Type group, then energy asc, then power asc, then name. Matches the sidebar's within-zone ordering. */
 export function compareGroupedCards(a: DeckBuilderCard, b: DeckBuilderCard): number {
   const typeDiff = typeIndex(a.cardType) - typeIndex(b.cardType);
   if (typeDiff !== 0) {
@@ -45,13 +39,7 @@ export function compareGroupedCards(a: DeckBuilderCard, b: DeckBuilderCard): num
   );
 }
 
-/**
- * Returns a flat list of deck cards ordered the same way the deck sidebar
- * displays them: zones in `zoneOrder`, and inside grouped zones the cards are
- * sorted by type group then energy/power/name. Non-grouped zones keep their
- * existing order.
- * @returns A new array; the input is not mutated.
- */
+/** Zones in `zoneOrder`; non-grouped zones keep their existing card order. */
 export function sortCardsLikeSidebar(
   cards: readonly DeckBuilderCard[],
   zoneOrder: readonly DeckZone[],

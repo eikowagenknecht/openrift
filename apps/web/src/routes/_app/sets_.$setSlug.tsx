@@ -25,8 +25,6 @@ export const Route = createFileRoute("/_app/sets_/$setSlug")({
       path: setPath,
     });
 
-    // One ItemList entry per unique card, in the printing order returned by
-    // the API (the set's natural reading order).
     const seenCardIds = new Set<string>();
     const items: { name: string; url: string }[] = [];
     for (const printing of data.printings) {

@@ -1,9 +1,7 @@
 import type { ListEntryDetailResponse, Marketplace, PriceLookup, Printing } from "@openrift/shared";
 
 export interface ListValueResult {
-  /** Sum of entry quantities × per-entry price, on the chosen marketplace. */
   value: number;
-  /** Total quantity across entries that resolved to no priced printing. */
   unpriced: number;
 }
 
@@ -11,25 +9,9 @@ interface ComputeListValueInput {
   entries: readonly ListEntryDetailResponse[];
   prices: PriceLookup;
   marketplace: Marketplace;
-  /**
-   * Catalog map keyed by cardId. For card-kind entries we take the lowest
-   * priced printing from this map, so pre-filter it to the user's preferred
-   * languages before passing it in (an empty map for a cardId is treated as
-   * unpriced).
-   */
   printingsByCardId: ReadonlyMap<string, Printing[]>;
 }
 
-/**
- * Sums a list's value at the user's preferred marketplace. Pricing per entry:
- * - card: lowest priced printing in `printingsByCardId` (caller scopes the map
- *   to the user's languages).
- * - printing / copy: the entry's own printing price.
- *
- * Quantities count even when unpriced — a list of three unpriced cards shows
- * "(3 unpriced)" so the user knows the total isn't the whole picture.
- * @returns Total value plus the unpriced quantity tally.
- */
 export function computeListValue(input: ComputeListValueInput): ListValueResult {
   const { entries, prices, marketplace, printingsByCardId } = input;
   let value = 0;

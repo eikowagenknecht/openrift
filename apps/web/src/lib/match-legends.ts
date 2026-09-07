@@ -3,21 +3,13 @@ import { WellKnown, imageUrl, legendDisplayName } from "@openrift/shared";
 
 import type { TrackedLegend } from "@/stores/match-tracker-store";
 
-/** A legend offered by the seat picker, with everything the board needs baked in. */
 export interface LegendOption extends TrackedLegend {
-  /** Lowercased name, so filtering doesn't recase on every keystroke. */
   search: string;
 }
 
 /**
- * Collect the legends a player can sit behind, one entry per card.
- *
  * Printings arrive sorted by the reader's languages and canonical rank, so the
- * first printing seen for a card is the one whose art to show. The result is
- * denormalized into {@link TrackedLegend} shape on purpose: the board persists
- * its seats locally and must render without the catalog loaded.
- *
- * @returns Legend options sorted by display name.
+ * first one seen for a card is the one whose art to show.
  */
 export function collectLegendOptions(printings: readonly Printing[]): LegendOption[] {
   const byCardId = new Map<string, LegendOption>();
@@ -41,10 +33,6 @@ export function collectLegendOptions(printings: readonly Printing[]): LegendOpti
   return [...byCardId.values()].toSorted((a, b) => a.name.localeCompare(b.name));
 }
 
-/**
- * Narrow the legend list to those matching a search box.
- * @returns Every option when the query is blank, else the matching ones.
- */
 export function filterLegendOptions(options: LegendOption[], query: string): LegendOption[] {
   const needle = query.trim().toLowerCase();
   if (needle === "") {
@@ -53,10 +41,6 @@ export function filterLegendOptions(options: LegendOption[], query: string): Leg
   return options.filter((option) => option.search.includes(needle));
 }
 
-/**
- * Strip the search key so only what the board needs is persisted.
- * @returns The legend as stored on a seat.
- */
 export function toTrackedLegend(option: LegendOption): TrackedLegend {
   return {
     cardId: option.cardId,

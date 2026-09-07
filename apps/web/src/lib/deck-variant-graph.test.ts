@@ -11,7 +11,6 @@ function member(
   return { id, updatedAt: `2026-08-${updatedAt}T00:00:00.000Z`, predecessorDeckId };
 }
 
-/** @returns The row ids top to bottom, for order assertions. */
 function ids(members: readonly VariantGraphMember[], currentId: string): string[] {
   return buildVariantGraph(members, currentId).rows.map((row) => row.id);
 }
@@ -119,8 +118,6 @@ describe("buildVariantGraph", () => {
   });
 
   it("reuses a lane once its line has ended", () => {
-    // Two separate lines: the first ends at row 1, so the second starts back on
-    // lane 0 rather than stepping further right.
     const graph = buildVariantGraph(
       [member("a1", "01"), member("a2", "02", "a1"), member("b1", "03"), member("b2", "04", "b1")],
       "b2",

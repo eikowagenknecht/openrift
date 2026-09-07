@@ -13,7 +13,6 @@ export const Route = createLazyFileRoute("/_app/_authenticated/tournaments_/$id_
 function TournamentDecksRoute() {
   const { id } = Route.useParams();
   const { data: detail } = useTournamentDetail(id);
-  // Hosts / organizers get the "Add deck" action.
   const showAddDeck = canManageTournament(detail.myRoles);
   return (
     <TournamentSectionFrame

@@ -62,13 +62,6 @@ function makeClient() {
   return { client, invalidateSpy };
 }
 
-// Regression: useSetTradeQuantity / useCancelTrade are mounted by
-// shared-list-content, which renders on the public `/lists/share/$token`
-// route. Before this fix they called useRequiredUserId() at hook-init time, so
-// a logged-out visitor opening a shared list crashed the route with
-// "useRequiredUserId() called without an authenticated session". The mutation
-// only ever fires in authenticated friend-group request mode, so the hooks
-// must tolerate a null session at mount.
 describe("trade mutation hooks tolerate an unauthenticated session at mount", () => {
   it("useSetTradeQuantity does not throw when no session is cached", () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -81,11 +74,6 @@ describe("trade mutation hooks tolerate an unauthenticated session at mount", ()
   });
 });
 
-// Regression: trade mutations pin/release the per-copy `reserved` flag, but
-// only invalidated the trades (and group-matches) keys. The copies feed and
-// any list containing that copy went stale after every accept, cancel, or
-// sync, so Reserved badges on /collections and list pages kept showing the
-// pre-trade state until an unrelated refetch happened to land.
 describe("trade mutations invalidate the copies and lists caches", () => {
   it("useAcceptTrade invalidates trades, copies, lists, and the group's matches", async () => {
     const { client, invalidateSpy } = makeClient();
@@ -114,11 +102,7 @@ describe("trade mutations invalidate the copies and lists caches", () => {
   });
 });
 
-// The giver may name the exact copies an accept promises. The ids have to reach
-// the server function untouched: drop them and the accept silently falls back
-// to the server's own pin order, so the giver's choice in the picker would be
-// thrown away without any visible sign.
-describe("useAcceptTrade carries the giver's copy choice", () => {
+describe("useAcceptTrade forwards the giver's copy choice to the server untouched", () => {
   it("passes copyIds through to the accept server function", async () => {
     const { client } = makeClient();
     const { result } = renderHook(() => useAcceptTrade(), { wrapper: wrap(client) });
@@ -148,9 +132,8 @@ describe("useAcceptTrade carries the giver's copy choice", () => {
   });
 });
 
-// The card browsers mount useLiveTradesByPrinting once per visible cell.
-// refetchInterval is per-observer in query-core, so copying useUserTrades'
-// 30s poll here would arm one timer per card on screen instead of one per app.
+// refetchInterval is per-observer; this hook mounts once per visible card,
+// so a poll interval here arms one timer per card, not one per app.
 describe("useLiveTradesByPrinting", () => {
   function optionsFor(client: QueryClient) {
     const query = client

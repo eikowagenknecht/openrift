@@ -17,8 +17,6 @@ import {
 } from "@tanstack/react-db";
 import { bench, describe } from "vitest";
 
-// ── Fixture: deterministic synthetic catalog roughly matching prod size ─────
-
 const SET_COUNT = 7;
 const CARD_COUNT = 771;
 const PRINTING_COUNT = 2916;
@@ -122,8 +120,6 @@ function buildFixture() {
 
 const fixture = buildFixture();
 
-// ── Filter scenarios ────────────────────────────────────────────────────────
-
 function emptyFilters(): CardFilters {
   return { ...EMPTY_CARD_FILTERS };
 }
@@ -149,8 +145,6 @@ const SCENARIOS = {
   } as CardFilters,
 };
 
-// ── TanStack DB equivalent: build a local-only printings collection ─────────
-
 const printingsCollection = createCollection(
   localOnlyCollectionOptions<Printing>({
     getKey: (p) => p.id,
@@ -159,9 +153,6 @@ const printingsCollection = createCollection(
 );
 
 function runTanstackQuery(filters: CardFilters) {
-  // Build the same where expression structure the migrated useCardData would.
-  // Note: this only covers the simple symbolic clauses; a full migration
-  // would need text-search expression composition for filters.search.
   return queryOnce({
     query: (q) => {
       let builder = q.from({ p: printingsCollection });
@@ -169,10 +160,6 @@ function runTanstackQuery(filters: CardFilters) {
         builder = builder.where(({ p }) => inArray(p.rarity, filters.rarities));
       }
       if (filters.domains.length > 0) {
-        // Single-domain bench case only — real filter is "any filter domain
-        // appears in card.domains", which would need `or` across the array
-        // via a variadic call, but the bench's goal is to measure overhead
-        // rather than implement the full filter surface.
         const [firstDomain] = filters.domains;
         if (firstDomain) {
           builder = builder.where(({ p }) => inArray(firstDomain, p.card.domains));
@@ -202,8 +189,6 @@ function runTanstackQuery(filters: CardFilters) {
     },
   });
 }
-
-// ── Benches ─────────────────────────────────────────────────────────────────
 
 describe("filter+sort: current JS path", () => {
   bench("noop", () => {

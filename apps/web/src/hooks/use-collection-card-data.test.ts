@@ -77,9 +77,6 @@ function baseParams() {
 
 describe("useCollectionCardData", () => {
   it("splits a card owned in two sets into one tile per set in cards+set view", () => {
-    // Regression: cards view collapsed to one tile per cardId regardless of
-    // grouping, so a card owned in both OGN and UNL showed up under a single
-    // set instead of once under each (matching the catalog).
     const cardId = "card-reprinted";
     const ogn = stubPrinting({ cardId, setId: "set-ogn", language: "EN" });
     const unl = stubPrinting({ cardId, setId: "set-unl", language: "EN" });
@@ -131,11 +128,6 @@ describe("useCollectionCardData", () => {
   });
 
   it("includes filtered languages the collection doesn't stock in availableLanguages", () => {
-    // Regression: the Language control only renders above a length > 1
-    // threshold, so a collection holding a single non-preferred language
-    // reported just that one language and hid the control. The auto-seeded
-    // preference filter (EN here) then emptied the grid with no way to clear
-    // it, since clearAllFilters preserves language on purpose.
     const sc = stubPrinting({ language: "SC" });
     mockStacks.mockReturnValue({
       stacks: [makeStack(sc)],
@@ -186,9 +178,6 @@ describe("useCollectionCardData", () => {
   });
 
   it("returns printings in all owned languages when filters.languages is empty", () => {
-    // Regression: the collection view previously auto-seeded the URL language
-    // filter from the user's display-store preference, which silently hid
-    // owned cards in non-preferred languages.
     const en = stubPrinting({ language: "EN" });
     const sc = stubPrinting({ language: "SC" });
     mockStacks.mockReturnValue({
@@ -222,14 +211,11 @@ describe("useCollectionCardData", () => {
   });
 
   it("filters by ownedFilter using per-collection stack counts", () => {
-    // Regression: `filters.owned` was wired into the collection filter UI but
-    // the hook never applied it, so every bucket showed every owned card.
     const partial = stubPrinting({ card: { slug: "partial-card" } });
     const full = stubPrinting({ card: { slug: "full-card" } });
     const extra = stubPrinting({ card: { slug: "extra-card" } });
     mockStacks.mockReturnValue({
       stacks: [
-        // Default playset for unit/no-keywords is 3.
         { printingId: partial.id, printing: partial, copyIds: ["c-p1"] },
         { printingId: full.id, printing: full, copyIds: ["c-f1", "c-f2", "c-f3"] },
         {
@@ -259,25 +245,14 @@ describe("useCollectionCardData", () => {
   });
 
   it("buckets the owned filter by ownedCardTotalOverride (group bulk box personal playset)", () => {
-    // Regression: browsing a group-owned "bulk box", the Owned/Copies filter
-    // aggregated the viewer's personal counts only over the printings the box
-    // stocks. A box holding just the normal printing of a card the viewer owns a
-    // full playset of split across variants (2 normal + 1 foil) undercounted to
-    // the box variant's 2 copies and bucketed it as "partial". The card-keyed
-    // override now carries the viewer's PER-CARD total across every variant, so
-    // a full playset correctly buckets as "full".
     const cardId = "card-ballista";
-    const normal = stubPrinting({ cardId, card: { slug: "ballista" } }); // unit → playset 3
+    const normal = stubPrinting({ cardId, card: { slug: "ballista" } });
     mockStacks.mockReturnValue({
-      // The box stocks only the normal printing (3 copies). The foil the viewer
-      // owns lives in their personal collection, so it's absent from the box.
       stacks: [{ printingId: normal.id, printing: normal, copyIds: ["box-1", "box-2", "box-3"] }],
       totalCopies: 3,
       isReady: true,
     });
 
-    // Viewer's personal playset across variants = 3 (2 normal + 1 foil) → "full".
-    // "Partial Playset" must NOT keep it, even though the box only stocks normal.
     const partial = renderHook(() =>
       useCollectionCardData({
         ...baseParams(),
@@ -287,7 +262,6 @@ describe("useCollectionCardData", () => {
     );
     expect(partial.result.current.sortedCards).toHaveLength(0);
 
-    // "Full" keeps it, and the slider bound follows the per-card override too.
     const full = renderHook(() =>
       useCollectionCardData({
         ...baseParams(),
@@ -298,7 +272,6 @@ describe("useCollectionCardData", () => {
     expect(full.result.current.sortedCards.map((p) => p.id)).toEqual([normal.id]);
     expect(full.result.current.ownedCountMax).toBe(3);
 
-    // A genuine personal shortfall (only 1 owned across variants) stays "partial".
     const shortfall = renderHook(() =>
       useCollectionCardData({
         ...baseParams(),
@@ -308,7 +281,6 @@ describe("useCollectionCardData", () => {
     );
     expect(shortfall.result.current.sortedCards.map((p) => p.id)).toEqual([normal.id]);
 
-    // Without the override, the box's own 3 copies bucket as "full".
     const scoped = renderHook(() =>
       useCollectionCardData({ ...baseParams(), ownedFilter: ["full"] }),
     );
@@ -356,9 +328,6 @@ describe("useCollectionCardData", () => {
   });
 
   it("exposes selectableCopyIds for only the filtered printings", () => {
-    // Regression: "select all" collected copy IDs from every stack, so it
-    // selected cards the active filters had hidden. selectableCopyIds must
-    // contain copies of the *filtered* printings only.
     const en = stubPrinting({ language: "EN" });
     const sc = stubPrinting({ language: "SC" });
     mockStacks.mockReturnValue({
@@ -396,12 +365,6 @@ describe("useCollectionCardData", () => {
   });
 
   it("includes every printing's copies in selectableCopyIds for a stacked tile in cards view", () => {
-    // Regression: in cards view a card owned across several printings collapses
-    // into one tile, but selectableCopyIds flattened the deduped list (one
-    // representative printing per tile), so "select all" grabbed only the
-    // representative printing's copies. Dispose then left the other printings'
-    // copies behind as a leftover tile. selectableCopyIds must pool every
-    // printing's copies for the tile, matching a manual single-tile selection.
     const cardId = "card-multi-printing";
     const en = stubPrinting({ cardId, language: "EN" });
     const sc = stubPrinting({ cardId, language: "SC" });
@@ -418,9 +381,7 @@ describe("useCollectionCardData", () => {
       useCollectionCardData({ ...baseParams(), view: "cards", groupBy: "none" }),
     );
 
-    // The two printings collapse to a single tile...
     expect(result.current.sortedCards).toHaveLength(1);
-    // ...but select-all must still cover every copy under it.
     expect(result.current.selectableCopyIds.toSorted()).toEqual(["c-en-1", "c-en-2", "c-sc-1"]);
   });
 
@@ -441,13 +402,9 @@ describe("useCollectionCardData", () => {
   });
 
   it("facets the copies-owned slider bound against the active owned bucket", () => {
-    // Regression: the Copies slider max was measured over the whole collection,
-    // so picking "Partial Playset" left the bound at the collection's full max
-    // (the 4-copy "extra" card) instead of narrowing to the largest surviving
-    // partial total.
-    const partialLow = stubPrinting({ card: { slug: "partial-low" } }); // 1 copy → partial
-    const partialHigh = stubPrinting({ card: { slug: "partial-high" } }); // 2 copies → partial
-    const extra = stubPrinting({ card: { slug: "extra-card" } }); // 4 copies → extra
+    const partialLow = stubPrinting({ card: { slug: "partial-low" } });
+    const partialHigh = stubPrinting({ card: { slug: "partial-high" } });
+    const extra = stubPrinting({ card: { slug: "extra-card" } });
     mockStacks.mockReturnValue({
       stacks: [
         { printingId: partialLow.id, printing: partialLow, copyIds: ["c-pl1"] },
@@ -458,11 +415,9 @@ describe("useCollectionCardData", () => {
       isReady: true,
     });
 
-    // No owned bucket → bound spans the whole collection (the 4-copy card).
     const unfiltered = renderHook(() => useCollectionCardData(baseParams()));
     expect(unfiltered.result.current.ownedCountMax).toBe(4);
 
-    // Partial Playset → bound narrows to the largest surviving partial total (2).
     const partial = renderHook(() =>
       useCollectionCardData({ ...baseParams(), ownedFilter: ["partial"] }),
     );
@@ -470,15 +425,9 @@ describe("useCollectionCardData", () => {
   });
 
   it("keeps the slider bound on the personal override with no owned filter active", () => {
-    // Regression: on a group "bulk box" the Copies bound measured the box's own
-    // stock until the first owned-filter interaction, then flipped to the
-    // viewer's personal totals. Given the per-card personal override, the bound
-    // must read personal from the start (no owned filter needed), so the basis
-    // never changes under the user.
     const cardId = "card-ballista";
     const normal = stubPrinting({ cardId, card: { slug: "ballista" } });
     mockStacks.mockReturnValue({
-      // The box stocks 5 copies, but the viewer personally owns only 2.
       stacks: [
         {
           printingId: normal.id,
@@ -493,14 +442,10 @@ describe("useCollectionCardData", () => {
     const { result } = renderHook(() =>
       useCollectionCardData({ ...baseParams(), ownedCardTotalOverride: { [cardId]: 2 } }),
     );
-    // Personal basis (2), not the box's 5.
     expect(result.current.ownedCountMax).toBe(2);
   });
 
   it("narrows filterCounts for other dimensions by the copies-owned range", () => {
-    // Regression: the collection grid passed no filterCounts, so the
-    // copies-owned range narrowed the grid but left every other filter chip
-    // showing its full count. computeFilterCounts must reflect the active range.
     const common = stubPrinting({ rarity: "common", card: { slug: "common-card" } });
     const rare = stubPrinting({ rarity: "rare", card: { slug: "rare-card" } });
     mockStacks.mockReturnValue({
@@ -512,12 +457,10 @@ describe("useCollectionCardData", () => {
       isReady: true,
     });
 
-    // Unfiltered: both rarities are represented in the facet counts.
     const unfiltered = renderHook(() => useCollectionCardData(baseParams()));
     expect(unfiltered.result.current.filterCounts.rarities.get("common")).toBe(1);
     expect(unfiltered.result.current.filterCounts.rarities.get("rare")).toBe(1);
 
-    // Copies >= 5 keeps only the rare card, so common drops out of the counts.
     const highCopies = renderHook(() =>
       useCollectionCardData({ ...baseParams(), ownedCountMin: 5, ownedCountMax: null }),
     );
@@ -541,12 +484,9 @@ describe("useCollectionCardData", () => {
         countsEnabled: false,
       }),
     );
-    // Counts are the empty stand-in (no chip surface is visible to read them)…
     expect(result.current.filterCounts.rarities.size).toBe(0);
-    // …while the grid pipeline still filters normally.
     expect(result.current.sortedCards).toHaveLength(1);
     expect(result.current.sortedCards[0].rarity).toBe("rare");
-    // Available filter options stay live for the active-filter strip labels.
     expect(result.current.availableFilters.rarities.length).toBeGreaterThan(0);
   });
 });

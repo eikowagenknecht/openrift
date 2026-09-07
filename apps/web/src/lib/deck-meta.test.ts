@@ -6,11 +6,6 @@ import { deckMetaParts } from "./deck-meta";
 
 const price = (cents: number) => `€${(cents / 100).toFixed(2)}`;
 
-/**
- * Looks a part up by key rather than by position, so adding a fact doesn't
- * renumber every assertion.
- * @returns The named part.
- */
 function part(parts: ReturnType<typeof deckMetaParts>, key: DeckMetaPartKey) {
   const found = parts.find((candidate) => candidate.key === key);
   if (!found) {

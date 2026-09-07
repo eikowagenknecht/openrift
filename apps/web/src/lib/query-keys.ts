@@ -3,14 +3,8 @@ import type { MetaCountsQuery, MetaScopeQuery, TimeRange } from "@openrift/share
 import type { SourceMappingConfig } from "@/components/admin/price-mappings-types";
 import type { MetaDateRange, MetaDeckQuery } from "@/lib/meta-scope";
 
-/**
- * An absent filter and one that narrows nothing are the same fetch, so they
- * share the unscoped key rather than caching one payload twice. Every field the
- * caller left out is written as null, so two spellings of one selection cannot
- * key apart.
- *
- * @returns The base key, or the base plus the normalized filter.
- */
+// An absent filter and one that narrows nothing share the unscoped key, so
+// they don't cache the same fetch twice.
 function metaFilterKey<T extends object>(
   base: readonly string[],
   filter: T | undefined,
@@ -41,18 +35,6 @@ const COUNTS_QUERY_FIELDS = ["format", "dateFrom", "dateTo"] as const;
 
 const LEGEND_QUERY_FIELDS = [...SCOPE_FIELDS, "page"] as const;
 
-// User-scoped keys take a `userId` first segment so user A's cache slot and
-// user B's never collide. Public/global keys are plain string tuples.
-//
-// Convention: anything that fetches per-user data from the API (collections,
-// copies, decks, preferences, collection events, value history) is keyed
-// per-user. Catalog data, sets, prices, marketplace info, and admin queries
-// are not — they're either public or admin-scoped. Exception: `admin.me` is
-// the caller's own access level, so it is user-scoped like any other
-// per-user query. A global key would survive sign-in/sign-out (login only
-// invalidates the session query) and keep serving the previous identity's
-// cached answer.
-
 export const queryKeys = {
   featureFlags: {
     all: ["feature-flags"] as const,
@@ -62,7 +44,6 @@ export const queryKeys = {
   },
   catalog: {
     all: ["catalog"] as const,
-    /** The resolved-empty stand-in `useCards` reads on a page carrying its own subset. */
     none: ["catalog", "none"] as const,
   },
   landingSummary: {
@@ -86,10 +67,8 @@ export const queryKeys = {
     all: ["products"] as const,
     detail: (slug: string) => ["products", slug] as const,
   },
-  // Meta Archive (ADR-014): public, admin-curated — no user scoping. Admin
-  // mutations invalidate the `all` prefix: every public read (events, decks,
-  // and both detail shapes) denormalizes event fields, so any write can stale
-  // any of them.
+  // Admin mutations invalidate the `all` prefix: every public read
+  // denormalizes event fields, so any write can stale any of them.
   meta: {
     all: ["meta"] as const,
     events: (range?: MetaDateRange) => metaFilterKey(["meta", "events"], range, RANGE_FIELDS),
@@ -106,9 +85,6 @@ export const queryKeys = {
       metaFilterKey(["meta", "legends", slug], query, LEGEND_QUERY_FIELDS),
     player: (key: string) => ["meta", "players", key] as const,
   },
-  // The archive's signed-in surfaces (ADR-014): a contributor's own decklist
-  // submissions and their credit setting. Both are scoped to the session user
-  // server-side, so the id here only keys the cache.
   metaSubmissions: {
     all: (userId: string) => ["meta-submissions", userId] as const,
     creditVisibility: (userId: string) => ["meta-submissions", userId, "credit"] as const,
@@ -130,11 +106,8 @@ export const queryKeys = {
   },
   copies: {
     all: (userId: string) => ["copies", userId] as const,
-    // The react-db copies store's own query (see copies-collection.ts). Its
-    // queryFn re-reads `copies.all` via query(), so invalidate BOTH keys to
-    // force a server round-trip that syncs fresh rows into the store (loan
-    // mutations do this — the server picks which copies get pinned, so there
-    // is nothing to write optimistically).
+    // The react-db copies store's queryFn re-reads `copies.all`, so
+    // invalidate BOTH keys to sync fresh rows into the store.
     syncedStore: (userId: string) => ["copies-collection", userId] as const,
     byCollection: (userId: string, id: string) => ["copies", userId, id] as const,
     listMemberships: (userId: string, copyIds: readonly string[], excludeListId?: string) =>
@@ -182,9 +155,6 @@ export const queryKeys = {
     publicByToken: (token: string) => ["tier-lists", "share", token] as const,
   },
   lists: {
-    // intent: optional filter (buy | sell | organize). Cache miss for the
-    // intent-filtered key is fine — different intents live in different UI
-    // surfaces and rarely overlap in practice.
     all: (userId: string, intent?: string) =>
       intent === undefined
         ? (["lists", userId] as const)
@@ -194,15 +164,9 @@ export const queryKeys = {
     groupShares: (userId: string, id: string) => ["lists", userId, id, "group-shares"] as const,
   },
   overlay: {
-    /** @returns Key for the signed-in creator's own channel, as the dashboard sees it. */
     channel: (userId: string) => ["overlay", userId] as const,
-    /**
-     * The preset is part of the key because it is part of the answer: two
-     * browser sources on the same token but different presets are two
-     * differently dressed states, and a shared slot would serve one of them the
-     * other's payload.
-     * @returns Key for the token-addressed state the OBS browser source polls.
-     */
+    // The preset is part of the key: two browser sources on the same token but
+    // different presets must not share a cache slot.
     stateByToken: (token: string, presetId?: string) =>
       ["overlay", "state", token, presetId ?? null] as const,
   },
@@ -216,8 +180,6 @@ export const queryKeys = {
       ["user-share", "public", token, "lists", listId] as const,
   },
   tournamentDecks: {
-    // The player's own deck, keyed by the tournament it belongs to — the deck
-    // is a section of the tournament page, not a standalone surface (ADR-033).
     entry: (userId: string, tournamentId: string) =>
       ["tournament-decks", userId, tournamentId] as const,
     submission: (userId: string, token: string) =>
@@ -246,7 +208,7 @@ export const queryKeys = {
     shareableCollections: (userId: string, slug: string) =>
       ["friend-groups", userId, slug, "shareable-collections"] as const,
     // Not user-scoped: the header polls it without an authenticated route
-    // boundary, and the server answers for whoever the cookie identifies.
+    // boundary; the server answers for whoever the cookie identifies.
     pendingRequestsCount: () => ["friend-groups", "pending-requests-count"] as const,
     joinPreview: (code: string) => ["friend-groups", "join-preview", code] as const,
     sharedList: (userId: string, slug: string, listId: string) =>
@@ -272,15 +234,12 @@ export const queryKeys = {
     staffInviteLanding: (token: string) => ["tournaments", "staff-invite", token] as const,
     forGroup: (userId: string, slug: string) => ["tournaments", userId, "group", slug] as const,
   },
-  // Tournament-scoped judge deck-check (ADR-033): keyed by the tournament id,
-  // which is the deck-check "event" id.
   tournamentDeckCheck: {
     entries: (userId: string, tournamentId: string) =>
       ["tournament-deck-check", userId, tournamentId] as const,
     entry: (userId: string, tournamentId: string, entryId: string) =>
       ["tournament-deck-check", userId, tournamentId, entryId] as const,
   },
-  // Host-scoped deck-check integration keys (ADR-033): personal or org-owned.
   deckCheckKeys: {
     mine: (userId: string) => ["deck-check-keys", userId, "me"] as const,
     org: (userId: string, orgId: string) => ["deck-check-keys", userId, "org", orgId] as const,
@@ -291,30 +250,23 @@ export const queryKeys = {
     adminAll: ["admin", "organizations"] as const,
   },
   trades: {
-    // Broad prefix mutations invalidate to refresh any open tab and the badge
-    // counts (invalidation is prefix-based, so this also clears byGroup/actionCounts).
+    // Prefix-based: invalidating `all` also clears byGroup/actionCounts.
     all: (userId: string) => ["trades", userId] as const,
     byGroup: (userId: string, groupId: string) => ["trades", userId, "group", groupId] as const,
     actionCounts: (userId: string) => ["trades", userId, "action-counts"] as const,
-    // Per-printing live-trade annotations for the card browsers. Under the
-    // `all` prefix on purpose, so every trade mutation already refreshes it.
+    // Under the `all` prefix on purpose, so every trade mutation refreshes it.
     liveByPrinting: (userId: string) => ["trades", userId, "live-by-printing"] as const,
-    // The candidate copies behind one pending trade, for the giver's copy
-    // picker. Fetched on demand only (the route re-reads the giver's supply),
-    // and under the `all` prefix so an accept or a quantity change drops it
+    // Under the `all` prefix so an accept or a quantity change drops it
     // without its own invalidation entry.
     copyOptions: (userId: string, tradeId: string) =>
       ["trades", userId, "copy-options", tradeId] as const,
-    // One counterparty's whole trade sheet (their profile, the shared groups,
-    // and the match suggestions pooled across them). Deliberately under the
-    // `["trades", userId]` prefix so every trade mutation's prefix
-    // invalidation refreshes the open sheet — accepting a suggestion there has
-    // to drop it from the list without its own invalidation entry.
+    // Deliberately under the `["trades", userId]` prefix so every trade
+    // mutation refreshes the open sheet.
     sheet: (userId: string, memberId: string) => ["trades", userId, "sheet", memberId] as const,
   },
   loans: {
-    // Same prefix-invalidation shape as trades (ADR-039): mutations invalidate
-    // `all`, which also clears actionCounts and borrowerOptions.
+    // Same prefix-invalidation shape as trades: invalidating `all` also
+    // clears actionCounts and borrowerOptions.
     all: (userId: string) => ["loans", userId] as const,
     actionCounts: (userId: string) => ["loans", userId, "action-counts"] as const,
     borrowerOptions: (userId: string) => ["loans", userId, "borrower-options"] as const,
@@ -325,9 +277,8 @@ export const queryKeys = {
     byVersion: (kind: string, version: string) => ["rules", kind, version] as const,
   },
   admin: {
-    // Per-user (see the exception note at the top): `null` is the signed-out
-    // slot, so an anonymous "no access" answer can never shadow a user's real
-    // one after sign-in.
+    // `null` is the signed-out slot, so an anonymous "no access" answer can
+    // never shadow a user's real one after sign-in.
     me: (userId: string | null) => ["admin", "me", userId] as const,
     sets: ["admin", "sets"] as const,
     cards: {
@@ -339,8 +290,7 @@ export const queryKeys = {
       providerNames: ["admin", "cards", "provider-names"] as const,
       providerStats: ["admin", "cards", "provider-stats"] as const,
     },
-    // A promo printing's source citations. Not nested under `cards`: the editor
-    // is keyed by printing id, and invalidating a card's detail on every
+    // Not nested under `cards`: invalidating a card's detail on every
     // citation write would refetch the whole candidate review payload.
     printingCitations: (printingId: string) =>
       ["admin", "printings", printingId, "citations"] as const,
@@ -385,9 +335,8 @@ export const queryKeys = {
     formats: ["admin", "formats"] as const,
     markers: ["admin", "markers"] as const,
     meta: {
-      // `events` is the prefix every event read sits under, so a write that
-      // moves an event's counts refetches whichever page is on screen without
-      // knowing its filters, plus any open detail.
+      // Prefix every event read sits under, so a write that moves an event's
+      // counts refetches whichever page is on screen, plus any open detail.
       events: ["admin", "meta", "events"] as const,
       eventList: (params: {
         page: number;
@@ -400,43 +349,27 @@ export const queryKeys = {
         sort?: string;
         direction?: string;
       }) => ["admin", "meta", "events", "list", params] as const,
-      // The free-text picker over the whole archive (the event-match review
-      // panel's "Search all events"), nested under `events` for the same reason.
       eventSearch: (search: string) => ["admin", "meta", "events", "search", search] as const,
       event: (eventId: string) => ["admin", "meta", "events", eventId] as const,
       eventPlayers: (eventId: string) => ["admin", "meta", "events", eventId, "players"] as const,
-      // The event's citation list. Nested under `events` so an event write that
-      // invalidates the list refetches the citations of whichever event is open.
       eventSources: (eventId: string) => ["admin", "meta", "events", eventId, "sources"] as const,
-      // The uploads feeding one event. Nested under `events` for the same
-      // reason the citations are: settling one refetches with the event.
       eventUploads: (eventId: string) => ["admin", "meta", "events", eventId, "uploads"] as const,
-      // The cross-mirror review for one event (ADR-014, "Two mirrors on one
-      // event"). Nested under `events` too: a link re-promotes, which moves the
-      // standings the panel ranks against.
       crossSource: (eventId: string) =>
         ["admin", "meta", "events", eventId, "cross-source"] as const,
-      // The overlay review queue (ADR-014 revision 3). The suggestion keys nest
-      // under it on purpose, so settling an overlay also refetches the ranked
-      // targets that settling invalidates.
+      // Suggestion keys nest under it on purpose, so settling an overlay also
+      // refetches the ranked targets that settling invalidates.
       overlays: ["admin", "meta", "overlays"] as const,
       eventSuggestions: (overlayId: string) =>
         ["admin", "meta", "overlays", overlayId, "event-suggestions"] as const,
       playerSuggestions: (overlayId: string) =>
         ["admin", "meta", "overlays", overlayId, "player-suggestions"] as const,
-      // The ledger row behind one standings overlay (ADR-014's user
-      // submissions). Null for a provider's overlay, which is an answer and
-      // gets cached as one.
+      // Null for a provider's overlay, which is an answer and gets cached as one.
       submissionForPlayerOverlay: (overlayId: string) =>
         ["admin", "meta", "overlays", overlayId, "submission"] as const,
-      // Corrections to an event's own facts. They stage no overlay row, so they
-      // hang off nothing and are listed on their own.
       eventCorrections: ["admin", "meta", "event-corrections"] as const,
       ignoredSources: ["admin", "meta", "ignored-sources"] as const,
-      // The catalogue mirror and its sync controls (ADR-014). `catalogue` is
-      // the prefix every filtered page sits under, so accepting or dismissing
-      // one row refetches whichever page is on screen without knowing its
-      // filters.
+      // Prefix every filtered page sits under, so accepting or dismissing one
+      // row refetches whichever page is on screen.
       catalogue: ["admin", "meta", "catalogue"] as const,
       catalogueList: (params: {
         page: number;
@@ -451,9 +384,8 @@ export const queryKeys = {
         sort?: string;
         direction?: string;
       }) => ["admin", "meta", "catalogue", "list", params] as const,
-      // playloltcg mirrors the catalogue above under its own prefix: the two
-      // sources are paged and triaged separately, so a write to one must not
-      // drop the other's pages.
+      // playloltcg mirrors the catalogue above under its own prefix: a write
+      // to one source must not drop the other's pages.
       playloltcgCatalogue: ["admin", "meta", "playloltcg", "catalogue"] as const,
       playloltcgCatalogueList: (params: { page?: number; search?: string; triage?: string }) =>
         ["admin", "meta", "playloltcg", "catalogue", "list", params] as const,
@@ -461,14 +393,11 @@ export const queryKeys = {
       topdeckCatalogueList: (params: { page?: number; search?: string; triage?: string }) =>
         ["admin", "meta", "topdeck", "catalogue", "list", params] as const,
       syncSettings: ["admin", "meta", "sync", "settings"] as const,
-      /** The archive's own passes, which belong to neither source's panel. */
       archiveJobs: ["admin", "meta", "archive", "jobs"] as const,
       syncStatus: Object.assign(
         (source: string) => ["admin", "meta", "sync", "status", source] as const,
         { prefix: ["admin", "meta", "sync", "status"] as const },
       ),
-      // The vocabulary the crawl discovers rather than the maintainer entering:
-      // the source's own event templates and format strings.
       sourceTemplates: ["admin", "meta", "source", "templates"] as const,
       sourceFormats: ["admin", "meta", "source", "formats"] as const,
     },

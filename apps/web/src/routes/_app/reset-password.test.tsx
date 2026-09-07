@@ -7,8 +7,6 @@ let search: { email: string } = { email: "" };
 let PageComponent: (() => ReactNode) | undefined;
 
 vi.mock("@tanstack/react-router", () => ({
-  // The page reads its search and loader data off the `Route` this factory
-  // builds, so standing in for it is what makes the component renderable.
   createLazyFileRoute: () => (options: { component: () => ReactNode }) => {
     PageComponent = options.component;
     return {
@@ -47,8 +45,6 @@ describe("ResetPasswordPage", () => {
     search = { email: "vi@example.com" };
     renderResetPassword();
 
-    // Regression: a prefilled email jumped straight to the code step, which
-    // says a code was sent while nothing had sent one.
     expect(screen.getByLabelText("Email")).toHaveValue("vi@example.com");
     expect(screen.getByRole("button", { name: "Send code" })).toBeInTheDocument();
     expect(screen.queryByText(/Enter the 6-digit code/u)).not.toBeInTheDocument();

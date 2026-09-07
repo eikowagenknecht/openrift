@@ -5,7 +5,6 @@ export interface DeckTypeSplit {
   units: number;
   spells: number;
   gear: number;
-  /** Units, spells and gear only, so the bar's segments always fill it exactly. */
   total: number;
 }
 
@@ -14,7 +13,6 @@ export interface DeckRuneSplit {
   count: number;
 }
 
-/** The spell type has no WellKnown entry; the deck editor spells it the same way. */
 const SPELL = "spell";
 
 /** Main-zone copies only: the singleton zones are identity, and a sideboard was not played. */
@@ -28,6 +26,7 @@ export function deckTypeSplit(cards: readonly PublicDeckCardResponse[]): DeckTyp
     }
     if (card.cardType === WellKnown.cardType.UNIT) {
       units += card.quantity;
+      // SPELL has no WellKnown entry; the deck editor spells it the same way.
     } else if (card.cardType === SPELL) {
       spells += card.quantity;
     } else if (card.cardType === WellKnown.cardType.GEAR) {

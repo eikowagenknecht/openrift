@@ -71,16 +71,12 @@ describe("tradeSection", () => {
   });
 
   it("buckets an unsettled reserved trade into action-needed", () => {
-    // The groups-list badge counts exactly these in its swap half, so a count
-    // the viewer taps always has rows behind it in this section.
     expect(tradeSection(stubTrade({ status: "reserved", actionNeeded: "settle" }))).toBe(
       "action-needed",
     );
   });
 
   it("keeps a reserved trade the viewer already settled in active", () => {
-    // Their half is done and the trade is waiting on the other party, so it is
-    // still in flight rather than history.
     expect(tradeSection(stubTrade({ status: "reserved", actionNeeded: null }))).toBe("active");
   });
 
@@ -97,7 +93,6 @@ describe("tradeSection", () => {
 
 describe("maxTradeQuantity", () => {
   it("caps at the demand when supply exceeds it (offer more than they want)", () => {
-    // They want 1 but you have 5 — you can only trade 1, not 5 (the reported bug).
     expect(maxTradeQuantity(1, 5)).toBe(1);
   });
 
@@ -144,8 +139,6 @@ describe("describeViewerSource", () => {
 });
 
 describe("describeCounterpartySource", () => {
-  // The mirror of the viewer's noun: a card coming to the viewer sits on the
-  // other person's tradelist, one going out sits on their wishlist.
   it("names their tradelist for an incoming card", () => {
     expect(describeCounterpartySource("incoming", ["Spare Foils"])).toBe(
       "Their tradelist: Spare Foils",
@@ -309,11 +302,7 @@ describe("bucketMemberTrades", () => {
     expect(buckets.actionNeeded.map((t) => t.id)).toEqual(["a1"]);
   });
 
-  it("surfaces a reserved trade in the active bucket — the case the match overlay dropped", () => {
-    // A reserved trade no longer appears as a match (its copies are reserved),
-    // so before this it vanished from the member page. It must land in a
-    // visible bucket, which is action-needed while the viewer's half is
-    // unsettled.
+  it("surfaces an unsettled reserved trade in action-needed instead of vanishing from the member page", () => {
     const buckets = bucketMemberTrades(
       [forMember("alice", { id: "r1", status: "reserved", actionNeeded: "settle" })],
       "alice",
@@ -525,7 +514,6 @@ describe("groupTradesByCounterparty", () => {
 
     const groups = groupTradesByCounterparty(trades);
 
-    // Alice (2) first; Mia and Zoe (1 each) tie-break alphabetically.
     expect(groups.map((group) => group.counterparty.userId)).toEqual(["alice", "mia", "zoe"]);
   });
 
@@ -573,7 +561,6 @@ describe("tradeGroupKey", () => {
   });
 
   it("collapses two deleted groups that shared a name, which is the accepted trade-off", () => {
-    // The snapshot keeps only the name, so nothing distinguishes them any more.
     const a = tradeGroupKey(stubTrade({ groupId: null, groupName: "Playtest" }));
     const b = tradeGroupKey(stubTrade({ groupId: null, groupName: "Playtest" }));
     expect(a).toBe(b);
@@ -602,7 +589,6 @@ describe("sumTradeValues", () => {
 
     const split = sumTradeValues(trades, price({ p1: 5 }));
 
-    // p2 has no price, so only p1 contributes; the give side stays empty.
     expect(split).toEqual({ get: 10, give: 0, hasGet: true, hasGive: false });
   });
 
@@ -681,10 +667,6 @@ describe("matchCopyConditionLabel and summarizeMatchCopies", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// groupTradeAnnotationsByPrinting / collapseTradeAnnotations
-// ---------------------------------------------------------------------------
-
 function annotation(overrides: Partial<CardTradeLiveAnnotation> = {}): CardTradeLiveAnnotation {
   return {
     printingId: "printing-1",
@@ -709,8 +691,6 @@ describe("groupTradeAnnotationsByPrinting", () => {
     expect([...map.keys()]).toEqual(["printing-1", "printing-2"]);
   });
 
-  // uq_card_trades_live is per (group, giver, receiver, printing), so one
-  // printing genuinely carries several live trades in different phases.
   it("keeps every annotation on one printing, in input order", () => {
     const map = groupTradeAnnotationsByPrinting([
       annotation({ phase: "asked", tradeCount: 2 }),
@@ -724,9 +704,6 @@ describe("groupTradeAnnotationsByPrinting", () => {
     ]);
   });
 
-  // Accepting a trade pins the copies away, which raises the same card's
-  // shortfall on a netOwned wish rule and can open a request for it. Both
-  // annotations are real; showing "Reserved" and "Requested" together is not.
   it("drops the receiver side when the same printing also has a giver side", () => {
     const map = groupTradeAnnotationsByPrinting([
       annotation({ role: "receiver", phase: "asked" }),
@@ -801,8 +778,6 @@ describe("collapseTradeAnnotations", () => {
     ).toBe("offered");
   });
 
-  // The chip must not overstate what is committed: one reserved copy behind two
-  // asked-for ones is one copy committed, not three.
   it("keeps the winning bucket's own counts rather than summing the side", () => {
     expect(
       collapseTradeAnnotations([
@@ -812,8 +787,6 @@ describe("collapseTradeAnnotations", () => {
     ).toEqual(annotation({ phase: "reserved", tradeCount: 1, quantity: 4 }));
   });
 
-  // Callers should suppress first, but a mixed list must never report copies
-  // going out together with copies coming in.
   it("reports only the winning side when both are present", () => {
     expect(
       collapseTradeAnnotations([

@@ -3,10 +3,6 @@ import { describe, expect, it } from "vitest";
 
 import { resolveTradeAddTarget } from "./trade-add-target";
 
-/**
- * Minimal CollectionResponse builder — only id, name and isInbox matter here.
- * @returns A complete CollectionResponse with overrides applied.
- */
 function col(overrides: Partial<CollectionResponse> = {}): CollectionResponse {
   return {
     id: "c1",

@@ -17,17 +17,11 @@ import { getSiteUrl } from "@/lib/site-config";
 import { PAGE_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
 
 /**
- * The route key is the legend's champion followed by its card slug —
- * `/meta/legends/kennen-heart-of-the-tempest` — composed by `metaLegendSlug`
- * (`@openrift/shared`) and resolved by the API against the same function.
- *
- * The champion leads because that is what players call a legend, and the card
- * slug always follows rather than only when a champion has several legend
- * variants. A conditional suffix would make the key a property of the
- * catalogue's current shape: `/meta/legends/kennen` would resolve until the day
- * a second Kennen legend was printed and then stop, taking every saved link with
- * it. Carrying the card slug always costs a few characters and buys a key that
- * never changes. A legend with no champion tag keys on its card slug alone.
+ * Route key is `<champion>-<card-slug>` (built by `metaLegendSlug` in
+ * `@openrift/shared`), with the card slug always appended even when the
+ * champion has only one legend, so the URL stays valid if a second legend
+ * for that champion is printed later. A legend with no champion tag keys on
+ * its card slug alone.
  */
 export const Route = createFileRoute("/_app/meta_/legends_/$slug")({
   validateSearch: metaLegendSearchSchema,
@@ -47,8 +41,6 @@ export const Route = createFileRoute("/_app/meta_/legends_/$slug")({
     return {
       ...seoHead({
         siteUrl,
-        // The card's own page answers the bare legend name; this page is that
-        // legend's tournament record, so the title says which of the two it is.
         title: `${legend.name} in the Meta Archive`,
         description,
         path,
@@ -63,13 +55,9 @@ export const Route = createFileRoute("/_app/meta_/legends_/$slug")({
       ],
     };
   },
-  // The scope is in the URL, so it is a loader dep: a reader who narrows the
-  // page gets the narrowed payload from the server rather than from a refetch.
   loaderDeps: ({ search }) => search,
-  // The flag check lives in the loader, not beforeLoad: a beforeLoad combined
-  // with a head() that reads loaderData collapses the route-context type to
-  // `never` in the current TanStack Router version. Same pattern as
-  // meta_.$slug.tsx; the redirect still fires before anything renders.
+  // beforeLoad combined with a head() reading loaderData collapses the route
+  // context type to `never` in this TanStack Router version; flag check moves here.
   loader: async ({ context, params, deps }): Promise<MetaLegendDetailResponse> => {
     const flags = (await context.queryClient.query({
       ...featureFlagsQueryOptions,
@@ -79,8 +67,6 @@ export const Route = createFileRoute("/_app/meta_/legends_/$slug")({
       throw redirect({ to: "/cards" });
     }
     try {
-      // The set list carries the eras, which are derived from set release dates
-      // rather than stored, and which resolve the scope to a window.
       const [sets] = await Promise.all([
         context.queryClient.query({ ...publicSetListQueryOptions, staleTime: "static" }),
         context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
@@ -90,8 +76,6 @@ export const Route = createFileRoute("/_app/meta_/legends_/$slug")({
         ...metaLegendQueryOptions(params.slug, query),
         staleTime: "static",
       });
-      // After the legend, which is where its card id comes from. Capped at what
-      // the grid paints: the rest arrive when the reader asks for them.
       await context.queryClient.query({
         ...metaDecksQueryOptions({
           ...query,

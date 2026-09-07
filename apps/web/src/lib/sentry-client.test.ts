@@ -18,7 +18,6 @@ vi.mock("@sentry/tanstackstart-react", () => ({
   tanstackRouterBrowserTracingIntegration: vi.fn(),
 }));
 
-// initClientSentry early-returns unless PROD — run its body under test.
 vi.mock("./env", () => ({ PROD: true, PREVIEW_HOSTS: "", COMMIT_HASH: "test" }));
 
 const originalLocation = globalThis.location;
@@ -74,9 +73,6 @@ describe("enrichBareThrow", () => {
   });
 
   test("fingerprints per route so unrelated surfaces don't group into one issue", () => {
-    // Regression: attachStacktrace synthesizes the stack from
-    // the shared capture helper, so bare throws on /decks, /collections, and
-    // /cards all collapsed into a single Sentry issue.
     const result = enrichBareThrow({ type: undefined }, { originalException: undefined });
     expect(result.fingerprint).toEqual(["bare-throw", "/collections/abc"]);
   });
@@ -137,9 +133,6 @@ describe("captureHydrationError", () => {
   });
 
   test("tags hydration: false for an error-boundary catch after hydration settled", () => {
-    // onCaughtError fires for the app's whole lifetime — a crash minutes after
-    // load (e.g. useRequiredUserId throwing on session expiry) is not a
-    // hydration error and must not be tagged as one.
     const error = new Error("useRequiredUserId() called without an authenticated session.");
 
     captureHydrationError(error, { componentStack: "\n    in DeckEditorContent" }, "caught", false);
@@ -162,9 +155,6 @@ describe("initClientSentry", () => {
   });
 
   test("ignores transport-noise fetch failures from all three engines", () => {
-    // Regression: Firefox's message was missing from ignoreErrors, so every
-    // aborted/cancelled fetch (page reload, connection drop) created a Sentry
-    // issue, while the WebKit and Chromium equivalents were filtered.
     initClientSentry({} as Parameters<typeof initClientSentry>[0]);
 
     expect(initMock).toHaveBeenCalledTimes(1);
@@ -194,9 +184,6 @@ describe("initClientSentry", () => {
   });
 
   test("reports the deployment environment from the inlined config", () => {
-    // Regression: environment was derived from PROD, which is true for both
-    // preview and production builds, so preview errors polluted the production
-    // environment. It must come from the inlined APP_ENV instead.
     globalThis.__OPENRIFT_CONFIG__ = {
       sentryDsn: "https://key@example.ingest.sentry.io/1",
       appEnv: "preview",

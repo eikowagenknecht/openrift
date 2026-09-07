@@ -3,28 +3,21 @@ import { copyMetadataWeight } from "@openrift/shared";
 
 import { isTempCopyId } from "@/lib/temp-copy-id";
 
-/** Sentinel `moveFrom` value meaning "any collection except the target". Collection ids are uuids, so this can't collide. */
 export const MOVE_FROM_ANYWHERE = "anywhere";
 
 export interface MoveSource {
   collectionId: string;
-  /** Copy ids ordered plainest-first — index 0 is the next copy to move. */
   copyIds: string[];
 }
 
 interface MovableScope {
-  /** The move target — copies already there are never movable. */
   excludeCollectionId: string;
-  /** Restrict sources to one collection; omit for "move from anywhere". */
   onlyCollectionId?: string;
 }
 
 /**
- * Groups the viewer's movable copies by printing. Drops copies already in the
- * target collection, copies reserved by a live trade (the move API rejects the
- * whole batch for them), and optimistic temp rows still in flight from a
- * batched add (their ids aren't valid uuids yet).
- * @returns Map of printingId → movable copies (unordered).
+ * Drops copies already in the target, ones reserved by a live trade (the move
+ * API rejects the whole batch for them), and temp rows still in flight from a batched add.
  */
 export function groupMovableCopies(
   copies: readonly CopyResponse[],
@@ -40,23 +33,12 @@ export function groupMovableCopies(
   return Map.groupBy(movable, (copy) => copy.printingId);
 }
 
-/**
- * How much metadata a copy carries. The palette moves the "plainest" copy
- * first so graded, noted, or altered copies stay where the user filed them
- * unless nothing else is left. On-loan copies weigh heaviest — they're still
- * owned but physically absent, so they only move as a last resort.
- * @returns The weight; lower means plainer.
- */
+/** Moves the "plainest" copy first; graded, noted, or altered copies stay put unless nothing else is left. */
 function metadataWeight(copy: CopyResponse): number {
   return copyMetadataWeight(copy) + (copy.onLoan ? 100 : 0);
 }
 
-/**
- * Orders one printing's movable copies into per-collection sources: inbox
- * first, then the largest stash, id as a stable tiebreak. Within each source,
- * copies are ordered plainest-first (see {@link metadataWeight}).
- * @returns The sources; `sources[0].copyIds[0]` is the default copy to move.
- */
+/** Orders sources inbox-first, then largest stash; `sources[0].copyIds[0]` is the default copy to move. */
 export function buildMoveSources(copies: readonly CopyResponse[], inboxId?: string): MoveSource[] {
   const bySource = Map.groupBy(copies, (copy) => copy.collectionId);
   return [...bySource.entries()]
@@ -74,11 +56,6 @@ export function buildMoveSources(copies: readonly CopyResponse[], inboxId?: stri
     });
 }
 
-/**
- * Collapses a movable-copies map into per-printing counts, in the shape the
- * quick-add search expects for its owned-count badges.
- * @returns Record of printingId → movable copy count.
- */
 export function movableCountsByPrinting(
   grouped: Map<string, CopyResponse[]>,
 ): Record<string, number> {

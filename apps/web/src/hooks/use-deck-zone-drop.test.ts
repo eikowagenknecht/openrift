@@ -10,10 +10,6 @@ beforeEach(() => {
   resetIdCounter();
 });
 
-/**
- * The payload a deck-card drag carries, pointing at an entry already in the deck.
- * @returns Drag data for the given deck card.
- */
 function dragOf(card: DeckBuilderCard): DeckCardDragData {
   return {
     type: "deck-card",
@@ -37,8 +33,6 @@ describe("isZoneDropRejected", () => {
     ).toBe(false);
   });
 
-  // A payload whose entry is gone (a stale drag, another context's card)
-  // resolves to nothing, and an unresolvable card is not a rejection.
   it("rejects nothing when the dragged entry can't be found in the deck", () => {
     const card = stubDeckBuilderCard({ zone: WellKnown.deckZone.MAIN });
     expect(
@@ -123,7 +117,6 @@ describe("isZoneDropRejected", () => {
     ).toBe(true);
   });
 
-  // Freeform validates nothing, so only the type gate is left to reject a drop.
   it("keeps the capacity caps out of freeform", () => {
     const parked = stubDeckBuilderCard({ zone: WellKnown.deckZone.OVERFLOW, cardType: "unit" });
     const held = stubDeckBuilderCard({

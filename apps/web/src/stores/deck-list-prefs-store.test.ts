@@ -45,8 +45,6 @@ describe("useDeckListPrefsStore", () => {
     });
 
     it("ignores the filter keys left behind by the pre-URL store", () => {
-      // Filters moved into the URL. An old blob still carries them, and it must
-      // merge cleanly rather than reviving state the store no longer owns.
       const store = useDeckListPrefsStore;
       const merge = store.persist?.getOptions()?.merge;
       const result = merge?.(

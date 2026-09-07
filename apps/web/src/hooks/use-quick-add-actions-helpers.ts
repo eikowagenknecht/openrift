@@ -3,11 +3,7 @@ import { copyHasMetadata } from "@openrift/shared";
 
 import { isTempCopyId } from "@/lib/temp-copy-id";
 
-/**
- * Picks the newest copy among the given copies. Copy ids are uuidv7, so
- * lexicographic id ordering matches creation order.
- * @returns The newest copy, or undefined if the list is empty.
- */
+// Copy ids are uuidv7, so lexicographic id ordering matches creation order.
 export function pickNewestCopy(copies: readonly CopyResponse[]): CopyResponse | undefined {
   if (copies.length === 0) {
     return undefined;
@@ -15,16 +11,8 @@ export function pickNewestCopy(copies: readonly CopyResponse[]): CopyResponse | 
   return copies.toSorted((a, b) => b.id.localeCompare(a.id))[0];
 }
 
-/**
- * Picks the copy the minus button should remove: the newest copy WITHOUT
- * recorded details (ADR-038), so conditions/notes survive routine count
- * adjustments. Only when every copy is annotated does it fall back to the
- * newest annotated one — callers confirm that removal with the user. Copies
- * reserved by a live trade are never candidates: the API rejects their
- * removal, so picking one would just surface an error toast when a
- * removable sibling copy is sitting right there.
- * @returns The removal candidate, or undefined if no copy is removable.
- */
+// Prefers the newest copy without recorded details, so conditions/notes survive
+// routine count adjustments. Trade-reserved copies are never candidates.
 export function pickRemovalCopy(copies: readonly CopyResponse[]): CopyResponse | undefined {
   const removable = copies.filter((copy) => !copy.reserved);
   const bare = removable.filter((copy) => !copyHasMetadata(copy));
@@ -34,22 +22,11 @@ export function pickRemovalCopy(copies: readonly CopyResponse[]): CopyResponse |
 type RemovalDecision =
   | { kind: "none" }
   | { kind: "dispose"; copyId: string }
-  // The only removable copies carry recorded details (ADR-038) — the caller
-  // must ask before destroying them.
   | { kind: "confirmDispose"; copyId: string }
   | { kind: "picker" };
 
-/**
- * Decides what the minus button should do given the user's copies of a
- * printing. When scoped to a single collection (viewCollectionId set), only
- * copies in that collection are considered. When unscoped (All Cards view),
- * only the viewer's personal copies are considered — copies in a friend-group
- * collection belong to the group, not the viewer, so the personal minus must
- * not remove them (matching the personal-only owned badge). Single collection →
- * silent dispose of the newest bare copy, or a confirm request when only
- * annotated copies remain (ADR-038). Multiple collections → open the picker.
- * @returns The removal decision for the caller to act on.
- */
+// Single collection: dispose the newest bare copy, or confirm when only
+// annotated copies remain. Multiple collections: open the picker.
 export function decideRemoval(
   allCopies: readonly CopyResponse[],
   printingId: string,
@@ -59,10 +36,8 @@ export function decideRemoval(
     if (c.printingId !== printingId) {
       return false;
     }
-    // Optimistic temp rows aren't real copies yet; the minus button must
-    // not target them, or dispose would either 400 on the API (invalid uuid)
-    // or race with the in-flight add and "delete" a row that then comes
-    // back when the add commits.
+    // Optimistic temp rows aren't real copies; dispose would 400 on the API or
+    // race the in-flight add.
     if (isTempCopyId(c.id)) {
       return false;
     }

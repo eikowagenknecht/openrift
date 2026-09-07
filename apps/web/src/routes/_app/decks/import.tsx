@@ -10,11 +10,8 @@ import { isLocalDeckId } from "@/stores/local-decks-store";
 
 interface DeckImportSearch {
   replaceDeckId?: string;
-  /** Deck data to prefill and auto-parse, for deep links (e.g. the Discord bot or the browser extension). Any format the import box accepts. */
   code?: string;
-  /** A deck name to prefill alongside `code` (e.g. the source page's deck title). */
   name?: string;
-  /** The page the deck came from, offered on the review step as a deck link. Allowlisted hosts only. */
   source?: string;
 }
 
@@ -40,16 +37,8 @@ export const Route = createFileRoute("/_app/decks/import")({
       }
     }
     const source = search.source;
-    // The param is whatever the address bar says, so it faces the same two
-    // rules a typed-in deck link does: allowlisted https host, and the deck
-    // contract's 500-char URL limit. Anything else is dropped rather than
-    // offered and then rejected on save.
-    //
-    // Checked with `isAllowedLinkUrl` rather than `deckLinkSchema`: every route
-    // file is evaluated on every page load, so importing the schema put all 700
-    // lines of `response-schemas` in the startup graph for one URL check on one
-    // route. (The oRPC contracts still pull that module in elsewhere, so this
-    // removes a preload rather than the zod work itself.)
+    // isAllowedLinkUrl only: this route file loads eagerly on every page,
+    // and deckLinkSchema pulls in all of response-schemas.
     if (typeof source === "string" && source.length <= 500 && isAllowedLinkUrl(source)) {
       result.source = source;
     }
@@ -57,10 +46,8 @@ export const Route = createFileRoute("/_app/decks/import")({
   },
   loaderDeps: ({ search }) => ({ replaceDeckId: search.replaceDeckId }),
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Import Deck", noIndex: true }),
-  // Auth-optional (ADR-035): logged out, a pasted code creates a browser-local
-  // deck (no loader prefetch needed). Replace mode only prefetches server deck
-  // detail — a `local:` target lives in this browser's storage, and asking the
-  // server about its synthetic id would 404.
+  // Replace mode only prefetches server deck detail: a `local:` target lives
+  // in browser storage, and asking the server about it would 404.
   loader: async ({ context, deps }) => {
     await context.queryClient.query({ ...initQueryOptions, staleTime: "static" });
     if (deps.replaceDeckId && !isLocalDeckId(deps.replaceDeckId)) {

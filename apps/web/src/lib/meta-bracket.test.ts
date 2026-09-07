@@ -95,7 +95,6 @@ describe("metaEventBracket with the source's phase list", () => {
     expect(bracket?.title).toBe("Top 4");
     expect(bracket?.rounds.map((entry) => entry.label)).toEqual(["Semifinals", "Final"]);
     expect(bracket?.rounds[1].matches).toHaveLength(2);
-    // Nothing in the payload says which of the two decided the event.
     expect(bracket?.rounds[1].isFinal).toBe(false);
   });
 

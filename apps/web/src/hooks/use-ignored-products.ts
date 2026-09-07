@@ -8,20 +8,17 @@ import type { IgnoredProductsResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
-/** Unignore a whole upstream product (level 2). */
 interface UnignoreProductInput {
   level: "product";
   marketplace: Marketplace;
   externalId: number;
 }
 
-/** Unignore one specific SKU of an upstream product (level 3). */
 interface UnignoreVariantInput {
   level: "variant";
   marketplace: Marketplace;
   externalId: number;
   finish: string;
-  /** `null` for marketplaces that don't expose language as a SKU dimension (CM/TCG). */
   language: string | null;
 }
 

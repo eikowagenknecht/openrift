@@ -71,8 +71,6 @@ describe("buildPaletteGroups", () => {
     });
 
     it("lists a page once even when both nav lists carry it", () => {
-      // Scan is primary on phones and sits under Organize on desktop, gated so
-      // only one renders per platform. The palette shows both lists.
       const groups = buildPaletteGroups({
         query: "",
         cards: [],
@@ -240,8 +238,6 @@ describe("buildPaletteGroups", () => {
 
     it("holds the help and search rows back until the query is two characters", () => {
       const groups = buildPaletteGroups({
-        // "d" matches Decks by label and Cards by its second letter, but is
-        // too short to be worth a rules search or a help lookup.
         query: "d",
         cards: [],
         navItems: NAV,

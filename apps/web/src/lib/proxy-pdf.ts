@@ -17,7 +17,6 @@ interface ProxyOptions {
   deckName?: string;
 }
 
-// Card dimensions in mm (standard poker/MTG size)
 const CARD_WIDTH_MM = 63;
 const CARD_HEIGHT_MM = 88;
 
@@ -44,23 +43,12 @@ export interface ProxyCard {
   effectText: string | null;
 }
 
-/**
- * Stable identifier for de-duping rendered cards. Two deck rows pinned to
- * different printings of the same card must render distinct images.
- * @returns The printing id when resolved, else the cardId as a fallback.
- */
+/** Two deck rows pinned to different printings of the same card must render distinct images. */
 export function proxyRenderKey(proxyCard: ProxyCard): string {
   return proxyCard.printingId ?? proxyCard.cardId;
 }
 
-/**
- * Resolves deck builder cards to full card + printing data needed for proxy generation.
- *
- * Picks the same printing the deck UI shows: an explicit `preferredPrintingId`
- * on the deck row wins; otherwise the user's language preference decides
- * (defaulting EN-first), via the shared `preferredPrinting` helper.
- * @returns Flat array of ProxyCard entries with quantities expanded (one entry per copy).
- */
+/** Picks the same printing the deck UI shows: an explicit `preferredPrintingId` wins, else the language preference. */
 export function resolveProxyCards(
   deckCards: DeckBuilderCard[],
   catalog: CatalogResponse,
@@ -107,7 +95,6 @@ export function resolveProxyCards(
     if (!printing) {
       const candidates = printingsByCardId.get(deckCard.cardId);
       if (candidates) {
-        // Cast: shared helper returns one of the input items unchanged.
         printing = preferredPrinting(candidates, languageOrder) as EnrichedPrinting | undefined;
       }
     }
@@ -115,7 +102,6 @@ export function resolveProxyCards(
     const firstImageId = printing?.images[0]?.imageId ?? null;
     const imageFullUrl = firstImageId ? imageUrl(firstImageId, "full") : null;
     const flavorText = printing?.flavorText ?? null;
-    // Use printing-level text (falls back to errata if available)
     const rulesText = printing?.printedRulesText ?? card.errata?.correctedRulesText ?? null;
     const effectText = printing?.printedEffectText ?? card.errata?.correctedEffectText ?? null;
 
@@ -138,20 +124,14 @@ export function resolveProxyCards(
   return result;
 }
 
-// Render resolution for rasterization
-const RENDER_WIDTH_PX = 504; // 63mm * 8px/mm
-const RENDER_HEIGHT_PX = 704; // 88mm * 8px/mm
+const RENDER_WIDTH_PX = 504;
+const RENDER_HEIGHT_PX = 704;
 
 export interface RenderedCard {
   dataUrl: string;
   rotated: boolean;
 }
 
-/**
- * Loads an image URL and converts it to a portrait-oriented PNG data URL via canvas.
- * Detects landscape images (wider than tall) and rotates them -90° to fit portrait slots.
- * @returns Rendered card with data URL and rotation flag.
- */
 async function loadImageAsDataUrl(url: string): Promise<RenderedCard> {
   // oxlint-disable-next-line promise/avoid-new -- wrapping callback-based Image loading API
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -182,10 +162,6 @@ async function loadImageAsDataUrl(url: string): Promise<RenderedCard> {
   return { dataUrl: canvas.toDataURL("image/png"), rotated: isLandscape };
 }
 
-/**
- * Pre-renders image-mode cards. Text-mode cards are rendered by the React component.
- * @returns Map from {@link proxyRenderKey} to RenderedCard for image-mode cards only.
- */
 export async function prerenderImageCards(
   proxyCards: ProxyCard[],
   onProgress?: (current: number, total: number) => void,
@@ -217,9 +193,6 @@ export async function prerenderImageCards(
   return rendered;
 }
 
-/**
- * Draws a "PROXY" pill badge with OpenRift logo centered at the top of a card slot.
- */
 async function drawWatermark(doc: jsPDF, slotX: number, slotY: number): Promise<void> {
   const label = "PROXY";
   const fontSize = 7;
@@ -255,9 +228,6 @@ async function drawWatermark(doc: jsPDF, slotX: number, slotY: number): Promise<
   });
 }
 
-/**
- * Draws cut lines on the page for the given grid layout.
- */
 function drawCutLines(
   doc: jsPDF,
   marginX: number,
@@ -279,9 +249,6 @@ function drawCutLines(
   }
 }
 
-/**
- * Draws a fallback text rectangle when rendering fails.
- */
 function drawFallbackCard(doc: jsPDF, name: string, slotX: number, slotY: number): void {
   doc.setDrawColor(200, 200, 200);
   doc.rect(slotX, slotY, CARD_WIDTH_MM, CARD_HEIGHT_MM);
@@ -293,10 +260,7 @@ function drawFallbackCard(doc: jsPDF, name: string, slotX: number, slotY: number
   });
 }
 
-/**
- * Assembles the PDF from pre-rendered card images (from either image loading or html2canvas).
- * @returns void — triggers browser download.
- */
+/** Triggers a browser download; does not return the PDF. */
 export async function assembleProxyPdf(
   proxyCards: ProxyCard[],
   renderedCards: Map<string, RenderedCard>,
@@ -341,11 +305,6 @@ export async function assembleProxyPdf(
       const rendered = renderedCards.get(proxyRenderKey(proxyCard));
 
       if (rendered) {
-        // Card art is photographic, where jsPDF's default "SLOW" level buys about
-        // 8% over "FAST" for three and a half times the work: measured on a full
-        // 9-up page, 4.19 MB in 1.8 s against 4.55 MB in 0.55 s. A 60-card deck
-        // is seven pages of that, so the seconds matter more than the bytes.
-        // Flat art (QR codes, the logo) keeps the default, where SLOW wins big.
         doc.addImage({
           imageData: rendered.dataUrl,
           format: "PNG",

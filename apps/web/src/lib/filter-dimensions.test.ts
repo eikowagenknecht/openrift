@@ -52,7 +52,6 @@ const AVAILABILITY: FilterDimensionAvailability = {
   customTagCategoryCount: 0,
 };
 
-/** Every filter-state field the registry reads, all empty. */
 const EMPTY_STATE = {
   languages: [],
   languagesEx: [],
@@ -110,7 +109,6 @@ const state = (overrides: Partial<FilterDimensionState>): FilterDimensionState =
   ...overrides,
 });
 
-/** Identity resolvers, so a test asserts on the raw slug it passed in. */
 const IDENTITY_LABELS: FilterDimensionLabels = {
   language: (value) => value,
   set: (value) => value,
@@ -199,8 +197,6 @@ describe("countActiveFilterDimensions", () => {
   });
 
   it("counts a selection whose dimension the surface hides", () => {
-    // Placement is the only gate, so the More count never disagrees with what
-    // "clear all filters" would drop.
     const active = state({ keywords: ["Deflect"] });
     expect(countActiveFilterDimensions(active, everything)).toBe(1);
   });
@@ -301,8 +297,6 @@ describe("visibleFilterDimensions", () => {
 
 describe("sectionHasContent", () => {
   it("is true when any dimension covering the section has content", () => {
-    // The Owned bucket row always applies, so the "owned" section does too even
-    // with no Copies range to show.
     expect(sectionHasContent("owned", AVAILABILITY)).toBe(true);
   });
 

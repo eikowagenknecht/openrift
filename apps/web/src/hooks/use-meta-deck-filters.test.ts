@@ -16,11 +16,6 @@ vi.mock("@tanstack/react-router", () => ({
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { useMetaDeckFilters } from "./use-meta-deck-filters";
 
-/**
- * Applies the search updater the hook handed to `navigate` against the current
- * search, giving the params that would land in the URL.
- * @returns The resulting search object.
- */
 function resultingSearch(): Record<string, unknown> {
   const call = mockNavigate.mock.calls.at(-1)?.[0] as {
     search: (prev: MetaDeckSearch) => Record<string, unknown>;
@@ -87,7 +82,6 @@ describe("useMetaDeckFilters", () => {
     mockSearch = { events: ["rift-open"] };
     const second = renderHook(() => useMetaDeckFilters());
     second.result.current.toggleEvent("rift-open");
-    // An empty array is dropped, not written as `events=[]`.
     expect(resultingSearch()).toEqual({});
   });
 

@@ -72,8 +72,6 @@ describe("ruleWording", () => {
       for (const option of combineOptions) {
         expect(ruleCombineMatchesKind(option.value, kind)).toBe(true);
       }
-      // The kind's default is always selectable, so the select never renders a
-      // value that isn't in its own option list.
       expect(combineOptions.map((option) => option.value)).toContain(defaultRuleCombine(kind));
     }
   });
@@ -83,7 +81,6 @@ describe("ruleWording", () => {
       const wording = ruleWording(intent, kind);
       const hints = wording.combineOptions.map((option) => wording.combineHint(option.value));
       expect(hints.every((hint) => hint.length > 0)).toBe(true);
-      // Each mode reads differently, or the select would give no guidance.
       expect(new Set(hints).size).toBe(hints.length);
     }
   });
@@ -105,7 +102,6 @@ describe("ruleWording", () => {
     expect(organize.quantityLabel("printing")).toBe("Leave out per printing");
     expect(organize.groupLabel).not.toBe("");
 
-    // Card/printing lists never render the grouping select.
     expect(ruleWording("wish", "card").groupLabel).toBe("");
     expect(ruleWording("organize", "card").groupLabel).toBe("");
   });

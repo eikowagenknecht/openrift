@@ -1,10 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-/** The setup nudges the group overview can show a member. */
 export type GroupNudgeKind = "contacts" | "lists";
 
-/** @returns The storage key a group nudge is dismissed under. */
 export function groupNudgeKey(slug: string, kind: GroupNudgeKind): string {
   return `${slug}:${kind}`;
 }
@@ -14,7 +12,6 @@ interface OnboardingState {
   dismissDeckBuilderIntro: () => void;
   collectionIntroDismissed: boolean;
   dismissCollectionIntro: () => void;
-  /** `${slug}:${kind}` keys, so a dismissal only applies to that one group. */
   dismissedGroupNudges: string[];
   dismissGroupNudge: (slug: string, kind: GroupNudgeKind) => void;
 }

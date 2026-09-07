@@ -1,29 +1,17 @@
-/** One displayable group of printed tags: a category, or the "Other" bucket. */
 export interface TagCategoryGroup {
-  /** Category slug, or {@link UNCLASSIFIED_TAG_GROUP} for unclassified tags. */
   slug: string;
   label: string;
   tags: string[];
 }
 
-/** Group slug for tags with no admin classification yet. */
 export const UNCLASSIFIED_TAG_GROUP = "__other";
 
-/**
- * Groups printed tags into their admin-managed categories for display:
- * categories in /init display order, unclassified tags in a trailing
- * "Other tags" group. Empty groups are dropped, so a new set's tags stay
- * filterable (under Other) before anyone classifies them.
- *
- * @returns One group per non-empty category, in display order.
- */
 export function groupTagsByCategory(
   tags: readonly string[],
   categories: readonly { slug: string; label: string }[],
   categoryByTag: ReadonlyMap<string, string>,
 ): TagCategoryGroup[] {
-  // A tag whose mapped category isn't in the provided list (deleted category
-  // still cached, deploy skew) falls back to Other instead of vanishing.
+  // A category no longer in the list (deleted, deploy skew) falls back to Other.
   const known = new Set(categories.map((category) => category.slug));
   const byCategory = Map.groupBy(tags, (tag) => {
     const category = categoryByTag.get(tag);

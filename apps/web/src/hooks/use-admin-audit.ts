@@ -10,7 +10,6 @@ import type {
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
-/** Server-side filters for the audit event list. */
 export interface AuditFilters {
   actorUserId?: string;
   action?: string;
@@ -46,12 +45,7 @@ const fetchAuditActionsFn = createServerFn({ method: "GET" })
     apiOrpcClient(adminAuditEventsContract, context.cookie).actions(),
   );
 
-/**
- * Infinite-query options for the audit event feed (newest first, keyset
- * cursor). Exported so the route loader can prefetch the first page.
- *
- * @returns Infinite query options keyed by the active filters.
- */
+/** Exported so the route loader can prefetch the first page. */
 export function auditEventsQueryOptions(filters: AuditFilters = {}) {
   return infiniteQueryOptions({
     queryKey: ["admin", "audit-events", filters] as const,
@@ -69,12 +63,10 @@ export function auditEventsQueryOptions(filters: AuditFilters = {}) {
   });
 }
 
-/** @returns The audit event feed for the given filters. */
 export function useAuditEvents(filters: AuditFilters) {
   return useInfiniteQuery(auditEventsQueryOptions(filters));
 }
 
-/** @returns The distinct actors appearing in the audit log (for the filter dropdown). */
 export function useAuditActors() {
   return useQuery({
     queryKey: ["admin", "audit-actors"] as const,
@@ -83,7 +75,6 @@ export function useAuditActors() {
   });
 }
 
-/** @returns The distinct actions appearing in the audit log (for the filter dropdown). */
 export function useAuditActions() {
   return useQuery({
     queryKey: ["admin", "audit-actions"] as const,

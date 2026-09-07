@@ -5,10 +5,6 @@ import { useMeasuredWidth } from "./use-measured-width";
 
 type ObserverCallback = (entries: ResizeObserverEntry[]) => void;
 
-/**
- * Captures the observer callback so tests can fire fake measurements.
- * @returns The mutable state the stub writes into.
- */
 function stubResizeObserver() {
   const state: { callback: ObserverCallback | null; disconnected: boolean } = {
     callback: null,

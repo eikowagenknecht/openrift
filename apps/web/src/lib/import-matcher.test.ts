@@ -4,10 +4,6 @@ import { describe, expect, it } from "vitest";
 import { matchEntries } from "./import-matcher";
 import type { ImportEntry } from "./import-parsers";
 
-/**
- * Minimal printing factory for matcher tests.
- * @returns A Printing with sensible defaults, overridden by the given fields.
- */
 function makePrinting(overrides: Partial<Printing> & { id: string; shortCode: string }): Printing {
   return {
     cardId: "card-1",
@@ -55,7 +51,6 @@ function makePrinting(overrides: Partial<Printing> & { id: string; shortCode: st
   };
 }
 
-/** @returns An ImportEntry with sensible defaults, overridden by the given fields. */
 function makeEntry(overrides: Partial<ImportEntry>): ImportEntry {
   return {
     setPrefix: "OGN",
@@ -91,7 +86,6 @@ describe("matchEntries — language narrowing", () => {
   it("falls back to all candidates when entry has no language", () => {
     const entries = [makeEntry({ language: undefined })];
     const results = matchEntries(entries, allPrintings);
-    // Without language, both EN and SC match code + finish, so needs-review
     expect(results[0].status).toBe("needs-review");
     expect(results[0].candidates).toHaveLength(2);
   });
@@ -99,7 +93,6 @@ describe("matchEntries — language narrowing", () => {
   it("falls back to all candidates when entry language matches no printings", () => {
     const entries = [makeEntry({ language: "FR" })];
     const results = matchEntries(entries, allPrintings);
-    // FR doesn't exist, so narrowByLanguage falls back to all
     expect(results[0].status).toBe("needs-review");
     expect(results[0].candidates).toHaveLength(2);
   });
@@ -215,7 +208,6 @@ describe("matchEntries — isPromo flag", () => {
     const entries = [makeEntry({ finish: "foil", language: "EN", isPromo: true })];
     const results = matchEntries(entries, [basePrinting, promoPrinting, promoRelease]);
     expect(results[0].status).toBe("needs-review");
-    // Candidates should only include promo printings, not the base
     expect(results[0].candidates).toHaveLength(2);
     expect(results[0].candidates.every((c) => c.markers.length > 0)).toBe(true);
   });
@@ -260,10 +252,8 @@ describe("matchEntries — multi-marker promo slugs", () => {
     expect(results[0].resolvedPrinting?.id).toBe("promo-nexus-release");
   });
 
-  it("still resolves single-slug promo entries", () => {
+  it("needs review when a single-slug promo matches multiple multi-marker printings", () => {
     const entries = [makeEntry({ finish: "foil", language: "EN", promoSlug: "nexus" })];
-    // Only the single-marker printing carries exactly the nexus marker alone;
-    // both carry it, so this narrows by slug and needs review across the two.
     const results = matchEntries(entries, [singleMarkerPromo, multiMarkerPromo]);
     expect(results[0].status).toBe("needs-review");
     expect(results[0].candidates).toHaveLength(2);

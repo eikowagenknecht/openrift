@@ -37,9 +37,7 @@ describe("useMarketplaceInfo", () => {
     renderHook(() => useMarketplaceInfo(["b", "a", "a"]), { wrapper: Wrapper });
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    // The browser oRPC link calls fetch with a Request object (not a URL
-    // string); the deduped, sorted printings land as a comma list on the
-    // `printings` query param.
+    // The browser oRPC link calls fetch with a Request object, not a URL string.
     const request = fetchMock.mock.calls[0]?.[0] as Request;
     const requestUrl = new URL(request.url);
     expect(requestUrl.pathname).toBe("/api/v1/prices/marketplace-info");

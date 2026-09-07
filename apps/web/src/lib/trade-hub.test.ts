@@ -56,7 +56,6 @@ function stubMatch(overrides: Partial<MatchSuggestionFields> = {}): MatchSuggest
   };
 }
 
-/** @returns The trade ids of a list, for order assertions. */
 function ids(trades: CardTradeResponse[]): string[] {
   return trades.map((trade) => trade.id);
 }
@@ -88,7 +87,6 @@ describe("needsYouCounts", () => {
 describe("expiringSoonCount", () => {
   const NOW = new Date("2026-08-01T12:00:00.000Z");
 
-  /** @returns A request expiring at `expiresAt`. */
   function request(expiresAt: string | null): CardTradeResponse {
     return stubTrade({ actionNeeded: "accept-or-decline", expiresAt });
   }
@@ -177,7 +175,6 @@ describe("sortNeedsYou", () => {
 
 const VIEWER = "user-1";
 
-/** @returns The member ids of the built cards, in the order they'd render. */
 function cardIds(cards: { member: { userId: string } }[]): string[] {
   return cards.map((card) => card.member.userId);
 }
@@ -224,9 +221,6 @@ describe("buildTradeHubCards", () => {
     expect(card.trades).toHaveLength(4);
   });
 
-  // Regression: the hub counted every reserved row as waiting on the other
-  // side, so a person whose swaps the viewer had all settled read "16 waiting
-  // on them" while their trade sheet filed the same rows under history.
   it("does not count a reservation the viewer already settled as waiting on them", () => {
     const [card] = buildCards({
       groupTrades: [
@@ -243,8 +237,6 @@ describe("buildTradeHubCards", () => {
     expect(ids(card.open)).toEqual(["still-theirs"]);
   });
 
-  // The other half of the same rule: a swap the viewer has settled is a trade
-  // that happened, so the card's footer counts it alongside the completed ones.
   it("counts a viewer-settled reservation as traded", () => {
     const [card] = buildCards({
       groupTrades: [
@@ -269,8 +261,6 @@ describe("buildTradeHubCards", () => {
         stubTrade({ id: "here", actionNeeded: "cancel" }),
         stubTrade({ id: "elsewhere", groupId: "group-2", status: "reserved" }),
         stubTrade({ id: "elsewhere-done", groupId: "group-2", status: "completed" }),
-        // Settled by the viewer over in that group, so nothing about it is
-        // theirs to chase and it is not "in flight" here either.
         stubTrade({
           id: "elsewhere-settled-by-me",
           groupId: "group-2",
@@ -289,7 +279,6 @@ describe("buildTradeHubCards", () => {
     const [card] = buildCards({
       incoming: [
         stubMatch({ printingId: "printing-1" }),
-        // Same wish entry, second copy on offer: still one suggestion.
         stubMatch({ printingId: "printing-1" }),
         stubMatch({ printingId: "printing-2", buyEntryId: "entry-2" }),
       ],
@@ -304,8 +293,6 @@ describe("buildTradeHubCards", () => {
     const [card] = buildCards({
       incoming: [stubMatch({ printingId: "printing-1" })],
       elsewhereIncoming: [
-        // The same wish, reachable through another shared group too: one
-        // opportunity, already counted here.
         stubMatch({ printingId: "printing-1" }),
         stubMatch({ printingId: "printing-9", buyEntryId: "entry-9" }),
       ],
@@ -399,7 +386,6 @@ describe("buildTradeHubCards", () => {
 });
 
 describe("suggestionsLine", () => {
-  /** @returns A card carrying just the two suggestion counts the line reads. */
   function withCounts(suggestions: number, suggestionsElsewhere: number) {
     return { ...buildCards()[0], suggestions, suggestionsElsewhere };
   }
@@ -427,7 +413,6 @@ describe("suggestionsLine", () => {
 describe("buildTradeShelf", () => {
   const empty = { needsYou: [], incoming: [], outgoing: [] };
 
-  /** @returns The shelf's rows as `key: detail`, which is what the band prints. */
   function details(shelf: ReturnType<typeof buildTradeShelf>): string[] {
     return shelf.rows.map((row) => `${row.key}: ${row.detail}`);
   }
@@ -544,7 +529,6 @@ describe("buildTradeShelf", () => {
   });
 
   it("counts distinct suggestions but shows distinct printings", () => {
-    // Two members offering the same printing: two suggestions, one thumb.
     const shelf = buildTradeShelf({
       ...empty,
       incoming: [

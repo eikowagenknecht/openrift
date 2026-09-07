@@ -120,9 +120,6 @@ describe("canCheckDecks", () => {
 
 describe("combineLocalDateTimeToUtc", () => {
   it("round-trips with splitUtcToLocalDateTime in the runtime's timezone", () => {
-    // We must not pin a UTC string here: the combine fn interprets the inputs in
-    // the test runner's local timezone, so the only stable assertion is that
-    // splitting the result back returns the same local date + time.
     const iso = combineLocalDateTimeToUtc("2026-06-14", "20:30");
     expect(iso).not.toBeNull();
     expect(splitUtcToLocalDateTime(iso as string)).toEqual({ date: "2026-06-14", time: "20:30" });
@@ -172,12 +169,10 @@ describe("parseScheduleInput", () => {
   });
 
   it("flags startInvalid only once a start part is touched", () => {
-    // Both blank: an untouched form shows no error but still can't be saved.
     const untouched = parseScheduleInput("", "", "", "");
     expect(untouched.startInvalid).toBe(false);
     expect(untouched.scheduleInvalid).toBe(true);
 
-    // A date with no time is a touched-but-invalid start.
     const touched = parseScheduleInput("2026-06-14", "", "", "");
     expect(touched.startsAt).toBeNull();
     expect(touched.startInvalid).toBe(true);
@@ -261,14 +256,12 @@ describe("primaryViewerRole", () => {
 });
 
 describe("effectiveTournamentState", () => {
-  // A fixed "now" so every case is deterministic regardless of the runner clock.
   const now = new Date("2026-06-28T12:00:00Z");
 
   it("treats an explicit cancelled status as cancelled, regardless of dates", () => {
     expect(effectiveTournamentState("2026-06-01T10:00:00Z", null, "cancelled", now)).toBe(
       "cancelled",
     );
-    // Future start, still cancelled.
     expect(effectiveTournamentState("2026-07-01T10:00:00Z", null, "cancelled", now)).toBe(
       "cancelled",
     );
@@ -297,11 +290,9 @@ describe("effectiveTournamentState", () => {
   });
 
   it("auto-completes 24h after the start when there is no end", () => {
-    // Started 25h ago, no end → past the start+24h grace → completed.
     expect(effectiveTournamentState("2026-06-27T11:00:00Z", null, "running", now)).toBe(
       "completed",
     );
-    // Started 11h ago, no end → still inside the grace → in_progress.
     expect(effectiveTournamentState("2026-06-28T01:00:00Z", null, "running", now)).toBe(
       "in_progress",
     );
@@ -309,15 +300,12 @@ describe("effectiveTournamentState", () => {
 
   it("keeps a 23:00 start in_progress at the next midnight and completed ~24h later", () => {
     const start = "2026-06-27T23:00:00Z";
-    // Next midnight (1h after start) → still in_progress, not completed at midnight.
     expect(effectiveTournamentState(start, null, "running", new Date("2026-06-28T00:00:00Z"))).toBe(
       "in_progress",
     );
-    // Just before start+24h → still in_progress.
     expect(effectiveTournamentState(start, null, "running", new Date("2026-06-28T22:59:00Z"))).toBe(
       "in_progress",
     );
-    // At start+24h → completed.
     expect(effectiveTournamentState(start, null, "running", new Date("2026-06-28T23:00:00Z"))).toBe(
       "completed",
     );

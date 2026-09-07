@@ -57,10 +57,9 @@ describe("buildChannelBreadcrumbs", () => {
     expect(map.get("a")).toBe("Orphan");
   });
 
-  it("handles a parentId cycle without looping forever", () => {
+  it("halts on a parentId cycle and still resolves a finite path", () => {
     const channels = [ch("a", "a", "A", "b"), ch("b", "b", "B", "a")];
     const map = buildChannelBreadcrumbs(channels);
-    // Cycle detection halts on revisit; both still resolve to a finite path.
     expect(map.get("a")).toBeDefined();
     expect(map.get("b")).toBeDefined();
   });

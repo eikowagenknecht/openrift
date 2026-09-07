@@ -1,7 +1,4 @@
-// Must be the first imports: initialize Sentry + OTel before any request
-// handling. See ./instrument.server.mjs for the "without --import flag"
-// rationale; tracing.server.ts is the OTel equivalent for trace export to
-// Tempo (no-op when OTEL_EXPORTER_OTLP_ENDPOINT is unset).
+// Must be the first imports: initialize Sentry + OTel before any request handling.
 // oxlint-disable-next-line import/no-unassigned-import -- side-effect instrumentation bootstrap
 import "./instrument.server.mjs";
 // oxlint-disable-next-line import/no-unassigned-import -- side-effect instrumentation bootstrap
@@ -20,16 +17,12 @@ import {
   SITEMAP_INDEX_PATH,
 } from "./lib/sitemap";
 
-// Opt-in SSR timing instrumentation. Mirrors the API's LOG_REQUESTS flag:
-// default off, no overhead in prod unless explicitly enabled for benchmarking.
 const LOG_SSR_TIMINGS = process.env.LOG_SSR_TIMINGS === "true";
 
 const DEPLOY_DATE = new Date().toISOString().slice(0, 10);
 
 function getSiteUrl(): string {
-  // Dev fallback is a localhost URL on purpose — a missing SITE_URL in
-  // production should fail loudly rather than silently leaking the prod URL
-  // into preview deploys. Must stay in sync with runtime-config.ts.
+  // Must stay in sync with runtime-config.ts.
   return process.env.SITE_URL ?? "http://localhost:5173";
 }
 
@@ -37,7 +30,6 @@ function isPreview(): boolean {
   return process.env.APP_ENV === "preview";
 }
 
-// Preview deploys serve a restrictive robots.txt to block crawlers.
 // Layer 2 of 3 (see __root.tsx meta + nginx X-Robots-Tag).
 const PREVIEW_ROBOTS_TXT = "User-agent: *\nDisallow: /\n";
 
@@ -69,9 +61,7 @@ function buildProdRobotsTxt(): string {
   ].join("\n");
 }
 
-// Global flag defaults for sitemap gating (anonymous view, no per-user
-// overrides). A failed fetch degrades to "all flags off": flag-gated entries
-// drop out of the sitemap rather than failing the whole sitemap.
+// A failed fetch degrades to all flags off; the sitemap still builds.
 async function fetchGlobalFeatureFlags(): Promise<Record<string, boolean>> {
   try {
     const data = await fetchApiJson<FeatureFlagsResponse>({
@@ -111,13 +101,8 @@ function xmlResponse(xml: string): Response {
   });
 }
 
-/**
- * The sitemap index and its section files. The archive alone holds more URLs
- * than one sitemap may, so `/sitemap.xml` is an index and each section is its
- * own file, split further once it outgrows the per-file limit.
- *
- * @returns The response, or null when the path is not a sitemap.
- */
+// The archive alone holds more URLs than one sitemap may, so `/sitemap.xml` is
+// an index and each section its own file, split further past the per-file limit.
 async function sitemapResponse(pathname: string): Promise<Response | null> {
   if (pathname === SITEMAP_INDEX_PATH) {
     return xmlResponse(renderSitemapIndex(await sitemapInput()));
@@ -130,16 +115,8 @@ async function sitemapResponse(pathname: string): Promise<Response | null> {
   return xml === null ? new Response("Not found", { status: 404 }) : xmlResponse(xml);
 }
 
-// Intentionally NOT wrapped in wrapFetchWithSentry. That wrapper string-injects
-// <meta name="sentry-trace"> / <meta name="baggage"> into <head> on every HTML
-// response, outside React's render tree. With our full-document
-// hydrateRoot(document) (which hydrates <head>), React finds head children it
-// never rendered and throws an unrecoverable hydration error (#418) on every
-// page — prod-only, because the tags appear only when SENTRY_DSN_SSR is set.
-// Sentry error capture and server/function spans come from the global
-// middlewares in start.ts; Grafana/Tempo spans from otelRequestMiddleware +
-// tracing.server.ts. Dropping the wrapper therefore loses only Sentry's
-// server→client trace-meta linkage, not error tracking. See lib/sentry-client.ts.
+// Not wrapped in wrapFetchWithSentry: it injects <meta> tags into <head> outside
+// React's render tree, which our hydrateRoot(document) throws #418 on (prod-only).
 export default createServerEntry({
   async fetch(request: Request) {
     const url = new URL(request.url);

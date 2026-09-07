@@ -106,36 +106,16 @@ const PROMOS_CARD_SIZES =
 
 const BREADCRUMB_SEP = " › ";
 
-// Set, type and rarity are dropped here: the page is one long answer to "which
-// promos exist", and a reader already on it came for where a printing came from
-// and what it was handed out for, not for its rarity. What is left is one
-// column per question — which card, where from, what is known about it — with
-// the note column carrying the markers and sources alongside the comment.
-// Section headers name the channel when the sections are channels, so the
-// channel column only earns its place under the other groupings.
-// Without a channel column the note is the only thing here that scales, so it
-// takes the leftover width rather than the name, which tops out around 320px
-// and spends anything past that on padding.
 const PROMO_TABLE_OPTIONS: CardTableColumnOptions = {
   columns: ["image", "name", "notes"],
   stretch: "notes",
 };
 
-// With the channel in play it wants the width more: a channel four levels deep
-// spends more than 400px on its breadcrumb alone and was truncating at a fixed
-// width, while the note still has its own flexible track.
 const PROMO_TABLE_OPTIONS_WITH_CHANNEL: CardTableColumnOptions = {
   columns: ["image", "name", "channel", "notes"],
   stretch: "channel",
 };
 
-/**
- * A branch qualifies for compact-table rendering when every direct child is a
- * leaf and each leaf has ≤ COMPACT_LEAF_THRESHOLD printings. This collapses
- * many sparse one-card sections into a single readable table.
- *
- * @returns True when the branch should render as a compact table.
- */
 function isCompactBranch(node: ChannelNode): boolean {
   if (node.children.length === 0) {
     return false;
@@ -156,12 +136,8 @@ function formatLanguageAggregate(
 }
 
 /**
- * Walk the channel tree and collect every channel that carries at least one
- * printing. The TOC keeps the hierarchical layout (depth-indented) even though
- * the content area renders sections flat — non-leaf entries scroll to a hidden
- * anchor at the start of their first descendant section.
- *
- * @returns Flat list of toc items in render order.
+ * Non-leaf entries scroll to a hidden anchor at the start of their first
+ * descendant section; the TOC stays depth-indented though content is flat.
  */
 function collectChannelTocItems(
   nodes: ChannelNode[],
@@ -185,7 +161,6 @@ function collectChannelTocItems(
   }
 }
 
-/** Every grouping but the channel tree, which renders as nested sections. */
 type FlatSectionKind = Exclude<PromoGrouping, "channel">;
 
 function flatSectionAnchor(languagePrefix: string, kind: FlatSectionKind, id: string): string {
@@ -224,11 +199,8 @@ interface ChannelRenderItem {
   kind: "leaf" | "compact";
   node: ChannelNode;
   ancestors: string[];
-  /** Non-leaf parents introduced at this position; rendered as hidden anchors so the TOC can still scroll-target them. */
   parentAnchorIds: string[];
-  /** Stable id for the visible section header. */
   sectionId: string;
-  /** Full breadcrumb shown in the divider header and sticky pill. */
   title: string;
 }
 
@@ -311,11 +283,8 @@ function PromosPage() {
   const { filters, ranges, filterState, groupDir, hasActiveFilters } = useFilterValues();
   const ownedFilterActive = filters.ownedFilter.length > 0;
   const fetchOwned = isLoggedIn && (showOwned || ownedFilterActive);
-  // useOwnedCount → useLiveQuery uses useSyncExternalStore without a server
-  // snapshot, which is invalid during SSR. Defer the call to OwnedCountBridge,
-  // which mounts only after hydration; the result is lifted up via state. SSR
-  // renders without owned counts (and ignores any owned filter) and the data
-  // pops in once the client takes over.
+  // useOwnedCount's useSyncExternalStore has no server snapshot, invalid during
+  // SSR, so the call is deferred to OwnedCountBridge, which mounts post-hydration.
   const hydrated = useHydrated();
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
   const topBarHeight = useMeasuredHeight(topBarSlot);
@@ -338,19 +307,14 @@ function PromosPage() {
 
   const viewMode: ViewMode = useDisplayStore((s) => s.displayMode);
 
-  // The promo read carries the sets its own printings reference, so the set
-  // filter and sort axes never pull the whole catalogue onto this page.
   const promoSets = data.sets;
   const setSlugToName = new Map(promoSets.map((s) => [s.slug, s.name] as const));
   const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;
 
   const activePrintings = data.printings;
 
-  // Show the price filter only where there are prices to filter on, rather than
-  // assuming English. Cardmarket and TCGplayer feeds carry no language and are
-  // bound to EN printings, but CardTrader stages real per-language variants, so
-  // a non-EN promo can be priced. Keying off the data also hides the filter for
-  // an EN promo that simply has no mapping yet.
+  // Keyed off price presence, not an EN assumption: Cardmarket/TCGplayer are
+  // EN-only with no language field, but CardTrader prices per-language variants.
   const priceFilterEnabled = activePrintings.some(
     (p) => display.prices.get(p.id, display.favoriteMarketplace) !== undefined,
   );
@@ -390,16 +354,11 @@ function PromosPage() {
     printing,
   }));
 
-  // Apply groupDir uniformly across all groupings — the channel tree reverses
-  // its top-level order; every other axis reverses inside buildGroups. Mirrors
-  // how /cards' card-grid handles groupDir so the toggle behaviour is
-  // consistent across pages.
+  // The channel tree reverses its own top-level order here; every other axis
+  // reverses inside buildGroups instead.
   const channelTree = buildPromoTreeFromMatches(matchedPrintings, data.channels);
   const orderedChannelTree =
     grouping === "channel" ? (groupDir === "desc" ? channelTree.toReversed() : channelTree) : [];
-  // Every axis but the channel tree goes through the shared grouping engine and
-  // is adapted to this page's flat sections. The promo read's sets feed the
-  // "set" axis; there is no collection order, /promos never offers it.
   const flatKind: FlatSectionKind | null = grouping === "channel" ? null : grouping;
   const flatSections =
     flatKind === null
@@ -438,11 +397,8 @@ function PromosPage() {
     label: languageLabelMap.get(code) ?? code,
   }));
 
-  // Hash-scroll: TanStack Router navigations land before the lazy route's
-  // content is in the DOM, so the native browser scroll-to-hash misses the
-  // target. Re-run whenever the hash changes or the active language switches.
-  // A language switch re-renders the sections the hash points into, so the
-  // scroll has to run again for the same hash.
+  // TanStack Router navigations land before the lazy route's content is in the
+  // DOM, so the native browser scroll-to-hash misses the target; re-run manually.
   useScopeEffect(`${activeLanguage} ${location.hash}`, () => {
     if (!location.hash) {
       return;
@@ -641,13 +597,6 @@ function PromoSectionsContent({
 }: PromoSectionsContentProps) {
   const { stickyOffset } = useCardBrowserLayoutOffsets();
 
-  // Share the column-sizing mechanism with /cards: useResponsiveColumns
-  // measures the container, applies the user's maxColumns override, and
-  // publishes the live autoColumns / physicalMin / physicalMax so
-  // ColumnControls in the toolbar reflects the real measurement. Each section
-  // grid further down consumes `columns` via inline gridTemplateColumns,
-  // replacing the previous Tailwind breakpoint classes (wide:grid-cols-6
-  // xwide:grid-cols-8 …).
   const maxColumns = useDisplayStore((s) => s.maxColumns);
   const setMeasurements = useGridViewportStore((s) => s.setMeasurements);
   const { containerRef, columns, autoColumns, physicalMax, physicalMin, containerWidth, measured } =
@@ -659,8 +608,6 @@ function PromoSectionsContent({
     setMeasurements({ physicalMax, physicalMin, autoColumns });
   }, [autoColumns, physicalMax, physicalMin, setMeasurements]);
 
-  // Active = the last section whose top has crossed the sticky threshold.
-  // Drives the floating pill and the smooth-scroll-to-section button.
   const sectionEntries: { id: string; label: string; count: number }[] =
     grouping === "channel"
       ? channelRenderItems.map((item) => ({
@@ -685,20 +632,15 @@ function PromoSectionsContent({
     if (!el) {
       return;
     }
-    // Compute target manually rather than rely on scroll-margin-top, so the
-    // section.top lands at exactly stickyOffset (right below the sticky
-    // stack). Matches CardGrid's scrollToGroup; the h-0 pill above overlaps
-    // the section's divider header for ~28px just like /cards.
+    // Must land exactly at stickyOffset, matching CardGrid's scrollToGroup.
     const top = el.getBoundingClientRect().top + globalThis.scrollY - stickyOffset;
     globalThis.scrollTo({ top, behavior: "auto" });
   };
 
   return (
     <>
-      {/* Floating section pill — h-0 keeps it out of the layout flow so the
-          grid keeps butting up against the sticky stack; the pill just hovers
-          over the first row of cards while a section is active. z-20 keeps it
-          above hovered cards (which elevate to z-10). */}
+      {/* h-0 keeps the pill out of layout flow (it hovers over the first row);
+          z-20 keeps it above hovered cards, which elevate to z-10. */}
       <div className="sticky z-20 h-0" style={{ top: `${stickyOffset}px` }}>
         {activeSection && (
           <div className="flex justify-center pt-2">
@@ -714,9 +656,8 @@ function PromoSectionsContent({
         )}
       </div>
 
-      {/* Single outer wrapper so useResponsiveColumns has a stable container
-          to measure — the ResizeObserver is wired up once and survives the
-          channel↔flat branch swap below. */}
+      {/* Single wrapper so useResponsiveColumns' ResizeObserver stays wired
+          across the channel/flat branch swap below. */}
       <div ref={containerRef}>
         {hasContent ? (
           grouping === "channel" ? (
@@ -792,13 +733,7 @@ function PromoSectionsContent({
   );
 }
 
-/**
- * Tracks the currently-active section as the user scrolls. "Active" is the
- * last section whose top has crossed the sticky threshold (header + toolbar);
- * matches CardGrid's sticky-pill behavior.
- *
- * @returns The id of the active section, or null when scrolled above all of them.
- */
+// Must match CardGrid's sticky-pill "active" definition.
 function useActiveSection(
   entries: { id: string; label: string }[],
   threshold: number,
@@ -846,13 +781,6 @@ interface SectionDividerProps {
   anchorId?: string;
 }
 
-/**
- * Centered title between two horizontal rules, mirroring CardGrid group
- * headers. The description (if any) sits centered beneath, capped to a
- * readable measure so multi-line markdown doesn't sprawl across the grid.
- *
- * @returns The divider header.
- */
 function SectionDivider({ title, count, description, anchorId }: SectionDividerProps) {
   return (
     <div className="mb-3">
@@ -889,7 +817,6 @@ interface RenderedSectionProps {
   viewMode: ViewMode;
   showImages: boolean;
   display: CardThumbnailDisplay;
-  /** Column/gap props from {@link buildGridProps}, resolved once for every section grid. */
   grid: SectionGridProps;
   onCardClick: (printing: Printing) => void;
   ownedCounts: Record<string, number> | undefined;
@@ -902,28 +829,14 @@ interface SectionGridProps {
   style: React.CSSProperties;
 }
 
-/**
- * Class string and style object for a section grid. Pre-measurement uses
- * container-query Tailwind classes so SSR-painted HTML already has the right
- * column count for the actual container width. Post-measurement, an inline
- * `gridTemplateColumns` locks in the JS-measured (or user-controlled) value
- * and overrides the CSS classes.
- *
- * Both branches take their gap from card-grid-metrics, the same rule /cards
- * lays out with.
- * @param columns Resolved column count.
- * @param containerWidth Measured container width, in px.
- * @param measured Whether useResponsiveColumns has measured the container yet.
- * @returns Props to spread onto the grid container.
- */
+// Pre-measurement uses container-query Tailwind classes so SSR HTML matches
+// the eventual column count; post-measurement switches to inline `gridTemplateColumns`.
 function buildGridProps(
   columns: number,
   containerWidth: number,
   measured: boolean,
 ): SectionGridProps {
   if (!measured) {
-    // No measurement yet, so the gap can't be resolved in JS either — the
-    // container-query classes evaluate the same rule against the live width.
     return {
       className: cn("grid", SSR_RESPONSIVE_GRID_COLS, SSR_RESPONSIVE_GRID_GAP),
       style: {},
@@ -1072,17 +985,13 @@ function CompactSection({
   sortPrintings,
   setNameBySlug,
 }: { item: ChannelRenderItem } & RenderedSectionProps) {
-  // Compact: every direct child is a leaf with few printings. Render them as
-  // a single combined section anchored under the parent's breadcrumb. Each
-  // leaf still gets its own anchor (on the first card / row) so cross-route
-  // hash links keep working even though the leaf has no header of its own.
-  // localPrintingCount dedupes printings linked to multiple sibling channels;
-  // the pill in the toolbar uses the same source so the two counts match.
   return (
     <section id={item.sectionId} style={{ scrollMarginTop: `${stickyOffset}px` }}>
       <ParentAnchors ids={item.parentAnchorIds} stickyOffset={stickyOffset} />
       <SectionDivider
         title={item.title}
+        // localPrintingCount dedupes printings linked to multiple sibling
+        // channels; the toolbar pill uses the same source so the counts match.
         count={item.node.localPrintingCount}
         description={item.node.channel.description}
         anchorId={item.sectionId}
@@ -1215,9 +1124,8 @@ function CompactBranchTable({
   const multipleBranches = branches.length > 1;
   return (
     <>
-      {/* Desktop: shared CardTable layout. The tracks are fixed px, so the
-          wrapper scrolls sideways rather than letting the rows spill past the
-          content column on narrow desktops. */}
+      {/* Tracks are fixed px, so the wrapper scrolls sideways on narrow desktops
+          rather than letting rows spill past the content column. */}
       <div className="hidden overflow-x-auto overflow-y-clip md:block">
         <div style={{ minWidth }}>
           {branches.map(({ child, printings }) => {
@@ -1261,7 +1169,6 @@ function CompactBranchTable({
         </div>
       </div>
 
-      {/* Mobile: stacked cards, grouped by leaf channel */}
       <div className="flex flex-col gap-4 md:hidden">
         {branches.map(({ child, printings }) => {
           const anchorId = `lang-${printings[0].language}-ch-${child.channel.id}`;
@@ -1302,7 +1209,6 @@ function PromoListView({
   onRowClick: (printing: Printing) => void;
   ownedCounts: Record<string, number> | undefined;
   setNameBySlug: Map<string, string>;
-  /** Adds the channel column — for sections that group by something else. */
   showChannel?: boolean;
 }) {
   const { labels } = useEnumOrders();
@@ -1338,7 +1244,6 @@ function PromoListView({
         </div>
       </div>
 
-      {/* Mobile: stacked cards */}
       <div className="flex flex-col gap-2 md:hidden">
         {printings.map((printing) => (
           <PromoMobileCard
@@ -1355,19 +1260,8 @@ function PromoListView({
   );
 }
 
-/**
- * The list view below `md`, where the table's columns become stacked lines. It
- * carries the same facts as a table row — art, name, code and finish, channel,
- * then the note, markers and sources — so a phone is not a lesser view of the
- * same page.
- *
- * The whole card opens the printing, but the note holds source links, and a
- * link inside a `<button>` is invalid markup. So the click target is a
- * stretched `Pressable` behind the content rather than a wrapper around it, and
- * the note rises above it to keep its own links clickable.
- *
- * @returns The phone-sized list card.
- */
+// The note holds source links, so its click target is a stretched Pressable
+// behind the content, with the note rising above it to keep its links clickable.
 function PromoMobileCard({
   printing,
   ownedCount,
@@ -1378,7 +1272,6 @@ function PromoMobileCard({
   printing: Printing;
   ownedCount: number;
   showOwnedCount: boolean;
-  /** Mirrors the table's channel column — off when the sections are channels. */
   showChannel?: boolean;
   onClick: (printing: Printing) => void;
 }) {
@@ -1394,9 +1287,6 @@ function PromoMobileCard({
             <span className="text-muted-foreground shrink-0 tabular-nums">&times;{ownedCount}</span>
           )}
         </div>
-        {/* One step down for everything under the name, set once here rather
-            than per line — the cells below carry no size of their own, so the
-            card reads as two sizes instead of one per fact. */}
         <div className="space-y-1 text-sm">
           <div className="text-muted-foreground flex items-center gap-1">
             <span className="truncate tabular-nums">{printing.publicCode}</span>
@@ -1442,9 +1332,8 @@ function PromosPending() {
       <Skeleton className="mb-6 h-5 w-64" />
       <Skeleton className="mb-2 h-7 w-36" />
       <Skeleton className="mb-4 h-4 w-48" />
-      {/* A pending placeholder, not a card grid: its viewport breakpoints
-          already don't track the live container-measured column counts, so it
-          keeps a plain gap rather than pretending to follow card-grid-metrics. */}
+      {/* Fixed breakpoints on purpose: a pending placeholder can't know the
+          live container-measured column count yet. */}
       <div className="wide:grid-cols-6 xwide:grid-cols-8 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
         {Array.from({ length: 12 }, (_, i) => (
           <div key={i} className="p-1.5">

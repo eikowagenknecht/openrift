@@ -285,9 +285,6 @@ describe("buildSubmissionPayload", () => {
 
   describe("against a baseline", () => {
     it("sends only the printing the contributor edited", () => {
-      // The correction flow prefills every printing of the card. Without this
-      // a one-field fix arrives as N staging rows proposing nothing, burying
-      // the single cell the admin has to look at.
       const baseline = fullState();
       const edited = fullState();
       edited.printings[0] = { ...edited.printings[0], artist: "Someone New" };
@@ -321,7 +318,6 @@ describe("buildSubmissionPayload", () => {
     });
 
     it("sends a printing whose identity was corrected", () => {
-      // Changing the finish is itself the correction, so it must go through.
       const baseline = fullState();
       const edited = fullState();
       edited.printings[0] = { ...edited.printings[0], finish: "normal" };
@@ -341,8 +337,6 @@ describe("buildSubmissionPayload", () => {
     });
 
     it("sends every printing when no baseline is given", () => {
-      // The image flow pre-populates its one printing with the URL being
-      // suggested, so filtering against it would drop the whole submission.
       const payload = buildSubmissionPayload(fullState(), null);
       expect(payload.printings.length).toBeGreaterThan(0);
     });

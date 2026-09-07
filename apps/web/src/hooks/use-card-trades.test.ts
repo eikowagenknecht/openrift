@@ -25,9 +25,7 @@ describe("aggregateIncomingTradeCounts", () => {
     });
   });
 
-  it("sums several reserved trades on one printing", () => {
-    // Two counterparties each sending a copy of the same card is one printing
-    // with two incoming copies, not two separate signals.
+  it("sums several reserved trades on one printing into one incoming count", () => {
     const counts = aggregateIncomingTradeCounts([
       annotation({ quantity: 1 }),
       annotation({ quantity: 3 }),
@@ -36,16 +34,11 @@ describe("aggregateIncomingTradeCounts", () => {
     expect(counts).toEqual({ "printing-1": 4 });
   });
 
-  it("ignores the giver side", () => {
-    // Cards the viewer is sending away are already handled as `lockedReserved`
-    // on the copies themselves. Counting them here would add stock for cards
-    // leaving the collection.
+  it("ignores the giver side, already tracked as lockedReserved on the copies", () => {
     expect(aggregateIncomingTradeCounts([annotation({ role: "giver", quantity: 2 })])).toEqual({});
   });
 
-  it("ignores phases before reserve", () => {
-    // Nothing is pinned until a trade is reserved, and the same cards can sit
-    // in several open offers at once, so an asked/offered card may never come.
+  it("ignores phases before reserve, since nothing is pinned yet", () => {
     expect(
       aggregateIncomingTradeCounts([
         annotation({ phase: "asked", quantity: 2 }),

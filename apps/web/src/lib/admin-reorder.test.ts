@@ -80,13 +80,6 @@ interface Node {
   parentId: string | null;
 }
 
-// Depth-first, the order the channels table renders:
-//   root-a
-//     a1
-//       a1x
-//     a2
-//   root-b
-//     b1
 const tree: Node[] = [
   { id: "root-a", parentId: null },
   { id: "a1", parentId: "root-a" },
@@ -123,8 +116,7 @@ describe("treeReorder", () => {
     expect(treeMoves.step("a1x", 1)).toBeNull();
   });
 
-  it("resolves a drop inside a sibling's subtree to that sibling", () => {
-    // root-a dropped on b1 lands after root-b, b1's parent.
+  it("resolves a drop inside a sibling's subtree to that sibling's parent slot", () => {
     expect(treeMoves.moveTo("root-a", "b1")).toEqual(["root-b", "b1", "root-a", "a1", "a1x", "a2"]);
   });
 
@@ -142,8 +134,6 @@ describe("treeReorder", () => {
     expect(treeMoves.moveTo("a1", "root-a")).toBeNull();
   });
 
-  // What the table asks per row while a drag is in flight, to keep the rows a
-  // channel can't land on from accepting it.
   it("answers the cheap checks the same way as the moves themselves", () => {
     expect(treeMoves.canDropOn("root-a", "b1")).toBe(true);
     expect(treeMoves.canDropOn("a1", "b1")).toBe(false);

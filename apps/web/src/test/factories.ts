@@ -1,7 +1,3 @@
-/**
- * Shared test factories for creating stub data objects.
- * Uses deep defaults with partial overrides for convenience.
- */
 import type {
   Card,
   CardType,
@@ -22,7 +18,6 @@ import type { CardViewerItem } from "@/components/card-viewer-types";
 import type { CardOwnership } from "@/hooks/use-deck-ownership";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 
-/** Empty trade preference (ADR-017). Useful for list/entry fixtures that don't exercise prefs. */
 export const EMPTY_TRADE_PREFERENCE: TradePreference = {
   pricePref: null,
   priceAbsoluteCents: null,
@@ -36,17 +31,10 @@ function nextId(): string {
   return `00000000-0000-0000-0000-${String(idCounter).padStart(12, "0")}`;
 }
 
-/**
- * Resets the ID counter between tests to keep IDs deterministic.
- */
 export function resetIdCounter(): void {
   idCounter = 0;
 }
 
-/**
- * Creates a stub CopyResponse with empty metadata (ADR-038) defaults.
- * @returns A complete CopyResponse with overrides applied.
- */
 export function stubCopy(overrides: Partial<CopyResponse> = {}): CopyResponse {
   return {
     id: nextId(),
@@ -66,11 +54,7 @@ export function stubCopy(overrides: Partial<CopyResponse> = {}): CopyResponse {
   };
 }
 
-/**
- * Creates a stub Card object. Adds the web fixtures' generated slug and stat
- * line on top of the shared defaults.
- * @returns A complete Card object with overrides applied.
- */
+/** Adds the web fixtures' generated slug and stat line on top of the shared defaults. */
 export function stubCard(overrides: Partial<Card> = {}): Card {
   return makeCard({
     slug: `RB1-${nextId().slice(-3)}`,
@@ -82,19 +66,14 @@ export function stubCard(overrides: Partial<Card> = {}): Card {
   });
 }
 
-/**
- * Creates a stub Printing object with sensible defaults.
- * @returns A complete Printing object with overrides applied.
- */
 export function stubPrinting(
   overrides: Omit<Partial<Printing>, "card"> & { card?: Partial<Card> } = {},
 ): Printing {
-  // The ids are drawn in this order, before the card, so a fixture's generated
-  // ids stay stable regardless of what the shared defaults do.
+  // Drawn before the card so a fixture's generated ids stay stable
+  // regardless of what the shared defaults do.
   const id = overrides.id ?? nextId();
   const cardId = overrides.cardId ?? nextId();
   const { card: cardOverrides, ...printingOverrides } = overrides;
-  // Built here rather than left to the shared factory: the codes derive from it.
   const card = stubCard(cardOverrides);
   return makePrinting({
     id,
@@ -109,10 +88,6 @@ export function stubPrinting(
   });
 }
 
-/**
- * Creates a stub CardViewerItem from a Printing.
- * @returns A CardViewerItem wrapping the printing.
- */
 export function stubCardViewerItem(
   overrides: Omit<Partial<Printing>, "card"> & { card?: Partial<Card> } = {},
 ): CardViewerItem {
@@ -121,12 +96,8 @@ export function stubCardViewerItem(
 }
 
 /**
- * Builds a {@link PriceLookup} from a map of `printingId → marketplace → price`,
- * where prices are already in **major units** (the unit app code works in after
- * the display boundary). Unlike `priceLookupFromMap` — which converts wire cents
- * down to major units — this returns values verbatim, so tests can keep
- * expressing prices as e.g. `{ tcgplayer: 5.5 }`.
- * @returns A lookup that resolves the given major-unit prices directly.
+ * Prices are major units verbatim, unlike `priceLookupFromMap` which converts
+ * wire cents.
  */
 export function stubPriceLookup(
   prices: Record<string, Partial<Record<Marketplace, number>>>,
@@ -137,10 +108,6 @@ export function stubPriceLookup(
   };
 }
 
-/**
- * Creates a DeckBuilderCard stub for deck builder store tests.
- * @returns A DeckBuilderCard with overrides applied.
- */
 export function stubDeckBuilderCard(overrides: Partial<DeckBuilderCard> = {}): DeckBuilderCard {
   const cardType = overrides.cardType ?? overrides.cardTypes?.[0] ?? ("unit" as CardType);
   return {
@@ -164,11 +131,6 @@ export function stubDeckBuilderCard(overrides: Partial<DeckBuilderCard> = {}): D
   };
 }
 
-/**
- * Creates a CardOwnership stub (a missing-cards row) for deck ownership and
- * export tests. Defaults to one missing copy with a display printing.
- * @returns A CardOwnership with overrides applied.
- */
 export function stubCardOwnership(overrides: Partial<CardOwnership> = {}): CardOwnership {
   const name = overrides.cardName ?? "Test Card";
   return {
@@ -215,12 +177,7 @@ type MetaPlayerFinishOverrides = Partial<Omit<MetaPlayerFinish, "event">> & {
   event?: Partial<MetaPlayerFinish["event"]>;
 };
 
-/**
- * Creates one archived finish for the player page, defaulting to a win at a
- * German store event with a legend on file. Pass `legend: null` for a row no
- * source named a legend for.
- * @returns A MetaPlayerFinish with overrides applied.
- */
+/** Pass `legend: null` for a row no source named a legend for. */
 export function makeMetaPlayerFinish(overrides: MetaPlayerFinishOverrides = {}): MetaPlayerFinish {
   const { event, ...rest } = overrides;
   return {
@@ -247,10 +204,6 @@ export function makeMetaPlayerFinish(overrides: MetaPlayerFinishOverrides = {}):
   };
 }
 
-/**
- * Creates the player detail payload the page loads, with one finish by default.
- * @returns A MetaPlayerDetailResponse with overrides applied.
- */
 export function makeMetaPlayerDetail(
   overrides: Partial<MetaPlayerDetailResponse> = {},
 ): MetaPlayerDetailResponse {

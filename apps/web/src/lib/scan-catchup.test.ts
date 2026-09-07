@@ -9,35 +9,17 @@ import {
   shouldRunCatchUp,
 } from "@/lib/scan-catchup";
 
-/**
- * Fill a queue with entries under the given ids.
- *
- * A helper rather than repeated `push` calls, which oxlint reads as the
- * Array#push it is telling people to batch.
- *
- * @returns Nothing; the queue is filled in place.
- */
 function fill(queue: ReturnType<typeof createCatchUpQueue>, ...ids: string[]): void {
   for (const id of ids) {
     queue.push(entry(id));
   }
 }
 
-/**
- * A queue entry with a one-pixel frame.
- *
- * @returns The entry.
- */
 function entry(id: string, at = 0): CatchUpEntry {
   const frame: RgbaImage = { data: new Uint8ClampedArray(4), width: 1, height: 1 };
   return { id, frame, thumbnail: null, at };
 }
 
-/**
- * A frame winner.
- *
- * @returns The winner.
- */
 function winner(inliers: number, rivalInliers: number): FrameWinner {
   return { key: "a", artKey: "artA", inliers, rivalInliers };
 }
@@ -107,13 +89,10 @@ describe("catchUpVerdict", () => {
   });
 
   it("asks when the rival artwork is close, however many inliers there are", () => {
-    // 80 inliers is plenty, but a rival at 50 means the frame does not say
-    // which of the two artworks it is.
     expect(catchUpVerdict(winner(80, 50), 11, 1.5)).toBe("ask");
   });
 
-  it("asks just below the bar and adds at it", () => {
-    // frameWeight reaches its maximum at 3x the inlier floor with no rival.
+  it("asks at 32 inliers, just below 3x the floor where frameWeight maxes out, and adds at 33", () => {
     expect(catchUpVerdict(winner(32, 0), 11, 1.5)).toBe("ask");
     expect(catchUpVerdict(winner(33, 0), 11, 1.5)).toBe("add");
   });

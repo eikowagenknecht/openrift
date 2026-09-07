@@ -3,17 +3,8 @@ import { persist } from "zustand/middleware";
 
 import type { DeckOverviewGroup } from "@/lib/deck-card-group";
 
-/**
- * How the deck overview renders its zones: the thumbnail dashboard, a dense
- * list, or overlapping stacks per group.
- */
 export type DeckOverviewDisplayMode = "grid" | "list" | "stacks";
 
-/**
- * Card ordering inside each zone (and each type group of a grouped zone) when
- * the overview is in list mode. "default" keeps the sidebar's curve order
- * (energy → power → name); the rest reorder within the group.
- */
 export type DeckOverviewSort =
   | "default"
   | "id"
@@ -23,57 +14,31 @@ export type DeckOverviewSort =
   | "rarity"
   | "ownership";
 
-/**
- * Widest column count a persisted override may carry. Well past what any
- * display produces (the measurement caps itself on card width), so it only
- * exists to keep a hand-edited blob from asking for a thousand columns.
- */
 const MAX_PERSISTED_COLUMNS = 24;
 
 interface DeckOverviewViewState {
-  /** Thumbnail dashboard vs the dense text list. */
   displayMode: DeckOverviewDisplayMode;
   setDisplayMode: (displayMode: DeckOverviewDisplayMode) => void;
-  /**
-   * Cards per row in grid mode. `null` follows the measured container the way
-   * the card browser's Auto does; a number is the user's own pick, clamped at
-   * the call site to what the container can physically fit.
-   */
   columns: number | null;
   setColumns: (columns: number | null) => void;
-  /** Render deck thumbnails with the printings the viewer owns. */
   preferOwnedPrintings: boolean;
   setPreferOwnedPrintings: (preferOwnedPrintings: boolean) => void;
-  /**
-   * Render every physical copy as its own card instead of one thumb with a
-   * ×N badge — for checking a physical deck against the screen.
-   */
   showAllCopies: boolean;
   setShowAllCopies: (showAllCopies: boolean) => void;
   showAllRuneCopies: boolean;
   setShowAllRuneCopies: (showAllRuneCopies: boolean) => void;
-  /** Card ordering inside each zone sub-group, in every display mode. */
   sortBy: DeckOverviewSort;
   setSortBy: (sortBy: DeckOverviewSort) => void;
-  /** Direction for `sortBy`. Ignored when `sortBy` is "default". */
   sortDir: "asc" | "desc";
   setSortDir: (sortDir: "asc" | "desc") => void;
-  /** Sub-grouping axis inside main / sideboard / overflow. */
   groupBy: DeckOverviewGroup;
   setGroupBy: (groupBy: DeckOverviewGroup) => void;
-  /** Direction for `groupBy` — flips the group order, not the membership. */
   groupDir: "asc" | "desc";
   setGroupDir: (groupDir: "asc" | "desc") => void;
-  /** Whether the deck view's collapsible Stats charts are expanded. */
   statsOpen: boolean;
   setStatsOpen: (statsOpen: boolean) => void;
-  /**
-   * Whether grid thumbnails carry the collection-status band (green for the
-   * printing on screen, blue for another printing of the same card).
-   */
   showOwnershipBands: boolean;
   setShowOwnershipBands: (showOwnershipBands: boolean) => void;
-  /** Whether grid thumbnails carry a per-card price chip. Off by default. */
   showPrices: boolean;
   setShowPrices: (showPrices: boolean) => void;
 }
@@ -101,15 +66,11 @@ const GROUPS: ReadonlySet<DeckOverviewGroup> = new Set([
 /**
  * Keeps a persisted value only when it is one of the allowed choices; a
  * corrupt or stale blob falls back to the in-code default.
- * @returns The persisted value when allowed, otherwise the fallback.
  */
 function keepAllowed<Value>(raw: unknown, allowed: ReadonlySet<Value>, fallback: Value): Value {
   return allowed.has(raw as Value) ? (raw as Value) : fallback;
 }
 
-/**
- * @returns True when a persisted column override is a usable count.
- */
 function isColumnCount(raw: unknown): raw is number {
   return (
     typeof raw === "number" && Number.isInteger(raw) && raw >= 1 && raw <= MAX_PERSISTED_COLUMNS
@@ -117,11 +78,8 @@ function isColumnCount(raw: unknown): raw is number {
 }
 
 /**
- * Persisted, device-local view preferences for the deck overview: the
- * grid/list display mode and the list-mode card ordering. Kept separate from
- * the global card-browser `displayStore` (whose grid/table mode drives the
- * zone card browser) so switching the overview to a list doesn't change how
- * /cards and /collections look, and vice versa.
+ * Kept separate from the global card-browser `displayStore` so switching the
+ * overview to a list doesn't change how /cards and /collections look.
  */
 export const useDeckOverviewViewStore = create<DeckOverviewViewState>()(
   persist(

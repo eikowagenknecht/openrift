@@ -9,21 +9,13 @@ import {
 import { toDeckBuilderCard, toRuleEngineCard } from "@/lib/deck-builder-card";
 import type { LocalDeck } from "@/stores/local-decks-store";
 
-/** Catalog/enum data needed to derive a list item from a local deck's cards. */
 export interface LocalDeckListItemContext {
   cardsById: Record<string, Card>;
   cardTypeOrder: readonly string[];
   domainOrder: readonly string[];
 }
 
-/**
- * Synthesize the server `DeckListItemResponse` shape for a browser-local deck
- * (ADR-035) so it flows through the same sort / filter / group / tile code as
- * server decks. Owner-only and server-computed fields are constants
- * (`isPinned`/`archivedAt`/value).
- *
- * @returns A list item for the local deck.
- */
+/** Synthesizes the server `DeckListItemResponse` shape so a local deck flows through the same sort/filter/group/tile code as server decks. */
 export function localDeckToListItem(
   localDeck: LocalDeck,
   ctx: LocalDeckListItemContext,
@@ -61,10 +53,9 @@ export function localDeckToListItem(
       coverPosition: localDeck.coverPosition,
       createdAt: localDeck.createdAt,
       updatedAt: localDeck.updatedAt,
-      // A browser-local deck can't reference a server collection (ADR-035),
-      // so it never has a deck box.
+      // A browser-local deck can't reference a server collection.
       collectionId: null,
-      // Variant families (ADR-042) are server-only; local decks are standalone.
+      // Variant families are server-only; local decks are standalone.
       familyId: null,
       predecessorDeckId: null,
       isPrimary: false,
@@ -75,11 +66,10 @@ export function localDeckToListItem(
     requiredProgress,
     requiredTotal,
     totalValueCents: null,
-    // Browser-local decks (ADR-035) have no server inventory to diff against.
+    // Browser-local decks have no server inventory to diff against.
     missingCount: null,
-    // Folders are a server-side, per-user feature (migration 231); a
-    // browser-local deck is never filed in one. The deck list hides the folder
-    // controls entirely while signed out.
+    // Folders are a server-side, per-user feature; a browser-local deck is
+    // never filed in one.
     folderIds: [],
   };
 }

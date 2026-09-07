@@ -20,8 +20,6 @@ interface CardCustomTagsResponse {
   customTagIds: string[];
 }
 
-// ── List custom tags (admin) ───────────────────────────────────────────────
-
 const fetchCustomTags = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }): Promise<AdminCustomTagsResponse> =>
@@ -38,8 +36,6 @@ export function useCustomTags() {
   return useSuspenseQuery(adminCustomTagsQueryOptions);
 }
 
-// ── List custom-tag categories (admin) ─────────────────────────────────────
-
 const fetchCustomTagCategories = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }): Promise<AdminCustomTagCategoriesResponse> =>
@@ -55,8 +51,6 @@ export const adminCustomTagCategoriesQueryOptions = queryOptions({
 export function useCustomTagCategories() {
   return useSuspenseQuery(adminCustomTagCategoriesQueryOptions);
 }
-
-// ── Create / update / delete categories ────────────────────────────────────
 
 const createCustomTagCategoryFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; label: string; description?: string | null }) => input)
@@ -107,8 +101,6 @@ export function useDeleteCustomTagCategory() {
     invalidates: [queryKeys.admin.customTagCategories, queryKeys.admin.customTags],
   });
 }
-
-// ── Create / update / delete tags ──────────────────────────────────────────
 
 const createCustomTagFn = createServerFn({ method: "POST" })
   .validator(
@@ -174,8 +166,6 @@ export function useDeleteCustomTag() {
   });
 }
 
-// ── Clear all card assignments for a tag ───────────────────────────────────
-
 interface ClearCustomTagCardsResponse {
   removed: number;
 }
@@ -197,8 +187,6 @@ export function useClearCustomTagCards() {
     ],
   });
 }
-
-// ── Per-card assignment ────────────────────────────────────────────────────
 
 const fetchCardCustomTags = createServerFn({ method: "GET" })
   .validator((input: { cardId: string }) => input)
@@ -235,8 +223,6 @@ export function useSetCardCustomTags(cardId: string) {
     invalidates: [queryKeys.admin.cardCustomTags(cardId), queryKeys.admin.customTags],
   });
 }
-
-// ── Bulk attach (used by the decklist-style import in the admin UI) ────────
 
 interface AddCardsToCustomTagResponse {
   added: number;

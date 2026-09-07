@@ -16,8 +16,6 @@ function TierListBuilderRoute() {
   // provider, so the builder has to sit inside one.
   return (
     <FilterSearchProvider value={search}>
-      {/* Keyed on the id so switching lists remounts the builder rather than
-          reconciling one board's drag state onto another's. */}
       <TierListBuilderPage key={tierListId} tierList={data} />
     </FilterSearchProvider>
   );

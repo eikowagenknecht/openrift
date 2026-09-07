@@ -21,8 +21,6 @@ describe("runReportedMutation", () => {
       settled = true;
     }
     const pending = runReportedMutation(action);
-    // Not yet: the action parks on its own await, so a caller that forgot to
-    // await runReportedMutation would observe the pre-action value here.
     expect(settled).toBe(false);
     await pending;
     expect(settled).toBe(true);

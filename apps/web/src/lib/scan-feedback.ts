@@ -1,19 +1,9 @@
-/**
- * The lock tick: a short confirmation sound so bulk scanning works with the
- * eyes on the physical pile, not the screen. The vibration half of the
- * feedback lives in the scanner hook (it fires for the admin harness too);
- * the tick is the scanning page's, behind its mute preference.
- */
+// Vibration feedback lives in the scanner hook (fires for the admin harness
+// too); this tick is the scanning page's own, behind its mute preference.
 
 let audioContext: AudioContext | null = null;
 
-/**
- * Play the lock tick. Safe to call from any user-gesture-adjacent context;
- * audio is best-effort and failures are swallowed (a blocked AudioContext
- * must never break the add flow).
- *
- * @returns Nothing; the sound plays asynchronously.
- */
+// Audio is best-effort: a blocked AudioContext must never break the add flow.
 export function playLockTick(): void {
   try {
     audioContext ??= new AudioContext();
@@ -23,8 +13,6 @@ export function playLockTick(): void {
     const now = audioContext.currentTime;
     const oscillator = audioContext.createOscillator();
     const gain = audioContext.createGain();
-    // A quick upward two-tone reads as "accepted" without being loud; the
-    // exponential fade keeps it click-free.
     oscillator.type = "sine";
     oscillator.frequency.setValueAtTime(660, now);
     oscillator.frequency.setValueAtTime(990, now + 0.06);
@@ -35,7 +23,7 @@ export function playLockTick(): void {
     oscillator.start(now);
     oscillator.stop(now + 0.15);
   } catch {
-    // No audio (autoplay policy, missing hardware) — the vibration and the
-    // tray row are still there.
+    // No audio (autoplay policy, missing hardware): vibration and the tray
+    // row still cover it.
   }
 }

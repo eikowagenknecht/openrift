@@ -130,9 +130,6 @@ describe("buildGroups", () => {
   });
 
   it("falls back to a single _all group when collection grouping has no collection order", () => {
-    // Every surface but /collections' copies view leaves collectionOrder unset,
-    // where a deep-linked `?groupBy=collection` must not shatter the grid into
-    // one bucket per missing id.
     const groups = buildGroups(items, "collection", setOrder, "asc", ORDERS, LABELS);
     expect(groups).toHaveLength(1);
     expect(groups[0].group.id).toBe("_all");
@@ -140,9 +137,6 @@ describe("buildGroups", () => {
   });
 
   it("falls back to set grouping for an axis this surface doesn't know", () => {
-    // An unknown axis can reach buildGroups via a deep-linked URL (a value from
-    // a since-renamed axis, say). It must degrade to the default set grouping,
-    // never crash.
     const groups = buildGroups(
       items,
       "energy" as Parameters<typeof buildGroups>[1],

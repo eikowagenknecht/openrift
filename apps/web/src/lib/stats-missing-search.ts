@@ -4,14 +4,8 @@ import type { CompletionCountMode, CompletionGroupBy } from "@/hooks/use-collect
 import type { FilterSearch } from "@/lib/search-schemas";
 
 /**
- * Builds the typed search payload for a "View missing" link on the collection
- * stats page. The /cards route's validateSearch expects arrays / booleans (not
- * comma-separated or stringified URL params), and the "missing" set is every
- * bucket short of fully owned.
- *
- * @returns A partial /cards search object, or `undefined` when the link should
- *   not be rendered (count modes other than "cards" filter at the printing
- *   level, which the card browser cannot express).
+ * Builds the typed /cards search payload for a "View missing" link. Returns
+ * undefined for count modes below the card level, which /cards can't express.
  */
 export function buildMissingSearch({
   countMode,

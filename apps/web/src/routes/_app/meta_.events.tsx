@@ -43,8 +43,6 @@ export const Route = createFileRoute("/_app/meta_/events")({
       throw redirect({ to: "/cards" });
     }
   },
-  // The set list comes first because the eras the window resolves against are
-  // derived from set release dates rather than stored.
   loader: async ({ context, deps }) => {
     const sets = await context.queryClient.query({
       ...publicSetListQueryOptions,

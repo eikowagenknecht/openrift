@@ -1,8 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Capture what `apiOrpcClient` / `browserApiOrpcClient` hand to the oRPC link so
-// we can assert the request URL and exercise the lazily-built `headers()` fn.
 interface LinkOptions {
   url: string | (() => string);
   headers?: () => Record<string, string>;
@@ -16,7 +14,7 @@ const mockLinkCall = vi.fn<() => Promise<unknown>>(() => Promise.resolve("ok"));
 const builtLinks: CapturedLink[] = [];
 
 vi.mock("@orpc/openapi-client/fetch", () => ({
-  // `new OpenAPILink(contract, options)` — a named function so it is constructable.
+  // Must be a named function, not an arrow: called with `new`.
   OpenAPILink: function OpenAPILink(this: CapturedLink, _contract: unknown, options: LinkOptions) {
     linkOptions.push(options);
     this.call = () => mockLinkCall();
@@ -102,9 +100,6 @@ describe("browserApiOrpcClient", () => {
     expect(linkOptions[0].headers).toBeUndefined();
   });
 
-  // Regression: the url used to be resolved while building the link, so a
-  // module that built a client at module scope threw during SSR (`location` is
-  // undefined there) and took the whole route tree down with it.
   it("does not read location while building the link", () => {
     const location = globalThis.location;
     Reflect.deleteProperty(globalThis, "location");

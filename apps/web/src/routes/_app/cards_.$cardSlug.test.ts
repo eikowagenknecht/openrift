@@ -51,8 +51,6 @@ function makePrinting(id: string, language: string, frontImageId: string): Catal
   };
 }
 
-// EN is the language-preferred fallback; JA is the variant a `?printingId=`
-// link pins. Their front images differ so the og:image is unambiguous.
 const en = makePrinting("p-en", "EN", "front-en");
 const ja = makePrinting("p-ja", "JA", "front-ja");
 
@@ -90,8 +88,6 @@ function runHeadFull(printingId?: string, marketplaceOffers: MarketplaceOffer[] 
     cardTypeLabels: { unit: "Unit" },
     marketplaceOffers,
   };
-  // The head() signature is heavily generic; we only exercise the fields it
-  // reads. Cast to a minimal shape rather than reconstruct the full match.
   const head = Route.options.head as unknown as HeadFn;
   return head({ loaderData, match: { search: { printingId } } });
 }
@@ -105,11 +101,6 @@ function ogImage(meta: HeadMeta[]): string | undefined {
 }
 
 describe("/cards/$cardSlug SSR head", () => {
-  // Regression: the head used to read `printingId` from loaderData, but the
-  // loader is memoized on an empty `loaderDeps`, so the per-variant id never
-  // reached it during SSR — every shared `?printingId=` link unfurled with the
-  // EN-preferred art instead of the pinned variant. The head now reads
-  // `match.search.printingId` directly. This fails if it reverts to loaderData.
   it("uses the pinned printing's art for og:image when ?printingId= is set", () => {
     expect(ogImage(runHead("p-ja"))).toContain("/media/cards/ja/front-ja-full.webp");
   });
@@ -129,13 +120,9 @@ describe("/cards/$cardSlug SSR head", () => {
     expect(ogImage(runHead("does-not-exist"))).toContain("/media/cards/en/front-en-full.webp");
   });
 
-  // Regression: cards with no marketplace prices used to emit a bare Product
-  // JSON-LD (no offers/review/aggregateRating), which Search Console flags as
-  // invalid. Without prices the Product script must be dropped entirely.
   it("emits no Product JSON-LD when the card has no marketplace prices", () => {
     const scripts = runHeadFull(undefined, []).scripts ?? [];
     expect(scripts.some((script) => script.children.includes('"@type":"Product"'))).toBe(false);
-    // The breadcrumb script is unaffected.
     expect(scripts.some((script) => script.children.includes('"@type":"BreadcrumbList"'))).toBe(
       true,
     );

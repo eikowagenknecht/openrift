@@ -17,13 +17,7 @@ export const Route = createLazyFileRoute("/_app/sets")({
   pendingComponent: SetsPending,
 });
 
-/**
- * The set's release dates, one per language it is announced in. A set reaches
- * each language on its own date, so there is no single release date to show.
- * Alphabetical by language code, which keeps the server and client render
- * identical (the viewer's language preference is client-only state).
- * @returns One label per announced language, e.g. `EN 2025-10-31`.
- */
+// Sorted by language code (not viewer preference) so server and client render identically.
 function releaseLabels(set: SetListEntry): string[] {
   return Object.keys(set.releases)
     .toSorted()

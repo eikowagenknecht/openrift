@@ -61,11 +61,6 @@ describe("useAdminAccess", () => {
     expect(mocks.me).not.toHaveBeenCalled();
   });
 
-  // Regression: the query used to live under a single global key, so the "no
-  // access" answer cached while signed out (the header mounts this hook on
-  // every page) was still fresh right after sign-in — the Admin menu item
-  // stayed hidden until a full page reload rebuilt the query cache. Keying by
-  // userId gives the new identity its own cache slot, which fetches fresh.
   it("fetches the signed-in user's access instead of serving the signed-out cache", async () => {
     const client = makeClient();
     const { result, rerender } = renderHook(() => useAdminAccess(), { wrapper: wrap(client) });

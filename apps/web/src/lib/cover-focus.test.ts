@@ -4,7 +4,6 @@ import { coverOverflowPx, coverPositionFromDrag } from "@/lib/cover-focus";
 
 describe("coverOverflowPx", () => {
   it("returns the cropped height for portrait art in a wide box", () => {
-    // 480x672 art scaled to 240 wide is 336 tall; 96 of that is visible.
     expect(
       coverOverflowPx({ boxWidth: 240, boxHeight: 96, naturalWidth: 480, naturalHeight: 672 }),
     ).toBe(240);

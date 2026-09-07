@@ -1,14 +1,7 @@
 /**
- * Human-readable message for a `getUserMedia` rejection.
- *
  * Browsers reject with `DOMException`s whose messages are written for
- * developers, not users. Firefox is the worst offender: a machine with no
- * usable camera rejects with NotFoundError and the message "The object can
- * not be found here." before any permission prompt is shown. Map the error
- * names we can act on to messages that tell the user what to check.
- *
- * @returns A user-facing message for the rejection, or the fallback for a
- *   non-Error throw.
+ * developers, not users; Firefox rejects a machine with no usable camera with
+ * NotFoundError and "The object can not be found here." before any prompt.
  */
 export function cameraErrorMessage(thrown: unknown, fallback: string): string {
   // DOMException is checked separately: it only gained Error in its prototype

@@ -77,7 +77,7 @@ describe("useIdle", () => {
     expect(result.current).toBe(false);
   });
 
-  it("stops listening after unmount", () => {
+  it("stops updating state after unmount", () => {
     const { result, unmount } = renderHook(() => useIdle(1000));
 
     unmount();
@@ -86,7 +86,6 @@ describe("useIdle", () => {
       vi.advanceTimersByTime(5000);
     });
 
-    // No state update after unmount, so the last rendered value stands.
     expect(result.current).toBe(false);
   });
 });

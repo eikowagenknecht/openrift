@@ -12,14 +12,8 @@ interface AdminCardFoldState {
   toggleSection: (sectionId: AdminCardSectionId) => void;
 }
 
-/**
- * The card's stored fold set, or `undefined` when the card has not been seeded
- * yet. Callers distinguish the two: an unseeded card falls back to the default
- * (everything folded but the first printing), which is not the same as an
- * explicitly empty set (everything open after "Expand all").
- *
- * @returns The stored collapsed ids, or `undefined` when the card is unseeded.
- */
+// `undefined` (unseeded, falls back to the default fold) is distinct from an
+// explicitly empty set (everything open after "Expand all").
 export function getStoredCollapsedPrintings(
   state: AdminCardFoldState,
   cardId: string,

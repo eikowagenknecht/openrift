@@ -1,19 +1,10 @@
-/**
- * Linearizes a single sRGB channel (0-255) for WCAG relative luminance.
- *
- * @returns The linearized value in [0, 1].
- */
+/** Linearizes a single sRGB channel (0-255) for WCAG relative luminance. */
 function linearize(channel: number): number {
   const normalized = channel / 255;
   return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
 }
 
-/**
- * Picks a readable foreground color for the given hex background
- * using WCAG 2.x relative luminance with sRGB linearization.
- *
- * @returns "#1a1a1a" for light backgrounds, "#ffffff" for dark ones.
- */
+/** Picks a readable foreground color using WCAG 2.x relative luminance. */
 export function contrastText(hex: string): string {
   const r = linearize(parseInt(hex.slice(1, 3), 16));
   const g = linearize(parseInt(hex.slice(3, 5), 16));
@@ -22,12 +13,7 @@ export function contrastText(hex: string): string {
   return luminance > 0.179 ? "#1a1a1a" : "#ffffff";
 }
 
-/**
- * Picks "white" or "black" for a flat glyph tinted to contrast with the given
- * hex background, matching the foreground chosen by {@link contrastText}.
- *
- * @returns "black" on light backgrounds, "white" on dark ones.
- */
+/** Matches the foreground chosen by {@link contrastText}. */
 export function contrastGlyphTint(hex: string): "white" | "black" {
   return contrastText(hex) === "#ffffff" ? "white" : "black";
 }

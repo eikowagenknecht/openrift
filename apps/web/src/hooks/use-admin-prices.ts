@@ -12,8 +12,6 @@ import type { JobRunView } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
-// ── Server function for clear prices ─────────────────────────────────────────
-
 const clearPricesFn = createServerFn({ method: "POST" })
   // The oRPC client enforces the route's marketplace enum; callers pass
   // clearActions[*].source, which is already one of these literals.
@@ -25,8 +23,6 @@ const clearPricesFn = createServerFn({ method: "POST" })
     }),
   );
 
-// ── Mutations ─────────────────────────────────────────────────────────────────
-
 export function useRefreshPrices(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
   const refreshAction = refreshActions[marketplace];
   return useMutation({
@@ -35,13 +31,6 @@ export function useRefreshPrices(marketplace: "tcgplayer" | "cardmarket" | "card
   });
 }
 
-/**
- * Poll the latest job_runs row for a given kind. Refetches every 5s while
- * the latest run is 'running', and every 60s otherwise so stale post-success
- * state updates if a cron kicks off a new run in the background.
- *
- * @returns A react-query `UseQueryResult<JobRunView | null>`.
- */
 export function useLatestJobRun(kind: string) {
   return useQuery({
     queryKey: ["admin", "job-runs", kind],

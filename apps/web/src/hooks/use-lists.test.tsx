@@ -51,7 +51,6 @@ const {
   useUpdateListEntry,
 } = await import("./use-lists");
 
-// The hooks call the API via the oRPC contract client, which hits global fetch.
 function stubFetchJson(payload: unknown) {
   const fetchMock = vi.fn().mockResolvedValueOnce(Response.json(payload));
   vi.stubGlobal("fetch", fetchMock);
@@ -260,11 +259,8 @@ describe("useUpdateListEntry", () => {
   });
 });
 
-// A hook that declares its own onError to roll an optimistic update back
-// REPLACES the QueryClient's default mutation onError (react-query merges
-// mutation options shallowly), so each of these rollbacks has to report the
-// failure itself. Without that, the change silently reverts and the user is
-// left thinking the click did nothing.
+// react-query merges mutation options shallowly, so a hook's own onError replaces
+// the QueryClient's default one; each rollback below must report the failure itself.
 describe("optimistic rollbacks still report the failure", () => {
   let errorSpy: ReturnType<typeof vi.spyOn>;
 
@@ -277,8 +273,6 @@ describe("optimistic rollbacks still report the failure", () => {
     errorSpy.mockRestore();
   });
 
-  // The app's real client, so the test proves the toast survives the default
-  // handler being replaced rather than testing a bare QueryClient.
   function makeAppClient() {
     return createQueryClient();
   }

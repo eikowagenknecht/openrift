@@ -2,17 +2,11 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 /**
- * How many copies of each reserved trade actually changed hands, counted while
- * the cards are in front of you and before anything is settled.
- *
- * Keyed by trade id, and deliberately sparse: a trade with no entry has not
- * been touched, which the sheet reads as "all of it", so the common case of
- * everything turning up needs no writes at all. A count of 0 is a real answer
- * ("they forgot this one") and is stored.
+ * Keyed by trade id and deliberately sparse: no entry means "all of it
+ * turned up". A count of 0 is a real answer and is stored.
  */
 type TallyByTradeId = Record<string, number>;
 
-/** @returns The persisted counts, dropping anything that is not a count. */
 function parseCounts(value: unknown): TallyByTradeId {
   if (typeof value !== "object" || value === null) {
     return {};
@@ -28,20 +22,12 @@ function parseCounts(value: unknown): TallyByTradeId {
 
 interface TradeTallyState {
   counts: TallyByTradeId;
-  /** Records how many of `tradeId` turned up. */
   setCount: (tradeId: string, count: number) => void;
-  /** Forgets a trade's count, putting it back to "all of it". */
   clearCount: (tradeId: string) => void;
-  /** Forgets the given trades, which is what settling them does. */
   clearCounts: (tradeIds: readonly string[]) => void;
 }
 
-/**
- * The at-the-table tally, persisted so backing out of the sheet or reloading
- * mid-swap does not lose the count. It never reaches the server: settling is
- * what does that, and the whole point of counting first is that nothing is
- * written until the pile has been checked.
- */
+/** Persisted so backing out of the sheet or reloading mid-swap keeps the count. */
 export const useTradeTallyStore = create<TradeTallyState>()(
   persist(
     (set) => ({
@@ -74,12 +60,7 @@ export const useTradeTallyStore = create<TradeTallyState>()(
   ),
 );
 
-/**
- * How many copies of a trade to settle: the tallied count, or the whole row
- * when it was never touched. Capped at the row's quantity, since a trade can
- * shrink under a stale tally (the other party settled part of it first).
- * @returns The count to settle, between 0 and `quantity`.
- */
+/** Capped at `quantity`, since a trade can shrink under a stale tally. */
 export function talliedCount(counts: TallyByTradeId, tradeId: string, quantity: number): number {
   const tallied = counts[tradeId];
   if (tallied === undefined) {

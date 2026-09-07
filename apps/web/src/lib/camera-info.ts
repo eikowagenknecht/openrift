@@ -1,51 +1,24 @@
 /**
- * Diagnostics for the live camera track.
- *
- * The scanner asks for `facingMode: environment` and takes whatever the
- * browser hands back. On a multi-camera phone that can be the main camera, the
- * ultra-wide, or something else entirely, and nothing in the app has so far
- * reported which. This reads the track's own account of itself so the choice
- * can be measured on real devices before anything tries to automate it.
- *
- * Settings and capabilities are flattened to string pairs rather than typed
- * field by field. `zoom`, `torch`, `focusMode` and `exposureMode` come from the
- * Image Capture spec, not lib.dom's `MediaTrackCapabilities`, and which of them
- * exist varies per browser and per device. Displaying whatever the browser
- * reports is the point of a diagnostics panel, so anything unanticipated shows
- * up instead of being silently dropped.
+ * Diagnostics for the live camera track: which label a multi-camera phone
+ * gives the track the scanner ends up with (`facingMode: environment`),
+ * plus its raw settings and capabilities for judging on real devices.
  */
 
-/** One video input as `enumerateDevices` reported it. */
 interface CameraDevice {
   deviceId: string;
-  /** Empty string until a camera permission has been granted. */
   label: string;
 }
 
-/** A flattened `key: value` row from track settings or capabilities. */
 export type CameraInfoEntry = readonly [key: string, value: string];
 
 export interface CameraInfo {
-  /** Every `videoinput`, not just back-facing ones: which label means what is exactly what is being measured. */
   devices: CameraDevice[];
-  /** The live track's label, or null when the browser reports none. */
   label: string | null;
-  /** `getSettings()`, flattened and sorted by key. */
   settings: CameraInfoEntry[];
-  /** `getCapabilities()`, flattened and sorted by key. Empty when unsupported. */
   capabilities: CameraInfoEntry[];
-  /** False when the browser has no `getCapabilities` on media stream tracks. */
   capabilitiesSupported: boolean;
 }
 
-/**
- * Render one settings or capabilities value as display text.
- *
- * Capabilities mix three shapes: plain scalars, string arrays for enumerated
- * modes, and `{ min, max, step }` ranges for numeric knobs like zoom.
- *
- * @returns The value as a single line of text.
- */
 export function formatTrackValue(value: unknown): string {
   if (Array.isArray(value)) {
     return value.length === 0 ? "(none)" : value.join(", ");
@@ -63,15 +36,8 @@ export function formatTrackValue(value: unknown): string {
   return String(value);
 }
 
-/**
- * Flatten a settings or capabilities object into sorted display rows.
- *
- * Undefined values are dropped: a browser that omits a field says nothing by
- * omitting it, and a row reading "undefined" is noise. `null` and `false` are
- * kept, because a device reporting `torch: false` is a real answer.
- *
- * @returns One entry per defined key, sorted by key.
- */
+// Undefined fields are dropped (the browser omitted them); null/false are
+// kept as real reported values (e.g. `torch: false`).
 export function flattenTrackInfo(info: object | undefined): CameraInfoEntry[] {
   if (!info) {
     return [];
@@ -82,24 +48,15 @@ export function flattenTrackInfo(info: object | undefined): CameraInfoEntry[] {
     .toSorted((left, right) => left[0].localeCompare(right[0]));
 }
 
-/**
- * Read what the browser reports about a live camera stream.
- *
- * Never rejects. Every part is optional in some browser, and a diagnostics
- * panel that throws is worse than one reporting nothing, so each read degrades
- * to an empty result on its own.
- *
- * @returns The track's devices, settings and capabilities, or null when the
- *   stream carries no video track.
- */
+// Never rejects: each field is optional in some browser and degrades to an
+// empty result on its own.
 export async function readCameraInfo(stream: MediaStream): Promise<CameraInfo | null> {
   const track = stream.getVideoTracks()[0];
   if (!track) {
     return null;
   }
 
-  // Labels are empty until a camera permission has been granted, so this is
-  // only worth calling once a stream is open.
+  // Labels are empty until camera permission has been granted.
   let devices: CameraDevice[] = [];
   try {
     const all = await navigator.mediaDevices.enumerateDevices();

@@ -51,7 +51,6 @@ describe("parseManualDecklist", () => {
   it("warns on an unknown zone header without dropping later cards", () => {
     const { cards, warnings } = parseManualDecklist(["Bogus:", "1 Stray Card"].join("\n"));
     expect(warnings.some((warning) => warning.includes("Bogus:"))).toBe(true);
-    // Unknown header clears the zone, so the card falls back to main.
     expect(cards).toEqual([{ name: "Stray Card", quantity: 1, section: "main" }]);
   });
 

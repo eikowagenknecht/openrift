@@ -61,14 +61,11 @@ describe("localDeckToListItem", () => {
 
     expect(item.legendCardId).toBe("legend-1");
     expect(item.championCardId).toBe("champ-1");
-    // totalCards excludes overflow but includes runes (1 + 1 + 3 + 2 + 12).
     expect(item.totalCards).toBe(19);
-    // typeCounts come only from main + champion, excluding legend/rune/battlefield.
     expect(item.typeCounts).toEqual([
-      { cardType: "unit", count: 4 }, // champion (1) + unit-1 (3)
+      { cardType: "unit", count: 4 },
       { cardType: "spell", count: 2 },
     ]);
-    // domains from main + champion only (rune zone is excluded).
     expect(item.domainDistribution).toEqual([
       { domain: "fury", count: 4 },
       { domain: "mind", count: 2 },

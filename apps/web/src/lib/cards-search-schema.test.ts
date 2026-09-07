@@ -3,12 +3,7 @@ import { describe, expect, it } from "vitest";
 import { cardsSearchSchema } from "./cards-search-schema";
 
 describe("cardsSearchSchema", () => {
-  // Regression: navigating from a deck (which exposes `customTags`) to /cards
-  // used to carry `customTags` through into the catalog filter, where it had
-  // no `customTagAssignments` wired in and silently filtered every card out.
-  // The /cards route relies on the schema dropping the key so its beforeLoad
-  // redirect cleans the URL.
-  it("strips customTags from parsed search", () => {
+  it("strips customTags from parsed search so /cards doesn't filter every card out", () => {
     const parsed = cardsSearchSchema.parse({
       search: "t:Teemo",
       types: ["unit"],

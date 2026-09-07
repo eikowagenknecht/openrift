@@ -45,10 +45,6 @@ describe("applyPageCacheControl", () => {
     expect(setDetail.headers.get("Cache-Control")).toBe(PUBLIC);
   });
 
-  // Regression: `/rules` was in the exact-path list but `/rules/` was missing
-  // from the prefix list, so the versioned ruleset documents — the heaviest
-  // pages in the app, ~4 MB of HTML each — were served `private, no-cache` and
-  // regenerated at origin on every single request.
   it("caches versioned ruleset documents via prefix match", () => {
     const versioned = applyPageCacheControl(getRequest("/rules/core/2026-07-16"), htmlResponse());
     expect(versioned.headers.get("Cache-Control")).toBe(PUBLIC);
@@ -65,8 +61,6 @@ describe("applyPageCacheControl", () => {
   });
 
   it("keeps product pages private for logged-in users", () => {
-    // The product page renders an "Add to collection" action for signed-in
-    // viewers, so a cached anonymous shell must never reach them.
     const result = applyPageCacheControl(
       getRequest("/products/origins-proving-grounds", {
         cookie: "better-auth.session_token=abc",
@@ -144,9 +138,6 @@ describe("applyPageCacheControl", () => {
   });
 
   it("replaces any existing Cache-Control rather than appending", () => {
-    // Regression test for the double-header bug: nginx used to add a second
-    // Cache-Control on top of the one this wrapper set, which broke CF caching.
-    // Proves Headers.set() replaces and the response has exactly one value.
     const result = applyPageCacheControl(getRequest("/cards"), htmlResponse());
     const allHeaders = [...result.headers.entries()].filter(
       ([key]) => key.toLowerCase() === "cache-control",
@@ -163,8 +154,6 @@ describe("applyPageCacheControl", () => {
   });
 
   it("emits Link preload headers on private HTML routes too", () => {
-    // CF Early Hints caches Link headers independently of page cacheability,
-    // so logged-in views also benefit on subsequent visits.
     const result = applyPageCacheControl(
       getRequest("/cards", { cookie: "better-auth.session_token=abc" }),
       htmlResponse(),

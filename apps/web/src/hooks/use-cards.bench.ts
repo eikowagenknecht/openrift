@@ -1,15 +1,7 @@
-// Benchmark: canonicalRank sort (new) vs 6-axis comparePrintings sort (old).
-//
-// Background: before migration 096 introduced the `printings_ordered` view,
-// the canonical printing order was derived in JS by a 6-axis comparator
-// (set sort_order, shortCode, marker presence, min marker sort_order,
-// finish sort_order). Now the DB computes a single integer `canonical_rank`
-// per printing and the frontend sorts by that integer.
-//
-// This bench confirms the integer compare is meaningfully faster than the
-// old composite comparator on realistic catalog sizes (~3k printings). It
-// runs in steady-state (fixtures built once, sort array freshly cloned per
-// iteration so both benches measure the same work).
+// Confirms sorting by the DB-computed `canonical_rank` integer is meaningfully
+// faster than the old composite comparator, on realistic catalog sizes (~3k
+// printings). Runs in steady-state: fixtures built once, sort array cloned per
+// iteration so both benches measure the same work.
 
 import type {
   Card,
@@ -122,11 +114,7 @@ function buildFixture(): Printing[] {
 
 const FINISH_ORDER = ["normal", "foil"] as const;
 
-/**
- * The pre-migration-096 comparator: 4 compound axes, each pass touches both
- * objects. Kept here only for comparison.
- * @returns Negative if a comes first, positive if b comes first, 0 if equal.
- */
+/** The old comparator, kept here only for comparison. */
 function compareByFourAxes(a: Printing, b: Printing): number {
   const setCmp = a.setId.localeCompare(b.setId);
   if (setCmp !== 0) {

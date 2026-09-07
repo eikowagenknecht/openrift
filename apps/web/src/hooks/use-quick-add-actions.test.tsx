@@ -5,11 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { stubCopy, stubPrinting } from "@/test/factories";
 import { createStoreResetter } from "@/test/store-helpers";
 
-// Mock the copies mutation hooks so the dispose mutation rejects on demand,
-// standing in for an expected server rejection (e.g. "This card is reserved in
-// an active trade"). The real mutation machinery and its global onError toast
-// are out of scope here — we only care that the hook's own dispose call never
-// leaks an unhandled rejection.
 const disposeMutateAsync = vi.fn();
 const batchedAdd = vi.fn();
 vi.mock("@/hooks/use-copies", () => ({
@@ -17,7 +12,6 @@ vi.mock("@/hooks/use-copies", () => ({
   useDisposeCopies: () => ({ mutateAsync: disposeMutateAsync, isPending: false }),
 }));
 
-// The copies collection is mocked per-test via this mutable array.
 let copies: CopyResponse[] = [];
 vi.mock("@/lib/copies-collection", () => ({
   useCopiesCollection: () => ({ toArray: copies }),
@@ -36,13 +30,8 @@ function personalCopy(printingId: string): CopyResponse {
   });
 }
 
-// Regression: disposing a copy can fail for an expected reason (the copy is
-// reserved in an active trade → the API 4xxs). The minus paths invoke
-// disposeCopies.mutateAsync, whose callers are fire-and-forget (the onDecrement
-// IIFE in route-decrement.ts and the popover's onRemoveFromCollection click
-// prop), so a rejection that escapes the hook became an uncaught promise
-// rejection. The hook must swallow it; the user-facing toast is fired by the
-// global mutation onError handler.
+// The minus paths call disposeCopies.mutateAsync fire-and-forget, so a
+// rejection that escapes the hook becomes an uncaught promise rejection.
 describe("useQuickAddActions swallows expected dispose failures", () => {
   const resetAddMode = createStoreResetter(useAddModeStore);
 
@@ -80,9 +69,6 @@ describe("useQuickAddActions swallows expected dispose failures", () => {
   });
 });
 
-// The grid's digit-key shortcut ("press 3 to add three copies") reaches the
-// hook through handleQuickAdd's `quantity` argument. Every click path leaves it
-// undefined and must still add exactly one.
 describe("useQuickAddActions handleQuickAdd quantity", () => {
   const resetAddMode = createStoreResetter(useAddModeStore);
 

@@ -1,6 +1,3 @@
-// Site settings fetched via server function — resolved server-side during SSR
-// to avoid proxy hops and ensure data is embedded in the initial HTML.
-
 import { siteSettingsContract } from "@openrift/shared/contracts/site-settings";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";

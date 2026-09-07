@@ -1,13 +1,4 @@
-/**
- * Fetch a binary resource while reporting transferred bytes.
- *
- * The scanner's assets are tens of megabytes, and a silent await makes a slow
- * connection look like a hang; a byte counter distinguishes the two. `total`
- * is 0 when the server sends no usable content-length (e.g. chunked
- * compression), so callers must render that case without a percentage.
- *
- * @returns The complete response body.
- */
+/** `total` is 0 when the server sends no usable content-length; render without a percentage in that case. */
 export async function fetchWithProgress(
   url: string,
   onProgress?: (loaded: number, total: number) => void,
@@ -21,9 +12,8 @@ export async function fetchWithProgress(
     return await response.arrayBuffer();
   }
 
-  // A gzip/brotli response reports the encoded length; counting decoded bytes
-  // against it would overshoot, so the total is only trusted for identity
-  // responses.
+  // A gzip/brotli response reports the encoded length, so counting decoded
+  // bytes against it would overshoot; only trust it for identity responses.
   const total =
     response.headers.get("content-encoding") === null
       ? Number(response.headers.get("content-length") ?? 0)

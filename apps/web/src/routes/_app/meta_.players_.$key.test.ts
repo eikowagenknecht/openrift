@@ -13,7 +13,6 @@ type LoaderFn = (ctx: {
 
 const KEY = "pnrenata";
 
-// Two released main sets, so the era the URL names is a bounded window.
 const SETS = {
   sets: [
     {

@@ -13,10 +13,7 @@ const card = (cardId: string, quantity: number): DeckBuilderCard =>
 
 const store = () => useDeckUndoStore.getState();
 
-/**
- * Moves past the burst window so the next record pushes its own step.
- * @returns Nothing.
- */
+/** Moves past the burst window so the next record pushes its own step. */
 const settle = () => vi.advanceTimersByTime(1000);
 
 beforeEach(() => {
@@ -52,7 +49,6 @@ describe("record", () => {
 
   it("coalesces a burst of edits into one step", () => {
     store().record("deck-1", [card("a", 1)]);
-    // Three more inside the 500ms window.
     vi.advanceTimersByTime(100);
     store().record("deck-1", [card("a", 2)]);
     vi.advanceTimersByTime(100);
@@ -61,7 +57,6 @@ describe("record", () => {
     store().record("deck-1", [card("a", 4)]);
 
     expect(store().past).toHaveLength(1);
-    // The retained step is the pre-burst state.
     expect(store().past[0][0].quantity).toBe(1);
   });
 
@@ -79,7 +74,6 @@ describe("record", () => {
     expect(store().undo("deck-1", [card("a", 2)])).not.toBeNull();
     expect(store().future).toHaveLength(1);
 
-    // Immediately followed by a fresh edit: no new step, but redo is dead.
     store().record("deck-1", [card("a", 5)]);
     expect(store().future).toEqual([]);
   });
@@ -91,7 +85,6 @@ describe("record", () => {
     }
 
     expect(store().past).toHaveLength(100);
-    // The first five fell off, so the bottom is now the sixth snapshot.
     expect(store().past[0][0].quantity).toBe(5);
     expect(store().past.at(-1)?.[0].quantity).toBe(104);
   });
@@ -133,7 +126,6 @@ describe("undo and redo", () => {
     store().record("deck-1", [card("a", 1)]);
 
     expect(store().undo("deck-2", [card("a", 2)])).toBeNull();
-    // The real deck's history survives the mismatched call.
     expect(store().past).toHaveLength(1);
   });
 

@@ -2,8 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { createFrozenAnchor } from "./freeze-anchor";
 
-// Distinct rect objects so we can assert which one is returned by identity,
-// sidestepping DOMRect structural-equality quirks under jsdom.
+// jsdom's DOMRect has no structural equality; return distinct instances to assert by identity.
 function makeRect(): DOMRect {
   return {
     x: 0,
@@ -54,12 +53,9 @@ describe("createFrozenAnchor", () => {
     document.body.append(element);
 
     const anchor = createFrozenAnchor(element);
-    // A reposition happens while still mounted, updating the cached rect.
     current = rectWhileLive;
     expect(anchor.getBoundingClientRect()).toBe(rectWhileLive);
 
-    // The cell unmounts (last copy removed). Further reads must ignore the
-    // detached element's (zeroed) rect and hold the last good one.
     element.remove();
     current = rectAfterDetach;
     expect(anchor.getBoundingClientRect()).toBe(rectWhileLive);

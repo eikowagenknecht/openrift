@@ -26,9 +26,8 @@ function CollectionDetail() {
       collectionId={collectionId}
       title={collection?.name ?? "Collection"}
       wantedOnly={wanted === true}
-      // Off drops the key rather than writing `wanted=false`, so the URL only
-      // carries the filter where it is actually doing something. Replaces the
-      // history entry — a toggle is a view state, not a place to go back to.
+      // Off drops the key so the URL only carries the filter when active.
+      // Replaces the history entry: a toggle isn't a back-button stop.
       onWantedOnlyChange={(next) => {
         void navigate({
           to: "/collections/$collectionId",

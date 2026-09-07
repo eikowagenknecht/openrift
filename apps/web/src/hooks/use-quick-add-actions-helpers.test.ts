@@ -42,7 +42,7 @@ describe("pickNewestCopy", () => {
 });
 
 describe("pickRemovalCopy", () => {
-  it("prefers the newest bare copy over a newer annotated one (ADR-038)", () => {
+  it("prefers the newest bare copy over a newer annotated one", () => {
     const bareOlder = copy("01900000-0000-7000-8000-000000000001", "pr-1", "col-1");
     const bareNewer = copy("01900000-0000-7000-8000-000000000050", "pr-1", "col-1");
     const annotatedNewest = annotatedCopy("01900000-0000-7000-8000-000000000099", "pr-1", "col-1");
@@ -61,9 +61,6 @@ describe("pickRemovalCopy", () => {
     expect(pickRemovalCopy([])).toBeUndefined();
   });
 
-  // Regression: the newest bare copy is the one metadata-sorting would pick
-  // first, but it's pinned to a live trade. The API rejects removing a
-  // reserved copy, so the picker must skip it for a removable sibling.
   it("skips a reserved copy even when it would otherwise be picked first", () => {
     const reservedNewest = stubCopy({
       id: "01900000-0000-7000-8000-000000000099",
@@ -107,7 +104,7 @@ describe("decideRemoval", () => {
     expect(decideRemoval(copies, "pr-1", "col-OTHER")).toEqual({ kind: "none" });
   });
 
-  it("prefers a bare copy over a newer annotated one within the collection (ADR-038)", () => {
+  it("prefers a bare copy over a newer annotated one within the collection", () => {
     const bare = copy("01900000-0000-7000-8000-000000000001", "pr-1", "col-1");
     const annotated = annotatedCopy("01900000-0000-7000-8000-000000000099", "pr-1", "col-1");
     expect(decideRemoval([bare, annotated], "pr-1", "col-1")).toEqual({
@@ -116,7 +113,7 @@ describe("decideRemoval", () => {
     });
   });
 
-  it("asks for confirmation when only annotated copies remain (ADR-038)", () => {
+  it("asks for confirmation when only annotated copies remain", () => {
     const older = annotatedCopy("01900000-0000-7000-8000-000000000001", "pr-1", "col-1");
     const newer = annotatedCopy("01900000-0000-7000-8000-000000000099", "pr-1", "col-1");
     expect(decideRemoval([older, newer], "pr-1", "col-1")).toEqual({
@@ -177,9 +174,6 @@ describe("decideRemoval", () => {
     });
   });
 
-  // Regression: an optimistic temp row (id `temp-<uuid>`) for an in-flight
-  // add must not be picked by the minus button — dispose would 400 on the
-  // API (invalid uuid) or race the add-success swap.
   it("excludes optimistic temp rows when picking the newest", () => {
     const copies = [
       copy("01900000-0000-7000-8000-000000000001", "pr-1", "col-1"),
@@ -196,18 +190,11 @@ describe("decideRemoval", () => {
     expect(decideRemoval(copies, "pr-1")).toEqual({ kind: "none" });
   });
 
-  // Regression: on the unscoped All Cards view, copies in a friend-group
-  // collection belong to the group, not the viewer. The personal minus must
-  // ignore them — both so the count matches the personal-only owned badge and
-  // so the button can't remove a group's copy. See the variant-popover "30 vs
-  // 9" report.
-  it("ignores group-collection copies when unscoped", () => {
+  it("ignores group-collection copies when unscoped, disposing the personal one", () => {
     const copies = [
       copy("01900000-0000-7000-8000-000000000010", "pr-1", "col-personal"),
       copy("01900000-0000-7000-8000-000000000020", "pr-1", "col-group", "group-1"),
     ];
-    // Only the personal copy is a removal candidate, so it disposes that one
-    // rather than treating the spread as multi-collection and opening a picker.
     expect(decideRemoval(copies, "pr-1")).toEqual({
       kind: "dispose",
       copyId: "01900000-0000-7000-8000-000000000010",
@@ -228,8 +215,6 @@ describe("decideRemoval", () => {
   });
 
   it("does not open the picker on a multi-collection spread that's only real on one side", () => {
-    // Real copy in col-A, temp-only in col-B → after filtering, only col-A
-    // is in play, so this disposes from col-A rather than opening the picker.
     const copies = [
       copy("01900000-0000-7000-8000-000000000010", "pr-1", "col-A"),
       copy("temp-22222222-0000-0000-0000-000000000022", "pr-1", "col-B"),

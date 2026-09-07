@@ -1,15 +1,9 @@
 /**
- * Renders an icon to a flat-colored silhouette as a PNG data URL (ADR-023).
- *
- * The card template tints its glyph icons (white, or black on the might shield)
- * with CSS filters, but html2canvas-pro ignores CSS filters, so exported cards
- * show the icons in their source color. This produces a real silhouette raster
- * in the wanted color that html2canvas can rasterize. Browser-only; kept apart
- * from the pure helpers in `card-designer.ts`. Same-origin assets, so the canvas
- * stays untainted.
+ * html2canvas-pro ignores the CSS filters the card template uses to tint glyph
+ * icons, so exported cards would show icons in their source color. This rasters
+ * a real flat-colored silhouette instead.
  */
 
-/** Tint colors used by the card template's glyph icons. */
 export const TINT_WHITE = "#ffffff";
 export const TINT_BLACK = "#000000";
 
@@ -20,22 +14,12 @@ function cacheKey(src: string, color: string): string {
   return `${color}\n${src}`;
 }
 
-/**
- * Synchronously returns a previously-tinted icon, if one is cached.
- *
- * @returns The tinted data URL, or undefined when not yet tinted.
- */
 export function getCachedTintedIcon(src: string, color: string): string | undefined {
   return cache.get(cacheKey(src, color));
 }
 
-/**
- * Tints an icon to a flat-colored silhouette and caches the result. Best-effort:
- * any failure (decode error, no 2D context, tainted canvas) resolves to null and
- * callers fall back to the CSS-filter rendering.
- *
- * @returns The tinted data URL, or null on failure.
- */
+// Best-effort: any failure (decode error, no 2D context, tainted canvas)
+// resolves to null so callers fall back to the CSS-filter rendering.
 function tintIcon(src: string, color: string): Promise<string | null> {
   const key = cacheKey(src, color);
   const cached = cache.get(key);
@@ -60,8 +44,6 @@ function tintIcon(src: string, color: string): Promise<string | null> {
         resolve(null);
         return;
       }
-      // Keep the icon's alpha shape, then flood it with the wanted color: a
-      // silhouette that matches the `brightness-0[ invert]` CSS filter.
       context.drawImage(image, 0, 0, width, height);
       context.globalCompositeOperation = "source-in";
       context.fillStyle = color;
@@ -81,12 +63,6 @@ function tintIcon(src: string, color: string): Promise<string | null> {
   return promise;
 }
 
-/**
- * Tints several icons ahead of time so a later synchronous render (the export
- * clone) finds them cached.
- *
- * @returns Resolves once every icon has been tinted or has failed.
- */
 export async function prewarmTintedIcons(
   icons: readonly { src: string; color: string }[],
 ): Promise<void> {

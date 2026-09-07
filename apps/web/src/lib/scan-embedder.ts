@@ -7,77 +7,34 @@ import { encoderCreateRetryable, encoderStartErrorMessage } from "@/lib/scan-enc
 import type { OrtWasmPaths } from "@/lib/scan-ort-assets";
 
 let cached: Promise<CardEmbedder> | null = null;
-// Single slot, latest caller wins: the load runs once per page, but the hook
-// can remount (strict mode, navigation) while the download is in flight and
-// the fresh mount's callback is the one that should keep painting.
+// Single slot, latest caller wins: a strict-mode/navigation remount while the
+// download is in flight should keep painting through the fresh callback.
 let progressListener: ((loaded: number, total: number) => void) | null = null;
-// Steady-state encoder cost from the init self-bench. Zero until measured.
 let embedMsPerImage = 0;
-// The loaded model's declared input side. MobileCLIP's 256 until a session
-// exists; the custom encoder declares 192.
 let embedInputSize = EMBED_IMAGE_SIZE;
 
-/**
- * Encoder cost above which a device counts as too slow for live scanning.
- *
- * A lock is a 3-frame agreeing run and a frame costs roughly 2.5x the
- * per-image encoder time (detect, verify and preprocessing scale with the
- * same silicon — iPhone 15 Pro Max ~85 ms/image and 0.5 s locks, Pixel 1
- * ~920 ms/image and 8-12 s locks). ~250 ms/image is where the predicted lock
- * crosses the 2 s bar (user decision 2026-07-27); the same threshold turns on
- * the engine's slow-device profile.
- */
 export const SLOW_DEVICE_EMBED_MS = 250;
 
-/**
- * Pause before the single session-create retry, giving the browser a moment
- * to reclaim the failed attempt's allocations before trying again.
- */
 const CREATE_RETRY_DELAY_MS = 1000;
 
-/**
- * The measured per-image encoder cost on this device, from the init
- * self-bench.
- *
- * @returns Milliseconds per image, or 0 before the embedder has loaded.
- */
 export function measuredEmbedMsPerImage(): number {
   return embedMsPerImage;
 }
 
-/**
- * The encoder's input side length, read off the loaded model's own input
- * metadata, so serving a different encoder never needs a config change.
- *
- * @returns The declared side, or MobileCLIP's 256 before the embedder has
- *   loaded (callers pass it to `createScanSession` after `loadScanEmbedder`
- *   resolves, when it is authoritative).
- */
+/** Authoritative only after `loadScanEmbedder` resolves. */
 export function embedderImageSize(): number {
   return embedInputSize;
 }
 
 /**
- * Load onnxruntime-web and the MobileCLIP-S0 vision tower, once per page.
- *
- * The model file is served from `media/scan` under the name `scan_index`
- * records (models are never committed, and are published once per engine
- * version). The WASM execution provider is the only one used: WebGPU is
- * broken on iOS under onnxruntime-web, and at batch 4 the dispatch overhead
- * outweighs the compute anyway.
- *
- * @returns The injected encoder the shared scan session runs on.
+ * WASM is the only execution provider used: WebGPU is broken on iOS under
+ * onnxruntime-web.
  */
 export async function loadScanEmbedder(
   modelUrl: string,
-  /**
-   * Where onnxruntime fetches its runtime from. Passed in rather than imported
-   * here: the scan worker imports this module, and a `?url` import inside a
-   * worker's graph gets inlined as base64 (see scan-ort-assets.ts).
-   */
+  // Must be passed in: a `?url` import inside a worker's graph gets inlined as base64.
   wasmPaths: OrtWasmPaths,
   onProgress?: (loaded: number, total: number) => void,
-  /** Running inside the scan worker: skip ort's own proxy worker. */
   inWorker = false,
 ): Promise<CardEmbedder> {
   if (onProgress) {
@@ -85,20 +42,15 @@ export async function loadScanEmbedder(
   }
   cached ??= (async () => {
     const ort = await import("onnxruntime-web/wasm");
-    // The binary only. Overriding the glue path too would switch ort off its
-    // embedded copy for a separate download (see scan-ort-assets.ts).
+    // Binary only: overriding the glue path too would switch ort off its
+    // embedded copy for a separate download.
     ort.env.wasm.wasmPaths = { wasm: wasmPaths.wasm };
-    // Keep inference off the main thread: without the proxy every forward pass
-    // blocks the UI for its full duration (1-2 s per frame on a phone). Threads
-    // only engage under cross-origin isolation (COOP/COEP, set by the dev
-    // server behind DEV_HTTPS); onnxruntime clamps to 1 thread without it.
-    // Dev A/B knobs: ?ortThreads=N and ?ortProxy=0 override the defaults so
-    // thread scaling can be measured on a phone without an edit-reload cycle.
+    // Threads only engage under cross-origin isolation (COOP/COEP); ort clamps
+    // to 1 thread without it.
     const params = new URLSearchParams(globalThis.location?.search ?? "");
     const threadsOverride = Number(params.get("ortThreads"));
-    // The proxy exists to keep inference off the MAIN thread. Loaded inside
-    // the scan worker there is no main thread to protect, and proxying would
-    // put a nested worker between this one and the wasm for nothing.
+    // Proxying keeps inference off the main thread; inside the scan worker
+    // there is no main thread to protect.
     ort.env.wasm.proxy = !inWorker && params.get("ortProxy") !== "0";
     ort.env.wasm.numThreads =
       threadsOverride > 0 ? threadsOverride : Math.min(4, navigator.hardwareConcurrency || 1);
@@ -107,11 +59,8 @@ export async function loadScanEmbedder(
         ` crossOriginIsolated ${globalThis.crossOriginIsolated === true}`,
     );
 
-    // The model buffer is deliberately never held in a variable: the create
-    // call transfers it to the proxy worker (detaching it on this thread), and
-    // an inline temporary keeps the failed-create copy collectable instead of
-    // pinned in this closure scope alongside ort's own copy — under iOS tab
-    // pressure that double residency is what tips init into OOM.
+    // Never held in a variable: the create call transfers the buffer, so an
+    // inline temporary keeps a failed attempt's copy collectable (iOS OOM otherwise).
     const fetchModel = () =>
       fetchWithProgress(
         modelUrl,
@@ -121,10 +70,8 @@ export async function loadScanEmbedder(
     const createEncoderSession = async () =>
       ort.InferenceSession.create(await fetchModel(), {
         executionProviders: ["wasm"],
-        // "basic" instead of the default "all": full graph optimization of the
-        // fp16 model costs 3x fp32's create time (409 vs 137 ms on a desktop,
-        // long enough to look like a hang on a 2016 phone) while "basic"
-        // creates 4x cheaper with identical measured inference speed.
+        // "basic" creates ~4x cheaper than the default "all" with identical
+        // measured inference speed for this model.
         graphOptimizationLevel: "basic",
       });
 
@@ -133,17 +80,12 @@ export async function loadScanEmbedder(
       session = await createEncoderSession();
     } catch (createError) {
       if (!encoderCreateRetryable(createError)) {
-        // Backend init failed and ort marked it aborted for the rest of this
-        // page's life — a retry would fast-fail with the same error, so tell
-        // the user the one thing that works instead.
+        // ort marks the backend aborted for the rest of the page's life; a
+        // retry would fast-fail with the same error.
         console.error("[scan] encoder start failed (backend aborted)", createError);
         throw new Error(encoderStartErrorMessage(createError, "Could not start the encoder"));
       }
-      // The backend is alive, so the failure was loading the model into the
-      // session — under transient tab memory pressure a second attempt often
-      // succeeds once the first buffer has been collected. One retry, after a
-      // breath; the re-fetch is needed because the failed attempt's transfer
-      // detached the first buffer (and it is usually served from HTTP cache).
+      // Re-fetch needed: the failed attempt's transfer detached the buffer.
       console.warn("[scan] encoder create failed, retrying once", createError);
       // oxlint-disable-next-line promise/avoid-new -- delay primitive
       await new Promise((resolve) => {
@@ -161,15 +103,8 @@ export async function loadScanEmbedder(
     const size = embedInputSize;
     console.log(`[scan] encoder input ${size}px`);
 
-    // Self-benchmark: a small warmup batch, then one timed batch — enough to
-    // estimate the per-image encoder cost that drives the slow-device
-    // profile, cheap enough that a slow phone does not spend half its startup
-    // benchmarking itself (the old 2x batch-16 bench cost 25 s on a Pixel 1).
-    // Prints to the piped console so thread scaling can be read per device.
-    // Batch 1 is timed separately: the session embeds candidates one at a
-    // time, so the per-call overhead a single-image inference carries (proxy
-    // round-trip, arena setup) is the number that decides whether candidates
-    // are worth batching on a slow device.
+    // Batch 1 is timed separately: candidates are embedded one at a time, so
+    // its per-call overhead decides whether batching them helps a slow device.
     const warmupBatch = 2;
     const benchBatch = 4;
     for (const batch of [warmupBatch, benchBatch, 1]) {
@@ -187,12 +122,9 @@ export async function loadScanEmbedder(
     console.log(`[scan] ort bench: ~${embedMsPerImage.toFixed(0)}ms/image`);
 
     return async (pixels, count) => {
-      // The staging tensor is sized for a full batch; a short final chunk must
-      // be handed over trimmed or the shape and the data length disagree. This
-      // must be a copy (`slice`), not a view: the proxy worker receives the
-      // tensor via postMessage transfer, which detaches the underlying
-      // ArrayBuffer — a subarray view would hand over (and kill) the session's
-      // reusable staging buffer on the first frame.
+      // Must be a copy (`slice`), not a view: the proxy worker receives the
+      // tensor via postMessage transfer, which detaches the ArrayBuffer, and
+      // a view would kill the session's reusable staging buffer.
       const slice = pixels.slice(0, count * 3 * size * size);
       const output = await session.run({
         pixel_values: new ort.Tensor("float32", slice, [count, 3, size, size]),
@@ -203,8 +135,6 @@ export async function loadScanEmbedder(
   try {
     return await cached;
   } catch (error) {
-    // A failed forty-megabyte download must not poison the page until reload:
-    // clear the slot so the next mount retries.
     cached = null;
     throw error;
   }

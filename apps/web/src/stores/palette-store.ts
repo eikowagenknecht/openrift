@@ -6,12 +6,9 @@ import { persist } from "zustand/middleware";
 import { cookieStorage } from "@/lib/cookie-storage";
 
 interface PaletteState {
-  /** Stored preference — null means "use default". */
   preference: Palette | null;
-  /** Resolved palette applied to the DOM. */
   palette: Palette;
   setPalette: (value: Palette | null) => void;
-  /** Clear the stored preference (used on sign-out). */
   reset: () => void;
 }
 

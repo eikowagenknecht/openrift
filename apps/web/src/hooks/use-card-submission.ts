@@ -13,13 +13,7 @@ const submitCardFn = createServerFn({ method: "POST" })
     await apiOrpcClient(cardSubmissionsContract, context.cookie).submit(data);
   });
 
-/**
- * Submits an in-app card contribution (ADR-036). The endpoint stages it as a
- * `usersubmission` candidate for admin review. On the daily-cap or validation
- * paths the thrown error's message is contributor-facing and can be shown
- * directly.
- * @returns A React Query mutation; call `.mutate(payload)`.
- */
+/** On the daily-cap or validation paths, the thrown error's message is contributor-facing and can be shown directly. */
 export function useSubmitCard() {
   return useMutation({
     mutationFn: async (input: CardSubmissionInput) => {

@@ -19,8 +19,7 @@ const PROMOS_DESCRIPTION =
 export const Route = createFileRoute("/_app/promos_/$language")({
   validateSearch: filterSearchSchema,
   beforeLoad: ({ search, location, params }) => {
-    // Migration 204 renamed ZH to SC. Links shared before then would 404 in the
-    // loader, so send them to the new code instead.
+    // Old language codes would 404 in the loader; redirect to the current code.
     const renamed = RENAMED_LANGUAGES[params.language.toUpperCase()];
     if (renamed) {
       throw redirect({
@@ -31,9 +30,8 @@ export const Route = createFileRoute("/_app/promos_/$language")({
       });
     }
 
-    // Strip unknown / malformed search params from the URL — same pattern as
-    // /cards. Bots that follow share/tracking links land on a clean canonical
-    // URL, and the visible URL stays tidy for users.
+    // Strip unknown / malformed search params so bots following share links
+    // land on a clean canonical URL.
     const cleaned = cleanedSearchForRedirect(filterSearchSchema, search, location.searchStr);
     if (cleaned) {
       throw redirect({

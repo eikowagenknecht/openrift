@@ -15,69 +15,21 @@ import { usePrices } from "./use-prices";
 
 export interface CardOwnership {
   cardId: string;
-  /** Canonical catalog name — used for marketplace search URLs and the copy/paste buy-list. */
   cardName: string;
-  /**
-   * Card slug for linking to the in-app card detail page. Resolved from the
-   * display printing; `undefined` when the card has no printings in the catalog.
-   */
   cardSlug: string | undefined;
-  /** Colloquial Legend name ("Azir, Emperor of the Sands") for on-screen display only. */
   displayName: string;
   zone: string;
   needed: number;
   owned: number;
   shortfall: number;
-  /**
-   * Copies sitting in collections excluded from deck building (locked away).
-   * These don't reduce the shortfall — the user has to either move them or
-   * toggle the collection back on before they count.
-   */
   locked: number;
-  /**
-   * How many of this card's locked copies (anywhere in the deck, not just
-   * this zone) are locked for each reason: out on loan, reserved for a live
-   * outgoing trade, or sitting in a collection excluded from deck building.
-   * Used only to word the "why is this locked" tooltip — the displayed count
-   * is still `locked`, which is capped to this zone's shortfall.
-   */
   lockedLoaned: number;
   lockedReserved: number;
   lockedExcluded: number;
-  /**
-   * Copies the viewer is currently borrowing from a friend (ADR-039,
-   * acknowledged active loans). Borrowed copies are physically in hand, so
-   * they DO reduce the shortfall — shown separately because they aren't owned.
-   */
   borrowed: number;
-  /**
-   * Copies on their way to the viewer from a reserved trade they haven't
-   * settled yet (ADR-019). Not in hand, so unlike `borrowed` these do NOT
-   * reduce the shortfall — they only explain part of it, the way `locked`
-   * does. Capped to whatever shortfall `locked` hasn't already accounted for,
-   * so the two annotations partition the gap instead of double-counting it.
-   */
   incoming: number;
-  /**
-   * Price for the printing the deck builder shows for this card row — either
-   * the explicitly-pinned `preferredPrintingId` or the language-preference
-   * canonical fallback. `undefined` when no price is available for that
-   * printing on the selected marketplace.
-   */
   displayPrice: number | undefined;
-  /**
-   * The printing whose price backed `displayPrice` — used to deep-link to the
-   * matching marketplace product. `undefined` when the card has no printings.
-   */
   displayPrinting: OwnershipPrinting | undefined;
-  /**
-   * Cheapest priced printing of this card, preferring the viewer's languages
-   * (any language as fallback). A creator can pin a premium printing for
-   * looks; what the deck is worth to buy stays the cheapest copy the viewer
-   * accepts — so the headline value, the per-row prices, and the
-   * missing-cards pricing all use this instead of `displayPrice`.
-   * `undefined` when no printing has a price.
-   */
   cheapestPrice: number | undefined;
   cheapestPrinting: OwnershipPrinting | undefined;
 }
@@ -86,19 +38,12 @@ interface OwnershipPrinting {
   id: string;
   language: string;
   shortCode: string;
-  /** Set the printing belongs to; the card-ID sort orders by its catalog position. */
   setId: string;
   rarity: Rarity;
   imageId: string | undefined;
-  /** True for Battlefields — their art is stored landscape and rotated for display. */
   landscape: boolean;
 }
 
-/**
- * Projects a catalog printing down to the fields the ownership consumers
- * (missing-cards dialog, list rows) render and deep-link with.
- * @returns The compact printing shape.
- */
 function toOwnershipPrinting(printing: Printing): OwnershipPrinting {
   return {
     id: printing.id,
@@ -111,12 +56,7 @@ function toOwnershipPrinting(printing: Printing): OwnershipPrinting {
   };
 }
 
-/**
- * Tooltip sentence for a row's locked copies — the count capped to this zone's
- * shortfall, the reasons drawn from the card-wide breakdown ("why is this
- * locked"). Only meaningful when `entry.locked > 0`.
- * @returns One sentence naming the locked copies and why they don't count.
- */
+// Only meaningful when `entry.locked > 0`.
 export function lockedReasonText(entry: CardOwnership): string {
   const reasons: string[] = [];
   if (entry.lockedLoaned > 0) {
@@ -134,90 +74,32 @@ export function lockedReasonText(entry: CardOwnership): string {
     : `${entry.locked} more copies are locked: ${why}`;
 }
 
-/** The deck proper — the zones behind the "X / 56" completion figure. */
 const REQUIRED_ZONE_SET: ReadonlySet<DeckZone> = new Set(REQUIRED_ZONES);
 
 export interface DeckOwnershipData {
-  /**
-   * Per-card ownership keyed by `cardId:zone`. Overflow rows are present so
-   * they still render owned counts and prices, but they don't feed the totals.
-   */
   byCardZone: Map<string, CardOwnership>;
   totalNeeded: number;
   totalOwned: number;
-  /**
-   * Needed/owned across the deck proper only (legend, champion, runes,
-   * battlefields, main — no sideboard). This is the basis the hero's owned
-   * chip displays, so its denominator matches the "X / 56" completion figure.
-   * `totalNeeded`/`totalOwned` above keep counting the sideboard for the
-   * missing-cards flows.
-   */
   requiredZoneNeeded: number;
   requiredZoneOwned: number;
-  /**
-   * Per card, the canonical-ranked printing the viewer actually owns copies
-   * of — drives the "show my printings" display toggle. Absent when the
-   * viewer owns none.
-   */
   ownedPrintingByCardId: ReadonlyMap<string, OwnershipPrinting>;
   totalLocked: number;
   totalBorrowed: number;
-  /**
-   * Copies of missing cards that are arriving from reserved trades. Advisory
-   * only: `missingCount` is deliberately unaffected, because the cards aren't
-   * in hand yet.
-   */
   totalIncoming: number;
   missingCount: number;
-  /**
-   * `missingCount` split by scope: shortfall inside the deck proper vs the
-   * sideboard. The hero's ownership chip renders them as "4 + 2 side missing"
-   * so the deck-proper fraction next to it can't read as contradicting the
-   * missing figure. Always sums to `missingCount`.
-   */
   requiredZoneMissing: number;
   sideboardMissing: number;
-  /**
-   * The headline deck value: every card at its cheapest acceptable printing
-   * (viewer's languages first — see {@link CardOwnership.cheapestPrice}).
-   * Pinned premium printings never move this figure; their total is
-   * `asDisplayedValueCents`.
-   */
   deckValueCents: number | undefined;
-  /** Deck value excluding the sideboard — legend, champion, runes, battlefields, main. */
   mainValueCents: number | undefined;
-  /** Deck value of the sideboard zone alone. */
   sideboardValueCents: number | undefined;
-  /**
-   * The deck priced at the printings it displays (the creator's pins /
-   * canonical fallbacks). Shown in the value popover when it differs from the
-   * cheapest-based headline.
-   */
   asDisplayedValueCents: number | undefined;
-  /**
-   * Cost to buy every missing copy the cheapest way, preferring the viewer's
-   * languages (see {@link CardOwnership.cheapestPrice}).
-   */
   missingValueCents: number | undefined;
-  /**
-   * `missingValueCents` split the same way `mainValueCents` /
-   * `sideboardValueCents` split the deck's own value, so the panel can show
-   * what completing the deck proper costs apart from the sideboard.
-   */
   missingMainValueCents: number | undefined;
   missingSideboardValueCents: number | undefined;
-  /**
-   * Cost of the missing copies at the deck's displayed printings (the
-   * creator's pins). Shown alongside the cheapest figure when they differ.
-   */
   missingAsDisplayedValueCents: number | undefined;
   missingCards: CardOwnership[];
 }
 
-/**
- * Compute deck ownership and cost data from deck cards, catalog printings, and owned counts.
- * @returns Aggregated ownership stats, per-card breakdown, and missing cards list.
- */
 export function computeDeckOwnership(
   deckCards: DeckBuilderCard[],
   allPrintings: Printing[],
@@ -234,16 +116,10 @@ export function computeDeckOwnership(
   },
   incomingCountByPrinting?: Record<string, number>,
 ): DeckOwnershipData {
-  // Intentionally NOT `"use memo"`: when React Compiler memoizes a `"use
-  // memo"` helper, it wraps the call site in a cache check. On cache hits
-  // the call is skipped, and the helper's own useMemoCache(N) doesn't fire —
-  // which shifts every later `_c` slot in the parent fiber's memoCache and
-  // produces "previous cache allocated with size X but size Y was requested"
-  // warnings. `useDeckOwnership` already memoizes this call via the outer
-  // compiler, so there's no benefit to marking this as `"use memo"` too.
+  // Intentionally NOT `"use memo"`: wrapping this in a compiler cache check
+  // shifts every later memoCache slot in the parent fiber, causing "previous
+  // cache allocated with size X but size Y was requested" warnings.
 
-  // Index printings by cardId so we can resolve the deck row's preferred
-  // printing without scanning the full list per card.
   const printingsByCardId = new Map<string, Printing[]>();
   for (const printing of allPrintings) {
     const bucket = printingsByCardId.get(printing.cardId);
@@ -254,7 +130,6 @@ export function computeDeckOwnership(
     }
   }
 
-  // Build owned count by cardId (sum across all printings)
   const ownedByCardId = new Map<string, number>();
   if (ownedCountByPrinting) {
     for (const printing of allPrintings) {
@@ -265,7 +140,6 @@ export function computeDeckOwnership(
     }
   }
 
-  // Same fan-out for copies sitting in excluded ("locked") collections.
   const lockedByCardId = new Map<string, number>();
   if (lockedCountByPrinting) {
     for (const printing of allPrintings) {
@@ -276,7 +150,6 @@ export function computeDeckOwnership(
     }
   }
 
-  // And for borrowed copies (ADR-039) — in hand, buildable, not owned.
   const borrowedByCardId = new Map<string, number>();
   if (borrowedCountByPrinting) {
     for (const printing of allPrintings) {
@@ -287,8 +160,6 @@ export function computeDeckOwnership(
     }
   }
 
-  // And for cards arriving from a reserved trade (ADR-019) — not in hand, so
-  // they annotate the shortfall rather than covering it.
   const incomingByCardId = new Map<string, number>();
   if (incomingCountByPrinting) {
     for (const printing of allPrintings) {
@@ -299,9 +170,6 @@ export function computeDeckOwnership(
     }
   }
 
-  // Same fan-out for the locked reason breakdown, used only to word the "why
-  // locked" tooltip — the capped `lockedByCardId` above still owns the actual
-  // displayed count, so these aren't re-capped per zone.
   const loanedByCardId = new Map<string, number>();
   if (lockedReasonCountByPrinting?.loaned) {
     for (const printing of allPrintings) {
@@ -332,11 +200,7 @@ export function computeDeckOwnership(
     }
   }
 
-  // Track how many copies have been "claimed" across zones for each card.
-  // A user who owns 2 copies of a card in main (need 3) and sideboard (need 1)
-  // should see the total 2 distributed across zones. Locked copies use a
-  // separate tracker so they're attributed in zone order without competing
-  // with available copies.
+  // Claims are tracked per zone in iteration order; locked copies use a separate tracker.
   const claimedByCardId = new Map<string, number>();
   const claimedLockedByCardId = new Map<string, number>();
   const claimedBorrowedByCardId = new Map<string, number>();
@@ -365,9 +229,7 @@ export function computeDeckOwnership(
   let missingSideboardValueCents = 0;
   let missingAsDisplayedValueCents = 0;
 
-  // Overflow rows are walked last so a stashed copy never claims an owned copy
-  // ahead of the zone that actually needs it — their own owned/borrowed numbers
-  // are whatever the deck proper left over.
+  // Overflow rows must be processed after every other zone.
   const orderedCards = deckCards.toSorted(
     (left, right) => Number(isCountedZone(right.zone)) - Number(isCountedZone(left.zone)),
   );
@@ -381,8 +243,6 @@ export function computeDeckOwnership(
 
     claimedByCardId.set(card.cardId, alreadyClaimed + ownedInZone);
 
-    // Borrowed copies (ADR-039) are physically in hand, so they cover need
-    // that owned copies don't — reducing the shortfall, tracked separately.
     const totalBorrowedForCard = borrowedByCardId.get(card.cardId) ?? 0;
     const alreadyClaimedBorrowed = claimedBorrowedByCardId.get(card.cardId) ?? 0;
     const borrowedAvailableForZone = Math.max(0, totalBorrowedForCard - alreadyClaimedBorrowed);
@@ -391,36 +251,25 @@ export function computeDeckOwnership(
 
     const shortfall = card.quantity - ownedInZone - borrowedInZone;
 
-    // Locked copies cover whatever's still missing after available copies are
-    // applied — capped at the remaining shortfall so a card with 4 locked
-    // copies but only 1 still needed reports `locked: 1`, not 4.
+    // Capped at the remaining shortfall.
     const totalLockedForCard = lockedByCardId.get(card.cardId) ?? 0;
     const alreadyClaimedLocked = claimedLockedByCardId.get(card.cardId) ?? 0;
     const lockedAvailableForZone = Math.max(0, totalLockedForCard - alreadyClaimedLocked);
     const lockedInZone = Math.min(shortfall, lockedAvailableForZone);
     claimedLockedByCardId.set(card.cardId, alreadyClaimedLocked + lockedInZone);
 
-    // Cards arriving from a reserved trade (ADR-019) are not in hand, so they
-    // never touch `shortfall` — they only explain part of it, so the user knows
-    // not to go buy a copy that's already on its way. Capped against what
-    // `locked` hasn't already explained: locked and incoming are disjoint
-    // physical cards, so chaining the caps keeps their sum within the gap
-    // instead of over-explaining it.
+    // Locked and incoming are disjoint physical cards: incoming caps against
+    // what `locked` hasn't already claimed.
     const totalIncomingForCard = incomingByCardId.get(card.cardId) ?? 0;
     const alreadyClaimedIncoming = claimedIncomingByCardId.get(card.cardId) ?? 0;
     const incomingAvailableForZone = Math.max(0, totalIncomingForCard - alreadyClaimedIncoming);
     const incomingInZone = Math.min(shortfall - lockedInZone, incomingAvailableForZone);
     claimedIncomingByCardId.set(card.cardId, alreadyClaimedIncoming + incomingInZone);
 
-    // Resolve the printing the deck builder displays for this row, mirroring
-    // `usePreferredPrinting`: explicit pin first, then language-preference
-    // canonical fallback. Pricing the wrong language variant here would let
-    // a cheaper non-EN printing bleed into the missing-cards dialog even
-    // when the deck row pins (or canonically resolves to) EN.
+    // Mirrors `usePreferredPrinting`: explicit pin first, then
+    // language-preference canonical fallback.
     const candidates = printingsByCardId.get(card.cardId) ?? [];
 
-    // The canonical-ranked printing the viewer owns, for the "show my
-    // printings" display toggle. Computed once per card (first zone wins).
     if (!ownedPrintingByCardId.has(card.cardId) && ownedCountByPrinting) {
       const ownedCandidates = candidates.filter(
         (candidate) => (ownedCountByPrinting[candidate.id] ?? 0) > 0,
@@ -444,11 +293,6 @@ export function computeDeckOwnership(
       : undefined;
     const displayPrinting = resolvedPrinting ? toOwnershipPrinting(resolvedPrinting) : undefined;
 
-    // Cheapest acceptable printing of this card. First tier: printings in the
-    // viewer's languages (`languageOrder` is their preference list when set,
-    // every language otherwise). Fallback tier: any priced printing. This is
-    // the basis for the headline value, the per-row prices, and the
-    // missing-cards pricing — never the pinned printing's price.
     let cheapestPrice: number | undefined;
     let cheapestResolved: Printing | undefined;
     {
@@ -514,7 +358,6 @@ export function computeDeckOwnership(
 
     if (shortfall > 0) {
       missingCount += shortfall;
-      // The only counted zone outside the deck proper is the sideboard.
       if (REQUIRED_ZONE_SET.has(card.zone)) {
         requiredZoneMissing += shortfall;
       } else {
@@ -523,11 +366,6 @@ export function computeDeckOwnership(
       missingCards.push(entry);
     }
 
-    // Value totals price every copy at the cheapest acceptable printing; the
-    // displayed printing (a pin, or the canonical fallback) only feeds the
-    // "as displayed" figures. Fall back to the displayed price when no
-    // printing is priced at all — cheapest already scans every candidate, so
-    // this only fires when the displayed printing is the lone priced one.
     const valuePerCopy = cheapestPrice ?? displayPrice;
     if (valuePerCopy !== undefined) {
       hasPrices = true;
@@ -573,10 +411,6 @@ export function computeDeckOwnership(
   };
 }
 
-/**
- * Hook that computes deck ownership and cost data.
- * @returns DeckOwnershipData with per-card and aggregate stats.
- */
 export function useDeckOwnership(
   deckCards: DeckBuilderCard[],
   allPrintings: Printing[],

@@ -44,13 +44,6 @@ export function useFlushPrintingEvents() {
   });
 }
 
-/**
- * Poll the latest job_runs row for the discord flush. Refetches every 2s
- * while running so the UI flips to the result toast quickly, every 60s
- * otherwise.
- *
- * @returns A react-query `UseQueryResult<JobRunView | null>`.
- */
 export function useLatestFlushRun() {
   return useQuery({
     queryKey: FLUSH_RUN_KEY,
@@ -70,9 +63,6 @@ export function isFlushPrintingEventsResult(value: unknown): value is FlushPrint
   return typeof candidate.sent === "number" && typeof candidate.failed === "number";
 }
 
-// Re-exported for consumers (printing-events-page); the shape is derived from
-// the API response in api-types, so it stays aligned with the route schema
-// (including the corrected `frontImageId` field).
 export type { PrintingEventView } from "@/lib/server-fns/api-types";
 
 const fetchPrintingEvents = createServerFn({ method: "GET" })

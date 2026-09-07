@@ -25,7 +25,6 @@ describe("isStackSelected", () => {
     });
 
     it("ignores itemId in stacked mode", () => {
-      // The printing id is not a copy id; only the copy ids decide.
       expect(isStackSelected(true, "p1", ["c1"], new Set(["p1"]))).toBe(false);
     });
   });
@@ -56,7 +55,6 @@ describe("computeShiftRange", () => {
   });
 
   it("walks backward when the clicked tile precedes the anchor", () => {
-    // Display order, not click order — a backward drag yields the same ids.
     expect(
       computeShiftRange({ items, lastSelectedItemId: "d", itemId: "b", idsForItem: selfId }),
     ).toEqual(["b", "c", "d"]);
@@ -93,7 +91,6 @@ describe("computeShiftRange", () => {
   });
 
   it("accumulates every id a stacked tile stands for", () => {
-    // The /collections case: one tile in cards view covers all the card's copies.
     const copies: Record<string, string[]> = { a: ["c1", "c2"], b: ["c3"], c: ["c4", "c5"] };
     expect(
       computeShiftRange({
@@ -106,8 +103,6 @@ describe("computeShiftRange", () => {
   });
 
   it("skips tiles that map to no selectable id", () => {
-    // The list case: rule-derived entries (null id, ADR-034) drop out of the
-    // range without breaking the walk across them.
     expect(
       computeShiftRange({
         items,
@@ -118,9 +113,7 @@ describe("computeShiftRange", () => {
     ).toEqual(["a", "d"]);
   });
 
-  it("returns an empty range when no tile in it is selectable", () => {
-    // Distinct from null: the anchor was valid, so the caller extends rather
-    // than falling back to a single toggle.
+  it("returns an empty range, distinct from null, when no tile in it is selectable", () => {
     expect(
       computeShiftRange({ items, lastSelectedItemId: "a", itemId: "c", idsForItem: () => [] }),
     ).toEqual([]);
@@ -165,8 +158,6 @@ describe("resolveContextActionTarget", () => {
   });
 
   it("does not act on a stale selection in browse mode even if copies happen to be in it", () => {
-    // Browse mode never aggregates: a lingering selection set must not pull
-    // extra cards into the action.
     const result = resolveContextActionTarget({
       mode: "browse",
       stacked: true,

@@ -26,8 +26,6 @@ export type TournamentDeckSubmissionInput = Omit<
   "entryId"
 >;
 
-// ── Server functions ────────────────────────────────────────────────────────
-
 const fetchMyTournamentDeck = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
@@ -91,13 +89,9 @@ const claimTournamentDeckFn = createServerFn({ method: "POST" })
     apiOrpcClient(deckCheckPlayerContract, context.cookie).claim({ token }),
   );
 
-// ── Query hooks ─────────────────────────────────────────────────────────────
-
 /**
- * The viewer's own deck in one tournament. Addressed by tournament, since that
- * is what the route carries; the entry id it resolves to is what the write
- * hooks below take.
- * @returns The player deck-entry query.
+ * Addressed by tournament, since that is what the route carries; the entry id
+ * it resolves to is what the write hooks below take.
  */
 export function useMyTournamentDeck(tournamentId: string) {
   const userId = useRequiredUserId();
@@ -125,13 +119,9 @@ export function useClaimLanding(token: string) {
   });
 }
 
-// ── Mutation hooks ──────────────────────────────────────────────────────────
-
 /**
- * Every write addresses the entry by id but is cached under its tournament, and
- * each one moves the entry's state — which the tournament detail also carries
- * (`myDeckEntry`, the My deck tile). So both keys refresh together.
- * @returns The two keys a deck write invalidates.
+ * Every write addresses the entry by id but is cached under its tournament,
+ * which the tournament detail also carries (`myDeckEntry`), so both refresh.
  */
 function deckWriteKeys(userId: string, tournamentId: string) {
   return [
@@ -140,7 +130,6 @@ function deckWriteKeys(userId: string, tournamentId: string) {
   ];
 }
 
-/** The addressing every player deck write shares: the entry, and its home. */
 interface DeckEntryRef {
   entryId: string;
   tournamentId: string;
@@ -197,10 +186,8 @@ export function useSubmitTournamentDeck() {
 }
 
 /**
- * Claims an entry via a provider-issued claim link. Public (no userId): the
- * page is reachable logged-out, and the caller is established by the session
- * cookie when the POST runs.
- * @returns A mutation resolving to the claim outcome.
+ * Public (no userId): the page is reachable logged-out, and the caller is
+ * established by the session cookie when the POST runs.
  */
 export function useClaimTournamentDeck() {
   return useMutation({
@@ -208,11 +195,7 @@ export function useClaimTournamentDeck() {
   });
 }
 
-/**
- * Dry-run preview shared by the submission and edit flows: never invalidates
- * anything, because nothing is written.
- * @returns A mutation resolving to the previewed lines and findings.
- */
+/** Dry-run preview shared by the submission and edit flows: never invalidates anything. */
 export function usePreviewTournamentDeck() {
   return useMutation({
     mutationFn: (

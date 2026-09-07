@@ -7,9 +7,6 @@ import { stubCopy, stubPrinting } from "@/test/factories";
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn() } }));
 
-// The move mutation rejects on demand, standing in for an expected server
-// rejection (e.g. a copy reserved by a live trade). The global mutation onError
-// toast is out of scope — what matters here is the session history rollback.
 const moveMutateAsync = vi.fn();
 let copies: CopyResponse[] = [];
 vi.mock("@/hooks/use-copies", () => ({
@@ -27,11 +24,6 @@ const BINDER = collection("binder", "Binder");
 const DECKBOX = collection("deckbox", "Deckbox");
 const ALL = [INBOX, BINDER, DECKBOX];
 
-/**
- * The verb defaults to "move" because that is what these tests are about. It
- * arrives as a prop: the palette commits to add or move before opening, so
- * there is no in-palette switch to drive here.
- */
 function renderMoveMode(
   collections: CollectionResponse[] = ALL,
   collectionId = DECKBOX.id,
@@ -63,8 +55,6 @@ describe("resolveSwapDirection", () => {
       ALL,
       INBOX.id,
     );
-    // A plain value swap can't put "All collections" back in the From slot,
-    // which is the whole reason swapUndo exists.
     expect(swapped).toEqual({
       from: DECKBOX.id,
       to: INBOX.id,
@@ -85,8 +75,6 @@ describe("resolveSwapDirection", () => {
       INBOX.id,
     );
 
-    // Clearing the inbox out: the inbox can't be both sides, so the
-    // destination becomes the first collection that isn't it.
     expect(next).toEqual({
       from: INBOX.id,
       to: BINDER.id,
@@ -116,7 +104,6 @@ describe("useQuickAddMoveMode", () => {
     const { result } = renderMoveMode([INBOX], INBOX.id);
 
     expect(result.current.canMove).toBe(false);
-    // Asked for move, but one collection has nowhere to move to.
     expect(result.current.inMoveMode).toBe(false);
   });
 
@@ -125,15 +112,12 @@ describe("useQuickAddMoveMode", () => {
     copies = [
       stubCopy({ id: "c1", printingId: printing.id, collectionId: BINDER.id }),
       stubCopy({ id: "c2", printingId: printing.id, collectionId: INBOX.id }),
-      // Already in the target, so not movable.
       stubCopy({ id: "c3", printingId: printing.id, collectionId: DECKBOX.id }),
-      // The move API rejects the whole batch for reserved copies.
       stubCopy({ id: "c4", printingId: printing.id, collectionId: BINDER.id, reserved: true }),
     ];
     const { result } = renderMoveMode();
 
     expect(result.current.movableCounts?.[printing.id]).toBe(2);
-    // Inbox first, then the rest by size — that ordering is what sourceIndex 0 means.
     expect(result.current.sourcesFor(printing.id).map((s) => s.collectionId)).toEqual([
       INBOX.id,
       BINDER.id,
@@ -205,8 +189,6 @@ describe("useQuickAddMoveMode", () => {
       await result.current.undoMove(printing);
     });
 
-    // The undo failed, so the copy is still in the target and the history
-    // entry must survive for a retry.
     expect(moveMutateAsync).toHaveBeenLastCalledWith({
       copyIds: ["c1"],
       toCollectionId: BINDER.id,
@@ -244,8 +226,6 @@ describe("useQuickAddMoveMode", () => {
     await act(async () => {
       result.current.chooseMoveTo(BINDER.id);
     });
-    // The remembered pair described a direction the user has now edited, so a
-    // swap starts fresh rather than replaying it.
     await act(async () => {
       result.current.handleSwapDirection();
     });

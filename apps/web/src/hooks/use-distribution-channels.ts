@@ -22,8 +22,6 @@ const createChannelFn = createServerFn({ method: "POST" })
   .validator((input: CreateChannelInput) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }): Promise<DistributionChannelResponse> => {
-    // The 201 returns `{ distributionChannel }`; unwrap to the bare response the
-    // callers expect.
     const { distributionChannel } = await apiOrpcClient(
       adminDistributionChannelsContract,
       context.cookie,

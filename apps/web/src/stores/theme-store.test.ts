@@ -9,7 +9,6 @@ let resetStore: () => void;
 
 beforeEach(() => {
   resetStore = createStoreResetter(useThemeStore);
-  // Ensure document.documentElement exists for applyTheme
   document.documentElement.classList.remove("dark");
 });
 
@@ -62,7 +61,6 @@ describe("useThemeStore", () => {
 
       const state = useThemeStore.getState();
       expect(state.preference).toBeNull();
-      // Resolved theme depends on PREFERENCE_DEFAULTS.theme
       const defaultTheme = PREFERENCE_DEFAULTS.theme;
       if (defaultTheme === "light" || defaultTheme === "dark") {
         expect(state.theme).toBe(defaultTheme);
@@ -87,7 +85,6 @@ describe("useThemeStore", () => {
       useThemeStore.getState().toggleTheme();
       expect(useThemeStore.getState().preference).toBe("auto");
 
-      // auto → light
       useThemeStore.getState().toggleTheme();
       expect(useThemeStore.getState().preference).toBe("light");
     });
@@ -102,9 +99,6 @@ describe("useThemeStore", () => {
 
       const state = useThemeStore.getState();
       expect(state.preference).toBeNull();
-      // Resolved theme depends on the system, but the dark class should only
-      // be present when resolved === "dark". jsdom reports no prefers-dark,
-      // so the default resolves to light.
       expect(state.theme === "light" || state.theme === "dark").toBe(true);
       expect(document.documentElement.classList.contains("dark")).toBe(state.theme === "dark");
     });

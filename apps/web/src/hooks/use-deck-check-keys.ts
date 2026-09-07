@@ -9,14 +9,6 @@ import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-/**
- * Host-scoped deck-check integration keys (ADR-033). Keys belong to a host —
- * the current user (`/me`) or an organization — rather than a friend group, so
- * any host can mint provider push credentials.
- */
-
-// ── Personal keys (host = the current user) ──────────────────────────────────
-
 const fetchMyKeys = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }): Promise<DeckCheckKeysResponse> =>
@@ -91,8 +83,6 @@ export function useRemoveMyDeckCheckKey() {
     invalidates: () => [queryKeys.deckCheckKeys.mine(userId)],
   });
 }
-
-// ── Organization keys (host = the org; owner/manager only) ────────────────────
 
 const fetchOrgKeys = createServerFn({ method: "GET" })
   .validator((input: string) => input)

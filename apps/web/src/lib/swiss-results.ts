@@ -6,19 +6,13 @@ import { placementsFromGamePoints, swissPointsForPlacements } from "@openrift/sh
 import type { TournamentMatchFormat } from "@openrift/shared";
 
 export interface SwissResultPreset {
-  /** Score label from player 1's perspective, e.g. "2–1" or "Draw 1–1". */
   label: string;
-  /** Games won as [player1, player2]. */
   gamePoints: [number, number];
 }
 
 /**
- * The result options offered for one match, ordered player-1 wins, draws,
- * player-2 wins. Bo3 includes the time-limit scorelines (1–0, 1–1) alongside
- * the clean 2–0 / 2–1 finishes.
- *
- * @param matchFormat The tournament's match format.
- * @returns The presets to render as result buttons.
+ * Result options for one match, ordered player-1 wins, draws, player-2 wins.
+ * Bo3 includes the time-limit scorelines (1–0, 1–1) alongside 2–0 / 2–1.
  */
 export function swissResultPresets(matchFormat: TournamentMatchFormat): SwissResultPreset[] {
   if (matchFormat === "bo1") {
@@ -40,15 +34,7 @@ export function swissResultPresets(matchFormat: TournamentMatchFormat): SwissRes
   ];
 }
 
-/**
- * The match points a game-point pair yields, for the preview next to a preset
- * ("+3 / +0").
- *
- * @param gamePoints Games won as [player1, player2].
- * @param winPoints The tournament's match-win points.
- * @param drawPoints The tournament's per-player draw points.
- * @returns Match points as [player1, player2].
- */
+/** The match points a game-point pair yields, for the preview next to a preset ("+3 / +0"). */
 export function swissPointsPreview(
   gamePoints: [number, number],
   winPoints: number,

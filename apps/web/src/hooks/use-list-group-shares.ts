@@ -13,10 +13,8 @@ const fetchShares = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: listId }): Promise<ListGroupSharesResponse> => {
-    // 404 (unknown list, or one belonging to another user) maps to the
-    // NOT_FOUND sentinel — the raw ORPCError crossing the server-fn boundary
-    // unhandled is Sentry noise (the sentinel is in ignoreErrors, see
-    // instrument.server.mjs), and the page's detail query 404s the route anyway.
+    // Maps 404 to the NOT_FOUND sentinel; an unhandled ORPCError crossing the
+    // server-fn boundary is Sentry noise (sentinel is in instrument.server.mjs ignoreErrors).
     const { error, data } = await safe(
       apiOrpcClient(listsContract, context.cookie).groupShares({ id: listId }),
     );
@@ -29,11 +27,6 @@ const fetchShares = createServerFn({ method: "GET" })
     return data;
   });
 
-/**
- * Query options for the friend groups a list is currently shared with. Shared
- * by the suspense hook below and the passive badge in `ListVisibilityButton`.
- * @returns Query options keyed on owner + list.
- */
 export function listGroupSharesQueryOptions(userId: string, listId: string) {
   return queryOptions({
     queryKey: queryKeys.lists.groupShares(userId, listId),
@@ -41,13 +34,6 @@ export function listGroupSharesQueryOptions(userId: string, listId: string) {
   });
 }
 
-/**
- * Friend groups a list is currently shared with (read-only).
- * Used by the list share dialog's group-toggle panel and by the passive
- * "shared with N groups" badge on the list header.
- *
- * @returns The query result; `data.items` is empty if not shared with any group.
- */
 export function useListGroupShares(listId: string) {
   const userId = useRequiredUserId();
   return useSuspenseQuery(listGroupSharesQueryOptions(userId, listId));

@@ -10,7 +10,6 @@ import type {
  * chooses and the sentence the contributor reads can never drift apart.
  */
 
-/** Badge label per status. */
 export const submissionStatusLabels: Record<CardSubmissionStatus, string> = {
   pending: "Waiting for review",
   accepted: "Applied",
@@ -20,9 +19,8 @@ export const submissionStatusLabels: Record<CardSubmissionStatus, string> = {
 };
 
 /**
- * Badge variant per status. `not_applied` and `rejected` deliberately look the
- * same: the split between them is an internal signal about abuse, not something
- * to point at a contributor who simply could not be verified.
+ * `not_applied` and `rejected` deliberately look the same: the split is an
+ * internal abuse signal, not something to show a good-faith contributor.
  */
 export const submissionStatusBadgeVariant: Record<
   CardSubmissionStatus,
@@ -35,7 +33,6 @@ export const submissionStatusBadgeVariant: Record<
   rejected: "outline",
 };
 
-/** One line of explanation under the badge, when the status alone is thin. */
 export const submissionStatusHints: Record<CardSubmissionStatus, string | null> = {
   pending: "Someone will look at this by hand. That can take a while.",
   accepted: "Your details are in the catalogue. Thank you.",
@@ -44,14 +41,12 @@ export const submissionStatusHints: Record<CardSubmissionStatus, string | null> 
   rejected: null,
 };
 
-/** What the contributor sent. */
 export const submissionKindLabels: Record<CardSubmissionKind, string> = {
   new_card: "New card",
   correction: "Correction",
   image: "Image",
 };
 
-/** The canned sentence behind each admin reason. */
 export const submissionReasonSentences: Record<CardSubmissionReason, string> = {
   duplicate: "Someone had already sent this one in.",
   already_correct: "The catalogue already had these details.",
@@ -60,7 +55,6 @@ export const submissionReasonSentences: Record<CardSubmissionReason, string> = {
   bad_image: "The image was not usable, usually because of its size, angle, or quality.",
 };
 
-/** Short labels for the admin's reason picker. */
 export const submissionReasonLabels: Record<CardSubmissionReason, string> = {
   duplicate: "Already submitted",
   already_correct: "Already correct",
@@ -69,13 +63,6 @@ export const submissionReasonLabels: Record<CardSubmissionReason, string> = {
   bad_image: "Unusable image",
 };
 
-/**
- * The full explanation to show for a resolved submission: the admin's own words
- * when they wrote any, otherwise the canned sentence for the reason they picked.
- * @param reason The canned reason, if one was chosen.
- * @param note The admin's free text, if any.
- * @returns The sentence to render, or null when there is nothing to say.
- */
 export function submissionExplanation(
   reason: CardSubmissionReason | null,
   note: string | null,

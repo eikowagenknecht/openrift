@@ -3,13 +3,6 @@ import { getPlaysetSize } from "@openrift/shared";
 
 import type { OwnedBucket } from "@/lib/search-schemas";
 
-/**
- * Classify an owned-copy total into one of four buckets relative to a playset
- * size. The total is per-card or per-printing depending on the caller's
- * `bucketBy` choice (see {@link applyOwnedBucketFilter}).
- *
- * @returns The bucket the total falls into for the given playset size.
- */
 export function bucketFor(total: number, playsetSize: number): OwnedBucket {
   if (total === 0) {
     return "none";
@@ -24,17 +17,9 @@ export function bucketFor(total: number, playsetSize: number): OwnedBucket {
 }
 
 /**
- * Filter printings by ownership bucket.
- *
- * - `bucketBy: "card"` (default) aggregates owned copies across all variants of
- *   a card, derives one bucket per card, and keeps every printing of a matching
- *   card. This is what cards view wants ("own a full playset of this card").
- * - `bucketBy: "printing"` buckets each printing on its own owned count, so a
- *   printing survives only when that individual variant matches a selected
- *   bucket. Printings view uses this, so "all but None" means "printings I own
- *   at least one of" rather than "any variant of a card I partly own".
- *
- * @returns Printings whose bucket is one of the selected ones.
+ * `bucketBy: "card"` (default) aggregates owned copies across a card's
+ * variants and keeps every printing of a card whose total matches; `"printing"`
+ * buckets each printing on its own count instead.
  */
 export function applyOwnedBucketFilter(
   cards: readonly Printing[],
@@ -76,18 +61,8 @@ export function applyOwnedBucketFilter(
 }
 
 /**
- * Filter printings by the exact number of copies owned, within an inclusive
- * range. This is the slider counterpart to the coarse-bucket
- * {@link applyOwnedBucketFilter} and uses the same card-vs-printing split:
- *
- * - `bucketBy: "card"` (default) aggregates owned copies across every variant of
- *   a card and keeps all printings of a card whose total falls in range.
- * - `bucketBy: "printing"` ranges each printing on its own owned count.
- *
- * `min`/`max` are inclusive. `null` means unbounded on that side (`min: null` →
- * zero and up; `max: null` → no upper limit).
- *
- * @returns Printings whose owned total is within [min, max].
+ * Same card-vs-printing split as {@link applyOwnedBucketFilter}, but ranges an
+ * exact inclusive [min, max]; either bound `null` means unbounded on that side.
  */
 export function applyOwnedCountFilter(
   cards: readonly Printing[],
@@ -115,15 +90,7 @@ export function applyOwnedCountFilter(
   });
 }
 
-/**
- * Largest owned total across a set of printings — the upper bound for the
- * "copies owned" range slider's track. Uses the same card-vs-printing
- * aggregation as {@link applyOwnedCountFilter}: in card mode it's the most
- * copies owned of any single card (summed across its variants); in printing
- * mode the most owned of any single printing.
- *
- * @returns The maximum owned total, or 0 when nothing is owned.
- */
+/** Same card-vs-printing aggregation as {@link applyOwnedCountFilter}. */
 export function maxOwnedCount(
   cards: readonly Printing[],
   ownedCountByPrinting: Record<string, number>,

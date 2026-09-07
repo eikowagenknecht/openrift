@@ -34,16 +34,9 @@ interface CardDetailLoaderData {
   languageOrder: readonly string[];
   domainLabels: Record<string, string>;
   cardTypeLabels: Record<string, string>;
-  // Precomputed in the loader from the /prices resource: prices are no
-  // longer inlined on CardDetailResponse, so the SSR head can't derive these.
   marketplaceOffers: CardMarketplaceOffer[];
 }
 
-// Currency is sourced from the shared MARKETPLACE_CURRENCY map so the
-// JSON-LD offer currency stays in lockstep with how the rest of the app labels
-// each marketplace's cents.
-// ALL_MARKETPLACES puts CardTrader first, so the meta description's price
-// line (built from the first offer) quotes the app's preferred marketplace.
 const MARKETPLACE_OFFER_CONFIG = ALL_MARKETPLACES.map((key) => ({
   key,
   seller: marketplaceLabel(key),
@@ -52,15 +45,8 @@ const MARKETPLACE_OFFER_CONFIG = ALL_MARKETPLACES.map((key) => ({
 
 export const Route = createFileRoute("/_app/cards_/$cardSlug")({
   validateSearch: cardDetailSearchSchema,
-  // Return an empty (stable) deps object so the match ID — hashed from
-  // `loaderDeps` — doesn't change when the user clicks through variants and the
-  // URL `?printingId=…` is rewritten. Otherwise every variant switch creates a
-  // fresh match in `status: "pending"`, throws `loadPromise` to the route's
-  // Suspense boundary, briefly renders `CardDetailPending`, and remounts the
-  // detail subtree (wasted work + visible skeleton flash on slow connections).
-  // The `head` below reads `printingId` from the match's live search (not from
-  // loaderData), so the SSR meta tags still pick the right variant for shared
-  // links without the loader having to depend on it.
+  // Empty deps keep the match ID stable across `?printingId=` changes; depending on
+  // it would remount the detail subtree (skeleton flash) on every variant switch.
   loaderDeps: () => ({}),
   head: ({ loaderData, match }) => {
     const siteUrl = getSiteUrl();
@@ -70,11 +56,8 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       return seoHead({ siteUrl, title: "Card" });
     }
 
-    // Read `?printingId=X` straight from the match's validated search rather
-    // than from loaderData: the loader is memoized on a deliberately empty
-    // `loaderDeps` (see above) so it can't carry the per-variant id, but `head`
-    // runs against the live search and so unfurls a shared variant link with the
-    // matching art and rules text. Falls back to the EN-first preferred printing.
+    // Read from the live search, not loaderData: loaderDeps is empty (see above), so
+    // loaderData never carries the per-variant printingId.
     const metaPrinting = resolveCardMetaPrinting(
       data.printings,
       match.search.printingId,
@@ -90,14 +73,8 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       },
       loaded.marketplaceOffers,
     );
-    // Canonical always points at the query-less card URL so search engines
-    // consolidate rankings for all variants onto one page.
     const cardPath = `/cards/${data.card.slug}`;
-    // The same label the page's own h1 renders, so the tab, the unfurl and the
-    // heading agree on what a Legend is called.
     const cardName = legendDisplayName(data.card);
-    // "Price & Data" only when there are real offers backing it — a priceless
-    // card advertising prices would earn clicks it can't serve.
     const titleSuffix =
       loaded.marketplaceOffers.length > 0 ? "Riftbound Card Price & Data" : "Riftbound Card";
     const head = seoHead({
@@ -109,12 +86,8 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       ogType: "product",
     });
 
-    // Schema.org Product/Offer JSON-LD. Prices are no longer inlined on the card
-    // response; the loader precomputes the per-marketplace offers from
-    // the /prices resource so they're available synchronously at SSR time for
-    // crawlers that don't execute JS. productJsonLd returns null for a card
-    // with no marketplace prices (a Product without offers is invalid to
-    // Google), so the script is dropped entirely in that case.
+    // productJsonLd returns null with no marketplace prices, since Google flags a
+    // Product script with no offers as invalid; filtered out below.
     return {
       ...head,
       scripts: [
@@ -134,14 +107,11 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
     };
   },
   loader: async ({ context, params }): Promise<CardDetailLoaderData> => {
-    // Fetch card detail and init in parallel. The head/meta preview picks
-    // the preferred printing using the live language sort order from
-    // /api/enums — logged-out crawlers fall through to this default.
     let data: CardDetailResponse;
     let init: Awaited<ReturnType<typeof initQueryOptions.queryFn & object>>;
     try {
-      // `select: undefined` keeps the raw response: the enriched shape the
-      // components read drops fields the JSON-LD below still needs.
+      // select: undefined keeps the raw response; the enriched shape drops fields
+      // the JSON-LD below still needs.
       [data, init] = await Promise.all([
         context.queryClient.query({
           ...cardDetailQueryOptions(params.cardSlug),
@@ -157,24 +127,12 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       throw error;
     }
     const languageRows = (init.enums.languages ?? []) as { slug: string; sortOrder: number }[];
-    // Loader runs for crawlers/anonymous users — no user preference available,
-    // so pass [] and let the helper fall through to the DB default.
     const languageOrder = effectiveLanguageOrder([], languageRows);
     const labelMap = (rows: readonly { slug: string; label: string }[]) =>
       Object.fromEntries(rows.map((row) => [row.slug, row.label]));
 
-    // Prices come from the /prices resource now, not inlined on the
-    // card response. They're SEO-only here, so a price-fetch failure must not
-    // break the card page — fall back to no offers.
-    //
-    // The two branches are deliberate, mirroring the split in /cards. On the
-    // server, go around the query client: TanStack Start dehydrates its cache
-    // into the SSR HTML, so writing the response there inlined the entire
-    // ~270 KB catalog price map into every card page (74% of the document) just
-    // to emit three JSON-LD offers. On the client, keep warming the cache — the
-    // pricing, footer and printing-picker components read it through
-    // `usePrices()` (a suspense query), and the browser gets it from
-    // Cloudflare's edge cache rather than from this page's HTML.
+    // Server path bypasses the query client: writing prices there gets dehydrated
+    // into the SSR HTML, inlining the ~270 KB catalog price map into every page.
     let pricesResponse: PricesResponse;
     try {
       pricesResponse =

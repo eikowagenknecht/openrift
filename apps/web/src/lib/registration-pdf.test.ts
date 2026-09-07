@@ -9,13 +9,6 @@ import { stubDeckBuilderCard } from "@/test/factories";
 import type { RegistrationFields, RegistrationPageSize } from "./registration-pdf";
 import { generateRegistrationPdf } from "./registration-pdf";
 
-// ── A recording stand-in for jsPDF ─────────────────────────────────────────
-//
-// The sheet is pure layout, so the tests assert on the drawing calls the module
-// makes rather than on the PDF bytes. Every call keeps the font/colour state it
-// was issued under, which is what distinguishes a bold header row from a normal
-// card row drawn in the same column.
-
 interface DrawState {
   font: string;
   style: string;
@@ -175,8 +168,6 @@ vi.mock("@/lib/pdf-logo", () => ({
   loadLogoDataUrl: () => mocks.loadLogo(),
 }));
 
-// ── Fixtures ───────────────────────────────────────────────────────────────
-
 const LOGO_DATA_URL = "data:image/png;base64,LOGO";
 const SITE_URL = "https://openrift.app";
 
@@ -230,8 +221,6 @@ async function render(
   return doc;
 }
 
-// ── Query helpers ──────────────────────────────────────────────────────────
-
 function textsOf(doc: FakeDoc, value: string): TextCall[] {
   return doc.texts.filter((call) => call.text === value);
 }
@@ -244,9 +233,6 @@ function onlyText(doc: FakeDoc, value: string): TextCall {
 
 const BELOW_EVERYTHING = Number.POSITIVE_INFINITY;
 
-// Card names written into a column's name cells, top to bottom. Header rows are
-// bold and the footer/annotations use other sizes, so body rows are the normal
-// 9pt runs at the name column's x.
 function rowNames(doc: FakeDoc, columnX: number, fromY: number, toY: number): string[] {
   return doc.texts
     .filter(
@@ -260,8 +246,6 @@ function rowNames(doc: FakeDoc, columnX: number, fromY: number, toY: number): st
     .map((call) => call.text);
 }
 
-// The legend and battlefield blocks have no quantity cell, so their names sit
-// at the column's own x rather than 18 mm into it.
 function nameOnlyRowNames(doc: FakeDoc, columnX: number, fromY: number, toY: number): string[] {
   return doc.texts
     .filter(
@@ -336,7 +320,6 @@ describe("generateRegistrationPdf", () => {
       const brand = onlyText(doc, "Generated with preview.openrift.app");
       expect(doc.links).toHaveLength(1);
       expect(doc.links[0].url).toBe("https://preview.openrift.app");
-      // The hit area sits on the brand line.
       expect(doc.links[0].y).toBeCloseTo(brand.y - 2);
     });
 
@@ -396,7 +379,6 @@ describe("generateRegistrationPdf", () => {
       for (const label of ["Date:", "Event:", "Location:", "Deck Name:", "Deck Designer:"]) {
         expect(onlyText(doc, label).align).toBe("right");
       }
-      // Every 8pt run in the info table is a label, so nothing was filled in.
       const infoRuns = doc.texts.filter((call) => call.size === 8);
       expect(infoRuns.map((call) => call.text)).toEqual([
         "Date:",
@@ -420,7 +402,6 @@ describe("generateRegistrationPdf", () => {
         "Last Name:",
         "Lightshield",
       ]);
-      // Label and value share the margin's text column.
       expect(new Set(rotated.map((call) => call.x))).toEqual(new Set([15]));
     });
 
@@ -532,7 +513,6 @@ describe("generateRegistrationPdf", () => {
         "Avarosan Scout",
         "Frostbite",
       ]);
-      // 1 champion copy + 2 main copies collapse into a single row of 3.
       expect(rowQuantities(doc, left, top, BELOW_EVERYTHING)).toEqual(["3", "2", "3"]);
     });
 
@@ -620,8 +600,6 @@ describe("generateRegistrationPdf", () => {
     });
 
     it("silently drops main-deck cards past the fortieth row", async () => {
-      // Pinning current behaviour: the sheet has 40 printed rows and an
-      // over-full deck loses the tail rather than paginating.
       const cards = Array.from({ length: 45 }, (_unused, index) =>
         zoneCard(`Card ${String(index + 1).padStart(2, "0")}`, WellKnown.deckZone.MAIN),
       );

@@ -1,24 +1,17 @@
 import type { UnifiedMappingGroupResponse } from "@openrift/shared";
 import { marketplaceCarriesLanguage, marketplaceLabel, WellKnown } from "@openrift/shared";
 
-/** Coverage status for one direction (printings-side or entries-side) on one marketplace. */
 type MarketplaceCoverageStatus = "full" | "partial" | "none" | "na";
 
 export interface DirectionCoverage {
   status: MarketplaceCoverageStatus;
-  /** Items on this side that are mapped to the other side. */
   mapped: number;
-  /** Total items on this side considered for this marketplace. */
   total: number;
 }
 
 /**
- * Per-marketplace coverage broken down by direction:
- * - `printings`: do our printings have an entry on this marketplace?
- * - `entries`: do this marketplace's entries match a printing of ours?
- *
- * Each side is colored independently so the two failure modes (missing entries
- * vs. orphan entries) are visible at a glance.
+ * `printings`: do our printings have an entry on this marketplace?
+ * `entries`: do this marketplace's entries match a printing of ours?
  */
 export interface MarketplaceCoverage {
   printings: DirectionCoverage;
@@ -49,16 +42,9 @@ function direction(mapped: number, total: number): DirectionCoverage {
 }
 
 /**
- * Compute marketplace coverage for one card.
- *
- * Printings-side: every printing has its own explicit marketplace variant (or
- * not) — mapped is the count with a direct variant on that marketplace. The
- * total counts only printings the marketplace can actually carry, so a card
- * with SC printings still reads "full" on TCGplayer once its English printings
- * are mapped, instead of being stuck at "partial" forever. Entries-side reads
- * `assignedProducts` and `stagedProducts` from the group.
- *
- * @returns Per-marketplace coverage, with independent printings + entries directions.
+ * Printings-side totals count only printings the marketplace can carry, so a
+ * card with SC printings reads "full" on TCGplayer once its EN printings are
+ * mapped.
  */
 export function computeCardCoverage(group: UnifiedMappingGroupResponse): CardCoverage {
   const tcgMappedPrintings = new Set(group.tcgplayer.assignments.map((a) => a.printingId));
@@ -104,12 +90,6 @@ export function computeCardCoverage(group: UnifiedMappingGroupResponse): CardCov
   };
 }
 
-/**
- * Build a map from card slug to coverage so the cards table can look up
- * coverage by row in O(1).
- *
- * @returns A Map keyed by `cardSlug` with the per-card coverage.
- */
 export function buildCoverageMapBySlug(
   groups: UnifiedMappingGroupResponse[],
 ): Map<string, CardCoverage> {
@@ -120,47 +100,24 @@ export function buildCoverageMapBySlug(
   return result;
 }
 
-// ---------------------------------------------------------------------------
-// Prices-to-assign buckets
-// ---------------------------------------------------------------------------
-
 type Marketplace = "tcgplayer" | "cardmarket" | "cardtrader";
 
-/**
- * One source+language slice of a card's unbound (staged) marketplace entries.
- *
- * The "prices to assign" filter splits on this so that, e.g., a CardTrader
- * French entry on a card that has no French printing doesn't drown out the
- * entries you can actually act on.
- */
 export interface PriceAssignBucket {
   marketplace: Marketplace;
-  /**
-   * `null` for Cardmarket / TCGplayer (language-agnostic feeds, assumed EN); a
-   * language code (`"EN"`, `"FR"`, …) for CardTrader, which is per-language.
-   */
+  /** Null for Cardmarket/TCGplayer (assumed EN); a language code for CardTrader. */
   language: string | null;
-  /** Count of unbound (staged) products in this bucket. */
   unbound: number;
-  /**
-   * Whether a printing of the matching language exists on this card, so the
-   * staged entries can actually be assigned. CardTrader French entries are
-   * only assignable once a French printing exists; until then they're noise.
-   */
+  /** Whether a matching-language printing exists on this card. */
   assignable: boolean;
 }
 
-// The language a staged product would be assigned against (CM/TCG default to EN).
 function targetLanguage(language: string | null): string {
   return language ?? WellKnown.language.EN;
 }
 
 /**
- * Stable scope key for a bucket, used in the URL and the scope picker.
- * Language-agnostic marketplaces collapse to their name (`"cardmarket"`,
- * `"tcgplayer"`); CardTrader carries its language (`"cardtrader:FR"`).
- *
- * @returns The scope key string.
+ * Language-agnostic marketplaces collapse to their name (`"cardmarket"`);
+ * CardTrader carries its language (`"cardtrader:FR"`).
  */
 export function bucketScopeKey(
   bucket: Pick<PriceAssignBucket, "marketplace" | "language">,
@@ -168,14 +125,9 @@ export function bucketScopeKey(
   return bucket.language === null ? bucket.marketplace : `${bucket.marketplace}:${bucket.language}`;
 }
 
-/** The umbrella scope key — every assignable bucket, across all sources. */
 export const ALL_ASSIGNABLE_SCOPE = "all";
 
-/**
- * Human label for a scope key (`"cardtrader:FR"` → `"CardTrader · FR"`).
- *
- * @returns The display label.
- */
+/** Human label for a scope key (`"cardtrader:FR"` -> `"CardTrader · FR"`). */
 export function scopeLabel(scope: string): string {
   if (scope === ALL_ASSIGNABLE_SCOPE) {
     return "All assignable";
@@ -185,12 +137,6 @@ export function scopeLabel(scope: string): string {
   return language ? `${base} · ${language}` : base;
 }
 
-/**
- * Split one card's unbound staged entries into source+language buckets, marking
- * each as assignable or not based on whether a matching-language printing exists.
- *
- * @returns One bucket per (marketplace, language) slice that has unbound entries.
- */
 export function computePriceAssignBuckets(group: UnifiedMappingGroupResponse): PriceAssignBucket[] {
   const printingLanguages = new Set(group.printings.map((printing) => printing.language));
   const marketplaces: Marketplace[] = ["tcgplayer", "cardmarket", "cardtrader"];
@@ -201,8 +147,6 @@ export function computePriceAssignBuckets(group: UnifiedMappingGroupResponse): P
     if (staged.length === 0) {
       continue;
     }
-    // CM/TCG staged products carry no language (assumed EN), so they all fall
-    // into the single `null` bucket. CardTrader splits per language.
     const countByLanguage = new Map<string | null, number>();
     for (const product of staged) {
       const language = marketplace === "cardtrader" ? product.language : null;
@@ -222,12 +166,8 @@ export function computePriceAssignBuckets(group: UnifiedMappingGroupResponse): P
 }
 
 /**
- * Does a card have any unbound entry matching `scope`? The umbrella
- * {@link ALL_ASSIGNABLE_SCOPE} counts only assignable buckets, so CardTrader
- * entries for a language we don't stock printings of (e.g. French) drop out of
- * the default count but stay reachable by selecting their scope explicitly.
- *
- * @returns True when at least one bucket matches the scope and still has unbound entries.
+ * The umbrella {@link ALL_ASSIGNABLE_SCOPE} counts only assignable buckets, so
+ * entries for a language with no printing stay excluded by default.
  */
 export function bucketsMatchScope(
   buckets: PriceAssignBucket[] | undefined,
@@ -242,11 +182,6 @@ export function bucketsMatchScope(
   return buckets.some((bucket) => bucketScopeKey(bucket) === scope && bucket.unbound > 0);
 }
 
-/**
- * Build a map from card slug to its prices-to-assign buckets.
- *
- * @returns A Map keyed by `cardSlug`; cards with no unbound entries get `[]`.
- */
 export function buildPriceAssignBucketsBySlug(
   groups: UnifiedMappingGroupResponse[],
 ): Map<string, PriceAssignBucket[]> {

@@ -4,13 +4,6 @@ import { useShallow } from "zustand/react/shallow";
 import { buildSpotlightSequence, chooseRandomId, spotlightStepDelay } from "@/lib/match-helpers";
 import { useMatchTrackerStore } from "@/stores/match-tracker-store";
 
-/**
- * Drives the "who goes first?" reveal: clears the current pick, flashes a
- * spotlight across the player panels with an ease-out cadence, then commits
- * the randomly chosen first player when the animation lands.
- * @returns `{ isRolling, roll }` — whether the reveal is animating, and a
- *   trigger that is a no-op while already rolling or with no players.
- */
 export function useFirstPlayerSpotlight() {
   const playerIds = useMatchTrackerStore(useShallow((state) => state.players.map((p) => p.id)));
   const setFirstPlayer = useMatchTrackerStore((state) => state.setFirstPlayer);
@@ -18,7 +11,6 @@ export function useFirstPlayerSpotlight() {
   const [isRolling, setIsRolling] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Cancel any in-flight reveal and drop the spotlight if the page unmounts.
   useEffect(
     () => () => {
       if (timerRef.current !== null) {

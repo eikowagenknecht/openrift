@@ -241,9 +241,8 @@ describe("computeCollectionStats", () => {
 describe("computeCompletion", () => {
   it("computes set completion by cards with deduplication", () => {
     const stack1 = stubStack({ card: { slug: "fireball" }, setId: "set-1" });
-    const stack2 = stubStack({ card: { slug: "fireball" }, setId: "set-1" }); // same card, different printing
+    const stack2 = stubStack({ card: { slug: "fireball" }, setId: "set-1" });
     const stack3 = stubStack({ card: { slug: "icebolt" }, setId: "set-1" });
-    // Add unowned cards to the catalog so totals are higher than owned
     const unowned1 = stubPrinting({ card: { slug: "lightning" }, setId: "set-1" });
     const unowned2 = stubPrinting({ card: { slug: "heal" }, setId: "set-1" });
     const set = stubSet({ id: "set-1", cardCount: 10, printingCount: 15 });
@@ -260,8 +259,8 @@ describe("computeCompletion", () => {
     });
 
     expect(cards).toHaveLength(1);
-    expect(cards[0].owned).toBe(2); // fireball + icebolt
-    expect(cards[0].total).toBe(4); // fireball, icebolt, lightning, heal
+    expect(cards[0].owned).toBe(2);
+    expect(cards[0].total).toBe(4);
 
     const printings = computeCompletion({
       stacks: [stack1, stack2, stack3],
@@ -273,8 +272,8 @@ describe("computeCompletion", () => {
       orders: ORDERS,
     });
 
-    expect(printings[0].owned).toBe(3); // 3 printing IDs owned
-    expect(printings[0].total).toBe(5); // 5 printings in catalog
+    expect(printings[0].owned).toBe(3);
+    expect(printings[0].total).toBe(5);
   });
 
   it("sorts set completion with main sets before supplemental", () => {
@@ -369,18 +368,16 @@ describe("computeCompletion", () => {
     });
 
     const legendEntry = entries.find((entry) => entry.key === "legend");
-    expect(legendEntry?.owned).toBe(1); // have 1, target is 1
+    expect(legendEntry?.owned).toBe(1);
     expect(legendEntry?.total).toBe(1);
 
     const unitEntry = entries.find((entry) => entry.key === "unit");
-    expect(unitEntry?.owned).toBe(2); // have 2, target is 3
+    expect(unitEntry?.owned).toBe(2);
     expect(unitEntry?.total).toBe(3);
   });
 
   it("treats [Unique] non-legend cards as a 1-copy playset in copies mode", () => {
-    // Regression: the local copies-target ignored the [Unique] keyword, so a
-    // Unique card counted as a playset of 3 in stats while the deck builder
-    // (getPlaysetSize) treats it as 1. Both now route through getPlaysetSize.
+    // Must route through the same getPlaysetSize the deck builder uses.
     const uniqueRelic = stubStack({
       copyCount: 1,
       card: { slug: "relic", type: "unit", keywords: ["Unique"] },
@@ -398,14 +395,11 @@ describe("computeCompletion", () => {
     });
 
     const unitEntry = entries.find((entry) => entry.key === "unit");
-    expect(unitEntry?.total).toBe(1); // [Unique] → playset of 1, not 3
+    expect(unitEntry?.total).toBe(1);
     expect(unitEntry?.owned).toBe(1);
   });
 
   it("leaves runes and Other out of copies mode", () => {
-    // Runes are a shared basic supply and "Other" never enters a deck, so
-    // neither has a playset to chase. Counting them charged a target of 3 each
-    // and sank the completion percentage against a goal nobody plays towards.
     const rune = stubStack({ copyCount: 1, card: { slug: "fury-rune", type: "rune" } });
     const other = stubStack({ copyCount: 1, card: { slug: "oddity", type: "other" } });
     const unit = stubStack({ copyCount: 2, card: { slug: "soldier", type: "unit" } });
@@ -430,8 +424,7 @@ describe("computeCompletion", () => {
   });
 
   it("keeps runes out of a mixed group's copies totals", () => {
-    // Grouped by set, the rune shares a row with the unit, so it has to drop
-    // out of the sum rather than the whole row.
+    // The rune shares a row with the unit, so it drops out of the sum only.
     const rune = stubStack({
       copyCount: 3,
       card: { slug: "fury-rune", type: "rune" },
@@ -449,8 +442,8 @@ describe("computeCompletion", () => {
       orders: ORDERS,
     });
 
-    expect(entries[0].total).toBe(3); // the unit's playset alone
-    expect(entries[0].owned).toBe(1); // the rune's 3 copies don't count
+    expect(entries[0].total).toBe(3);
+    expect(entries[0].owned).toBe(1);
   });
 
   it("caps owned copies at target in copies mode", () => {
@@ -471,7 +464,7 @@ describe("computeCompletion", () => {
     });
 
     const unitEntry = entries.find((entry) => entry.key === "unit");
-    expect(unitEntry?.owned).toBe(3); // capped at target of 3
+    expect(unitEntry?.owned).toBe(3);
     expect(unitEntry?.total).toBe(3);
   });
 
@@ -584,9 +577,6 @@ describe("filterByScope", () => {
   });
 
   it("applies an exclude-only scope", () => {
-    // Regression: `scopeHasFilters` looked at the include arrays alone, so an
-    // exclude-only scope short-circuited to "no filters" and returned the
-    // input untouched.
     const en = stubPrinting({ language: "EN" });
     const ja = stubPrinting({ language: "JA" });
     const result = filterByScope([en, ja], { languagesExclude: ["JA"] });
@@ -640,9 +630,7 @@ describe("filterStacksByScope", () => {
   });
 
   it("narrows estimated value to the scope, matching the value chart", () => {
-    // The chart on the stats page applies the page's scope server-side. The
-    // hero stats have to run their totals over the same subset or the two
-    // figures disagree with nothing on screen explaining why.
+    // The hero stats must total over the same scope the value chart uses.
     const en = stubStack({ language: "EN", copyCount: 2 });
     const ja = stubStack({ language: "JA", copyCount: 3 });
     const prices = stubPriceLookup({
@@ -685,8 +673,7 @@ describe("excludeUnreleasedSets", () => {
   });
 
   it("keeps a set whose other language is already out", () => {
-    // Release dates are per language: the English printings of a set count
-    // while its French ones are still months away.
+    // Release dates are per language.
     const sets = [stubSet({ id: "set-1" })];
     const english = stubPrinting({ setId: "set-1", language: "EN" });
     const french = stubPrinting({ setId: "set-1", language: "FR", setReleased: false });
@@ -713,7 +700,6 @@ describe("excludeUnreleasedSets", () => {
       stubPrinting({ setId: "set-1" }),
       stubPrinting({ setId: "set-2", language: "FR", setReleased: false }),
     ];
-    // Owns the English printing of set-2, which says nothing about French.
     const ownedStack = stubStack({ setId: "set-2", language: "EN" });
     const result = excludeUnreleasedSets({ sets, printings, stacks: [ownedStack] });
     expect(result.sets.map((set) => set.id)).toEqual(["set-1"]);
@@ -721,11 +707,8 @@ describe("excludeUnreleasedSets", () => {
   });
 
   it("drops an owned unreleased printing when handed scope-filtered stacks", () => {
-    // Pins why `useCollectionStats` must pass the *unscoped* stacks (guarded
-    // below): fed the scoped ones, narrowing the filters to another set makes
-    // the user's own unreleased printing vanish from the catalog pool, so the
-    // Sets dropdown loses entries as you filter. Ownership is a fact about the
-    // collection, not about the filters currently applied.
+    // Scoped stacks would drop an owned unreleased printing from the pool as
+    // filters narrow, making the Sets dropdown lose entries.
     const sets = [stubSet({ id: "set-1" }), stubSet({ id: "set-2", slug: "preview" })];
     const printings = [
       stubPrinting({ setId: "set-1" }),
@@ -736,7 +719,6 @@ describe("excludeUnreleasedSets", () => {
     const withAllStacks = excludeUnreleasedSets({ sets, printings, stacks: [ownedStack] });
     expect(withAllStacks.sets.map((set) => set.id)).toEqual(["set-1", "set-2"]);
 
-    // What a scope of `{ sets: ["origins"] }` leaves of those stacks: nothing.
     const scoped = filterStacksByScope([ownedStack], { sets: ["origins"] });
     const withScopedStacks = excludeUnreleasedSets({ sets, printings, stacks: scoped });
     expect(withScopedStacks.sets.map((set) => set.id)).toEqual(["set-1"]);
@@ -744,15 +726,8 @@ describe("excludeUnreleasedSets", () => {
 });
 
 describe("useCollectionStats source invariants", () => {
-  // Regression (the /collections/stats mobile stutter): the catalog has enough
-  // unreleased printings that `excludeUnreleasedSets` always allocates a fresh
-  // array. Handing it the scope-filtered stacks made that array's identity
-  // change on every filter chip click, which re-ran `getAvailableFilters` over
-  // the whole catalog and re-rendered the entire filter bar each time. Passing
-  // `allStacks` keeps the result scope-independent, so React Compiler caches
-  // it across toggles. Source-level guard because vitest runs uncompiled code,
-  // where identity stability cannot be asserted directly — same reasoning as
-  // the memo-poisoning guard in use-card-filters.test.ts.
+  // allStacks keeps the result identity scope-independent for React Compiler's
+  // memoization; checked at the source level since vitest runs uncompiled.
   it("passes the unscoped stacks to excludeUnreleasedSets", () => {
     const source = readFileSync(path.resolve(__dirname, "./use-collection-stats.ts"), "utf-8");
     const call = /excludeUnreleasedSets\(\{[^}]*\}\)/u.exec(source);
@@ -816,8 +791,6 @@ describe("matchesScope", () => {
   });
 
   it("rejects a printing on any single-valued exclude axis", () => {
-    // Regression: the scope carried no exclude arrays at all, so a filter chip
-    // cycled into exclude-mode left every stats figure untouched.
     const printing = stubPrinting({
       setSlug: "RB1",
       language: "EN",
@@ -844,8 +817,6 @@ describe("matchesScope", () => {
   });
 
   it("filters by keywords, tags, custom tags and size", () => {
-    // Regression: these chips render on the stats page but the scope ignored
-    // them, so setting one narrowed nothing.
     const printing = stubPrinting({
       size: "standard",
       card: { keywords: ["Unique"], tags: ["champion-spell"] },

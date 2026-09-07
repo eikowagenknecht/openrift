@@ -10,10 +10,7 @@ function makeItem(id: string, familyId: string | null = null, isPrimary = false)
   return { deck: { id, familyId, isPrimary } };
 }
 
-/**
- * Ids in render order, with a "+" marking the entries that carry family info.
- * @returns One label per rendered entry.
- */
+/** Ids in render order, with a "+" marking entries that carry family info. */
 function render(entries: ReturnType<typeof collapseFamilies<TestItem>>): string[] {
   return entries.map((entry) => (entry.family ? `${entry.item.deck.id}+` : entry.item.deck.id));
 }
@@ -72,7 +69,6 @@ describe("collapseFamilies", () => {
   });
 
   it("counts only the members present in this list", () => {
-    // Grouping splits a family across buckets, so each bucket sees a slice.
     const entries = collapseFamilies([makeItem("main", "fam", true)], new Set());
     expect(entries[0]?.family).toEqual({
       id: "fam",

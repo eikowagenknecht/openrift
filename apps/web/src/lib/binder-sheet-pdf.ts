@@ -7,52 +7,33 @@ import { createPdfDocument } from "@/lib/pdf-document";
 import { loadLogoDataUrl } from "@/lib/pdf-logo";
 
 /**
- * Printable binder QR sheet: one share link as a QR code on a sheet cut to real
- * card or binder-page dimensions, so it can be slipped into a sleeve as the
- * front page of a trade binder.
- *
- * Everything is laid out in millimetres and printed at 1:1, which only holds if
- * the print dialog is set to "Actual size".
- *
- * The card size prints 9 identical copies per page, the same 3×3 grid the proxy
- * printer uses; the binder-page sizes print one centred sheet. Both are clean by
- * default so a page can go straight into a binder. Cut marks (grid lines for the
- * 9-up, corner ticks for a single sheet) and a 50 mm calibration ruler are
- * opt-in; both sit in the trim area, so they are discarded when the sheet is cut
- * out. The sheet's own thin frame is always drawn and doubles as the cut line.
+ * Printable binder QR sheet: a share link as a QR code cut to real card or
+ * binder-page dimensions. Printed at 1:1 mm, which only holds with the print
+ * dialog set to "Actual size". Cut marks and the calibration ruler sit in the
+ * trim area and are opt-in; the sheet's own frame doubles as the cut line.
  */
 
-// The sizes and papers live in `binder-sheet-specs` so the dialog can label its
-// controls without loading jsPDF, the QR encoder and the logo raster. The names
-// callers still reach for through this module are re-exported here; the rest
-// (`BinderSheetSpec`, `BinderSheetStyle`) are imported from `binder-sheet-specs`
-// directly, so re-exporting them would only be an unused alias.
+// Sizes and papers live in `binder-sheet-specs` so the dialog can label its
+// controls without loading jsPDF, the QR encoder and the logo raster.
 export type { BinderSheetPaper, BinderSheetSize } from "@/lib/binder-sheet-specs";
 export { BINDER_SHEET_PAPERS, BINDER_SHEET_SPECS } from "@/lib/binder-sheet-specs";
 
 export interface BinderSheetOptions {
-  /** The share link the QR code encodes. */
   shareUrl: string;
   title: string;
   subtitle: string;
-  /** Optional extra line, e.g. a Discord handle. */
   contact?: string;
-  /** Prints the share URL as small text under the QR, for people who can't scan. */
   showLink: boolean;
-  /** Cut lines between the 9-up copies, or crop marks around a single sheet. */
   cutMarks: boolean;
-  /** 50 mm calibration bar in the paper margin, to verify the print scale. */
   ruler: boolean;
   size: BinderSheetSize;
   paper: BinderSheetPaper;
   style: BinderSheetStyle;
-  /** Base name for the downloaded file; slugified, falls back to "binder". */
   filenameHint?: string;
 }
 
-/** Point → millimetre, for turning jsPDF font sizes into layout heights. */
+/** pt → mm */
 const PT_TO_MM = 0.352778;
-/** Line box as a multiple of the font size. */
 const LINE_HEIGHT = 1.2;
 
 const COLORS = {
@@ -66,8 +47,6 @@ const COLORS = {
   onBandMuted: [203, 213, 225],
 } as const;
 
-// ── Geometry ───────────────────────────────────────────────────────────────
-
 export interface SheetLayout {
   pageWidth: number;
   pageHeight: number;
@@ -75,16 +54,10 @@ export interface SheetLayout {
   sheetHeight: number;
   cols: number;
   rows: number;
-  /** Left edge of the printed block; the right margin matches it. */
   marginX: number;
-  /** Top edge of the printed block; the bottom margin matches it. */
   marginY: number;
 }
 
-/**
- * Centres the sheet block (one sheet, or the 3×3 grid of copies) on the page.
- * @returns The page and block geometry in mm.
- */
 export function sheetLayout(size: BinderSheetSize, paper: BinderSheetPaper): SheetLayout {
   const spec = BINDER_SHEET_SPECS[size];
   const page = BINDER_SHEET_PAPERS[paper];
@@ -103,21 +76,13 @@ export function sheetLayout(size: BinderSheetSize, paper: BinderSheetPaper): She
 export interface RulerPlacement {
   x: number;
   y: number;
-  /** Vertical rulers run down the side margin when the bottom band is too thin. */
   vertical: boolean;
 }
 
-/** Length of the calibration bar in mm. */
+/** mm */
 const RULER_LENGTH_MM = 50;
-/** Margin band needed to hold the bar plus its note without hitting the paper edge. */
 const RULER_BAND_MM = 9;
 
-/**
- * Places the calibration ruler in a paper margin, outside the cut area, so it
- * is thrown away with the trim. Prefers the bottom band, falls back to the left
- * band, and is skipped when neither has room (the sheet itself stays correct).
- * @returns The ruler origin, or null when no margin can hold it.
- */
 export function rulerPlacement(layout: SheetLayout): RulerPlacement | null {
   if (layout.marginY >= RULER_BAND_MM) {
     return { x: layout.marginX, y: layout.pageHeight - layout.marginY / 2, vertical: false };
@@ -129,24 +94,16 @@ export function rulerPlacement(layout: SheetLayout): RulerPlacement | null {
 }
 
 export interface SheetMetrics {
-  /** Inner padding on all four edges. */
   pad: number;
-  /** Font sizes in points. */
+  /** pt */
   title: number;
   subtitle: number;
   contact: number;
   link: number;
   footer: number;
-  /** Largest QR edge the sheet will use; shrunk further if the text needs room. */
   qrMax: number;
 }
 
-/**
- * Scales the sheet furniture from the card size upward. Everything scales with
- * the sheet width except the QR, which is capped by the sheet height so the
- * title and footer keep their share of a binder page.
- * @returns Paddings and font sizes for one sheet.
- */
 export function sheetMetrics(size: BinderSheetSize): SheetMetrics {
   const spec = BINDER_SHEET_SPECS[size];
   const scale = spec.width / CARD_WIDTH_MM;
@@ -163,12 +120,6 @@ export function sheetMetrics(size: BinderSheetSize): SheetMetrics {
 
 export type MeasureText = (text: string, fontSize: number) => number;
 
-/**
- * Shrinks a font size in 0.5 pt steps until the text fits the available width.
- * Takes a measure function rather than a jsPDF document so the search is
- * testable without a canvas.
- * @returns The largest size that fits, or minSize when nothing does.
- */
 export function fitFontSize(
   measure: MeasureText,
   text: string,
@@ -183,12 +134,7 @@ export function fitFontSize(
   return Math.max(size, minSize);
 }
 
-/**
- * Trims text to the available width, ending with an ellipsis. Needed because a
- * long title still overflows at the smallest allowed font size, and centred
- * text that overflows bleeds past the cut line.
- * @returns The text as-is when it fits, otherwise a trimmed, ellipsised copy.
- */
+/** Needed because a long title still overflows at the smallest allowed font size. */
 export function truncateToWidth(
   measure: MeasureText,
   text: string,
@@ -205,19 +151,11 @@ export function truncateToWidth(
   return end > 0 ? `${text.slice(0, end).trimEnd()}…` : "";
 }
 
-/**
- * Pixel width for a QR rendered at 300 dpi, clamped so a card-size code stays
- * legible and a binder-page code does not balloon the PDF.
- * @returns The QR bitmap width in pixels.
- */
+/** Rendered at 300 dpi, clamped so a card-size code stays legible and a binder-page code doesn't balloon the PDF. */
 export function qrPixelWidth(sizeMm: number): number {
   return Math.min(2048, Math.max(512, Math.ceil((sizeMm / 25.4) * 300)));
 }
 
-/**
- * Slugifies the download name.
- * @returns A file name like "openrift-binder-trade-list.pdf".
- */
 export function binderSheetFilename(hint?: string): string {
   const slug = (hint ?? "")
     .toLowerCase()
@@ -226,12 +164,6 @@ export function binderSheetFilename(hint?: string): string {
   return slug ? `openrift-binder-${slug}.pdf` : "openrift-binder-sheet.pdf";
 }
 
-// ── Drawing ────────────────────────────────────────────────────────────────
-
-/**
- * Draws one line of centred text, shrinking it to fit the sheet width.
- * @returns The y position below the line.
- */
 function drawCenteredLine(
   doc: jsPDF,
   text: string,
@@ -256,19 +188,10 @@ function drawCenteredLine(
   return topY + lineHeight;
 }
 
-/**
- * Height one text line occupies, without drawing it.
- * @returns The line box height in mm.
- */
 function lineHeightMm(fontSize: number): number {
   return fontSize * PT_TO_MM * LINE_HEIGHT;
 }
 
-/**
- * Draws the footer credit: the logo mark beside "openrift.app", as one centred
- * lockup. Measured and placed by hand rather than centring two elements
- * separately, so the pair reads as a single mark.
- */
 function drawFooterMark(
   doc: jsPDF,
   centerX: number,
@@ -304,9 +227,6 @@ interface SheetTextLine {
   color: readonly [number, number, number];
 }
 
-/**
- * Draws a single binder sheet with its top-left corner at (x, y).
- */
 function drawSheet(
   doc: jsPDF,
   x: number,
@@ -321,13 +241,9 @@ function drawSheet(
   const contentWidth = width - metrics.pad * 2;
   const dark = options.style === "dark";
 
-  // ── Background and frame ────────────────────────────────────────────────
   doc.setFillColor(255, 255, 255);
   doc.rect(x, y, width, height, "F");
 
-  // ── Header (the owner's name and instruction line) ──────────────────────
-  // The sheet belongs to its owner, so the title leads; OpenRift is credited
-  // once, small, in the footer.
   const allHeadings: SheetTextLine[] = [
     {
       text: options.title,
@@ -364,14 +280,12 @@ function drawSheet(
     );
   }
   if (!dark && headerHeight > 0) {
-    // The light sheet has no band, so a hairline separates the name from the code.
     doc.setDrawColor(COLORS.frame[0], COLORS.frame[1], COLORS.frame[2]);
     doc.setLineWidth(0.2);
     const ruleY = y + headerHeight - metrics.pad * 0.3;
     doc.line(x + metrics.pad * 1.5, ruleY, x + width - metrics.pad * 1.5, ruleY);
   }
 
-  // ── Footer (OpenRift credit) ────────────────────────────────────────────
   const footerHeight = lineHeightMm(metrics.footer);
   const footerTop = y + height - metrics.pad - footerHeight;
   drawFooterMark(
@@ -384,7 +298,6 @@ function drawSheet(
     COLORS.faint,
   );
 
-  // ── Body (QR plus the secondary lines), centred between the two ─────────
   const gap = metrics.pad * 0.7;
   const textLines: SheetTextLine[] = [];
   if (options.contact?.trim()) {
@@ -430,7 +343,7 @@ function drawSheet(
     );
   }
 
-  // Frame last so it sits above the header band's edge.
+  // Draw the frame after the header band, or it renders under the band's edge.
   doc.setDrawColor(COLORS.frame[0], COLORS.frame[1], COLORS.frame[2]);
   doc.setLineWidth(0.3);
   doc.rect(x, y, width, height);
@@ -450,7 +363,6 @@ function drawCutLines(doc: jsPDF, layout: SheetLayout): void {
   }
 }
 
-/** Corner ticks just outside a single sheet, so the trim line stays clean. */
 function drawCropMarks(doc: jsPDF, layout: SheetLayout): void {
   const offset = 2;
   const length = 4;
@@ -475,7 +387,6 @@ function drawCropMarks(doc: jsPDF, layout: SheetLayout): void {
 const RULER_NOTE =
   "This bar is exactly 50 mm. If it isn't, reprint at 100% (Actual size), not Fit to page.";
 
-/** Calibration bar plus its note, drawn in the discarded paper margin. */
 function drawRuler(doc: jsPDF, placement: RulerPlacement): void {
   doc.setDrawColor(COLORS.faint[0], COLORS.faint[1], COLORS.faint[2]);
   doc.setLineWidth(0.2);
@@ -502,18 +413,10 @@ function drawRuler(doc: jsPDF, placement: RulerPlacement): void {
   doc.text(RULER_NOTE, x + RULER_LENGTH_MM + 3, y);
 }
 
-/**
- * Renders the QR for the share link at print resolution.
- * @returns A PNG data URL of the QR code.
- */
 async function buildQrDataUrl(shareUrl: string, sizeMm: number): Promise<string> {
   return await qrPngDataUri(shareUrl, { width: qrPixelWidth(sizeMm) });
 }
 
-/**
- * Draws the binder sheet PDF without saving it.
- * @returns The finished jsPDF document.
- */
 export async function buildBinderSheetDoc(options: BinderSheetOptions): Promise<jsPDF> {
   const layout = sheetLayout(options.size, options.paper);
   const metrics = sheetMetrics(options.size);
@@ -560,10 +463,6 @@ export async function buildBinderSheetDoc(options: BinderSheetOptions): Promise<
   return doc;
 }
 
-/**
- * Builds the binder sheet PDF and triggers the browser download.
- * @returns A promise that resolves once the download has been triggered.
- */
 export async function generateBinderSheetPdf(options: BinderSheetOptions): Promise<void> {
   const doc = await buildBinderSheetDoc(options);
   doc.save(binderSheetFilename(options.filenameHint));

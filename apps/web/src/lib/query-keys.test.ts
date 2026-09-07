@@ -11,10 +11,6 @@ const mockConfig: SourceMappingConfig = {
   productUrl: (id: number) => `https://tcgplayer.com/product/${id}`,
 };
 
-// ---------------------------------------------------------------------------
-// Top-level keys
-// ---------------------------------------------------------------------------
-
 describe("queryKeys", () => {
   it("catalog.all", () => {
     expect(queryKeys.catalog.all).toEqual(["catalog"]);
@@ -168,10 +164,6 @@ describe("queryKeys", () => {
     expect(queryKeys.priceHistory.byPrinting("p1", "30d")).toEqual(["priceHistory", "p1", "30d"]);
   });
 
-  // The card browsers' per-printing trade markers rely on this nesting: trade
-  // mutations invalidate `trades.all`, and react-query matches by prefix, so a
-  // key nested under it is refreshed without its own invalidation entry. Move
-  // it out from under the prefix and the markers go stale after every accept.
   it("trades.liveByPrinting nests under the trades.all invalidation prefix", () => {
     const prefix = queryKeys.trades.all("user-1");
     const key = queryKeys.trades.liveByPrinting("user-1");
@@ -179,10 +171,6 @@ describe("queryKeys", () => {
     expect(key.slice(0, prefix.length)).toEqual([...prefix]);
   });
 
-  // Same reason as above: the giver's copy picker reads which copies a trade
-  // could take, and every one of them stops being a candidate the moment some
-  // other accept pins it. Nested under `trades.all`, the entry is dropped by
-  // the invalidation each trade mutation already does.
   it("trades.copyOptions nests under the trades.all invalidation prefix", () => {
     const prefix = queryKeys.trades.all("user-1");
     const key = queryKeys.trades.copyOptions("user-1", "trade-1");
@@ -190,8 +178,6 @@ describe("queryKeys", () => {
     expect(key.slice(0, prefix.length)).toEqual([...prefix]);
   });
 
-  // Same reason again: the trade sheet's suggestions are what a request made
-  // from it removes, so the sheet has to refresh on every trade mutation.
   it("trades.sheet nests under the trades.all invalidation prefix", () => {
     const prefix = queryKeys.trades.all("user-1");
     const key = queryKeys.trades.sheet("user-1", "member-1");
@@ -199,10 +185,6 @@ describe("queryKeys", () => {
     expect(key.slice(0, prefix.length)).toEqual([...prefix]);
   });
 });
-
-// ---------------------------------------------------------------------------
-// Admin keys
-// ---------------------------------------------------------------------------
 
 describe("queryKeys.admin", () => {
   it("me is keyed per user so identities never share a cache slot", () => {
@@ -235,10 +217,6 @@ describe("queryKeys.admin", () => {
     expect(queryKeys.admin.ignoredProducts).toEqual(["admin", "ignored-products"]);
   });
 });
-
-// ---------------------------------------------------------------------------
-// Admin card sources
-// ---------------------------------------------------------------------------
 
 describe("queryKeys.admin.cards", () => {
   it("all", () => {
@@ -275,10 +253,6 @@ describe("queryKeys.admin.cards", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Admin price mappings
-// ---------------------------------------------------------------------------
-
 describe("queryKeys.admin.priceMappings", () => {
   it("bySource returns tuple with config source", () => {
     expect(queryKeys.admin.priceMappings.bySource(mockConfig)).toEqual(["admin", "tcgplayer"]);
@@ -302,10 +276,6 @@ describe("queryKeys.admin.priceMappings", () => {
     ]);
   });
 });
-
-// ---------------------------------------------------------------------------
-// Admin unified mappings
-// ---------------------------------------------------------------------------
 
 describe("queryKeys.admin.unifiedMappings", () => {
   it("all", () => {

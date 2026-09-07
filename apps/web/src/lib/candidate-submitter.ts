@@ -3,22 +3,16 @@ import type { CandidateCardResponse } from "@openrift/shared";
 /**
  * Attribution for a candidate contributed through the /contribute forms.
  * Only `usersubmission` candidates carry one; every scraped provider has none.
+ * `userId` goes null once the account is deleted (`ON DELETE SET NULL`).
  */
 export interface SourceSubmitter {
-  /** Null once the account is deleted — the FK is `ON DELETE SET NULL`. */
   userId: string | null;
-  /** Null when the user never set a display name. */
   name: string | null;
   note: string | null;
 }
 
-/**
- * Map candidate-card id -> submitter, for the sources that have one. Candidate
- * printing rows carry no attribution of their own, so they resolve theirs
- * through the parent `candidateCardId` — which is why this is keyed by card id
- * rather than being read straight off the row.
- * @returns Submitter info keyed by candidate card id, omitting sources with neither a submitter nor a note.
- */
+// Keyed by candidate card id: candidate printing rows carry no attribution
+// of their own and resolve it through the parent `candidateCardId`.
 export function buildSourceSubmitters(
   sources: CandidateCardResponse[],
 ): Record<string, SourceSubmitter> {
@@ -32,12 +26,7 @@ export function buildSourceSubmitters(
   );
 }
 
-/**
- * A deleted account leaves the note behind but drops the id, so fall back
- * through name -> shortened id -> a plain marker rather than rendering a
- * dangling "by".
- * @returns Human-readable label for a submitter.
- */
+// A deleted account keeps the note but drops the id.
 export function submitterLabel(submitter: SourceSubmitter): string {
   if (submitter.name) {
     return submitter.name;

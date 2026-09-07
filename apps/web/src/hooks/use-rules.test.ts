@@ -1,8 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock createServerFn to execute the handler directly instead of making RPC
-// calls. There is no TanStack Start server in the vitest/jsdom environment.
 vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => {
     const chain = {
@@ -55,7 +53,6 @@ describe("ruleVersionsQueryOptions", () => {
   });
 });
 
-// Sanity check: distinct query keys should not collide in a real QueryClient
 describe("query cache isolation", () => {
   let client: QueryClient;
 

@@ -1,19 +1,10 @@
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import type { PartialKeys, ReactVirtualizerOptions, Virtualizer } from "@tanstack/react-virtual";
 
-// React Compiler over-memoizes `virtualizer.getVirtualItems()` and
-// `getTotalSize()` based on the virtualizer's reference stability, but those
-// methods depend on internal subscription state the compiler can't see, so
-// stale results stick and cold-loaded grids render zero rows. The
-// `"use no memo"` directive opts these wrappers out of compilation, and the
-// helpers return the already-read values so consumers don't re-trip the
-// memoization at the call site. See https://github.com/TanStack/virtual/issues/736
-
-/**
- * Window-scroll virtualizer + pre-read `virtualItems`/`totalSize`.
- * @param options Forwarded verbatim to `useWindowVirtualizer`.
- * @returns The virtualizer instance and its currently-visible items/size.
- */
+// React Compiler over-memoizes getVirtualItems()/getTotalSize() based on
+// reference stability, missing internal subscription state, so cold-loaded
+// grids can render zero rows. "use no memo" opts these wrappers out; remove
+// once https://github.com/TanStack/virtual/issues/736 is fixed.
 export function useWindowVirtualizerFresh<TItemElement extends Element>(
   options: PartialKeys<
     ReactVirtualizerOptions<Window, TItemElement>,

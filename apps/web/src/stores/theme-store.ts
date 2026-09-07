@@ -9,14 +9,11 @@ import { sanitizeThemePreference } from "@/lib/sanitize-preferences";
 type ResolvedTheme = "light" | "dark";
 
 interface ThemeState {
-  /** Stored preference — null means "use default" (auto). */
+  /** null means "use default" (auto). */
   preference: Theme | null;
-  /** Resolved theme applied to the DOM — always "light" or "dark". */
   theme: ResolvedTheme;
   setTheme: (value: Theme | null) => void;
-  /** Legacy toggle — cycles light → dark → auto. */
   toggleTheme: () => void;
-  /** Clear the stored preference (used on sign-out). */
   reset: () => void;
 }
 
@@ -68,10 +65,8 @@ export const useThemeStore = create<ThemeState>()(
       name: "theme",
       storage: cookieStorage,
       partialize: (state) => ({ preference: state.preference }),
-      // Ensure the cookie exists after first visit so the server can read the
-      // theme preference on subsequent SSR requests. Zustand persist only writes
-      // on state changes, so without this the cookie would be missing until the
-      // user explicitly changes the theme or signs in.
+      // zustand persist only writes on state changes, so the cookie would
+      // otherwise be missing on first visit until the user changes the theme.
       onRehydrateStorage: () => (state) => {
         if (typeof document !== "undefined" && state && cookieStorage) {
           cookieStorage.setItem("theme", { state: { preference: state.preference } });
@@ -89,12 +84,10 @@ export const useThemeStore = create<ThemeState>()(
   ),
 );
 
-// Apply theme on startup and react to future changes
 if (typeof document !== "undefined") {
   useThemeStore.subscribe((state) => applyTheme(state.theme));
   applyTheme(useThemeStore.getState().theme);
 
-  // React to system preference changes when set to "auto"
   if (typeof matchMedia === "function") {
     matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
       const { preference } = useThemeStore.getState();

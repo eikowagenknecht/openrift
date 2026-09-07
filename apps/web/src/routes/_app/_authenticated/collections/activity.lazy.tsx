@@ -44,8 +44,6 @@ export const Route = createLazyFileRoute("/_app/_authenticated/collections/activ
   component: ActivityPage,
 });
 
-// ── Config ──────────────────────────────────────────────────────────────────
-
 const ACTION_CONFIG = {
   added: { icon: PlusIcon, color: "text-success" },
   removed: { icon: MinusIcon, color: "text-destructive" },
@@ -55,14 +53,10 @@ const ACTION_CONFIG = {
 type ActionFilter = ActivityAction | "all";
 type DatePreset = "all" | "today" | "week" | "month";
 
-// ── Types ───────────────────────────────────────────────────────────────────
-
 interface GroupedEvent {
   event: CollectionEventResponse;
   count: number;
 }
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
 
 function getDateCutoff(preset: DatePreset): Date | null {
   if (preset === "all") {
@@ -77,7 +71,6 @@ function getDateCutoff(preset: DatePreset): Date | null {
     d.setDate(d.getDate() - 7);
     return d;
   }
-  // month
   const d = new Date(now);
   d.setDate(d.getDate() - 30);
   return d;
@@ -97,8 +90,6 @@ function groupEvents(events: CollectionEventResponse[]): GroupedEvent[] {
   }
   return [...groups.values()];
 }
-
-// ── Components ──────────────────────────────────────────────────────────────
 
 function Toolbar({
   actionFilter,
@@ -142,7 +133,6 @@ function Toolbar({
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2">
-      {/* Collection filter */}
       <Select
         value={collectionFilter}
         onValueChange={(v) => onCollectionChange(v ?? "all")}
@@ -160,7 +150,6 @@ function Toolbar({
         </SelectContent>
       </Select>
 
-      {/* Action filter */}
       <ToggleGroup
         variant="outline"
         spacing={0}
@@ -180,7 +169,6 @@ function Toolbar({
         ))}
       </ToggleGroup>
 
-      {/* Date filter */}
       <ToggleGroup
         variant="outline"
         spacing={0}
@@ -228,7 +216,6 @@ function EventCard({
   const superTypeLabels = event.cardSuperTypes.map((slug) => labels.superTypes[slug]);
   const rarityLabel = labels.rarities[event.rarity];
 
-  // Show collection for moves (from → to), or for adds/removes when no filter is active
   const isMove = event.action === "moved" && event.fromCollectionName && event.toCollectionName;
   const isUnfilteredAddRemove =
     event.action !== "moved" &&
@@ -253,8 +240,6 @@ function EventCard({
         <Icon className={cn("size-3.5", config.color)} />
       </div>
 
-      {/* A feed row can stand for a sealed product rather than a card, so the
-          empty frame keeps the package glyph instead of the card placeholder. */}
       <CardArtThumb
         shape="strip"
         imageId={event.imageId}
@@ -443,8 +428,6 @@ function FilteredEmptyState() {
     </Empty>
   );
 }
-
-// ── Page ────────────────────────────────────────────────────────────────────
 
 function ActivityPage() {
   const { toggleSidebar } = useSidebar();

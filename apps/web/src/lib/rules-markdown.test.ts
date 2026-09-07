@@ -95,7 +95,6 @@ describe("diffRuleMarkdown", () => {
     const nodes = diffRuleMarkdown(oldText, newText);
     expect(collectText(nodes)).not.toContain("*");
     expect(diffSpans(nodes)).toEqual([]);
-    // The new version's emphasis structure wins.
     const emTexts = findElements(nodes, "em").map((em) => collectText([em]));
     expect(emTexts).toEqual(["Champion Legend. Example:", "Jinx"]);
   });
@@ -155,7 +154,7 @@ describe("diffRuleMarkdown", () => {
     ]);
   });
 
-  it("reconstructs the new text from equal plus added segments", () => {
+  it("reconstructs the new text (word-for-word) from equal plus added segments", () => {
     const oldText = "the quick brown fox jumps over the lazy dog";
     const newText = "the slow brown fox leaps across the sleepy dog";
     const nodes = diffRuleMarkdown(oldText, newText);
@@ -170,7 +169,6 @@ describe("diffRuleMarkdown", () => {
       }
       return out;
     };
-    // Whitespace around removed words stays in the output, so compare words.
     expect(withoutRemoved(nodes).split(/\s+/u).filter(Boolean)).toEqual(
       newText.split(/\s+/u).filter(Boolean),
     );

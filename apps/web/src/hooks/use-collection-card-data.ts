@@ -34,59 +34,30 @@ interface UseCollectionCardDataParams {
   sortBy: SortOption;
   sortDir: "asc" | "desc";
   view: "cards" | "printings";
-  /** Cards-view grouping axis. Splits a card into per-set / per-rarity tiles. */
   groupBy: GroupByField;
   sets: GroupInfo[];
   favoriteMarketplace: Marketplace;
   prices: PriceLookup;
-  /** Reverse map from translated keyword labels to canonical names, for cross-language search. */
   keywordReverseMap?: Map<string, string>;
   languageOrder?: string[];
-  /** Full channel registry so the filter UI can render breadcrumbs. */
   channels?: readonly DistributionChannel[];
-  /**
-   * Selected ownership buckets. Counts are scoped to this collection — so
-   * "Full Playset" means a full playset's worth of copies inside _this_
-   * collection, not aggregated across every collection the user owns. Empty
-   * array means no owned filter.
-   */
+  /** Counts are scoped to this collection, not aggregated across every collection the user owns. */
   ownedFilter?: readonly OwnedBucket[];
-  /**
-   * Copies-owned range slider, scoped to this collection's copy counts (same
-   * scoping rationale as {@link ownedFilter}). null bounds mean unbounded.
-   */
   ownedCountMin?: number | null;
   ownedCountMax?: number | null;
   /**
-   * When set, the Owned bucket and Copies-range filters (and the slider bound)
-   * are computed from THIS per-CARD personal total instead of the collection's
-   * own copy counts. Keyed by cardId, each value is the viewer's full personal
-   * playset for that card across EVERY variant they own (all finishes and
-   * languages), not just the variants this box happens to stock. Used for
-   * group-owned "bulk box" collections, where the viewer wants "cards here I
-   * personally lack a playset of" — their personal shortfall — rather than "a
-   * full playset inside this box".
-   *
-   * Card-keyed (not printing-keyed) on purpose: a full playset is a card-level
-   * notion, so a box that stocks only one variant must still count the viewer's
-   * copies of the card's OTHER variants. Undefined keeps the default
-   * collection-scoped behavior, which is what a viewer's own personal
-   * collection wants.
+   * Per-cardId personal playset total across every variant the viewer owns,
+   * used for group-owned "bulk box" collections in place of this collection's
+   * own copy counts. Card-keyed because a full playset is a card-level notion.
    */
   ownedCardTotalOverride?: Record<string, number>;
-  /**
-   * Whether the faceted chip counts are computed. Pass `false` while no chip
-   * surface is visible (on phones: the filter drawer is closed) — mirrors
-   * `useCatalogFilterMeta`. Defaults to `true`.
-   */
   countsEnabled?: boolean;
 }
 
 /**
- * Bridges useStackedCopies with the shared filter/sort pipeline so that collection
- * cards can be filtered, sorted, and displayed using the same infrastructure as the
- * full catalog browser.
- * @returns Filtered/sorted collection data plus stack metadata.
+ * Bridges useStackedCopies with the shared filter/sort pipeline so collection
+ * cards can be filtered, sorted, and displayed with the same infrastructure as
+ * the full catalog browser.
  */
 export function useCollectionCardData({
   collectionId,
@@ -112,11 +83,8 @@ export function useCollectionCardData({
   const { orders } = useEnumOrders();
   const defaultEffectiveLanguageOrder = useEffectiveLanguageOrder();
 
-  // Deferred inputs for the facet counts only — same rationale as
-  // useCatalogFilterMeta: chip badges may lag one frame, the grid must not
-  // wait for the counts pass. Deferred together because they share URL state.
-  // With the counts pass off (no chip surface visible) they pin to constants
-  // so a filter change doesn't even schedule the deferred re-render.
+  // Deferred inputs for the facet counts only, so a filter change doesn't
+  // block the grid; pinned to constants when counts are disabled entirely.
   const deferredFilters = useDeferredValue(countsEnabled ? filters : EMPTY_CARD_FILTERS);
   const deferredOwnedFilter = useDeferredValue(countsEnabled ? ownedFilter : undefined);
   const deferredOwnedCountMin = useDeferredValue(countsEnabled ? ownedCountMin : null);
@@ -142,17 +110,9 @@ export function useCollectionCardData({
     sets.filter((s) => s.setType === WellKnown.setType.SUPPLEMENTAL).map((s) => s.slug),
   );
 
-  // Derived from the user's actual owned printings so the filter UI lists only
-  // languages present in this collection, UNIONED with whatever the active
-  // language filter references. The union half is what keeps the Language
-  // control reachable: the filter is auto-seeded from the user's preferred
-  // languages (see `useSeedLanguagesFromPrefs`), so a collection holding only
-  // non-preferred printings filters down to nothing while the control that
-  // would clear it stays hidden behind the length > 1 threshold — an empty
-  // grid with no way out, since `clearAllFilters` deliberately preserves
-  // language. Excluded languages count too: an exclusion is just as invisible
-  // and just as unremovable. Filter-referenced extras land after the owned
-  // ones, so the common case (no extras) keeps its existing order.
+  // Unioned with the active language filter (not just owned printings): a
+  // collection holding only non-preferred languages would otherwise filter to
+  // an empty grid with the Language control hidden behind its length > 1 gate.
   const availableLanguages = [
     ...new Set([
       ...collectionPrintings.map((p) => p.language),
@@ -161,10 +121,8 @@ export function useCollectionCardData({
     ]),
   ];
 
-  // `useStackedCopies` returns printings in shortCode order (for the Copies
-  // view). Pre-sort by (languageRank, canonicalRank) here so dedup/group
-  // below can be first-occurrence and still pick the user-preferred printing
-  // per card.
+  // Pre-sort by (languageRank, canonicalRank) so the dedup/group below can be
+  // first-occurrence and still pick the user-preferred printing per card.
   const canonicallyOrderedCollection = sortByLanguageAndCanonicalRank(
     collectionPrintings,
     effectiveLanguageOrder,
@@ -174,23 +132,13 @@ export function useCollectionCardData({
     getPrice,
   });
 
-  // Both owned filters use per-collection copy counts (one entry per stack)
-  // rather than the global owned-count map. In a single-collection view "Full
-  // Playset" is most naturally read as "this collection has a full playset"; on
-  // the all-collections view, `stacks` already aggregates every collection so
-  // the same map gives the global count for free.
   const countByPrintingId: Record<string, number> = {};
   for (const stack of stacks) {
     countByPrintingId[stack.printingId] = stack.copyIds.length;
   }
-  // `ownedCardTotalOverride` (per-card personal totals on a group "bulk box")
-  // wins; otherwise the Owned/Copies filters read this collection's own copy
-  // counts. The override is card-level, so assign each box printing its card's
-  // full personal playset and bucket per-printing: card-mode aggregation would
-  // sum the box's printings of a card (double-counting a card the box stocks in
-  // several variants, and under-counting a card whose playset the viewer owns
-  // as variants the box doesn't stock). Per-printing over card totals gives
-  // every printing of a card the same verdict, which is the card verdict.
+  // `ownedCardTotalOverride` assigns each box printing its card's full personal
+  // playset and buckets per-printing, so a card stocked in several variants
+  // isn't double-counted by card-mode aggregation.
   let ownedFilterCounts: Record<string, number>;
   let ownedFilterBucketBy: "card" | "printing";
   if (ownedCardTotalOverride) {
@@ -203,9 +151,7 @@ export function useCollectionCardData({
     ownedFilterCounts = countByPrintingId;
     ownedFilterBucketBy = "card";
   }
-  // Apply the owned-bucket narrowing first so the Copies slider bound can be
-  // faceted against every OTHER active filter (search, sets, the owned bucket)
-  // but never against its own range.
+  // Owned-bucket narrowing must run before the Copies slider bound below.
   if (ownedFilter && ownedFilter.length > 0) {
     filteredCards = applyOwnedBucketFilter(
       filteredCards,
@@ -214,11 +160,6 @@ export function useCollectionCardData({
       ownedFilterBucketBy,
     );
   }
-  // Slider track upper bound — the most copies owned of any one card among the
-  // cards surviving every other filter, measured with the same map the filters
-  // use. Computed post-bucket / pre-copies-range so that e.g. "Partial Playset"
-  // narrows the track (to the largest partial total) instead of leaving the
-  // collection's full max, matching how the price/stat sliders facet.
   const ownedCountUpperBound = maxOwnedCount(filteredCards, ownedFilterCounts, ownedFilterBucketBy);
   if ((ownedCountMin ?? null) !== null || (ownedCountMax ?? null) !== null) {
     filteredCards = applyOwnedCountFilter(
@@ -230,12 +171,8 @@ export function useCollectionCardData({
     );
   }
 
-  // Faceted counts for the OTHER filter dimensions (sets, rarities, colors, …).
-  // Narrow the counting universe by the owned filters — the coarse bucket and
-  // the copies-owned range — before handing it to computeFilterCounts, which
-  // then does leave-one-out over the remaining dimensions. Mirrors
-  // useCatalogFilterMeta so the collection grid's chips narrow as the user
-  // filters. Custom tags are hidden on this surface, so none are threaded.
+  // Narrow the counting universe by the owned filters before computeFilterCounts
+  // does leave-one-out over the remaining dimensions.
   let universeForCounts = collectionPrintings;
   if (deferredOwnedFilter && deferredOwnedFilter.length > 0) {
     universeForCounts = applyOwnedBucketFilter(
@@ -262,17 +199,11 @@ export function useCollectionCardData({
       })
     : EMPTY_FILTER_COUNTS;
 
-  // In "cards" view, collapse to one tile per card — or per (cardId, set) /
-  // (cardId, rarity) when grouped by set/rarity, so a card owned in N sets shows
-  // up once under each (matching the catalog). The first printing seen per tile
-  // (canonical pick) represents it.
   const displayCards =
     view === "cards" ? dedupeToCardsViewTiles(filteredCards, groupBy) : filteredCards;
 
-  // Group all collection printings by cardId for detail pane siblings.
   const printingsByCardId = Map.groupBy(canonicallyOrderedCollection, (p) => p.cardId);
 
-  // Price ranges for "cards" view sorting
   const priceRangeByCardId =
     view === "cards" ? computePriceRanges(printingsByCardId, prices, favoriteMarketplace) : null;
 
@@ -286,18 +217,11 @@ export function useCollectionCardData({
   });
   const sortedCards = sortCards(displayCards, sortBy, sortOptions);
 
-  // Build stack lookup for renderCard to find copyIds/counts
   const stackByPrintingId = new Map(stacks.map((stack) => [stack.printingId, stack]));
 
-  // Copy IDs of every printing that survives the filters. "Select all" must
-  // operate on this set, not on `stacks` (which ignores the active filters) and
-  // not on `sortedCards` (which in cards view is deduped to one representative
-  // printing per tile). A card owned across several printings collapses into a
-  // single tile whose copies pool every printing's copies; selecting that tile
-  // by hand already grabs them all, so "select all" has to as well. Flattening
-  // the deduped list would leave the non-representative printings' copies out,
-  // so "select all" then dispose would delete only some of each stack and leave
-  // copies behind. `filteredCards` keeps every printing, so it matches.
+  // Must come from `filteredCards`, not `sortedCards`: cards view dedupes to
+  // one representative printing per tile, but selecting a tile grabs every
+  // printing's copies, so "select all" needs every printing too.
   const selectableCopyIds = filteredCards.flatMap(
     (printing) => stackByPrintingId.get(printing.id)?.copyIds ?? [],
   );

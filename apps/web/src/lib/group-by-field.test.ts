@@ -58,7 +58,6 @@ describe("groupItemsByField", () => {
     const groups = groupItemsByField([common, rare], "rarity", ORDERS, LABELS);
 
     expect(groups.map((g) => g.group.name)).toEqual(["Common", "Rare"]);
-    // ids stay the slug so navigation/scroll keys are unchanged
     expect(groups.map((g) => g.group.id)).toEqual(["common", "rare"]);
   });
 
@@ -71,13 +70,12 @@ describe("groupItemsByField", () => {
     expect(groups.map((g) => g.group.name)).toEqual(["Unit", "Spell"]);
   });
 
-  it("fans multi-type cards into one section per type (ADR-037)", () => {
+  it("fans multi-type cards into one section per type", () => {
     const unitGear = item(stubPrinting({ card: { types: ["unit", "gear"] } }));
     const spell = item(stubPrinting({ card: { type: "spell" } }));
 
     const groups = groupItemsByField([unitGear, spell], "type", ORDERS, LABELS);
 
-    // "gear" is not in ORDERS.cardTypes, so it appends after the known types.
     expect(groups.map((g) => g.group.id)).toEqual(["unit", "spell", "gear"]);
     const unitGroup = groups.find((g) => g.group.id === "unit");
     const gearGroup = groups.find((g) => g.group.id === "gear");
@@ -103,7 +101,6 @@ describe("groupItemsByField", () => {
   });
 
   it("orders sections by the enum order, appending unknown keys last", () => {
-    // "rare" appears before "common" in input but after it in ORDERS.
     const rare = item(stubPrinting({ rarity: "rare" }));
     const common = item(stubPrinting({ rarity: "common" }));
 

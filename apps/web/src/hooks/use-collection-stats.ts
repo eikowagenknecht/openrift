@@ -37,8 +37,6 @@ import type {
 import { comboKey, sortCombos } from "@/lib/stat-types";
 import { useDisplayStore } from "@/stores/display-store";
 
-// ── Types ──────────────────────────────────────────────────────────────────
-
 export type CompletionGroupBy = "set" | "domain" | "rarity" | "type";
 export type CompletionCountMode = "cards" | "printings" | "copies";
 
@@ -48,11 +46,9 @@ export interface CompletionEntry {
   owned: number;
   total: number;
   percent: number;
-  /** Only present for set grouping to separate main/supplemental. */
   setType?: "main" | "supplemental";
 }
 
-/** How many of the priciest printings the stats page can reveal. */
 export const MAX_EXPENSIVE_PRINTINGS = 10;
 
 export interface PricedCard {
@@ -74,7 +70,6 @@ export interface CollectionStats {
   unpricedCount: number;
   completionPercent: number;
   totalCardsInGame: number;
-  /** Priciest owned printings, descending, capped at {@link MAX_EXPENSIVE_PRINTINGS}. */
   mostExpensivePrintings: PricedCard[];
   domainDistribution: DomainCount[];
   rarityDistribution: RarityCount[];
@@ -90,36 +85,16 @@ export interface CollectionStats {
   marketplace: Marketplace;
 }
 
-// ── Target copies per card (for "copies" mode) ──────────────────────────────
-
-/**
- * Max copies of a card allowed in a deck. Delegates to the canonical playset
- * rule in @openrift/shared (Legend/Battlefield = 1, [Unique] = 1, else 3) so
- * collection stats agree with the deck builder. Do not re-derive it here.
- * @returns The deck-relevant max copies, or 3 when the card is unknown.
- */
+/** Delegates to the canonical playset rule in @openrift/shared; do not re-derive it here. */
 function copiesTarget(card?: { types: CardType[]; keywords: readonly string[] }): number {
   return card ? getPlaysetSize(card.types, card.keywords) : 3;
 }
 
-// Card types that have no playset to chase: runes are a shared basic supply
-// rather than deck slots, and "other" is the catch-all for cards that never
-// enter a deck. Counting them would charge every one a target of 3 and sink
-// the completion percentage against a goal nobody is playing towards. The
-// "other" slug isn't in WellKnown — it isn't a well-known reference row.
 const PLAYSET_EXEMPT_TYPES = new Set<string>([WellKnown.cardType.RUNE, "other"]);
 
-/**
- * Whether a card counts in "Playset" mode. A card with any exempt type is
- * left out whole, matching how one excluded value rejects a card in the
- * negation filters.
- * @returns True when the card should count towards playset totals.
- */
 export function countsInPlaysetMode(card?: { types: CardType[] }): boolean {
   return !card?.types.some((type) => PLAYSET_EXEMPT_TYPES.has(type));
 }
-
-// ── Completion computation ─────────────────────────────────────────────────
 
 interface CompletionInput {
   stacks: StackedEntry[];
@@ -141,23 +116,15 @@ interface CompletionInput {
   };
 }
 
-/**
- * Computes completion entries for a given grouping and count mode.
- * @returns Sorted completion entries.
- */
 export function computeCompletion(input: CompletionInput): CompletionEntry[] {
   const { stacks, scopedPrintings, scope, sets, groupBy, countMode, orders, labels } = input;
 
-  // Filter owned stacks to only those matching the scope
   const scopedStacks = filterStacksByScope(stacks, scope, input.customTagAssignments);
 
-  // Determine key order and label function
   const { keyOrder, labelFn, extraFn } = getGroupConfig(groupBy, sets, orders, labels);
 
-  // Build totals from scoped catalog
   const totalByKey = buildTotals(scopedPrintings, groupBy, countMode);
 
-  // Build owned counts from scope-filtered stacks
   const ownedByKey = buildOwned(scopedStacks, groupBy, countMode);
 
   const entries = keyOrder
@@ -239,7 +206,7 @@ function getGroupKey(printing: Printing, groupBy: CompletionGroupBy): string[] {
       return [printing.rarity];
     }
     case "type": {
-      // Multi-type cards count in every type group, like domains (ADR-037).
+      // Multi-type cards count in every type group, like domains.
       return printing.card.types;
     }
   }
@@ -260,9 +227,8 @@ function buildTotals(
     return result;
   }
 
-  // "cards" and "copies" modes: count unique cards, optionally multiplied by target
   const cardsByKey = new Map<string, Set<string>>();
-  const cardInfo = new Map<string, { types: CardType[]; keywords: string[] }>(); // slug -> info
+  const cardInfo = new Map<string, { types: CardType[]; keywords: string[] }>();
   for (const printing of scopedPrintings) {
     const slug = printing.card.slug;
     cardInfo.set(slug, { types: printing.card.types, keywords: printing.card.keywords });
@@ -275,7 +241,6 @@ function buildTotals(
     return mapSetSize(cardsByKey);
   }
 
-  // copies mode: sum targets per unique card, skipping the playset-exempt ones
   const result = new Map<string, number>();
   for (const [key, slugs] of cardsByKey) {
     let total = 0;
@@ -308,7 +273,6 @@ function buildOwned(
     return mapSetSize(ownedByKey);
   }
 
-  // "cards" mode: unique card slugs
   if (countMode === "cards") {
     const ownedByKey = new Map<string, Set<string>>();
     for (const stack of stacks) {
@@ -319,8 +283,6 @@ function buildOwned(
     return mapSetSize(ownedByKey);
   }
 
-  // "copies" mode: sum min(total copies of card, target) per group key
-  // First, aggregate total copies per card slug per group key
   const copiesByKeyAndSlug = new Map<string, Map<string, number>>();
   for (const stack of stacks) {
     for (const key of getGroupKey(stack.printing, groupBy)) {
@@ -347,12 +309,8 @@ function buildOwned(
 }
 
 /**
- * Slug → playset-relevant card fields, built in one pass. Every printing of a
- * card carries the same types and keywords, so the first stack to mention a
- * slug wins. Indexing up front keeps the per-key loop above linear — resolving
- * each slug by scanning the stack list made this quadratic, which a large
- * collection felt on every filter toggle.
- * @returns The card fields keyed by card slug.
+ * Every printing of a card shares the same types/keywords, so the first stack wins.
+ * Indexing up front avoids an O(n²) rescan per group key on large collections.
  */
 function indexCardsBySlug(
   stacks: StackedEntry[],
@@ -367,8 +325,6 @@ function indexCardsBySlug(
   return bySlug;
 }
 
-// ── Stats computation ──────────────────────────────────────────────────────
-
 interface ComputeInput {
   stacks: StackedEntry[];
   totalCopies: number;
@@ -382,15 +338,8 @@ interface ComputeInput {
   };
 }
 
-/**
- * Computes collection statistics from stacked copies and reference data.
- * Extracted as a pure function for testability.
- * @returns The full set of collection statistics.
- */
 export function computeCollectionStats(input: ComputeInput): Omit<CollectionStats, "formatPrice"> {
   const { stacks, totalCopies, sets, prices, marketplace, orders } = input;
-
-  // ── Hero stats ─────────────────────────────────────────────────────────
 
   const uniqueCardSlugs = new Set<string>();
   const uniquePrintingIds = new Set<string>();
@@ -412,7 +361,6 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
     }
   }
 
-  // Image URLs are only built for the handful of printings we actually show.
   const mostExpensivePrintings: PricedCard[] = pricedStacks
     .toSorted((a, b) => b.price - a.price)
     .slice(0, MAX_EXPENSIVE_PRINTINGS)
@@ -435,8 +383,6 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
   const totalPrintingsInGame = sets.reduce((sum, set) => sum + set.printingCount, 0);
   const completionPercent = totalCardsInGame > 0 ? (uniqueCards / totalCardsInGame) * 100 : 0;
 
-  // ── Domain distribution ────────────────────────────────────────────────
-
   const domainCounts = new Map<string, number>();
   for (const stack of stacks) {
     const quantity = stack.copyIds.length;
@@ -448,8 +394,6 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
     .filter((domain) => domainCounts.has(domain))
     .map((domain) => ({ domain: domain as Domain, count: domainCounts.get(domain) ?? 0 }));
 
-  // ── Rarity distribution ───────────────────────────────────────────────
-
   const rarityCounts = new Map<string, number>();
   for (const stack of stacks) {
     const rarity = stack.printing.rarity;
@@ -458,8 +402,6 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
   const rarityDistribution: RarityCount[] = orders.rarities
     .filter((rarity) => rarityCounts.has(rarity))
     .map((rarity) => ({ rarity, count: rarityCounts.get(rarity) ?? 0 }));
-
-  // ── Energy curve ───────────────────────────────────────────────────────
 
   const energyByCombo = new Map<number, Map<string, number>>();
   const energyComboSet = new Set<string>();
@@ -505,8 +447,6 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
     }
   }
   const averageEnergy = energyCount > 0 ? energySum / energyCount : null;
-
-  // ── Power curve ────────────────────────────────────────────────────────
 
   const powerByCombo = new Map<number, Map<string, number>>();
   const powerComboSet = new Set<string>();
@@ -554,13 +494,11 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
     }
   }
 
-  // ── Type breakdown (chart) ─────────────────────────────────────────────
-
   const typeByDomain = new Map<string, Map<Domain, number>>();
   const typeTotal = new Map<string, number>();
 
   // Multi-type cards count under each of their types, like the domain
-  // breakdown, so totals can exceed the collection size (ADR-037).
+  // breakdown, so totals can exceed the collection size.
   for (const stack of stacks) {
     const quantity = stack.copyIds.length;
     for (const cardType of stack.printing.card.types) {
@@ -624,13 +562,8 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
 }
 
 /**
- * Hides printings the user cannot have yet from collection stats, unless they
- * already own that version. Release dates are per language, so this filters
- * printings rather than whole sets: the English printings of a set count while
- * its French ones are still months out. A set disappears only once every one of
- * its printings is filtered away. Keeps the set list and the printing catalog
- * consistent so owned/total counts always refer to the same pool.
- * @returns The sets and printings limited to released (or owned) printings.
+ * Filters out printings whose set/language isn't released yet, unless already owned.
+ * Release dates are per language, so a set's English printings can count while its French ones don't.
  */
 export function excludeUnreleasedSets(input: {
   sets: SetListEntry[];
@@ -655,14 +588,8 @@ export function excludeUnreleasedSets(input: {
 }
 
 /**
- * Whether `scope` has any active filter dimension. When false, every printing
- * matches, so the filter functions return their input unchanged — preserving
- * the stable array reference that downstream memoization relies on.
- *
- * The dimensions come from `@openrift/shared`, where an exhaustiveness check
- * ties them to the schema. An axis missing from them would short-circuit
- * filtering to "nothing is set" and silently return the unfiltered input.
- * @returns True if at least one scope dimension is set.
+ * When false, filter functions return their input unchanged, preserving reference stability
+ * for downstream memoization. An axis missing from the shared key lists would silently disable filtering.
  */
 function scopeHasFilters(scope: CompletionScopePreference): boolean {
   return (
@@ -671,61 +598,32 @@ function scopeHasFilters(scope: CompletionScopePreference): boolean {
   );
 }
 
-/**
- * Include filter for a single-valued axis (set, language, rarity, …).
- * @returns True when the axis is unset or holds the printing's value.
- */
 function includesValue(allowed: string[] | undefined, value: string): boolean {
   return !allowed || allowed.length === 0 || allowed.includes(value);
 }
 
-/**
- * Include filter for a multi-valued axis (domains, types, keywords, …): any
- * overlap passes, matching `overlaps` in the shared card filters.
- * @returns True when the axis is unset or overlaps the card's values.
- */
+/** Any overlap passes; must match `overlaps` in the shared card filters. */
 function overlapsValues(allowed: string[] | undefined, values: readonly string[]): boolean {
   return !allowed || allowed.length === 0 || values.some((value) => allowed.includes(value));
 }
 
-/**
- * Negation for a single-valued axis (set, language, rarity, …).
- * @returns True when the printing's value is not excluded.
- */
 function notExcluded(excluded: string[] | undefined, value: string): boolean {
   return !excluded || excluded.length === 0 || !excluded.includes(value);
 }
 
-/**
- * Negation for a multi-valued axis (domains, types): one excluded value on the
- * card rejects it, matching `noneExcluded` in the shared card filters.
- * @returns True when none of the card's values are excluded.
- */
+/** One excluded value rejects the card; must match `noneExcluded` in the shared card filters. */
 function noneExcluded(excluded: string[] | undefined, values: readonly string[]): boolean {
   return !excluded || excluded.length === 0 || !values.some((value) => excluded.includes(value));
 }
 
-/**
- * Tri-state flag: unset passes, otherwise the printing must match.
- * @returns True when the flag is unset or agrees with the printing.
- */
 function matchesFlag(filter: boolean | undefined, actual: boolean): boolean {
   return filter === undefined || filter === actual;
 }
 
-/**
- * Presence constraint: "any" needs at least one value, "none" needs zero.
- * @returns True when the constraint is unset or satisfied.
- */
 function matchesPresence(state: "any" | "none" | undefined, has: boolean): boolean {
   return state === undefined || (state === "any" ? has : !has);
 }
 
-/**
- * Whether a printing passes every active scope filter. Unset dimensions are
- * skipped, so an empty scope matches everything.
- * @returns True when the printing matches the scope.
- */
 export function matchesScope(
   printing: Printing,
   scope: CompletionScopePreference,
@@ -766,16 +664,8 @@ export function matchesScope(
   );
 }
 
-/**
- * Card id → custom-tag slugs, as the catalog serves it. Only read when the
- * scope constrains custom tags; every other axis lives on the printing.
- */
 export type CustomTagAssignments = Record<string, readonly string[]>;
 
-/**
- * Filters printings by scope criteria.
- * @returns Only the printings matching all active scope filters.
- */
 export function filterByScope(
   printings: Printing[],
   scope: CompletionScopePreference,
@@ -788,8 +678,6 @@ export function filterByScope(
     matchesScope(printing, scope, customTagAssignments?.[printing.cardId]),
   );
 }
-
-// ── Helpers ────────────────────────────────────────────────────────────────
 
 export function filterStacksByScope(
   stacks: StackedEntry[],
@@ -830,34 +718,18 @@ function mapSetSize(map: Map<string, Set<string>>): Map<string, number> {
   return result;
 }
 
-// ── Hook ───────────────────────────────────────────────────────────────────
-
 export interface CollectionStatsResult extends CollectionStats {
   allPrintings: Printing[];
   stacks: StackedEntry[];
   sets: SetListEntry[];
-  /** Passed back so the page's other scoped sections resolve custom tags the same way. */
   customTagAssignments: CustomTagAssignments;
   orders: { domains: readonly string[]; rarities: readonly string[]; cardTypes: readonly string[] };
   isReady: boolean;
 }
 
 /**
- * Computes collection statistics for a single collection or all collections.
- * @returns Full stats including hero metrics, completion breakdowns, and charts.
- */
-/**
- * Collection statistics for a scope.
- *
- * `scope` narrows every figure to the printings matching the page's active
- * filters. Pass the same scope the rest of the page uses — the completion
- * section, the cost-to-complete chart, and the value-over-time chart are all
- * scoped, so leaving the hero stats unscoped made "Estimated Value" answer a
- * different question from the chart sitting next to it, with nothing on screen
- * saying so. Omit it for an unfiltered view.
- *
- * @returns Stats for the scoped subset, plus the data the page's other
- *          sections derive their own views from.
+ * `scope` narrows every figure to the printings matching the page's active filters.
+ * Pass the same scope as the completion/cost/value sections so they all answer the same question.
  */
 export function useCollectionStats(
   collectionId?: string,
@@ -870,22 +742,16 @@ export function useCollectionStats(
   const { orders } = useEnumOrders();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
   const marketplace = marketplaceOrder[0] ?? "cardtrader";
-  // Custom tags are assigned per card in the admin UI rather than derived from
-  // the printing, so the scope's custom-tag axes need this lookup.
+  // Custom tags are assigned per card in the admin UI, not derived from the printing,
+  // so the scope's custom-tag axes need this lookup.
   const customTagAssignments = useCustomTagAssignments();
 
   const stacks = scope ? filterStacksByScope(allStacks, scope, customTagAssignments) : allStacks;
-  // Recomputed rather than taken from useStackedCopies, which counts every
-  // copy in the collection regardless of scope.
+  // totalCopies must reflect the scoped stacks; useStackedCopies's copy count is unscoped.
   const totalCopies = stacks.reduce((sum, stack) => sum + stack.copyIds.length, 0);
 
-  // Deliberately the unscoped stacks: owning an unreleased printing is a fact
-  // about the collection, not about the filters currently applied, so the
-  // visible catalog pool must not shrink as the user narrows the scope. It also
-  // keeps this result's identity stable across filter toggles, which is what
-  // lets `getAvailableFilters` and the filter bar downstream stay memoized —
-  // with the scoped stacks the catalog has enough unreleased printings that
-  // this allocated a fresh array on every single chip click.
+  // Deliberately unscoped: unreleased-printing ownership is a catalog fact independent
+  // of filters, and scoping it here would defeat getAvailableFilters's memoization.
   const { sets, printings } = excludeUnreleasedSets({
     sets: setList.sets,
     printings: allPrintings,

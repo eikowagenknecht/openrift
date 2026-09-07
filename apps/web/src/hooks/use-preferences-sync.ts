@@ -17,7 +17,6 @@ import { useDisplayStore } from "@/stores/display-store";
 import { usePaletteStore } from "@/stores/palette-store";
 import { useThemeStore } from "@/stores/theme-store";
 
-// PATCH input derived from the contract (write subset, all optional).
 type PreferencesUpdateInput = Parameters<
   ContractRouterClient<typeof preferencesContract>["update"]
 >[0];
@@ -37,12 +36,6 @@ const patchPreferencesFn = createServerFn({ method: "POST" })
     );
   });
 
-/**
- * Build the PATCH body from current store state.
- * Sends only explicitly-set values (non-null overrides).
- * Null overrides are sent as `null` to tell the API to remove the key.
- * @returns Snapshot of preferences to persist server-side.
- */
 function getPrefsSnapshot(): UserPreferencesResponse & {
   theme?: string | null;
   palette?: string | null;
@@ -51,7 +44,7 @@ function getPrefsSnapshot(): UserPreferencesResponse & {
   const { preference: themePreference } = useThemeStore.getState();
   const { preference: palettePreference } = usePaletteStore.getState();
 
-  // Send all overrides — null tells the API to remove the key (reset to default).
+  // null tells the API to remove the key (reset to default).
   return {
     showImages: overrides.showImages,
     fancyFan: overrides.fancyFan,
@@ -63,64 +56,31 @@ function getPrefsSnapshot(): UserPreferencesResponse & {
     defaultCardView: overrides.defaultCardView,
     defaultCurrency: overrides.defaultCurrency,
     topLevelFilters: overrides.topLevelFilters,
-    // Retired preferences: always send null so the legacy keys are cleared
-    // from the stored prefs (hidden sections are part of topLevelFilters now;
-    // the compact view is simply how the filter chrome works).
+    // Retired fields, folded into topLevelFilters; always null to clear them.
     hiddenFilterSections: null,
     compactFilterView: null,
     theme: themePreference,
     palette: palettePreference,
-    // The response type has no nulls (they're PATCH-only "remove this key"
-    // markers), so the snapshot needs the double cast.
+    // Response type has no nulls (PATCH-only "remove this key" markers), hence the cast.
   } as unknown as UserPreferencesResponse;
 }
 
-/**
- * Canonical serialization of the preferences the stores currently hold.
- *
- * This is the hook's whole coordination mechanism: one string that answers "do
- * the stores and the server already agree?". Comparing it beats the flag-based
- * approach it replaced because it describes state rather than guarding a window
- * in time — there is no frame during which a store write can slip past it, and
- * a render that arrives with no data can't burn it.
- *
- * `getPrefsSnapshot` builds its object literal in a fixed key order, so plain
- * stringify is stable.
- * @returns The serialized snapshot.
- */
+// getPrefsSnapshot builds its object literal in a fixed key order, so
+// stringify is stable and can be compared for equality.
 function serializePrefs(): string {
   return JSON.stringify(getPrefsSnapshot());
 }
 
-/**
- * Syncs display and theme stores with the server for authenticated users.
- * Call once in the app layout with `enabled` tied to session state.
- *
- * The display store uses Zustand persist (localStorage) for instant hydration.
- * This hook confirms against the server and writes back on changes.
- */
 export function usePreferencesSync(enabled: boolean) {
   const queryClient = useQueryClient();
   const userId = useUserId();
   const hydrated = useHydrated();
-  // The last snapshot the stores and the currently signed-in user's server
-  // record are known to agree on. Anything else in the stores is a local edit
-  // that still owes the server a PATCH, and that one fact drives both
-  // directions: the save path skips when the stores already match it, and the
-  // hydrate path stands down when they don't (a refetch that resolves mid-edit
-  // must not paint the pre-edit server values back over the change). Null until
-  // the identity effect below seeds it, which is also what lets the very first
-  // server payload hydrate unconditionally.
+  // Last snapshot known to match the server. Save skips when the stores
+  // already match it; hydrate stands down when they don't. Null until seeded below.
   const lastSynced = useRef<string | null>(null);
 
-  // Client-only (`hydrated`): this query is otherwise started fire-and-forget
-  // during the SSR render (the session is SSR-prefetched, so it's enabled
-  // server-side), which the router SSR-query integration dehydrates as
-  // `pending` and can then hydrate stuck-`pending` on the client — the prefs
-  // would never resolve. The hook only consumes `data` in client effects, so
-  // gating on hydration is behaviour-neutral except that it fetches fresh on
-  // the client. The `markPrefsHydrated` fallback below keys off the `enabled`
-  // (logged-in) prop, not this query, so the language-seed signal is unaffected.
+  // Gated on `hydrated`: this query is SSR-prefetched fire-and-forget, so without
+  // the gate the SSR-query integration hydrates it stuck at `pending` client-side.
   const { data, isError } = useQuery({
     queryKey: queryKeys.preferences.all(userId ?? ""),
     queryFn: () => fetchPreferencesFn(),
@@ -133,9 +93,6 @@ export function usePreferencesSync(enabled: boolean) {
         return;
       }
       const snapshot = serializePrefs();
-      // Nothing to send: the stores already hold what the server has. Reached
-      // whenever the change that woke the subscriber was device-local (column
-      // count, filter expansion) or was itself a hydration write.
       if (snapshot === lastSynced.current) {
         return;
       }
@@ -143,18 +100,13 @@ export function usePreferencesSync(enabled: boolean) {
       try {
         await patchPreferencesFn({ data: { prefs } });
       } catch {
-        // Keep `lastSynced` on the last value the server confirmed, so the
-        // stores stay marked as diverged: the edit survives in localStorage and
-        // rides along with the next successful save instead of being quietly
-        // overwritten by the next refetch.
+        // Leave lastSynced on the last confirmed value so the edit stays marked
+        // diverged and rides along with the next successful save.
         return;
       }
       lastSynced.current = snapshot;
-      // Merge, not replace: the snapshot only carries display/theme/palette
-      // prefs, so a plain overwrite would evict server-only keys like
-      // `emailNotifications` (ADR-030) from the shared cache, which the profile
-      // toggles read. The write lands back here as fresh `data`, which the
-      // hydrate effect recognises as its own echo and applies as a no-op.
+      // Merge, not replace: overwriting would evict server-only keys (e.g.
+      // emailNotifications) not present in this snapshot.
       queryClient.setQueryData(
         queryKeys.preferences.all(userId),
         (previous: UserPreferencesResponse | undefined) => ({ ...previous, ...prefs }),
@@ -163,51 +115,27 @@ export function usePreferencesSync(enabled: boolean) {
     { wait: 1000 },
   );
 
-  // Logged-out users never hit the server, so there's nothing to wait for —
-  // mark prefs hydrated immediately. If the server fetch errors for a
-  // logged-in user, fall back to whatever localStorage/defaults resolved to
-  // rather than blocking downstream consumers (e.g. the language-seed hook)
-  // forever.
+  // Logged-out, or a fetch error: mark hydrated so downstream consumers
+  // (e.g. the language-seed hook) aren't blocked forever.
   useEffect(() => {
     if (!enabled || isError) {
       useDisplayStore.getState().markPrefsHydrated();
     }
   }, [enabled, isError]);
 
-  // Re-baseline whenever the signed-in identity changes (sign-in, sign-out, or
-  // straight into another account). The snapshot belongs to one user, so
-  // carrying it across the switch misreads the next user's starting state: sign
-  // out resets the stores (`handleSignOut` in components/layout/header.tsx),
-  // and the guard in the hydrate effect would read that reset as "a local edit
-  // the server hasn't seen" and stand down on it for the rest of the session,
-  // so whoever signs in next never gets their stored theme or languages back.
-  //
-  // Re-seeding from the stores beats clearing to null: it restores exactly the
-  // mount-time invariant, where the stores are presumed to hold what the new
-  // user's record holds until their payload says otherwise, so a device-local
-  // write arriving first cannot PATCH the reset stores over their real prefs.
-  // It also keeps the whole mechanism one string, with no second ref pairing a
-  // user id to the snapshot and no flag beside it.
-  //
-  // Declared above the hydrate effect on purpose. Effects run in declaration
-  // order, and someone signing back in inside the query's gcTime is handed
-  // their cached payload in the very render the identity flips, so the
-  // re-baseline has to land before that payload is judged against it.
+  // Must run before the hydrate effect below (effect order): re-baselines on
+  // identity change so a sign-out reset isn't read as the next user's unsynced edit.
   useScopeEffect(userId, () => {
     lastSynced.current = serializePrefs();
   });
 
-  // Hydrate stores when server data arrives.
   useEffect(() => {
     if (!data) {
       return;
     }
 
-    // An edit the server hasn't been told about yet outranks this payload,
-    // which was in flight before the edit happened. Applying it would revert a
-    // toggle the user just flipped, and the pending save would then send the
-    // reverted value back. Downstream consumers still need the hydration
-    // signal, so release them explicitly on this path.
+    // An unsynced local edit outranks this payload, which was in flight before
+    // the edit happened; skip it but still release the hydration signal.
     if (lastSynced.current !== null && serializePrefs() !== lastSynced.current) {
       useDisplayStore.getState().markPrefsHydrated();
       return;
@@ -222,19 +150,13 @@ export function usePreferencesSync(enabled: boolean) {
     const palette = sanitizePalette((data as Record<string, unknown>).palette);
     usePaletteStore.getState().setPalette(palette);
 
-    // Recomputed from the stores, not from `data`: hydrateOverrides merges, so
-    // a key the server omitted keeps its local value and the two are only
-    // in agreement on the merged result.
+    // Recomputed from the stores, not `data`: hydrateOverrides merges, so a key
+    // the server omitted keeps its local value.
     lastSynced.current = serializePrefs();
   }, [data]);
 
-  // Subscribe to store changes and debounce-save to server
   useEffect(() => {
     function onStoreChange() {
-      // Cheap filter only. The debounced callback re-checks against the same
-      // snapshot at fire time, which is what makes the hydration writes free:
-      // they wake the subscriber, then settle back to agreement before the
-      // timer elapses.
       if (serializePrefs() === lastSynced.current) {
         return;
       }

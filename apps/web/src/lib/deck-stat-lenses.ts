@@ -5,39 +5,26 @@ import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDeckCardKey } from "@/lib/deck-builder-card";
 import type { OwnershipBandSegments } from "@/lib/deck-ownership-band";
 
-/** One series (stack segment source) of a categorical stats chart. */
 export interface LensSeries {
   key: string;
   label: string;
   color: string;
 }
 
-/** One column of a categorical stats chart. */
 export interface LensRow {
-  /** Stable value handed to click handlers (rarity slug, ownership class). */
   key: string;
-  /** X-axis display label, e.g. "12 Rare" or "Owned". */
   label: string;
   total: number;
-  /** Series key → count. Missing keys count as 0. */
   segments: Record<string, number>;
 }
 
-/** The population every stats chart counts: main deck plus champion. */
 const LENS_ZONES: ReadonlySet<DeckZone> = new Set([
   WellKnown.deckZone.MAIN,
   WellKnown.deckZone.CHAMPION,
 ]);
 
-/** The four collection-status classes, in band order. */
 export type OwnershipClass = "exact" | "other" | "borrowed" | "missing";
 
-/**
- * Chart series for the ownership lens. Colors follow the app's collection
- * vocabulary: green for copies in the printing shown, sky for other printings,
- * violet for copies borrowed from a friend, amber for missing (the same amber
- * as every "N missing" figure).
- */
 export const OWNERSHIP_LENS_SERIES: readonly (LensSeries & { key: OwnershipClass })[] = [
   { key: "exact", label: "This printing", color: "var(--color-green-500)" },
   { key: "other", label: "Another printing", color: "var(--color-sky-500)" },
@@ -45,12 +32,6 @@ export const OWNERSHIP_LENS_SERIES: readonly (LensSeries & { key: OwnershipClass
   { key: "missing", label: "Missing", color: "var(--color-amber-500)" },
 ];
 
-/**
- * Maps each deck entry to the rarity its row stands for, via the caller's
- * resolver (owned printing while "show my printings" is on, the display
- * printing otherwise). Entries whose rarity can't be resolved are skipped.
- * @returns Deck card key → rarity slug.
- */
 export function buildRarityByCardKey(
   cards: readonly DeckBuilderCard[],
   resolveRarity: (card: DeckBuilderCard) => string | undefined,
@@ -65,13 +46,7 @@ export function buildRarityByCardKey(
   return rarities;
 }
 
-/**
- * Chart colors for the rarity lens, sampled from the rarity icons
- * (apps/web/public/images/rarities/*.webp) so the columns speak the same
- * color language as every rarity glyph in the app. Distinct from the domain
- * palette on purpose: the Types chart next door is domain-stacked, and two
- * identically-colored neighbors read as one chart.
- */
+// Deliberately distinct from the domain palette: two same-colored charts read as one.
 export const RARITY_LENS_COLORS: Record<string, string> = {
   common: "#c5cba6",
   uncommon: "#439e9d",
@@ -80,13 +55,9 @@ export const RARITY_LENS_COLORS: Record<string, string> = {
   showcase: "#f6d937",
 };
 
-/** True system boundary: a rarity added to the data before this map learns it. */
+// Fallback for a rarity not yet added to RARITY_LENS_COLORS.
 const RARITY_LENS_FALLBACK_COLOR = "var(--color-muted-foreground)";
 
-/**
- * One chart series per rarity row, colored by {@link RARITY_LENS_COLORS}.
- * @returns The series, in the rows' order.
- */
 export function rarityLensSeries(
   rows: readonly LensRow[],
   rarityLabels: Record<string, string>,
@@ -98,11 +69,6 @@ export function rarityLensSeries(
   }));
 }
 
-/**
- * Rarity columns for the stats band: one single-colored column per rarity, in
- * enum order. Population mirrors the other charts: main deck + champion.
- * @returns The rows; empty when no entry has a resolved rarity.
- */
 export function buildRarityRows(
   cards: readonly DeckBuilderCard[],
   rarityByCardKey: ReadonlyMap<string, string>,
@@ -133,13 +99,7 @@ export function buildRarityRows(
     });
 }
 
-/**
- * The three ownership columns for the stats band, in copies: how much of the
- * main deck (plus champion) the viewer holds in the printings shown, holds in
- * other printings, or is missing. Entries the segment map doesn't cover (the
- * catalog bridge hasn't resolved them) are skipped rather than guessed.
- * @returns One row per ownership class, zero-count rows included.
- */
+// Entries the segment map doesn't cover are skipped, not guessed.
 export function buildOwnershipRows(
   cards: readonly DeckBuilderCard[],
   segmentsByCardKey: ReadonlyMap<string, OwnershipBandSegments>,
@@ -155,14 +115,8 @@ export function buildOwnershipRows(
     }
     totals.exact += segments.exact;
     totals.other += segments.other;
-    // Borrowed copies get their own column rather than folding into either
-    // neighbour: they aren't owned, so they can't join "this printing", and
-    // they're in hand and buildable, so counting them as missing would
-    // contradict the shortfall figures.
     totals.borrowed += segments.borrowed;
-    // Locked copies count as missing here so the column matches every other
-    // shortfall figure (hero chip, missing dialog); only the thumbnail band
-    // splits them out.
+    // Locked copies count as missing, matching every other shortfall figure.
     totals.missing += segments.missing + segments.locked;
   }
   return OWNERSHIP_LENS_SERIES.map((series) => ({
@@ -173,10 +127,6 @@ export function buildOwnershipRows(
   }));
 }
 
-/**
- * The deck entries a rarity-column focus covers, for the focus's key set.
- * @returns Keys of the matching entries (main deck + champion only).
- */
 export function rarityFocusKeys(
   cards: readonly DeckBuilderCard[],
   rarityByCardKey: ReadonlyMap<string, string>,
@@ -191,12 +141,7 @@ export function rarityFocusKeys(
   return keys;
 }
 
-/**
- * The deck entries an ownership-column focus covers: every entry with at least
- * one copy in the class. An entry can sit in several classes at once (2 owned,
- * 1 missing), so the sets of different classes may overlap.
- * @returns Keys of the matching entries (main deck + champion only).
- */
+// An entry can belong to several classes at once, so result sets may overlap.
 export function ownershipFocusKeys(
   cards: readonly DeckBuilderCard[],
   segmentsByCardKey: ReadonlyMap<string, OwnershipBandSegments>,

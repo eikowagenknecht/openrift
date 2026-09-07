@@ -8,8 +8,7 @@ import {
 } from "./use-overlay-history-entry";
 
 const navigateMock = vi.fn();
-// One stable object, like the real useRouter: the hook keys its effect on the
-// router identity, so a fresh stub per render would push on every render.
+// Must stay one stable object: the hook keys its effect on router identity.
 const routerStub = {
   navigate: navigateMock,
   latestLocation: { href: "/decks/share/abc?view=grid" },
@@ -39,14 +38,11 @@ describe("useOverlayHistoryEntry", () => {
     expect(options.state({ __TSR_index: 0 })).toEqual({ __TSR_index: 0, cardDetail: true });
   });
 
-  it("passes resetScroll: false so opening the overlay does not jump the page to the top (regression)", () => {
+  it("passes resetScroll: false so opening the overlay does not jump the page to the top", () => {
     renderHook(() =>
       useOverlayHistoryEntry({ active: true, stateKey: "cardDetail", onPop: vi.fn() }),
     );
 
-    // A bare history.pushState reaches the router as a real PUSH navigation
-    // (@tanstack/history patches it), and scroll restoration then scrolls to
-    // the top for the unknown key.
     expect(navigateMock).toHaveBeenCalledWith(expect.objectContaining({ resetScroll: false }));
   });
 
@@ -81,7 +77,6 @@ describe("useOverlayHistoryEntry", () => {
     rerender({ onPop: second });
     globalThis.dispatchEvent(new PopStateEvent("popstate"));
 
-    // A second entry would need a second back press to undo.
     expect(navigateMock).toHaveBeenCalledTimes(1);
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalledTimes(1);

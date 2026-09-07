@@ -19,10 +19,8 @@ function DeckEditor() {
   const localDeckExists = useLocalDecksStore((state) =>
     isLocalDeckId(deckId) ? state.decks[deckId] !== undefined : true,
   );
-  // DeckEditorPage and DeckCardBrowser both read from useOwnedCount /
-  // useDeckBuildingCounts → useLiveQuery, which calls useSyncExternalStore
-  // without a server snapshot. Defer the mount until hydration so SSR
-  // doesn't trip React's client-rendering fallback.
+  // useLiveQuery (via useOwnedCount/useDeckBuildingCounts) has no server snapshot,
+  // so the mount is deferred until hydration to avoid tripping React's fallback.
   const hydrated = useHydrated();
   if (!hydrated) {
     return null;
@@ -35,9 +33,8 @@ function DeckEditor() {
   return (
     <ViewSurfaceProvider value="deckBrowser">
       <FilterSearchProvider value={search}>
-        {/* Key on deckId: it remounts the whole editor subtree when the deck
-            changes, so a deck id never switches its local/server class within one
-            mount. That keeps `useDeckDetail`'s prefix branch hook-order-stable. */}
+        {/* Key on deckId: remounts on change so useDeckDetail's local/server branch
+            never switches within one mount (hook order must stay stable). */}
         <DeckEditorPage key={deckId} deckId={deckId} />
       </FilterSearchProvider>
     </ViewSurfaceProvider>

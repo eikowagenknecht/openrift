@@ -9,9 +9,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { queryKeys } from "@/lib/query-keys";
 import { stubCopy } from "@/test/factories";
 
-// Mutable holder so individual tests can swap in a real TanStack DB collection
-// (see makeRealCopiesCollection below) while the default stays null, matching
-// the previous static mock for every test that doesn't opt in.
 const { copiesCollectionHolder } = vi.hoisted(() => ({
   copiesCollectionHolder: { current: null as unknown },
 }));
@@ -45,12 +42,6 @@ vi.mock("@tanstack/react-pacer", () => ({
   useBatcher: () => ({ addItem: vi.fn() }),
 }));
 
-// The mutations operate on the TanStack DB copies collection for optimistic
-// writes. Returning null (the default) skips those writes; the API fetch and
-// the post-success query invalidation still run, which is what most of these
-// tests care about. Tests that need to observe collection.update/.delete
-// (the temp-id filter and the chunked-batch rollback) set
-// copiesCollectionHolder.current to a real collection instead.
 vi.mock("@/lib/copies-collection", () => ({
   useCopiesCollection: () => copiesCollectionHolder.current,
 }));
@@ -78,9 +69,6 @@ function seedSession(client: QueryClient, userId: string) {
   });
 }
 
-// Seeds the collections list cache that groupIdForCollection reads to resolve
-// a destination collection's owning group. Only id and groupId are consulted,
-// so the rest of CollectionResponse is filled with inert defaults.
 function seedCollections(
   client: QueryClient,
   userId: string,
@@ -113,12 +101,8 @@ function seedCollections(
 
 let realCollectionCounter = 0;
 
-// A genuine TanStack DB collection (not a stub) backed by an in-memory query
-// fn, mirroring apps/web/src/lib/copies-collection.ts closely enough for
-// collection.update / collection.delete / utils.writeUpdate / utils.writeDelete
-// to behave exactly as they do in production. Needed because createTransaction
-// is real (not mocked) in this file: collection.update/.delete register
-// mutations onto the active transaction, which a plain stub object can't do.
+// createTransaction is real (not mocked) here, so collection.update/.delete
+// need a genuine collection to register mutations onto; a stub object can't.
 async function makeRealCopiesCollection(queryClient: QueryClient, items: CopyResponse[]) {
   realCollectionCounter++;
   const collection = createCollection(
@@ -134,12 +118,6 @@ async function makeRealCopiesCollection(queryClient: QueryClient, items: CopyRes
   return collection;
 }
 
-// Regression: useAddCopies (and friends) are wired into useQuickAddActions,
-// which renders on the public /cards page. Before this fix the mutation
-// hooks called useRequiredUserId() at hook-init time, so an unauthenticated
-// visitor browsing /cards would crash the route with "useRequiredUserId()
-// called without an authenticated session". The hooks must tolerate a null
-// session at mount; the mutation body itself is the right place to guard.
 describe("copies mutation hooks tolerate an unauthenticated session at mount", () => {
   it("useAddCopies does not throw when no session is cached", () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -167,18 +145,10 @@ describe("copies mutation hooks tolerate an unauthenticated session at mount", (
   });
 });
 
-// Regression: adding a card refreshes copyCount instantly via the live
-// copies collection, but totalValueCents / unpricedCopyCount are computed
-// server-side and only refresh when the collections list is refetched.
-// Before this fix the mutation didn't invalidate the collections query, so
-// the header's value stayed stale until the user pressed F5.
 describe("copy mutations refresh derived collection totals", () => {
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
-    // POST /copies returns the { items } envelope (CopyAddResponse) with a 201,
-    // not a bare array — the mock must mirror the real contract so a future
-    // envelope drift is caught here instead of crashing in production.
     globalThis.fetch = vi.fn(async () =>
       Response.json(
         {
@@ -223,12 +193,6 @@ describe("copy mutations refresh derived collection totals", () => {
     });
   });
 
-  // Regression: POST /copies returns the { items } envelope, not a bare array.
-  // addCopiesApi must unwrap it before the mutation maps over the rows. Before
-  // the fix it cast the body straight to AddCopyResult[] and ran .map() on the
-  // { items } object, throwing a TypeError that rolled back the optimistic add
-  // even though the server had created the copy. The old mock returned a bare
-  // array, which hid the drift once the API moved to { items }.
   it("useAddCopies unwraps the { items } envelope and resolves with the created rows", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     seedSession(client, "user-1");
@@ -256,12 +220,6 @@ describe("copy mutations refresh derived collection totals", () => {
   });
 });
 
-// Regression: filtering out optimistic temp ids (rows still in flight from
-// useBatchedAddCopies) could leave `realCopyIds` empty, but the mutation
-// still resolved successfully — the caller's onSuccess fired, a success
-// toast showed, and the selection cleared, even though nothing was actually
-// moved/disposed/updated. Rejecting instead routes through the caller's
-// onError path (error toast, selection kept).
 describe("batch mutations reject when every selected id is still an optimistic temp id", () => {
   afterEach(() => {
     copiesCollectionHolder.current = null;
@@ -304,9 +262,6 @@ describe("batch mutations reject when every selected id is still an optimistic t
   });
 });
 
-// Regression: a selection mixing real ids with in-flight temp ids must still
-// process the real ids (only an all-temp selection is rejected). Reading the
-// request body sent to the API pins that the temp id never reaches it.
 describe("batch mutations with a mix of real and temp ids process only the real ids", () => {
   const originalFetch = globalThis.fetch;
 
@@ -354,15 +309,6 @@ describe("batch mutations with a mix of real and temp ids process only the real 
   });
 });
 
-// Regression: a move rewrote only `collectionId` on the copy row, in both the
-// optimistic update and the per-chunk confirmation. `groupId` is derived from
-// the owning collection, so a copy taken out of a group's bulk box into a
-// personal collection kept its old group id. Personal owned totals skip every
-// copy with a `groupId` (see aggregateTotals in use-owned-count.ts), so the
-// viewer's count never moved: the box's tile dropped by one, but opening the
-// card still showed the old "in my collection" figure. Nothing refetches the
-// copies feed after a move (the invalidation is refetchType: "none"), so the
-// stale row survived for the rest of the session.
 describe("moving copies carries the destination collection's group id", () => {
   const originalFetch = globalThis.fetch;
 
@@ -416,13 +362,6 @@ describe("moving copies carries the destination collection's group id", () => {
   });
 });
 
-// Regression: the chunked API loop confirmed all chunks' optimistic writes
-// together only after every chunk's API call had succeeded, inside one
-// createTransaction mutationFn. A later chunk's failure rejected the whole
-// mutationFn, which rolled back ALL optimistic writes — including chunks the
-// server had already committed — leaving the UI stale until reload. Each
-// chunk must now be confirmed (utils.writeUpdate/writeDelete) as soon as its
-// own API call succeeds, so only the not-yet-committed remainder rolls back.
 describe("chunked batch mutations confirm each chunk as it succeeds", () => {
   const originalFetch = globalThis.fetch;
 
@@ -457,15 +396,10 @@ describe("chunked batch mutations confirm each chunk as it succeeds", () => {
       result.current.mutateAsync({ copyIds: ids, toCollectionId: "dest" }),
     ).rejects.toThrow();
 
-    // Two chunks of 500 (BATCH_SIZE) → the second (200-id) chunk is what fails.
     expect(callCount).toBe(2);
     const byId = new Map(collection.toArray.map((copy) => [copy.id, copy]));
-    // Chunk 1 (ids 0-499) already got its API confirmation before chunk 2
-    // failed, so it stays applied instead of being discarded by the rollback.
     expect(byId.get("real-0")?.collectionId).toBe("dest");
     expect(byId.get("real-499")?.collectionId).toBe("dest");
-    // Chunk 2 (ids 500-699) never got a confirmation, so its optimistic write
-    // rolls back to the pre-mutation state.
     expect(byId.get("real-699")?.collectionId).toBe("source");
   });
 
@@ -495,10 +429,8 @@ describe("chunked batch mutations confirm each chunk as it succeeds", () => {
 
     expect(callCount).toBe(2);
     const remainingIds = new Set(collection.toArray.map((copy) => copy.id));
-    // Chunk 1 was already confirmed deleted before chunk 2 failed.
     expect(remainingIds.has("real-0")).toBe(false);
     expect(remainingIds.has("real-499")).toBe(false);
-    // Chunk 2 never got a confirmation, so its optimistic delete rolls back.
     expect(remainingIds.has("real-699")).toBe(true);
   });
 });

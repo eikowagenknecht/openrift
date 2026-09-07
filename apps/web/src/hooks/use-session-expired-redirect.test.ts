@@ -54,7 +54,7 @@ describe("useSessionExpiredRedirect", () => {
     });
   });
 
-  it("redirects when the session expires after mount (the SSR-13 regression)", () => {
+  it("redirects when the session expires after mount", () => {
     sessionState.data = { user: { id: "user-1" } };
     const { result, rerender } = renderHook(() => useSessionExpiredRedirect());
     expect(navigateMock).not.toHaveBeenCalled();
@@ -66,7 +66,7 @@ describe("useSessionExpiredRedirect", () => {
     expect(navigateMock).toHaveBeenCalledTimes(1);
   });
 
-  it("redirects only once when the href changes as a result of navigating (SSR-1C loop)", () => {
+  it("redirects only once when the href changes as a result of navigating", () => {
     sessionState.data = null;
     const { rerender } = renderHook(() => useSessionExpiredRedirect());
     expect(navigateMock).toHaveBeenCalledTimes(1);
@@ -75,9 +75,6 @@ describe("useSessionExpiredRedirect", () => {
       search: { redirect: "/decks/abc", email: undefined },
     });
 
-    // navigate() changes location.href; the effect must not re-fire on the
-    // href it just caused while the session is still gone, or it loops until
-    // React's nested-update cap ("Maximum update depth exceeded").
     locationState.href = "/login?redirect=/decks/abc";
     rerender();
     locationState.href = "/login?redirect=/login";

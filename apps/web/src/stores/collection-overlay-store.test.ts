@@ -31,10 +31,7 @@ describe("useCollectionOverlayStore", () => {
     expect(state.takeFollowUp).toBeNull();
   });
 
-  it("keeps the take confirm and follow-up slots independent", () => {
-    // The take flow closes the confirm dialog and opens the follow-up in the
-    // same success handler. Separate slots make that a handoff rather than a
-    // race over one shared slot.
+  it("keeps the take confirm and follow-up slots independent, as a handoff rather than a shared-slot race", () => {
     const printing = stubPrinting();
     useCollectionOverlayStore
       .getState()
@@ -85,7 +82,6 @@ describe("useCollectionOverlayStore", () => {
 });
 
 describe("useCloseCollectionOverlaysOnUnmount", () => {
-  /** Opens one slot of each kind — boolean, and the two object-valued targets. */
   function openEverything() {
     const printing = stubPrinting();
     useCollectionOverlayStore.getState().setDeleteOpen(true);
@@ -105,10 +101,7 @@ describe("useCloseCollectionOverlaysOnUnmount", () => {
       .setTakeFollowUp({ printing, entries: [], takenQuantity: 1 });
   }
 
-  it("closes every overlay when the grid unmounts", () => {
-    // The store outlives the grid, and the grid's mount-time reset only runs
-    // after paint. Clearing on unmount is what keeps a returning viewer from
-    // seeing one frame of the dialog they left open.
+  it("closes every overlay when the grid unmounts, so a returning viewer never sees a stale open dialog", () => {
     const { unmount } = renderHook(() => {
       useCloseCollectionOverlaysOnUnmount();
     });
@@ -127,7 +120,6 @@ describe("useCloseCollectionOverlaysOnUnmount", () => {
   });
 
   it("leaves open overlays alone while the grid stays mounted", () => {
-    // Cleanup-only: a dialog must survive re-renders of the grid underneath it.
     const { rerender } = renderHook(() => {
       useCloseCollectionOverlaysOnUnmount();
     });
@@ -138,10 +130,7 @@ describe("useCloseCollectionOverlaysOnUnmount", () => {
     expect(useCollectionOverlayStore.getState().editOpen).toBe(true);
   });
 
-  it("survives StrictMode's double-invoked mount", () => {
-    // Dev StrictMode runs mount → unmount → mount, so the cleanup fires once
-    // before the viewer can do anything. Nothing opens an overlay in that
-    // window, and reset() is idempotent, so state set afterwards has to stick.
+  it("survives StrictMode's mount → unmount → mount, keeping state set after the extra cleanup", () => {
     const { unmount } = renderHook(
       () => {
         useCloseCollectionOverlaysOnUnmount();

@@ -18,11 +18,8 @@ export function collectionsQueryOptions(userId: string) {
     queryKey: queryKeys.collections.all(userId),
     queryFn: () => fetchCollections(),
     select: (data: CollectionListResponse) => data.items,
-    // Default is 0 (immediately stale), which caused 3-4 fetches per
-    // navigation: each subscriber that mounted post-fetch saw stale data and
-    // kicked off another fetch. 5-minute freshness matches catalog conventions
-    // and still lets explicit invalidation (useCreateCollection /
-    // useDeleteCollection) force a refresh.
+    // Default staleTime of 0 caused 3-4 fetches per navigation: each subscriber
+    // that mounted post-fetch saw stale data and re-fetched.
     staleTime: 5 * 60 * 1000,
   });
 }

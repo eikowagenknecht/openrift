@@ -29,50 +29,21 @@ interface UseCardDataParams {
   allPrintings: Printing[];
   sets: GroupInfo[];
   filters: CardFilters;
-  /** Selected ownership buckets. Empty array means no owned filter. */
   ownedFilter?: readonly OwnedBucket[];
-  /** Inclusive lower bound on copies owned (slider). null = no lower bound. */
   ownedCountMin?: number | null;
-  /** Inclusive upper bound on copies owned (slider). null = no upper bound. */
   ownedCountMax?: number | null;
   sortBy: SortOption;
   sortDir: "asc" | "desc";
   view: "cards" | "printings";
-  /**
-   * Cards-view grouping axis. When it splits a card (set/rarity) the dedup is
-   * per (cardId, set) / (cardId, rarity) so the card shows once per section.
-   * Defaults to "none".
-   */
   groupBy?: GroupByField;
   ownedCountByPrinting: Record<string, number> | undefined;
   favoriteMarketplace: Marketplace;
   prices: PriceLookup;
   enabled?: boolean;
-  /**
-   * Whether the composed {@link useCatalogFilterMeta} (availableFilters,
-   * faceted filterCounts, languages, set labels) is computed. Pass `false`
-   * when the caller gets meta from its own `useCatalogFilterMeta` call
-   * (/cards) or only consumes this hook's grid outputs in the current mode
-   * (the inactive pipeline behind a library/browse toggle). The counts are
-   * by far the most expensive part of a filter change, so never compute
-   * them twice or for a hidden filter panel. Defaults to `true`.
-   */
   metaEnabled?: boolean;
-  /** See {@link UseCatalogFilterMetaParams.countsEnabled}. Defaults to `true`. */
   countsEnabled?: boolean;
-  /** Reverse map from translated keyword labels to canonical names, for cross-language search. */
   keywordReverseMap?: Map<string, string>;
-  /**
-   * Full distribution-channel registry (including parents that no printing
-   * links to directly). Required for the channel filter UI to render full
-   * breadcrumbs — without it, `getAvailableFilters` derives channels from the
-   * printings alone and parent labels are lost.
-   */
   channels?: readonly DistributionChannel[];
-  /**
-   * Card id → custom-tag slugs lookup. Required only when the freeform deck
-   * builder's custom-tag filter is active; standard callers omit this.
-   */
   customTagAssignments?: Record<string, readonly string[]>;
 }
 
@@ -88,14 +59,6 @@ interface UseCatalogFilterMetaParams {
   favoriteMarketplace: Marketplace;
   prices: PriceLookup;
   enabled?: boolean;
-  /**
-   * Whether the faceted chip counts are computed. Pass `false` while no chip
-   * surface is visible (on phones: the filter drawer is closed) — the counts
-   * pass is the most expensive part of a filter change and its output is
-   * invisible there. Everything else (availableFilters, languages, labels)
-   * stays live so the active-filter strip keeps its labels. Defaults to
-   * `true`.
-   */
   countsEnabled?: boolean;
   keywordReverseMap?: Map<string, string>;
   channels?: readonly DistributionChannel[];
@@ -103,13 +66,8 @@ interface UseCatalogFilterMetaParams {
 }
 
 /**
- * Build owned-count map keyed by printing ID. In "cards" view a tile collapses
- * several printings, so its representative printing gets the sum of everything
- * it stands in for: all printings of the card normally, but only the printings
- * sharing the tile when grouped by set or rarity (see {@link cardsViewTileKey}).
- * Those axes split a card into one tile per value, so each tile's count must not
- * pull in copies of the card's printings from other sets / rarities.
- * @returns A map from printing ID to owned count.
+ * A tile's owned count sums all of a card's printings, or only those sharing
+ * its set/rarity tile when grouped (see {@link cardsViewTileKey}).
  */
 function buildOwnedCounts(
   allPrintings: Printing[],
@@ -145,7 +103,6 @@ function buildOwnedCounts(
 
 const EMPTY_PRINTINGS_MAP = new Map<string, Printing[]>();
 const NO_OP_LABEL = (slug: string) => slug;
-/** Stable stand-in so a disabled {@link useCatalogFilterMeta} defers a constant. */
 const EMPTY_OWNED_FILTER: readonly OwnedBucket[] = [];
 
 export const EMPTY_FILTER_COUNTS: FilterCounts = {
@@ -180,13 +137,8 @@ export const EMPTY_FILTER_COUNTS: FilterCounts = {
 };
 
 /**
- * Filter-meta computation extracted so the catalog filter panel can subscribe
- * to it independently of {@link useCardData}. When `ownedFilter` is empty,
- * none of this hook's outputs depend on `ownedCountByPrinting`, so the
- * returned ref stays stable across +/- clicks on the copies collection.
- *
- * @returns Available filter options, faceted counts, the language list, and a
- *   slug-to-name resolver for set badges.
+ * When `ownedFilter` is empty, no output depends on `ownedCountByPrinting`,
+ * so the returned ref stays stable across +/- clicks on the copies collection.
  */
 export function useCatalogFilterMeta({
   allPrintings,
@@ -209,21 +161,8 @@ export function useCatalogFilterMeta({
 
   const { orders } = useEnumOrders();
 
-  // Facet counts render chip badges, not the grid — they can lag one frame.
-  // Deferring the filter inputs keeps the urgent render (grid + chrome
-  // structure) free of the counts pass; React then re-renders at deferred
-  // priority with the new values and the badges catch up. All four inputs
-  // come from the same URL state, so they must defer together or the counts
-  // would transiently mix old and new filter state.
-  //
-  // A disabled hook defers module constants instead of the real inputs. A
-  // caller that already deferred (the catalog, which hands `useCardData` a
-  // deferred filter set) would otherwise defer a deferred value here, and each
-  // extra `useDeferredValue` in the chain costs one more render pass before
-  // the tree settles — for outputs this branch throws away.
-  // countsEnabled folds into the same gating: with the counts pass off, the
-  // deferred inputs pin to constants so a filter change doesn't even schedule
-  // the deferred re-render whose only output would be thrown away.
+  // All four inputs must defer together, or the counts transiently mix old
+  // and new filter state.
   const countsLive = enabled && countsEnabled;
   const deferredFilters = useDeferredValue(countsLive ? filters : EMPTY_CARD_FILTERS);
   const deferredOwnedFilter = useDeferredValue(countsLive ? ownedFilter : EMPTY_OWNED_FILTER);
@@ -251,10 +190,8 @@ export function useCatalogFilterMeta({
     getPrice,
     channels,
   });
-  // Narrow the universe by owned BEFORE computing facet counts so the other
-  // chips (sets, rarities, colors, etc.) reflect the active owned selection —
-  // both the coarse buckets and the copies-owned range slider. Uses the
-  // deferred inputs (see above): the counts belong to the deferred render.
+  // Narrow by owned BEFORE computing facet counts, so the other chips
+  // reflect the active owned selection.
   const bucketBy = view === "printings" ? "printing" : "card";
   let universeForCounts = allPrintings;
   if (ownedCountByPrinting) {
@@ -314,11 +251,6 @@ export function useCardData({
 
   const { orders } = useEnumOrders();
 
-  // Compose the filter-meta hook so callers that don't yet read directly
-  // from useCatalogFilterMeta still get availableFilters/filterCounts/etc.
-  // from useCardData's return. <CardCatalogFilterPanel> talks to
-  // useCatalogFilterMeta directly so its re-renders aren't entangled with
-  // the rest of useCardData's outputs.
   const meta = useCatalogFilterMeta({
     allPrintings,
     sets,
@@ -349,15 +281,11 @@ export function useCardData({
     };
   }
 
-  // getPrice resolves a printing's price on the user's favorite marketplace.
-  // Filters, sorting, and the available-price-range histogram all read prices
-  // through this dependency rather than reading a field off the printing.
   const lookup = prices ?? EMPTY_PRICE_LOOKUP;
   const getPrice = (p: Printing) => lookup.get(p.id, favoriteMarketplace);
 
-  // `allPrintings` from useCards() arrives in (userLanguageRank, canonicalRank)
-  // order, so `filterCards` preserves that order and the dedup/group below
-  // can be first-occurrence without re-sorting.
+  // allPrintings arrives pre-sorted (userLanguageRank, canonicalRank); the
+  // dedup/group below relies on filterCards preserving that order.
   let filteredCards = filterCards(allPrintings, filters, {
     keywordReverseMap,
     getPrice,
@@ -385,10 +313,8 @@ export function useCardData({
     }
   }
 
-  // Cards view collapses printings into one tile per card. When grouped by set
-  // or rarity the tile is per (cardId, set) / (cardId, rarity) instead, so a
-  // card reprinted across N sets (or printed at N rarities) shows up once under
-  // each — each section reads as a complete index of the cards in it.
+  // Cards view collapses printings into one tile per card, or per
+  // (cardId, set)/(cardId, rarity) when grouped by set/rarity.
   const displayCards =
     view === "cards" ? dedupeToCardsViewTiles(filteredCards, groupBy) : filteredCards;
 

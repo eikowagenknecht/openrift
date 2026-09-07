@@ -23,9 +23,8 @@ import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-// Re-export for back-compat with consumers that pulled it from this module
-// before the split. Route loaders should import from @/lib/collections-query
-// directly so the loader path doesn't drag in @tanstack/react-db.
+// Route loaders must import from @/lib/collections-query directly, or the
+// loader path drags in @tanstack/react-db.
 export { collectionsQueryOptions } from "@/lib/collections-query";
 
 export function useCollections() {
@@ -33,16 +32,8 @@ export function useCollections() {
   const copiesCollection = useCopiesCollection();
   const serverQuery = useSuspenseQuery(collectionsQueryOptions(userId));
 
-  // Skip the live query during SSR: TanStack DB's live-query internals use
-  // useSyncExternalStore without providing a getServerSnapshot, so running
-  // it server-side forces a client-render fallback with a warning. On the
-  // server we fall back to server-provided copyCount (stale but correct at
-  // load). On the client, once the collection subscription is established,
-  // we override copyCount with the derived value so mutations reflect
-  // without waiting on a server round-trip.
-  //
-  // copiesCollection is null mid-sign-out (this hook itself unmounts an
-  // instant later); same-shape fallback applies.
+  // SSR: TanStack DB's live-query internals call useSyncExternalStore without
+  // a getServerSnapshot, forcing a client-render fallback warning server-side.
   const { data: copies } = useLiveQuery({
     query: (q) =>
       globalThis.window === undefined || !copiesCollection
@@ -64,10 +55,6 @@ export function useCollections() {
   return { ...serverQuery, data };
 }
 
-/**
- * Builds a Map from collection ID to CollectionResponse for O(1) lookups.
- * @returns A stable Map derived from the collections query data.
- */
 export function useCollectionsMap(): Map<string, CollectionResponse> {
   "use memo";
   const { data: collections } = useCollections();
@@ -128,14 +115,8 @@ const setDeckbuildingFn = createServerFn({ method: "POST" })
   });
 
 /**
- * Sets the *current viewer's* deck-building availability for a collection.
- * This is a per-member preference — every member with access can set it for
- * themselves, including for shared group collections — so it is not gated on
- * group-admin rights. Invalidating the collections list refreshes the
- * viewer-effective `availableForDeckbuilding` flag, which in turn drives the
- * owned/locked deck-building counts.
- *
- * @returns A mutation taking `{ id, available }`.
+ * Sets the current viewer's own deck-building availability for a collection: a
+ * per-member preference, so it's not gated on group-admin rights even for shared collections.
  */
 export function useSetCollectionDeckbuilding() {
   const userId = useRequiredUserId();
@@ -156,12 +137,8 @@ const setCollectionSidebarHiddenFn = createServerFn({ method: "POST" })
   });
 
 /**
- * Moves a collection behind the sidebar's "Show more" toggle, or back out of
- * it. Per-viewer like deck-building availability, so a member of a shared
- * group collection only curates their own sidebar. Optimistic because the row
- * jumps groups the instant you pick the menu item.
- *
- * @returns A mutation taking `{ id, hidden }`.
+ * Moves a collection behind the sidebar's "Show more" toggle. Per-viewer like
+ * deck-building availability, so a shared group member only curates their own sidebar.
  */
 export function useSetCollectionSidebarHidden() {
   const userId = useRequiredUserId();
@@ -190,8 +167,7 @@ export function useSetCollectionSidebarHidden() {
       if (context?.previous) {
         queryClient.setQueryData(queryKeys.collections.all(userId), context.previous);
       }
-      // Declaring onError here replaces the QueryClient's default one, so the
-      // rollback would otherwise put the row back with nothing saying why.
+      // Declaring onError here replaces the QueryClient's default one.
       reportMutationError(error, queryClient);
     },
     onSettled: () => {
@@ -207,15 +183,7 @@ const reorderCollectionsFn = createServerFn({ method: "POST" })
     await apiOrpcClient(collectionsContract, context.cookie).reorder(data);
   });
 
-/**
- * Reorders the user's personal collections. The optimistic update reorders
- * the cached items in-place by `orderedIds`; rows not in the list (e.g.
- * group-owned collections) stay where they are. On error we roll back to
- * the snapshot we took in `onMutate`.
- *
- * @returns A mutation that takes `{ orderedIds }` and reorders personal
- *   collections in the sidebar.
- */
+/** Rows not in `orderedIds` (e.g. group-owned collections) stay where they are. */
 export function useReorderCollections() {
   const userId = useRequiredUserId();
   const queryClient = useQueryClient();
@@ -241,9 +209,7 @@ export function useReorderCollections() {
       if (context?.previous) {
         queryClient.setQueryData(queryKeys.collections.all(userId), context.previous);
       }
-      // Declaring onError here replaces the QueryClient's default one, so the
-      // rollback would otherwise revert the order with nothing telling the user
-      // the reorder failed.
+      // Declaring onError here replaces the QueryClient's default one.
       reportMutationError(error, queryClient);
     },
     onSettled: () => {
@@ -265,8 +231,6 @@ const clearCollectionFn = createServerFn({ method: "POST" })
   .handler(({ context, data }): Promise<ClearCollectionResponse> =>
     apiOrpcClient(collectionsContract, context.cookie).clear({ id: data.id }),
   );
-
-// ── Collection sharing ──────────────────────────────────────────────────────
 
 const shareCollectionFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
@@ -338,9 +302,8 @@ const fetchPublicCollectionFn = createServerFn({ method: "GET" })
       throw error;
     }
 
-    // Walk the cursor server-side so the SSR payload carries every copy for
-    // collections larger than the API's per-page cap. Matches the authenticated
-    // `fetchCopies` pattern in copies-query.ts.
+    // Walk the cursor server-side so the SSR payload carries every copy, matching
+    // the authenticated `fetchCopies` pattern in copies-query.ts.
     const allCopies = [...firstPage.items];
     let cursor = firstPage.nextCursor;
     while (cursor) {
@@ -374,12 +337,9 @@ export function useDeleteCollection() {
       return id;
     },
     onSuccess: (deletedId) => {
-      // Server atomically moved the remaining copies to the inbox before
-      // deleting the collection. Mirror that move in the synced copies
-      // collection so live queries (sidebar counts, owned-count, grids)
-      // reflect it immediately. Invalidating queryKeys.copies.all alone
-      // doesn't work, because the TanStack DB collection is keyed
-      // separately as ["copies-collection", userId].
+      // Server atomically moved the remaining copies to the inbox; mirror that in the
+      // synced copies collection since it's keyed separately as ["copies-collection", userId]
+      // and invalidating queryKeys.copies.all alone won't reach it.
       const cached = queryClient.getQueryData<CollectionsResponse>(
         queryKeys.collections.all(userId),
       );
@@ -387,10 +347,8 @@ export function useDeleteCollection() {
       if (inboxId && copiesCollection) {
         const affected = copiesCollection.toArray.filter((copy) => copy.collectionId === deletedId);
         if (affected.length > 0) {
-          // groupId travels with collectionId: an inbox is always personal
-          // (the schema forbids a group inbox), so copies landing there stop
-          // being group-owned. Leaving the old groupId would keep them out of
-          // the viewer's personal owned totals, which skip group copies.
+          // The schema forbids a group inbox, so groupId must clear too or these
+          // copies stay excluded from the viewer's personal owned totals.
           copiesCollection.utils.writeUpdate(
             affected.map((copy) => ({ id: copy.id, collectionId: inboxId, groupId: null })),
           );
@@ -405,14 +363,7 @@ export function useDeleteCollection() {
   });
 }
 
-/**
- * Clears a collection's contents server-side (used for the inbox, which can
- * be emptied but never deleted). Copies pinned by a live trade or loan stay
- * put; the server reports them back as `keptCopyIds`.
- *
- * @returns A mutation taking the collection id and resolving to the clear
- *   result (`removedCount`, `keptCopyIds`).
- */
+/** Copies pinned by a live trade or loan stay put; the server reports them as `keptCopyIds`. */
 export function useClearCollection() {
   const userId = useRequiredUserId();
   const queryClient = useQueryClient();
@@ -424,9 +375,7 @@ export function useClearCollection() {
       return { id, ...result };
     },
     onSuccess: ({ id, keptCopyIds }) => {
-      // Mirror the server-side clear in the synced copies collection so live
-      // queries (sidebar counts, owned-count, grids) reflect it immediately —
-      // same reasoning as useDeleteCollection above.
+      // Mirror the server-side clear in the synced copies collection, same as useDeleteCollection.
       if (copiesCollection) {
         const kept = new Set(keptCopyIds);
         const removedIds = copiesCollection.toArray
@@ -453,8 +402,7 @@ export const resetCollectionsFn = createServerFn({ method: "POST" })
       apiOrpcClient(collectionsContract, context.cookie).resetAll(),
     );
     if (error) {
-      // The 409 guard (copies reserved in trades / out on loans) carries a
-      // user-readable message — rethrow it plain so the dialog can show it.
+      // Rethrow the 409 CONFLICT plain so the dialog can show its user-readable message.
       if (isDefinedError(error) && error.code === "CONFLICT") {
         throw new Error(error.message);
       }
@@ -464,10 +412,8 @@ export const resetCollectionsFn = createServerFn({ method: "POST" })
   });
 
 /**
- * Danger-zone reset: the server wipes every copy from the user's personal
- * collections, deletes all personal collections except the inbox, and prunes
- * lists the wipe emptied. Group collections are untouched.
- * @returns Mutation resolving to the reset summary counts.
+ * Danger-zone reset: wipes every copy from the user's personal collections, deletes
+ * all personal collections except the inbox, and prunes lists it emptied. Group collections untouched.
  */
 export function useResetCollections() {
   const queryClient = useQueryClient();
@@ -476,19 +422,14 @@ export function useResetCollections() {
   return useMutation({
     mutationFn: () => resetCollectionsFn(),
     onSuccess: () => {
-      // Drop the personal copies from the synced store immediately so live
-      // queries (sidebar counts, owned-count, grids) empty without waiting on
-      // a refetch. Group-owned copies survive the reset and stay.
+      // Drop personal copies from the synced store immediately; group-owned copies survive.
       if (copiesCollection) {
         const personal = copiesCollection.toArray.filter((copy) => copy.groupId === null);
         if (personal.length > 0) {
           copiesCollection.utils.writeDelete(personal.map((copy) => copy.id));
         }
       }
-      // The wipe touches nearly every user-scoped surface (collections,
-      // copies + the ["copies-collection", userId] store query, lists, trade
-      // matches, deck availability, events, value history), so invalidate the
-      // whole cache instead of chasing an ever-growing key list.
+      // Invalidates the whole cache: the wipe touches nearly every user-scoped surface.
       void queryClient.invalidateQueries();
     },
   });

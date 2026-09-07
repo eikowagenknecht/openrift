@@ -2,11 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { acquireScannerStream } from "./scan-camera";
 
-/**
- * Install a controllable `getUserMedia`.
- *
- * @returns The spy.
- */
 function stubGetUserMedia(
   implementation: (constraints: MediaStreamConstraints) => Promise<MediaStream>,
 ): ReturnType<typeof vi.fn> {

@@ -57,10 +57,7 @@ describe("useCardRowActionsStore", () => {
     expect(useCardRowActionsStore.getState().handlers).toEqual({});
   });
 
-  it("clearHandlers from a surface that no longer owns the slot is a no-op", () => {
-    // React mounts the incoming surface before running the outgoing one's
-    // cleanup, so an unconditional clear would wipe a registration that had
-    // already been replaced and leave every row inert.
+  it("clearHandlers from a surface that no longer owns the slot is a no-op, surviving mount-before-cleanup ordering", () => {
     const successor = vi.fn();
     useCardRowActionsStore.getState().setHandlers("catalog", { onRowClick: vi.fn() });
     useCardRowActionsStore.getState().setHandlers("collection", { onRowClick: successor });

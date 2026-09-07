@@ -18,9 +18,6 @@ describe("buildRunesByDomain", () => {
     expect(byDomain.get("fury")?.[0].cardId).toBe(rune.cardId);
   });
 
-  // ADR-037: rune membership is set-based, so a multi-type card that includes
-  // Rune as a secondary type is still collected. Reading the scalar `type`
-  // (its primary) would drop it.
   it("includes a multi-type card that has Rune as a secondary type", () => {
     const multi = stubPrinting({ card: { types: ["unit", RUNE], domains: ["order"] } });
     const byDomain = buildRunesByDomain([multi]);

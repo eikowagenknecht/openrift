@@ -10,32 +10,19 @@ import type {
 } from "@/lib/meta-submission-copy";
 
 /**
- * Draft shapes and validation for the meta archive's decklist submission form
- * (ADR-014's User submissions).
- *
- * Every field is held as a string while it is being edited, so the bounds below
- * mirror `metaSubmissionInputSchema` and the service's own `validateMetaSubmission`.
- * The point is to name the problem next to the field instead of surfacing a 400
- * with a server sentence in it.
+ * Every field is held as a string while it is being edited. Its bounds
+ * mirror `metaSubmissionInputSchema` and `validateMetaSubmission`.
  */
-
-/** The submission form's fields, as edited. */
 export interface MetaSubmissionDraft {
-  /** What this contribution is asking for, which the link the sender followed decides. */
   kind: MetaDeckSubmissionKind;
   playerName: string;
-  /** Where the player finished, as a positive whole number. */
   rank: string;
-  /** True when the source only published a cut bucket, so `rank` prints as "T8". */
   rankIsTier: boolean;
-  /** The match record, one box each. Blank means the submitter does not know it. */
   wins: string;
   losses: string;
   draws: string;
   note: string;
-  /** The pasted decklist, in any format the import box accepts. */
   deckText: string;
-  /** Set only while proposing an event the archive does not have. */
   eventName: string;
   eventDate: string;
   eventFormat: string;
@@ -44,7 +31,6 @@ export interface MetaSubmissionDraft {
   eventSourceUrl: string;
 }
 
-/** A blank submission form. */
 export const EMPTY_META_SUBMISSION_DRAFT: MetaSubmissionDraft = {
   kind: "new_list",
   playerName: "",
@@ -63,14 +49,7 @@ export const EMPTY_META_SUBMISSION_DRAFT: MetaSubmissionDraft = {
   eventSourceUrl: "",
 };
 
-/**
- * What a standings row hands the form when someone opens it from one: the entry
- * the archive already holds, so the sender types the list and nothing else.
- *
- * Everything is optional because the row may itself be thin — a source that
- * published no records leaves the three counts out, and the form shows them
- * blank rather than inventing a 0-0-0.
- */
+/** Everything is optional: a source with no published records has no counts. */
 export interface MetaSubmissionPrefill {
   kind?: MetaDeckSubmissionKind;
   playerName?: string;
@@ -79,29 +58,17 @@ export interface MetaSubmissionPrefill {
   wins?: number;
   losses?: number;
   draws?: number;
-  /**
-   * The archived list this starts from, already written out as paste text. A
-   * completion or a correction is an edit of what the archive holds, so the box
-   * opens holding it rather than empty.
-   */
   deckText?: string;
-  /** The legend the archive has this entry on, named so the sender can check it. */
   legendName?: string;
   legendCardId?: string;
 }
 
-/** Blank for a count nobody published, which is not the same as a zero. */
+/** Blank means no count was published, distinct from zero. */
 function countField(value: number | undefined): string {
   return value === undefined ? "" : String(value);
 }
 
-/**
- * Seeds a blank form from a standings row.
- *
- * A rank of zero or less is dropped rather than written into the field: the
- * form validates it as a positive whole number, and a prefill that arrives
- * invalid would block sending with an error nobody typed.
- */
+/** A rank of zero or less is dropped: a prefill that arrives invalid would block sending with an error nobody typed. */
 export function metaSubmissionDraftFromPrefill(
   prefill: MetaSubmissionPrefill,
 ): MetaSubmissionDraft {
@@ -120,17 +87,7 @@ export function metaSubmissionDraftFromPrefill(
   };
 }
 
-/**
- * The archive's own list, written out in the format the paste box reads back.
- *
- * The catalog's card names, not the display ones: the server resolves a
- * submission's names through the same alias index a scrape goes through, and
- * that index knows a legend as its bare epithet rather than as the champion-led
- * label the deck page prints.
- *
- * @param cards The archived deck's cards.
- * @returns The list as text, or an empty string when the deck holds none.
- */
+/** Uses catalog card names, not display ones: the server's alias index knows a legend by its bare epithet. */
 export function metaSubmissionTextFromCards(
   cards: readonly { cardName: string; quantity: number; zone: DeckZone }[],
 ): string {
@@ -149,19 +106,16 @@ export function metaSubmissionTextFromCards(
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
 const WHOLE_NUMBER_PATTERN = /^\d+$/u;
 
-/** @returns True when a record box is blank or holds a whole number. */
 function isRecordPart(value: string): boolean {
   const trimmed = value.trim();
   return trimmed === "" || WHOLE_NUMBER_PATTERN.test(trimmed);
 }
 
-/** @returns The box's number, or null when it was left blank. */
 function recordPart(value: string): number | null {
   const trimmed = value.trim();
   return trimmed === "" ? null : Number(trimmed);
 }
 
-/** One card line, in the shape the submission endpoint takes. */
 interface MetaSubmissionCardLine {
   name: string;
   zone: string;
@@ -174,22 +128,16 @@ export interface MetaSubmissionZoneCounts {
   runes: number;
 }
 
-/** What one paste turned into, and everything about it worth showing back. */
 export interface MetaSubmissionParsedList {
-  /** The lines to send, summed per card and zone. */
   cards: MetaSubmissionCardLine[];
-  /** Lines the catalog could not place, in the words the submitter wrote. */
   unmatched: string[];
-  /** Lines the catalog read as a different card than the one written. */
   reinterpreted: { source: string; matched: string }[];
-  /** Complaints from the format parser itself (bad quantities, stray lines). */
   warnings: string[];
   zones: MetaSubmissionZoneCounts;
   legend: { cardId: string; cardName: string } | null;
   listStatus: MetaSubmissionCompleteness;
 }
 
-/** A list is whole when it names its legend and brings battlefields and runes along. */
 export function metaSubmissionListStatus(
   zones: MetaSubmissionZoneCounts,
   legend: MetaSubmissionParsedList["legend"],
@@ -197,7 +145,6 @@ export function metaSubmissionListStatus(
   return legend !== null && zones.battlefield > 0 && zones.runes > 0 ? "full" : "partial";
 }
 
-/** False when either side is unknown: nothing to compare is not a mismatch. */
 export function metaSubmissionLegendMismatch(
   parsed: Pick<MetaSubmissionParsedList, "legend">,
   rowLegendCardId: string | undefined,
@@ -208,30 +155,11 @@ export function metaSubmissionLegendMismatch(
   return parsed.legend.cardId !== rowLegendCardId;
 }
 
-/**
- * What one parsed entry was written as, for a message pointing back at the
- * submitter's own text.
- *
- * @param entry The matched entry.
- * @returns The card name, short code, or a placeholder when the line had neither.
- */
 function sourceLabel(entry: DeckMatchedEntry): string {
   return entry.entry.cardName ?? entry.entry.shortCode ?? "(unnamed line)";
 }
 
-/**
- * Turns matched import entries into the endpoint's card lines.
- *
- * Names, not ids: the server resolves them through the same alias index the
- * provider uploads use, so a spelling the catalog already knows links exactly as
- * a scrape of the same list would. An entry the local catalog could not place
- * still travels, under the words the submitter wrote — the server's index may
- * know an alias this one does not, and if it does not either, the name comes
- * back in `unresolvedNames` where the submitter can fix it.
- *
- * @param matched The entries as matched against the catalog.
- * @returns The card lines, summed per card name and zone.
- */
+/** Sends names, not ids: an unmatched entry still travels under the submitter's own words. */
 function metaSubmissionCardsFromMatches(
   matched: readonly DeckMatchedEntry[],
 ): MetaSubmissionCardLine[] {
@@ -249,15 +177,6 @@ function metaSubmissionCardsFromMatches(
   return [...lines.values()];
 }
 
-/**
- * Parses a pasted decklist and matches it against the catalog, in one step.
- * Accepts everything the import box does: a deck code, a TTS string, or a plain
- * text list with zone headers.
- *
- * @param text The pasted decklist.
- * @param allPrintings The catalog, for name and short-code resolution.
- * @returns The card lines to send, plus what the reader could not place.
- */
 export function parseMetaSubmissionList(
   text: string,
   allPrintings: Printing[],
@@ -295,15 +214,6 @@ export function parseMetaSubmissionList(
   };
 }
 
-/**
- * Checks a submission draft against the bounds the contract and the service
- * both enforce.
- *
- * @param draft The form's current values.
- * @param options.proposing Whether the event fields are in play.
- * @param options.cardCount How many card lines the paste produced.
- * @returns The first problem found, or null when the draft is ready to send.
- */
 export function validateMetaSubmissionDraft(
   draft: MetaSubmissionDraft,
   options: { proposing: boolean; cardCount: number },
@@ -327,9 +237,7 @@ export function validateMetaSubmissionDraft(
   if (draft.note.trim().length > 2000) {
     return "The note must be 2000 characters or fewer.";
   }
-  // A correction disputes something the archive already holds, so the reviewer
-  // needs to be told what is wrong with it. A list on its own is a second
-  // opinion with no argument attached.
+  // A correction disputes what the archive already holds, so the reviewer needs to be told what's wrong with it.
   if (draft.kind === "correction" && draft.note.trim().length === 0) {
     return "Say what's wrong with the list we have, and where the right one came from.";
   }
@@ -367,18 +275,7 @@ export function validateMetaSubmissionDraft(
   return null;
 }
 
-/**
- * Builds the request body from a validated draft.
- *
- * Exactly one of `metaEventId` and `proposedEvent` is set: the contract, the
- * service, and `candidate_meta_players`' CHECK all say the same thing, so the
- * branch is made here once rather than at the call site.
- *
- * @param draft The validated form values.
- * @param list The paste as last read.
- * @param target The archived event this targets, or null while proposing one.
- * @returns The submission body.
- */
+/** Exactly one of `metaEventId` and `proposedEvent` is set, matching the contract, service, and DB CHECK. */
 export function buildMetaSubmissionInput(
   draft: MetaSubmissionDraft,
   list: Pick<MetaSubmissionParsedList, "cards" | "listStatus">,

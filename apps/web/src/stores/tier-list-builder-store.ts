@@ -6,79 +6,48 @@ import {
 } from "@openrift/shared/contracts/tier-lists";
 import { create } from "zustand";
 
-/**
- * Working state for the tier-list builder: the board being edited, plus a
- * `dirty` flag so the page can show and gate a save.
- *
- * The board lives here rather than in react-query's cache because it changes on
- * every drag, and a query cache is the wrong place for state that mutates dozens
- * of times between saves. The saved board is the query's; this is the draft.
- *
- * `rowIndexByCardId` is kept as a derived index alongside the rows so a pool
- * cell can subscribe to `state.rowIndexByCardId.get(cardId)` — one number —
- * instead of the rows array. Without it every cell in the pool would re-render
- * on every drag, and each would rescan the board to find its own card (see the
- * `.map()` closure note in CLAUDE.md).
- */
 interface TierListBuilderState {
-  /** The list this draft belongs to; guards against a stale board after navigation. */
   listId: string | null;
   rows: TierRow[];
   /** Card id → the index of the row holding it. Absent means unranked. */
   rowIndexByCardId: Map<string, number>;
   dirty: boolean;
 
-  /** Replaces the draft with a list's saved board. Clears `dirty`. */
   load: (listId: string, rows: readonly TierRow[]) => void;
   /**
-   * Clears `dirty` after a successful save — but only if `savedRows` is still
-   * the current board. Every edit replaces the `rows` array, so a drag that
-   * landed while the save was in flight fails the reference check and the
-   * "Unsaved changes" badge stays honest.
+   * Clears `dirty` only if `savedRows` is still reference-equal to the
+   * current `rows`, so a drag landing mid-save doesn't get marked saved.
    */
   markSaved: (savedRows: readonly TierRow[]) => void;
-  /** Drops the draft entirely (unmount, or navigating to another list). */
   reset: () => void;
 
   /**
-   * Puts a card in a row, removing it from whichever row currently holds it.
-   * `position` is an index into the target row **as it looks now**, so dropping
-   * a card onto another card always lands it before that card; omitted appends.
-   * `printingId` pins the art: omit it to keep whatever the card is already
-   * pinned to, which is what a move within the board should do.
+   * `position` indexes into the target row as it looks now; omitted appends.
+   * Omitted `printingId` keeps whatever the card is already pinned to.
    */
   assign: (
     cardId: string,
     rowIndex: number,
     options?: { position?: number; printingId?: string | null },
   ) => void;
-  /** Takes a card off the board entirely, back to the pool. */
   unassign: (cardId: string) => void;
-  /** Repins a ranked card's art. `printingId` null falls back to the default printing. */
+  /** `printingId` null falls back to the default printing. */
   setPrinting: (cardId: string, printingId: string | null) => void;
 
-  /** Adds a ranked row, after the last ranked one so the unranked row stays last. */
   addRow: () => void;
-  /**
-   * Adds the grey "considered and cut" row at the bottom. A no-op once the
-   * board has one — the contract allows at most a single unranked row.
-   */
+  /** No-op once the board already has an unranked row; the contract allows at most one. */
   addUnrankedRow: () => void;
-  /** Removes a row; the cards in it return to the pool. */
   removeRow: (rowIndex: number) => void;
   renameRow: (rowIndex: number, label: string) => void;
   moveRow: (fromIndex: number, toIndex: number) => void;
 }
 
-/** Default label for the unranked row. Renameable like any other row's. */
 const UNRANKED_ROW_LABEL = "Unranked";
 
-/** @returns `position` clamped to a valid insertion index for `cards`. */
 function clamp(position: number, cards: readonly TierCard[]): number {
   return Math.max(0, Math.min(position, cards.length));
 }
 
-/** @returns Card id → row index, for every card on the board. */
 function indexRows(rows: readonly TierRow[]): Map<string, number> {
   const index = new Map<string, number>();
   for (const [rowIndex, row] of rows.entries()) {
@@ -89,39 +58,21 @@ function indexRows(rows: readonly TierRow[]): Map<string, number> {
   return index;
 }
 
-/**
- * Labels offered to rows added past the S/A/B/C/D defaults. Skips anything the
- * board already uses so a renamed row can't collide with a new one. The
- * candidate list is longer than {@link MAX_TIER_ROWS}, so a full board still
- * leaves free letters; the numbered fallback only exists so the function stays
- * total if that cap ever rises past the alphabet.
- * @returns A label not already used by the board.
- */
+/** Skips labels already on the board; falls back to a number past the alphabet. */
 function nextRowLabel(rows: readonly TierRow[]): string {
   const used = new Set(rows.map((row) => row.label));
   const free = [..."FGHIJKLMNOPQRSTUVWXYZ"].find((letter) => !used.has(letter));
   return free ?? `Tier ${rows.length + 1}`;
 }
 
-/**
- * Where a new ranked row goes: the end of the ranked rows, which is one slot
- * short of the end when an unranked row is holding the bottom.
- * @returns The index a ranked row may be inserted at.
- */
 function rankedRowCount(rows: readonly TierRow[]): number {
   return rows.filter((row) => row.unranked !== true).length;
 }
 
-/** @returns True when the board already carries an unranked row. */
 function hasUnranked(rows: readonly TierRow[]): boolean {
   return rows.some((row) => row.unranked === true);
 }
 
-/**
- * Applies a row-level edit, refreshing the derived set and marking the draft
- * dirty in one place so no action can forget either.
- * @returns The next slice of state.
- */
 function withRows(
   rows: TierRow[],
 ): Pick<TierListBuilderState, "rows" | "rowIndexByCardId" | "dirty"> {
@@ -139,9 +90,8 @@ export const useTierListBuilderStore = create<TierListBuilderState>()((set) => (
   ...EMPTY,
 
   load: (listId, rows) => {
-    // The flag is carried only when set, never stamped on as `false`: an
-    // ordinary board round-trips exactly as it arrived, and the jsonb it saves
-    // back stays as small as it was before the row existed.
+    // `unranked` is carried only when true, never stamped on as `false`,
+    // so an ordinary board round-trips exactly as it arrived.
     const copied = rows.map((row) => ({
       ...(row.unranked === true ? { unranked: true } : {}),
       label: row.label,
@@ -166,20 +116,15 @@ export const useTierListBuilderStore = create<TierListBuilderState>()((set) => (
         return state;
       }
       const { position, printingId } = options ?? {};
-      // Where the card sits right now, if it is already on the board. Read
-      // before the strip below, because the strip is what shifts the indices.
+      // Read before the strip below: stripping shifts the indices.
       const fromPosition =
         state.rows[rowIndex]?.cards.findIndex((card) => card.cardId === cardId) ?? -1;
-      // An omitted printingId means "keep whatever this card is pinned to", so
-      // a move between rows never silently resets a chosen alt art.
       const pinned =
         printingId === undefined
           ? (state.rows.flatMap((row) => row.cards).find((card) => card.cardId === cardId)
               ?.printingId ?? null)
           : printingId;
 
-      // Strip the card from every row first, so a move within the board can't
-      // leave a duplicate behind — the contract rejects a card in two tiers.
       const stripped = state.rows.map((row) => ({
         ...row,
         cards: row.cards.filter((card) => card.cardId !== cardId),
@@ -188,9 +133,7 @@ export const useTierListBuilderStore = create<TierListBuilderState>()((set) => (
       if (!target) {
         return state;
       }
-      // Enforce the contract's caps here rather than letting the save 400
-      // after the ranking work is done. Post-strip counts, so moving a card
-      // within a full board is still allowed.
+      // Post-strip counts, so moving a card within an already-full board is still allowed.
       const total = stripped.reduce((sum, row) => sum + row.cards.length, 0);
       if (target.cards.length >= MAX_CARDS_PER_TIER || total >= MAX_TIER_LIST_CARDS) {
         return state;
@@ -200,9 +143,8 @@ export const useTierListBuilderStore = create<TierListBuilderState>()((set) => (
         target.cards.push(entry);
         return withRows(stripped);
       }
-      // Lifting the card out of this same row shifts everything after it left
-      // by one, so a target index past the card's old slot needs the same
-      // shift — otherwise dropping a card rightwards lands it one slot too far.
+      // Lifting the card out of this row shifts everything after it left by one, so
+      // a target past the card's old slot needs the same shift.
       const shifted = fromPosition >= 0 && fromPosition < position ? position - 1 : position;
       target.cards.splice(clamp(shifted, target.cards), 0, entry);
       return withRows(stripped);
@@ -250,8 +192,7 @@ export const useTierListBuilderStore = create<TierListBuilderState>()((set) => (
       if (state.rows.length >= MAX_TIER_ROWS) {
         return state;
       }
-      // Inserted after the last *ranked* row rather than appended, so an
-      // unranked row keeps the bottom of the board.
+      // Inserted after the last ranked row, so an unranked row keeps the bottom.
       const next = [...state.rows];
       next.splice(rankedRowCount(state.rows), 0, { label: nextRowLabel(state.rows), cards: [] });
       return withRows(next);
@@ -296,9 +237,8 @@ export const useTierListBuilderStore = create<TierListBuilderState>()((set) => (
       ) {
         return state;
       }
-      // The unranked row is pinned to the bottom: it can't be dragged out of
-      // place, and no ranked row can be dropped below it. The contract rejects
-      // a board shaped otherwise, so catching it here keeps the save honest.
+      // The unranked row is pinned to the bottom: it can't move, and no ranked
+      // row can be dropped below it.
       if (rows[fromIndex]?.unranked === true) {
         return state;
       }

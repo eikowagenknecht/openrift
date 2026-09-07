@@ -5,9 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { EMPTY_TRADE_PREFERENCE, stubPrinting } from "@/test/factories";
 
-// Two cards, three catalog printings. "Vi" has both a normal and a foil
-// printing so the card-kind path (which resolves an entry to the card's first
-// printing) has more than one candidate to pick from.
+// "Vi" has a normal and a foil printing so the card-kind resolution path
+// has more than one candidate to pick from.
 const viNormal = stubPrinting({ id: "p-vi", cardId: "card-vi", card: { name: "Vi" } });
 const viFoil = stubPrinting({
   id: "p-vi-foil",

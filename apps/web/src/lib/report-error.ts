@@ -9,11 +9,8 @@ async function sendToSentry(error: unknown, tags: Record<string, string>): Promi
   }
 }
 
-/**
- * Reports an error to Sentry from code that ships in the entry chunk; the SDK
- * stays behind a dynamic import so it does not land there too.
- * @returns Nothing.
- */
+// Callers here ship in the entry chunk; the SDK stays behind a dynamic
+// import so it doesn't land there too.
 export function captureHandledError(error: unknown, tags: Record<string, string>): void {
   if (!PROD) {
     return;

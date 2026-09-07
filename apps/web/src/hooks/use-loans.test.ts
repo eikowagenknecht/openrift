@@ -64,9 +64,7 @@ describe("aggregateBorrowedCounts", () => {
 });
 
 describe("aggregateBorrowedLendersByCard", () => {
-  // Keyed by card, not printing: a deck row is a card, and it doesn't care
-  // that its two borrowed copies came from different printings.
-  it("collects lenders per card across printings", () => {
+  it("collects lenders by card, not printing", () => {
     const loans = [
       stubLoan({ cardId: "c1", printingId: "p1" }),
       stubLoan({

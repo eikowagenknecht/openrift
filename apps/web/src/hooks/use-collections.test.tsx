@@ -12,7 +12,7 @@ import { PERSISTENT_ERROR_TOAST } from "@/lib/toast";
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 // Server fns are module-level; route every mocked handler to one spy so tests
-// can script the API response of whichever fn a hook invokes.
+// can script the API response per hook.
 const { serverFnImpl, copiesCollectionHolder } = vi.hoisted(() => ({
   serverFnImpl: vi.fn((_opts?: unknown): Promise<unknown> => Promise.resolve(null)),
   copiesCollectionHolder: { current: null as unknown },
@@ -95,10 +95,8 @@ function collection(id: string, sortOrder: number): CollectionsResponse["items"]
   };
 }
 
-// Declaring onError for the rollback REPLACES the QueryClient's default
-// mutation onError (react-query merges mutation options shallowly), so the
-// hook has to report the failure itself — otherwise the sidebar order snaps
-// back with nothing saying the reorder was rejected.
+// The hook's rollback onError replaces the QueryClient's default mutation onError
+// (react-query merges mutation options shallowly), so it must report the failure itself.
 describe("useReorderCollections", () => {
   let errorSpy: ReturnType<typeof vi.spyOn>;
 
@@ -114,8 +112,6 @@ describe("useReorderCollections", () => {
 
   it("restores the previous order and toasts when the reorder fails", async () => {
     serverFnImpl.mockRejectedValue(new Error("Service unavailable"));
-    // The app's real client, so the test proves the toast survives the default
-    // handler being replaced rather than testing a bare QueryClient.
     const client = createQueryClient();
     seedSession(client, "user-1");
     const items = [collection("col-1", 0), collection("col-2", 1)];
@@ -158,7 +154,6 @@ describe("useSetCollectionSidebarHidden", () => {
     expect(cached.items.map((col) => col.sidebarHidden)).toEqual([true, false]);
   });
 
-  // Same replaced-default-onError reasoning as useReorderCollections above.
   it("restores the previous visibility and toasts when the update fails", async () => {
     serverFnImpl.mockRejectedValue(new Error("Service unavailable"));
     const client = createQueryClient();
@@ -175,11 +170,8 @@ describe("useSetCollectionSidebarHidden", () => {
   });
 });
 
-// Regression: deleting a collection mirrors the server's move-to-inbox in the
-// synced store, but rewrote only collectionId. An inbox is always personal, so
-// copies from a deleted group collection kept a stale groupId and stayed out of
-// the viewer's personal owned totals (which skip group copies) until a full
-// copies refetch.
+// An inbox is always personal, so a copy moved there on collection delete must also
+// lose its groupId or it stays counted as group-owned until a full copies refetch.
 describe("useDeleteCollection", () => {
   beforeEach(() => {
     serverFnImpl.mockReset();
@@ -238,8 +230,6 @@ describe("useClearCollection", () => {
     const res = await result.current.mutateAsync("inbox-1");
 
     expect(res).toEqual({ id: "inbox-1", removedCount: 1, keptCopyIds: ["copy-kept"] });
-    // Only the cleared inbox copy is dropped — the kept (trade/loan-pinned)
-    // copy and copies from other collections stay in the synced store.
     await waitFor(() => {
       expect(writeDelete).toHaveBeenCalledWith(["copy-1"]);
     });

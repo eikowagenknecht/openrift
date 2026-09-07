@@ -4,10 +4,6 @@ import { normalizeCountryCode } from "@/lib/country";
 import type { MetaEra, MetaScope, ScopeFacetDefaults } from "@/lib/meta-scope";
 import { resolveScopeRange, scopeFacetValues } from "@/lib/meta-scope";
 
-/**
- * The event facts the scope bar narrows by. Every archive payload carries them,
- * whether the row arrived as an event, as a legend's finish, or as a deck.
- */
 export interface ScopedEvent {
   eventDate: string;
   format: string;
@@ -16,12 +12,8 @@ export interface ScopedEvent {
 }
 
 /**
- * Whether one value sits inside a facet's selection.
- *
- * An axis carries includes or excludes, never both (ADR-034). An event the
- * source told us nothing about is outside every include set — an unknown country
- * is not Germany — but inside every exclude set, since "all but Germany" is a
- * claim about Germany and not about the events with no country on file.
+ * An axis carries includes or excludes, never both. A null value fails every
+ * include set and passes every exclude set.
  */
 function axisMatches(
   value: string | null,
@@ -44,11 +36,8 @@ function countryCodes(values: readonly string[]): string[] {
 }
 
 /**
- * Whether one event falls inside the scope bar's selection.
- *
- * Lives here rather than beside `metaScopeSearchSchema`: `lib/country` builds an
- * `Intl.DisplayNames` at module scope, and the search schemas are imported by
- * non-lazy route files, which run on every page load.
+ * Do not move this beside `metaScopeSearchSchema`: `lib/country` builds an
+ * `Intl.DisplayNames` at module scope, and the search schemas are imported by non-lazy route files that run on every page load.
  */
 export function scopeMatches(
   event: ScopedEvent,

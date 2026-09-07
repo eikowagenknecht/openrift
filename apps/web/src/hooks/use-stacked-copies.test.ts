@@ -23,7 +23,6 @@ function copy(id: string, printingId: string, collectionId: string, groupId: str
 
 describe("buildStacks", () => {
   it("excludes group-collection copies on the unscoped (All Cards) aggregate", () => {
-    // 9 personal + 21 group must stack to 9, matching the personal owned badge.
     const copies = [
       ...Array.from({ length: 9 }, (_unused, index) =>
         copy(`p-${index}`, standard.id, "col-personal"),
@@ -44,7 +43,6 @@ describe("buildStacks", () => {
   });
 
   it("includes every copy when scoped to a specific collection, group or not", () => {
-    // Scoped to the group collection's own id → all 3 of its copies count.
     const copies = [
       copy("g-1", standard.id, "col-group", "group-1"),
       copy("g-2", standard.id, "col-group", "group-1"),

@@ -14,25 +14,12 @@ const tracer = trace.getTracer("openrift-web/http");
 const SERVER_FN_PREFIX = "/_serverFn/";
 
 interface ServerFnIdentity {
-  /** The exported function name (without the `_createServerFn_handler` suffix). */
   name: string;
-  /** The source file path. */
   file: string;
 }
 
-/**
- * TanStack Start identifies server functions via a base64-encoded JSON
- * payload appended to `/_serverFn/`, e.g.
- * `/_serverFn/eyJmaWxlIjoiL3NyYy8uLi4ifQ`. The encoded payload is
- * `{ file: "/src/...", export: "<fnName>_createServerFn_handler" }`.
- *
- * Decoding it makes traces readable (`serverFn:fetchPriceHistory` instead
- * of an opaque blob) and keeps the route label cardinality bounded.
- *
- * @param path - The request path, e.g. `/_serverFn/<base64>`.
- * @returns The decoded function identity, or `undefined` if the path
- * isn't a server-function call or the payload can't be decoded.
- */
+// TanStack Start identifies server functions via a base64-encoded JSON payload
+// appended to `/_serverFn/`: `{ file: "/src/...", export: "<fnName>_createServerFn_handler" }`.
 const decodeServerFn = (path: string): ServerFnIdentity | undefined => {
   if (!path.startsWith(SERVER_FN_PREFIX)) {
     return undefined;
@@ -57,25 +44,12 @@ const decodeServerFn = (path: string): ServerFnIdentity | undefined => {
   }
 };
 
-/**
- * TanStack Start request middleware that opens an `http.server` span per
- * SSR / server-route / server-function request and activates it in the
- * OTel context for the duration of `next()`. Outbound API calls made from
- * `next()` (via `fetchApi`) inherit this span as their parent and inject
- * the W3C `traceparent` header, so the API's own span links back here and
- * the trace shows the full web → api → db chain.
- *
- * Extracts any incoming `traceparent` from the request headers — usually
- * absent for browser-initiated requests, but harmless when present (e.g.
- * an upstream proxy / load balancer that already started a trace).
- */
+// Opens an `http.server` span per request and activates it in the OTel
+// context so outbound API calls made from `next()` inherit it as their parent.
 export const otelRequestMiddleware = createMiddleware().server(({ next, request }) => {
   const url = new URL(request.url);
   const parentCtx = propagation.extract(ROOT_CONTEXT, headersToRecord(request.headers));
 
-  // Server-function calls (`/_serverFn/<base64>`) get a readable span
-  // name + a normalized `http.route` so they don't show up as opaque
-  // blobs in traces and don't blow up route cardinality in metrics.
   const serverFn = decodeServerFn(url.pathname);
   const spanName = serverFn ? `serverFn:${serverFn.name}` : `${request.method} ${url.pathname}`;
   const route = serverFn ? `${SERVER_FN_PREFIX}${serverFn.name}` : url.pathname;
@@ -92,11 +66,8 @@ export const otelRequestMiddleware = createMiddleware().server(({ next, request 
     }
   }
 
-  // The real visitor IP, restored by the host nginx (CF-Connecting-IP via the
-  // realip module) and forwarded as X-Real-IP. Stashed on the OTel context so
-  // outbound API calls (fetchApi / serverApiClient) forward it to the API,
-  // whose logs and rate limiters key on it. Absent for internal requests
-  // (health checks hit the container directly, cache warmers have no request).
+  // Restored by the host nginx (CF-Connecting-IP via the realip module) and
+  // forwarded as X-Real-IP; absent for internal requests (health checks, warmers).
   const clientIp = request.headers.get("x-real-ip") ?? "";
   if (clientIp !== "") {
     attributes["client.address"] = clientIp;

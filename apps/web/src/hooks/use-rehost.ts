@@ -15,8 +15,6 @@ import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
-// ── Server functions ─────────────────────────────────────────────────────────
-
 const fetchRehostStatusFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }): Promise<RehostStatusResponse> =>
@@ -103,8 +101,6 @@ const migrateDirectoriesFn = createServerFn({ method: "POST" })
     }> => apiOrpcClient(adminImagesContract, context.cookie).migrateDirectories(),
   );
 
-// ── Query ─────────────────────────────────────────────────────────────────────
-
 export function useRehostStatus() {
   return useQuery({
     queryKey: queryKeys.admin.rehostStatus,
@@ -134,8 +130,6 @@ export function useMissingImages() {
     queryFn: () => fetchMissingImagesFn(),
   });
 }
-
-// ── Mutations ─────────────────────────────────────────────────────────────────
 
 export function useRehostImages(onBatchComplete?: () => void) {
   const queryClient = useQueryClient();
@@ -179,14 +173,7 @@ export function useUnrehostImages() {
   });
 }
 
-/**
- * Kick off the resumable regenerate-images job. Returns a `runId` immediately;
- * progress is read separately via the `useLatestJobRunByKind` hook.
- *
- * The server auto-resumes from the most recent failed run unless `reset: true`
- * is passed.
- * @returns Mutation that POSTs the kickoff request and returns `{runId, status}`.
- */
+/** The server auto-resumes from the most recent failed run unless `reset: true` is passed. */
 export function useRegenerateImages() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -201,10 +188,6 @@ export function useRegenerateImages() {
   });
 }
 
-/**
- * Request cancellation of the currently-running regenerate-images job.
- * @returns Mutation that POSTs the cancel request.
- */
 export function useCancelRegenerateImages() {
   const queryClient = useQueryClient();
   return useMutation({

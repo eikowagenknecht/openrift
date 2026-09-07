@@ -53,12 +53,6 @@ describe("getCopiesCollection", () => {
     });
   });
 
-  // Regression: signing out flooded the console with `[Live Query Error]`
-  // because the previous architecture called `cleanup()` on the singleton
-  // copies collection while live-query subscribers were still attached.
-  // With per-user collection identity, sign-out / sign-in just changes the
-  // userId; the previous user's collection is not torn down by us — it's
-  // orphaned and auto-GC'd when subscribers naturally detach. No warning.
   it("does not surface [Live Query Error] when the active user changes mid-subscription", async () => {
     queryClient.setQueryData(queryKeys.copies.all(userA), { items: [], nextCursor: null });
     const aliceCopies = getCopiesCollection(queryClient, userA);
@@ -72,12 +66,8 @@ describe("getCopiesCollection", () => {
 
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
-      // Active user switches to userB. The previous user's collection becomes
-      // orphaned — not touched, just no longer cached. Subscribers stay
-      // attached until the consumer unmounts.
       getCopiesCollection(queryClient, userB);
 
-      // Mimic the consumer unmount: detach the live query.
       subscription.unsubscribe();
       await liveQuery.cleanup();
 

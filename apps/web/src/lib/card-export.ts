@@ -1,22 +1,17 @@
 /**
- * Browser-only export plumbing for the card designer (ADR-023): rasterize a
- * rendered card element to a PNG via html2canvas-pro, then download or copy it.
- * Kept apart from the pure helpers in `card-designer.ts` so those stay testable
- * without pulling in html2canvas.
+ * Browser-only export plumbing for the card designer: rasterize a rendered
+ * card element to a PNG via html2canvas-pro, then download or copy it.
  */
 import { html2canvas } from "html2canvas-pro";
 
-/** Off-screen render width (px); html2canvas captures it at 2x for crispness. */
+/** px */
 export const CARD_EXPORT_WIDTH = 750;
 
 export type ExportAction = "download" | "copy";
 export type ExportOutcome = "downloaded" | "copied";
 
-/**
- * html2canvas-pro reads clip-path polygons but not em/calc units. The card's
- * might shield already uses percentages, but resolve defensively the same way
- * the proxy export does, in case a unit sneaks in later.
- */
+// html2canvas-pro reads clip-path polygons but not em/calc units; resolve
+// those to percentages before capture.
 function resolveClipPaths(element: HTMLElement): void {
   const inlineClip = element.style.clipPath;
   if (
@@ -47,12 +42,8 @@ function resolveClipPaths(element: HTMLElement): void {
   }
 }
 
-/**
- * Waits two animation frames so React has committed and the browser has laid
- * out / painted the off-screen card before we capture it.
- *
- * @returns Resolves after two animation frames.
- */
+// Two animation frames so React has committed and the browser has laid out
+// and painted the off-screen card before capture.
 export function waitForRender(): Promise<void> {
   // oxlint-disable-next-line promise/avoid-new -- wrapping requestAnimationFrame callback API
   return new Promise<void>((resolve) => {
@@ -62,11 +53,6 @@ export function waitForRender(): Promise<void> {
   });
 }
 
-/**
- * Captures a rendered card element to a PNG blob.
- *
- * @returns The PNG blob.
- */
 async function captureCardPng(element: HTMLElement): Promise<Blob> {
   resolveClipPaths(element);
   const canvas = await html2canvas(element, {
@@ -86,7 +72,6 @@ async function captureCardPng(element: HTMLElement): Promise<Blob> {
   return blob;
 }
 
-/** Triggers a browser download of a blob under the given filename. */
 function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -98,11 +83,6 @@ function downloadBlob(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-/**
- * Copies a PNG blob to the clipboard via the async Clipboard API.
- *
- * @returns True on success, false when the API is unavailable or rejected.
- */
 async function copyImageToClipboard(blob: Blob): Promise<boolean> {
   if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) {
     return false;
@@ -114,12 +94,7 @@ async function copyImageToClipboard(blob: Blob): Promise<boolean> {
   return result;
 }
 
-/**
- * Rasterizes the card element and either downloads it or copies it to the
- * clipboard. Copy falls back to a download when the clipboard is unavailable.
- *
- * @returns Which action actually happened.
- */
+// Copy falls back to a download when the clipboard is unavailable.
 export async function exportCardImage(
   element: HTMLElement,
   action: ExportAction,

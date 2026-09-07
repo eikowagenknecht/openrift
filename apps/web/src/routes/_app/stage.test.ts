@@ -32,11 +32,6 @@ function runGuard(search: Record<string, unknown>, session: SessionUser, href = 
   };
 }
 
-// Regression: the queue builder's card browser calls `useFilterValues`, which
-// throws ("useFilterSearch must be used within a <FilterSearchProvider>")
-// unless the route both validates the filter search params and provides them.
-// The schema had them from the start, the provider was missing, and /stage
-// crashed on every visit that landed on the builder.
 describe("/stage filter search", () => {
   it("validates the shared filter search params", () => {
     expect(validateSearch.parse({ search: "ekko", sets: ["ogn"], sort: "name" })).toMatchObject({
@@ -56,12 +51,6 @@ describe("/stage filter search", () => {
   });
 });
 
-// Regression: "Start presenting" once spread the previous search unchanged, so
-// the `edit: true` left behind by exiting a show survived the navigation and
-// kept the builder up — the button looked dead. The transform that clears it
-// lives in presentation-queue-search.ts with its own tests; this pins the
-// builder to actually using it (and its sibling, which keeps `?cards=` synced
-// to the draft).
 describe("/stage builder search writes", () => {
   const source = readFileSync(path.resolve(import.meta.dirname, "./stage.lazy.tsx"), "utf-8");
 
@@ -86,18 +75,16 @@ describe("/stage mode", () => {
     expect(validateSearch.parse({ tier: "list-1" }).mode).toBeUndefined();
   });
 
-  // The editor used to be `mode=rank`, before it became a switch on the stage
-  // rather than a separate destination. A link from before the rename opens the
-  // show instead of failing the route, which is the right way to lose a param.
-  it.each(["rank", "nonsense", ""])("falls back to presenting for %o", (mode) => {
-    expect(validateSearch.parse({ tier: "list-1", mode }).mode).toBeUndefined();
-  });
+  it.each(["rank", "nonsense", ""])(
+    "falls back to presenting for %o (rank is the old mode value)",
+    (mode) => {
+      expect(validateSearch.parse({ tier: "list-1", mode }).mode).toBeUndefined();
+    },
+  );
 });
 
-// `?tier=` presents a list the API serves only to its owner, so the branch
-// resolves it through useTierList -> useRequiredUserId, which throws without a
-// session. The stage itself is public, so the guard has to gate that one param
-// instead of the route.
+// `?tier=` resolves through useRequiredUserId, which throws without a session;
+// the stage itself is public, so the guard gates that one param, not the route.
 describe("/stage owned tier-list guard", () => {
   it("redirects a signed-out visitor to sign in", async () => {
     const { result } = runGuard({ tier: "list-1" }, null);

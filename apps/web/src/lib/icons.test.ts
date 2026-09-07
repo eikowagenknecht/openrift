@@ -28,9 +28,6 @@ describe("getFilterIconPath", () => {
   });
 
   it("returns the .svg path for the colorless domain regardless of casing", () => {
-    // The colorless icon ships as an SVG; all other domains ship as .webp.
-    // Callers occasionally pass non-canonical casing — both must resolve to
-    // the existing file.
     expect(getFilterIconPath("domains", "colorless")).toBe("/images/domains/colorless.svg");
     expect(getFilterIconPath("domains", "Colorless")).toBe("/images/domains/colorless.svg");
   });

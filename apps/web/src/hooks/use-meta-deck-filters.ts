@@ -8,13 +8,10 @@ import { CLEARED_SCOPE, nextScopeSearch } from "@/lib/meta-scope";
 
 const routeApi = getRouteApi("/_app/meta_/decks");
 
-/** The browser's own axes, on top of the scope bar's. */
 export interface MetaDeckFilterState {
   events: string[];
   legends: string[];
-  /** Null means any finish. */
   maxRank: number | null;
-  /** False is the curated view: one tile per legend per event. */
   showAll: boolean;
   maxCost: number | null;
   includeSideboard: boolean;
@@ -24,23 +21,17 @@ export interface MetaDeckFilterState {
 }
 
 export interface MetaDeckFilterActions {
-  /** Toggles one value in or out of the union. */
   toggleEvent: (value: string) => void;
   toggleLegend: (value: string) => void;
-  /** Replaces the whole selection, for the combobox's multi-select handler. */
   setEvents: (values: string[]) => void;
   setLegends: (values: string[]) => void;
-  /** Null clears the finish bound. */
   setMaxRank: (value: number | null) => void;
   setShowAll: (value: boolean) => void;
   setMaxCost: (value: number | null) => void;
   setIncludeSideboard: (value: boolean) => void;
   setValueRange: (value: { min: number | null; max: number | null }) => void;
-  /** A click on a column header: the same column flips, a new one opens on its natural order. */
   sortBy: (column: MetaDeckSort) => void;
-  /** An explicit order, for the grid's sort menu. */
   setSort: (sort: MetaDeckSort, direction: MetaDeckSortDirection) => void;
-  /** One navigation: two updaters back to back would resolve against the same stale search. */
   clearCostFilters: () => void;
   clearAllFilters: () => void;
 }
@@ -49,14 +40,7 @@ function toggle(values: string[], value: string): string[] {
   return values.includes(value) ? values.filter((entry) => entry !== value) : [...values, value];
 }
 
-/**
- * The meta deck browser's filters, held in the URL the way the deck list's are,
- * so a filtered view is linkable and the back button walks the filter history.
- *
- * The scope half is handed out as {@link MetaScopeControls} because the scope bar
- * is controlled and `useNavigate` types its reducer against the route it was
- * called from, so the binding has to happen here rather than in a shared hook.
- */
+/** `useNavigate` types its reducer against the route it was called from, so the scope half can't be a shared hook. */
 export function useMetaDeckFilters(): MetaDeckFilterState &
   MetaDeckFilterActions &
   MetaScopeControls {

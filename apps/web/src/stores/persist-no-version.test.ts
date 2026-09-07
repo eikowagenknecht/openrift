@@ -12,10 +12,6 @@ const SCANNED_DIRS = [import.meta.dirname, join(import.meta.dirname, "..", "hook
 // options. Deliberately line-anchored so prose mentions in comments don't match.
 const VERSION_OPTION = /^\s*version\s*:/mu;
 
-/**
- * Lists the TypeScript source files (not tests) directly inside a directory.
- * @returns Absolute paths of the source files.
- */
 async function listSourceFiles(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true });
   return entries

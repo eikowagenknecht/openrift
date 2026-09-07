@@ -18,7 +18,6 @@ function player(id: string, team: TeamId, points = 0): TrackedPlayer {
   return { id, name: id.toUpperCase(), points, xp: 0, team, legend: null, xpOpen: false };
 }
 
-// Switch to a four-player 2v2, start playing, and return the fresh roster.
 function startTeamsGame(): TrackedPlayer[] {
   useMatchTrackerStore.getState().setPlayerCount(4);
   useMatchTrackerStore.getState().setMode("teams");
@@ -211,7 +210,6 @@ describe("useMatchTrackerStore", () => {
       useMatchTrackerStore.getState().dismissWinner();
       expect(useMatchTrackerStore.getState().status).toBe("playing");
       expect(useMatchTrackerStore.getState().winnerId).toBeNull();
-      // Already at/above target — nudging again must not re-announce.
       useMatchTrackerStore.getState().adjustPoints(first!.id, 1);
       expect(useMatchTrackerStore.getState().status).toBe("playing");
       expect(useMatchTrackerStore.getState().winnerId).toBeNull();
@@ -229,7 +227,6 @@ describe("useMatchTrackerStore", () => {
       expect(updated.filter((entry) => entry.team === 1).every((entry) => entry.points === 0)).toBe(
         true,
       );
-      // Teammate ids untouched on the other team.
       expect(teamTwo).toHaveLength(2);
     });
 
@@ -565,7 +562,6 @@ describe("useMatchTrackerStore", () => {
     it("restores a clamped change to the value it actually had", () => {
       useMatchTrackerStore.getState().startGame();
       const [first] = useMatchTrackerStore.getState().players;
-      // Floors at 0 rather than going to -1, so a naive +1 reversal would be wrong.
       useMatchTrackerStore.getState().adjustPoints(first!.id, -1, "manual");
       useMatchTrackerStore.getState().undoLast();
       expect(useMatchTrackerStore.getState().players[0]?.points).toBe(0);

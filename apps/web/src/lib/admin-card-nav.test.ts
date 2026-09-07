@@ -106,8 +106,6 @@ describe("selectAdminCardPrevNext", () => {
   });
 
   it("keeps navigating after the current card's last product is assigned", () => {
-    // The current card dropped out of the filter, so a naive findIndex on the
-    // filtered list would return -1 and strand both buttons.
     const buckets = new Map([
       ["ahri", [bucket()]],
       ["braum", [bucket({ unbound: 0 })]],
@@ -214,8 +212,6 @@ describe("selectAdminCardPrevNext", () => {
   });
 
   it("keeps navigating after the current card's new printings are accepted", () => {
-    // Same trap as the price filter: the current card is no longer in the set,
-    // so the position has to be resolved in the full ordering.
     expect(
       selectAdminCardPrevNext(cards, "braum", {
         newPrintingSlugs: new Set(["ahri", "caitlyn"]),

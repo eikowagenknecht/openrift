@@ -4,18 +4,14 @@ import type { DeckDiffCard } from "@/lib/deck-diff";
 import { ZONE_DIFF_ORDER } from "@/lib/deck-diff";
 
 /**
- * Aligns two deck lists row by row for the side-by-side changes view. The diff
- * in `deck-diff.ts` answers "what do I change to get there" and drops anything
- * that matches; this one keeps both lists whole, because a comparison you read
- * top to bottom has to show the cards that stayed too.
+ * Unlike `deck-diff.ts`, which drops anything that matches, this keeps both
+ * lists whole so a top-to-bottom comparison also shows unchanged cards.
  */
 
 export interface SideBySideRow {
   cardId: string;
   cardName: string;
-  /** Copies on the older side. */
   from: number;
-  /** Copies on the newer side. */
   to: number;
   kind: "same" | "add" | "cut" | "change";
 }
@@ -23,13 +19,10 @@ export interface SideBySideRow {
 export interface SideBySideZone {
   zone: DeckZone;
   rows: SideBySideRow[];
-  /** Copies in the zone on the older side. */
   fromCount: number;
-  /** Copies in the zone on the newer side. */
   toCount: number;
 }
 
-/** @returns The row's kind from its two copy counts. */
 function rowKind(from: number, to: number): SideBySideRow["kind"] {
   if (from === to) {
     return "same";
@@ -44,9 +37,8 @@ function rowKind(from: number, to: number): SideBySideRow["kind"] {
 }
 
 /**
- * Sums a side's copies per (card, zone). A card pinned to several printings is
- * several rows in the builder but one line in a comparison.
- * @returns Quantities keyed by "zone|cardId", plus each card's name.
+ * Sums a side's copies per (card, zone). A card pinned to several printings
+ * is several rows in the builder but one line in a comparison.
  */
 function aggregate(cards: readonly DeckDiffCard[]): Map<string, DeckDiffCard> {
   const slots = new Map<string, DeckDiffCard>();
@@ -63,11 +55,8 @@ function aggregate(cards: readonly DeckDiffCard[]): Map<string, DeckDiffCard> {
 }
 
 /**
- * Pairs two lists into per-zone rows, ordered by card name so both columns read
- * down together. A zone neither side uses is left out entirely; a zone only one
- * side uses stays, with the other column empty.
- *
- * @returns The zones in display order, each with its aligned rows and totals.
+ * A zone neither side uses is left out entirely; a zone only one side uses
+ * stays, with the other column empty.
  */
 export function alignDeckLists(
   from: readonly DeckDiffCard[],

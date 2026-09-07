@@ -4,8 +4,6 @@ import { collectionTableActionsColumn } from "./collection-table";
 
 describe("collectionTableActionsColumn", () => {
   it("drops the actions column for copies-view rows (single physical copy)", () => {
-    // !stacked is exactly copies view; the per-printing count/controls are
-    // meaningless on a single copy, so no column regardless of mode/quick-add.
     expect(
       collectionTableActionsColumn({ stacked: false, mode: "browse", hasQuickAdd: true }),
     ).toBe("none");

@@ -1,12 +1,6 @@
 import { NONE } from "@openrift/shared";
 
-/**
- * Human-readable label for an active numeric range filter, accounting for the
- * NONE sentinel (cards with no value) and open-ended bounds. `min`/`max` are
- * the chosen bounds (null = open on that side); `availableMin`/`availableMax`
- * are the full range used to resolve an open bound.
- * @returns A display label such as "3", "1–5", "≤5", "≥3", or "None".
- */
+/** Label for an active numeric range filter, handling the NONE sentinel and open-ended bounds. */
 export function rangeBadgeLabel(
   min: number | null,
   max: number | null,

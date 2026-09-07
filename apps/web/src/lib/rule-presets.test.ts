@@ -42,8 +42,6 @@ describe("rule presets", () => {
     }
   });
 
-  // ADR-034 amendment 4: presets follow kind for the shape and intent for the
-  // phrasing, so each of the four combinations gets its own set.
   it("rulePresetsFor picks the set matching the list's intent and kind", () => {
     expect(rulePresetsFor("wish", "card")).toBe(WISH_RULE_PRESETS);
     expect(rulePresetsFor("wish", "printing")).toBe(WISH_RULE_PRESETS);
@@ -65,7 +63,6 @@ describe("rule presets", () => {
     const allCopies = ORGANIZE_COPY_RULE_PRESETS.find(
       (preset) => preset.id === "organize-all-copies",
     );
-    // Leave-out count 0 means no copy is held back.
     expect(allCopies?.build()[0]).toMatchObject({
       keepPerCard: { mode: "fixed", n: 0 },
       keepPer: "card",
@@ -91,7 +88,7 @@ describe("rule presets", () => {
     }
   });
 
-  it("main-set playsets scope to the given main sets and count special versions", () => {
+  it("main-set playsets scope to the given main sets, count special versions, and fall back to empty sets without catalog context", () => {
     const preset = WISH_RULE_PRESETS.find((entry) => entry.id === "main-set-playsets");
     const [draft] = preset?.build({ mainSetSlugs: ["origins", "spirit-blossom"] }) ?? [];
     expect(draft).toMatchObject({
@@ -107,8 +104,6 @@ describe("rule presets", () => {
       typesExclude: ["rune"],
       superTypesExclude: ["token"],
     });
-    // Without catalog context the set facet stays empty (= all sets) rather
-    // than crashing — the dialog always passes the slugs in practice.
     const [bare] = preset?.build() ?? [];
     expect(bare?.filter.sets).toEqual([]);
   });

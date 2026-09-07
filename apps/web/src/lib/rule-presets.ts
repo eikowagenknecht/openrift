@@ -5,37 +5,24 @@ import type { DraftRule } from "@/stores/rule-editor-store";
 import { emptyDraft } from "@/stores/rule-editor-store";
 
 /**
- * Catalog context a preset may draw on when building its rules. Presets are
- * static definitions, so anything DB-driven (set slugs) arrives here at
- * apply time.
+ * Presets are static definitions; DB-driven data like set slugs arrives here at apply time.
  */
 interface RulePresetContext {
-  /** The user's preferred languages; seeds each rule's language facet like a blank rule. */
   languages?: string[];
-  /** Slugs of the catalog's main (non-supplemental) sets, for set-scoped presets. */
   mainSetSlugs?: string[];
 }
 
 /**
- * A one-click starting point for the rule editor: a common setup rendered as a
- * button in the editor's empty state. Applying a preset only seeds draft rules —
- * the user can still tweak every field before saving, and nothing persists
- * until they hit Save.
+ * A one-click starting point for the rule editor. Applying a preset only seeds
+ * draft rules; nothing persists until the user hits Save.
  */
 export interface RulePreset {
   id: string;
-  /** The button's title, e.g. "One of everything". */
   label: string;
-  /** One or two sentences under the title saying what the preset does. */
   description: string;
-  /**
-   * Builds the preset's draft rules from the apply-time context.
-   * @returns Fresh draft rules ready to append to the editor store.
-   */
   build: (ctx?: RulePresetContext) => DraftRule[];
 }
 
-/** Presets offered on wish lists ("want these cards"). */
 export const WISH_RULE_PRESETS: RulePreset[] = [
   {
     id: "one-of-everything",
@@ -77,9 +64,8 @@ export const WISH_RULE_PRESETS: RulePreset[] = [
           ...draft,
           filter: {
             ...draft.filter,
-            // Snapshot of the current main sets — a set released later joins
-            // the rule only when the user re-applies the preset or edits the
-            // sets facet (there is no live set-type filter dimension).
+            // Snapshot of the current main sets; a later-released set joins only
+            // when the user re-applies the preset or edits the sets facet.
             sets: ctx?.mainSetSlugs ?? [],
             isStandard: true,
             // isStandard already excludes overnumbered prints; the explicit
@@ -97,7 +83,6 @@ export const WISH_RULE_PRESETS: RulePreset[] = [
   },
 ];
 
-/** Presets offered on trade lists ("offer these copies"). */
 export const TRADE_RULE_PRESETS: RulePreset[] = [
   {
     id: "keep-playset",
@@ -137,7 +122,6 @@ export const TRADE_RULE_PRESETS: RulePreset[] = [
   },
 ];
 
-/** Presets offered on organize lists of card/printing kind (ADR-034 amendment 4). */
 export const ORGANIZE_CARD_RULE_PRESETS: RulePreset[] = [
   {
     id: "organize-everything",
@@ -164,7 +148,6 @@ export const ORGANIZE_CARD_RULE_PRESETS: RulePreset[] = [
   },
 ];
 
-/** Presets offered on organize lists of copy kind (ADR-034 amendment 4). */
 export const ORGANIZE_COPY_RULE_PRESETS: RulePreset[] = [
   {
     id: "organize-all-copies",
@@ -192,12 +175,6 @@ export const ORGANIZE_COPY_RULE_PRESETS: RulePreset[] = [
   },
 ];
 
-/**
- * The presets to offer in a list's rule editor. Kind decides the rule shape and
- * intent the phrasing, exactly as {@link import("./rule-wording").ruleWording}
- * does for the surrounding copy.
- * @returns The preset buttons for this list's empty state.
- */
 export function rulePresetsFor(intent: ListIntent, kind: ListKind): RulePreset[] {
   if (intent === "organize") {
     return kind === "copy" ? ORGANIZE_COPY_RULE_PRESETS : ORGANIZE_CARD_RULE_PRESETS;

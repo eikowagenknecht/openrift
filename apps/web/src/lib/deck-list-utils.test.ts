@@ -219,9 +219,6 @@ describe("filterDecks", () => {
   });
 
   describe("domains", () => {
-    // Deliberately the card browser's rule (`matchesDomains` in
-    // @openrift/shared): one pick means "plays this", several mean "plays
-    // nothing outside these".
     const items = [
       makeItem({
         id: "a",
@@ -248,8 +245,6 @@ describe("filterDecks", () => {
     });
 
     it("measures a deck's identity, not every domain in its list", () => {
-      // The legend defines identity; Colorless is dropped, or the near-universal
-      // splash of it would fail every subset test.
       const legendDeck = makeItem({
         id: "legend",
         legendDomains: ["fury"],
@@ -445,7 +440,6 @@ describe("groupDecks", () => {
       domains: { fury: "Fury", body: "Body", calm: "Calm", mind: "Mind" },
     });
     const byLabel = Object.fromEntries(groups.map((group) => [group.label, group]));
-    // "Body / Fury" and "Body / Fury" collapse into one bucket regardless of input order.
     expect(byLabel["Body / Fury"].items.map((item) => item.deck.id)).toEqual(["a", "b"]);
     expect(byLabel["Calm / Mind"].items.map((item) => item.deck.id)).toEqual(["c"]);
   });
@@ -594,8 +588,6 @@ describe("availableDomainsFrom", () => {
   });
 
   it("offers a legend deck's identity rather than every domain it splashes", () => {
-    // The options have to be on the same basis the filter matches on, or an
-    // option could be one the filter would then ignore.
     const items = [
       makeItem({
         legendDomains: ["fury"],
@@ -643,7 +635,6 @@ describe("filterAvailabilityFrom", () => {
     ]);
     expect(av.hasMixedValidity).toBe(true);
 
-    // Freeform decks don't contribute (they're always considered valid by the API).
     const freeformOnly = filterAvailabilityFrom([
       makeItem({ id: "a", format: "freeform" }),
       makeItem({ id: "b", format: "freeform" }),
@@ -670,14 +661,12 @@ describe("filterAvailabilityFrom", () => {
   });
 
   it("includes a grouping in usefulGroupings only when it would yield more than one bucket", () => {
-    // All same legend, all same format, all same domains, all valid → no grouping is useful.
     const noneUseful = filterAvailabilityFrom([
       makeItem({ id: "a", legendName: "Aatrox", legendDomains: ["fury"] }),
       makeItem({ id: "b", legendName: "Aatrox", legendDomains: ["fury"] }),
     ]);
     expect([...noneUseful.usefulGroupings]).toEqual([]);
 
-    // Mixed legends → "legend" grouping is useful.
     const mixedLegend = filterAvailabilityFrom([
       makeItem({ id: "a", legendName: "Aatrox", legendDomains: ["fury"] }),
       makeItem({ id: "b", legendName: "Sett", legendDomains: ["fury"] }),
@@ -685,7 +674,6 @@ describe("filterAvailabilityFrom", () => {
     expect(mixedLegend.usefulGroupings.has("legend")).toBe(true);
     expect(mixedLegend.usefulGroupings.has("domains")).toBe(false);
 
-    // Different legend domain combinations → "domains" grouping is useful.
     const mixedDomains = filterAvailabilityFrom([
       makeItem({ id: "a", legendDomains: ["fury", "body"] }),
       makeItem({ id: "b", legendDomains: ["calm", "mind"] }),
@@ -697,14 +685,12 @@ describe("filterAvailabilityFrom", () => {
     const noFolders = filterAvailabilityFrom([makeItem({ id: "a" }), makeItem({ id: "b" })]);
     expect(noFolders.usefulGroupings.has("folder")).toBe(false);
 
-    // Everything in the same single folder is still one bucket.
     const oneFolder = filterAvailabilityFrom([
       makeItem({ id: "a", folderIds: ["f1"] }),
       makeItem({ id: "b", folderIds: ["f1"] }),
     ]);
     expect(oneFolder.usefulGroupings.has("folder")).toBe(false);
 
-    // A filed deck plus an unfiled one is two buckets, so it becomes useful.
     const someFiled = filterAvailabilityFrom([
       makeItem({ id: "a", folderIds: ["f1"] }),
       makeItem({ id: "b", folderIds: [] }),
@@ -757,19 +743,14 @@ describe("filterCountsFrom", () => {
     const counts = filterCountsFrom(mixed, NO_FILTERS);
     expect(counts.drafts.get("only")).toBe(2);
     expect(counts.drafts.get("hide")).toBe(1);
-    // Counted against the other dimensions only, so picking one side doesn't
-    // zero out the other.
     const picked = filterCountsFrom(mixed, { ...NO_FILTERS, drafts: "only" });
     expect(picked.drafts.get("hide")).toBe(1);
   });
 
   it("counts a dimension against the other filters, not its own", () => {
-    // Filtering to freeform must not collapse the format counts to freeform
-    // alone, or picking another format would look impossible.
     const counts = filterCountsFrom(decks, { ...NO_FILTERS, formats: ["freeform"] });
     expect(counts.formats.get("constructed")).toBe(2);
     expect(counts.formats.get("freeform")).toBe(1);
-    // The other dimensions do narrow to the freeform deck.
     expect(counts.validity.get("valid")).toBe(1);
     expect(counts.validity.get("invalid")).toBeUndefined();
   });
@@ -781,9 +762,6 @@ describe("filterCountsFrom", () => {
   });
 
   it("counts domains against the other dimensions, not against itself", () => {
-    // Same rule as format and legality: counting the axis against its own
-    // selection would zero out every option the user hasn't picked, which is
-    // exactly the reading a facet count is supposed to prevent.
     const counts = filterCountsFrom(decks, { ...NO_FILTERS, domains: ["fury"] });
     expect(counts.domains.get("fury")).toBe(2);
     expect(counts.domains.get("calm")).toBe(2);

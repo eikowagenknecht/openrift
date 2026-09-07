@@ -9,8 +9,6 @@ import {
   sniffDeckImportFormat,
 } from "./deck-import-parsers";
 
-// Mock the Piltover library — we control what getDeckFromCode returns so we can
-// test our deduplication logic without depending on real binary deck codes.
 vi.mock("@piltoverarchive/riftbound-deck-codes", () => ({
   getDeckFromCode: vi.fn(),
 }));
@@ -20,10 +18,6 @@ import { getDeckFromCode } from "@piltoverarchive/riftbound-deck-codes";
 
 const mockGetDeckFromCode = vi.mocked(getDeckFromCode);
 
-// Each format's parser lives next to its encoder in
-// packages/shared/src/deck-codecs, tested there against real encoder output.
-// What this file owns is the web-only chrome: format sniffing, URL extraction,
-// and turning a resolved shared deck into import entries.
 describe("parseDeckImportData", () => {
   it("delegates to the shared piltover parser", () => {
     mockGetDeckFromCode.mockReturnValue({
@@ -52,14 +46,8 @@ describe("parseDeckImportData", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Format sniffing
-// ---------------------------------------------------------------------------
-
-/** A base32-shaped string the mocked decoder accepts (14 chars, A–Z only). */
 const VALID_CODE = "CEBAGAYDAMBQGE";
 
-/** Makes the mocked decoder accept exactly one code and reject everything else. */
 function mockValidCode(validCode: string): void {
   mockGetDeckFromCode.mockImplementation((code: string) => {
     if (code === validCode) {
@@ -82,14 +70,12 @@ describe("sniffDeckImportFormat", () => {
 
   it("falls back to text for a lone word that does not decode", () => {
     mockValidCode(VALID_CODE);
-    // 13 letters, passes the base32 charset pre-filter, but the decoder rejects it
     expect(sniffDeckImportFormat("Battlecruiser")).toBe("text");
   });
 
   it("never treats short words as deck codes", () => {
     mockValidCode(VALID_CODE);
     expect(sniffDeckImportFormat("Yasuo")).toBe("text");
-    // The charset pre-filter rejects short tokens without calling the decoder
     expect(mockGetDeckFromCode).not.toHaveBeenCalledWith("Yasuo");
   });
 
@@ -129,8 +115,6 @@ describe("sniffDeckImportFormat", () => {
   });
 });
 
-// The ?code= deep link on /decks/import goes through parseDeckImportAuto, so a
-// URL-encoded text list works there exactly like a compact deck code.
 describe("parseDeckImportAuto", () => {
   it("parses a zone-headered text list, as exported by external deck sites", () => {
     mockValidCode(VALID_CODE);
@@ -266,21 +250,12 @@ describe("extractDeckFromUrl", () => {
 
   it("does not decode plausible-looking path segments that fail decoding", () => {
     mockValidCode(VALID_CODE);
-    // "deckbuilding" passes the charset filter but the decoder rejects it
     expect(extractDeckFromUrl("https://example.com/deckbuilding/page")).toEqual({
       kind: "url-no-deck",
     });
   });
 });
 
-// ---------------------------------------------------------------------------
-// Shared-deck link import
-// ---------------------------------------------------------------------------
-
-/**
- * Builds a public deck card row with sensible defaults for entry conversion tests.
- * @returns A complete PublicDeckCardResponse with the overrides applied.
- */
 function publicDeckCard(overrides: Partial<PublicDeckCardResponse>): PublicDeckCardResponse {
   return {
     cardId: "card-1",
@@ -334,7 +309,6 @@ describe("entriesFromSharedDeck", () => {
       explicitZone: "sideboard",
       sourceSlot: "sideboard",
     });
-    // A null shortCode becomes undefined so the matcher falls back to the name
     expect(entries[2].shortCode).toBeUndefined();
   });
 

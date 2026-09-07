@@ -8,10 +8,6 @@ beforeEach(() => {
   resetIdCounter();
 });
 
-/**
- * A keyboard event stub carrying only what the handler reads.
- * @returns The stub, typed as a React keyboard event.
- */
 function keyEvent(key: string) {
   return { key, preventDefault: vi.fn() } as unknown as React.KeyboardEvent<HTMLDivElement>;
 }
@@ -21,8 +17,6 @@ describe("cardInteractiveProps", () => {
     expect(cardInteractiveProps(stubDeckBuilderCard())).toEqual({});
   });
 
-  // role, tabIndex and the handlers have to arrive together, or the element
-  // reads as a static div with listeners on it.
   it("makes the element a focusable button when it does", () => {
     const props = cardInteractiveProps(stubDeckBuilderCard(), vi.fn());
     expect(props.role).toBe("button");
@@ -75,9 +69,7 @@ describe("deckCardDragData", () => {
     });
   });
 
-  // The thumb's zone is the drag's origin, not the entry's stored zone: the two
-  // agree today, and the payload has to follow where the thumb is rendered.
-  it("takes the source zone from the caller", () => {
+  it("takes the source zone from the caller, not the card's stored zone", () => {
     const card = stubDeckBuilderCard({ zone: WellKnown.deckZone.MAIN });
     expect(deckCardDragData(card, WellKnown.deckZone.SIDEBOARD, "Ahri").fromZone).toBe(
       WellKnown.deckZone.SIDEBOARD,

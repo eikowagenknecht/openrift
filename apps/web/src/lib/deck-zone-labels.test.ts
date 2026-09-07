@@ -14,8 +14,6 @@ import {
 
 describe("zoneLabel", () => {
   it("returns the canonical descriptive label for known zones", () => {
-    // Regression: a divergent local copy used "Champion"/"Main"; the canonical
-    // labels are more descriptive and must be the single source of truth.
     expect(zoneLabel("champion")).toBe("Chosen Champion");
     expect(zoneLabel("main")).toBe("Main Deck");
     expect(zoneLabel("battlefield")).toBe("Battlefields");
@@ -51,8 +49,6 @@ describe("zone constants", () => {
 
 describe("zoneExpected", () => {
   it("targets a single battlefield in Custom-Region", () => {
-    // Regression: the builder showed "1/3 battlefields" for Custom-Region
-    // decks even though validation caps the zone at 1.
     expect(zoneExpected(WellKnown.deckZone.BATTLEFIELD, WellKnown.deckFormat.CUSTOM_REGION)).toBe(
       1,
     );
@@ -115,7 +111,6 @@ describe("requiredZoneProgress", () => {
       { zone: WellKnown.deckZone.LEGEND, quantity: 1 },
       { zone: WellKnown.deckZone.RUNES, quantity: 12 },
       { zone: WellKnown.deckZone.MAIN, quantity: 30 },
-      // Sideboard and overflow never count toward completion.
       { zone: WellKnown.deckZone.SIDEBOARD, quantity: 8 },
       { zone: WellKnown.deckZone.OVERFLOW, quantity: 5 },
     ];
@@ -135,7 +130,6 @@ describe("requiredZoneProgress", () => {
 
 describe("zoneEmptyReadOnlyLabel", () => {
   it("states what's missing instead of prompting an action", () => {
-    // Regression: the share page showed a bare "Empty" for every zone.
     expect(zoneEmptyReadOnlyLabel(WellKnown.deckZone.LEGEND)).toBe("No Legend picked");
     expect(zoneEmptyReadOnlyLabel(WellKnown.deckZone.MAIN)).toBe("No cards");
   });

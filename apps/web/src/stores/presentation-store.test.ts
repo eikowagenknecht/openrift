@@ -130,11 +130,10 @@ describe("presentation store", () => {
     expect(usePresentationStore.getState().showHero).toBe(true);
   });
 
-  it("drops the board layout for one card at a time", () => {
+  it("drops the board layout for one card at a time, without arming the reveal", () => {
     usePresentationStore.getState().toggleBoard();
 
     expect(usePresentationStore.getState().boardMode).toBe(false);
-    // The reveal is a board shape, so switching layouts must not silently arm it.
     expect(usePresentationStore.getState().reveal).toBe(false);
   });
 

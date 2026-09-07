@@ -18,10 +18,6 @@ export function useFeatureEnabled(key: string): boolean {
   return (data as FeatureFlags)[key] === true;
 }
 
-// ---------------------------------------------------------------------------
-// Admin hooks (hit the /admin/feature-flags endpoints)
-// ---------------------------------------------------------------------------
-
 const fetchAdminFeatureFlags = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }): Promise<AdminFeatureFlagsResponse> =>
@@ -82,10 +78,6 @@ export function useDeleteFeatureFlag() {
     invalidates: [queryKeys.admin.featureFlags, queryKeys.featureFlags.all],
   });
 }
-
-// ---------------------------------------------------------------------------
-// Admin hooks for per-user feature flag overrides
-// ---------------------------------------------------------------------------
 
 const fetchAdminFeatureFlagOverrides = createServerFn({ method: "GET" })
   .middleware([withCookies])

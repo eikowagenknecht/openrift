@@ -8,12 +8,6 @@ interface EmscriptenModule {
   locateFile: (file: string) => string;
 }
 
-/**
- * Stand-in for what the OpenCV glue leaves on `globalThis.cv`: a thenable,
- * not a real promise, that hands the module to its callback.
- *
- * @returns The fake module.
- */
 function fakeCv(): Record<string, unknown> {
   const cv: Record<string, unknown> = {};
   // oxlint-disable-next-line unicorn/no-thenable -- the emscripten export being faked is exactly that hazard, and the loader exists to defuse it
@@ -23,20 +17,16 @@ function fakeCv(): Record<string, unknown> {
   return cv;
 }
 
-// Every test calls `vi.resetModules()` and re-imports the loader, so each one
-// pays a cold import. That fits the 5s default with room to spare, but it did
-// time out back when this suite lived in the 2295-line use-card-scanner, and a
-// timeout is unusually expensive here: it strands the loader mid-flight, which
-// then strips `then` off the *next* test's `globalThis.cv` and fails that one
-// too. The headroom is cheap next to debugging that cascade a second time.
+// A timed-out test strands the loader mid-flight, stripping `then` off the
+// next test's `globalThis.cv` and failing it too, so this suite runs with
+// extra headroom above the 5s default.
 describe("loadOpenCv", { timeout: 30_000 }, () => {
   let appended: HTMLScriptElement[];
   let moduleDuringEval: EmscriptenModule | undefined;
   let respondWith: "load" | "error";
 
   beforeEach(() => {
-    // The loader caches its promise in a module-level slot, so every test
-    // needs a fresh copy of the module.
+    // The loader caches its promise in a module-level slot; each test needs a fresh copy.
     vi.resetModules();
     appended = [];
     moduleDuringEval = undefined;
@@ -48,8 +38,7 @@ describe("loadOpenCv", { timeout: 30_000 }, () => {
         return Promise.resolve(new ArrayBuffer(8));
       },
     );
-    // jsdom never fetches or evaluates a script tag's src, so the load and
-    // error events have to be driven by hand.
+    // jsdom never fetches or evaluates a script tag's src; drive load/error by hand.
     vi.spyOn(document.head, "append").mockImplementation((...nodes) => {
       for (const node of nodes) {
         const script = node as HTMLScriptElement;
@@ -74,8 +63,7 @@ describe("loadOpenCv", { timeout: 30_000 }, () => {
 
     await loadOpenCv("/media/scan/scan-opencv-v1.js");
 
-    // A blob: URL needs `blob:` in the CSP's script-src, which the served
-    // policy does not carry — the tag has to point at the real asset.
+    // The served CSP has no `blob:` in script-src, so the tag must point at the real asset.
     expect(appended).toHaveLength(1);
     expect(appended[0]?.getAttribute("src")).toBe("/media/scan/scan-opencv-v1.js");
     expect(appended[0]?.src.startsWith("blob:")).toBe(false);
@@ -86,7 +74,6 @@ describe("loadOpenCv", { timeout: 30_000 }, () => {
 
     await loadOpenCv("/media/scan/scan-opencv-v1.js");
 
-    // The glue asks for its build-time name; we serve it renamed.
     expect(moduleDuringEval?.locateFile("opencv_js.wasm")).toBe("/media/scan/scan-opencv-v1.wasm");
     expect((globalThis as { Module?: unknown }).Module).toBeUndefined();
   });
@@ -105,7 +92,6 @@ describe("loadOpenCv", { timeout: 30_000 }, () => {
 
     const cv = await loadOpenCv("/media/scan/scan-opencv-v1.js");
 
-    // The thenable is stripped, or every later await would re-adopt it.
     expect(cv).toBe((globalThis as { cv?: unknown }).cv);
     expect("then" in cv).toBe(false);
   });
@@ -138,11 +124,6 @@ describe("loadOpenCvInWorker", () => {
     delete (globalThis as { Module?: unknown }).Module;
   });
 
-  /**
-   * Serve a script body as the downloaded OpenCV glue.
-   *
-   * @returns Nothing; the mocked download answers with these bytes.
-   */
   function serveSource(source: string): void {
     fetchWithProgress.mockImplementation(
       (_url: string, onProgress?: (loaded: number, total: number) => void) => {
@@ -155,8 +136,6 @@ describe("loadOpenCvInWorker", () => {
 
   it("evaluates the downloaded glue and unwraps the thenable it exports", async () => {
     const { loadOpenCvInWorker } = await import("./scan-opencv");
-    // A module worker has neither a script tag nor importScripts, so the
-    // downloaded text is evaluated directly.
     serveSource(
       `globalThis.cv = { locate: globalThis.Module.locateFile("opencv_js.wasm"), then(resolve) { resolve(this); } };`,
     );
@@ -167,8 +146,6 @@ describe("loadOpenCvInWorker", () => {
 
     expect(cv.locate).toBe("/media/scan/scan-opencv-v1.wasm");
     expect("then" in cv).toBe(false);
-    // The factory captured the object during evaluation; the global slot is
-    // handed back either way.
     expect((globalThis as { Module?: unknown }).Module).toBeUndefined();
   });
 
@@ -188,8 +165,6 @@ describe("loadOpenCvInWorker", () => {
       Promise.reject(new Error(hint)),
     );
 
-    // Assert on the advice, not on "media/scan": the URL itself is echoed in
-    // the message, so matching that would pass with any wording.
     await expect(loadOpenCvInWorker("/media/scan/scan-opencv-v1.js")).rejects.toThrow(
       "/admin/scan",
     );

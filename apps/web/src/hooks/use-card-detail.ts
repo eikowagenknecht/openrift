@@ -15,9 +15,8 @@ const fetchCardDetail = createServerFn({ method: "GET" })
     serverCache.query({
       queryKey: ["server-cache", "card-detail", data],
       queryFn: async () => {
-        // 404 (unknown slug) is a typed NOT_FOUND error on the contract;
-        // `safe` + `isDefinedError` narrows `error.code` to the declared set,
-        // mapped to the sentinel the route boundary expects.
+        // 404 is a typed NOT_FOUND error on the contract, mapped here to the
+        // sentinel the route boundary expects.
         const { error, data: detail } = await safe(
           apiOrpcClient(cardsContract).detail({ cardSlug: data }),
         );
@@ -36,7 +35,6 @@ interface EnrichedCardDetail {
   card: CardDetailResponse["card"];
   printings: Printing[];
   sets: CardDetailResponse["sets"];
-  /** Products keyed by printing id, for the selected printing's "Found in" row. */
   productsByPrinting: ReadonlyMap<string, CardDetailResponse["products"]>;
   related: CardDetailResponse["related"];
 }
@@ -51,9 +49,7 @@ function enrichCardDetail(response: CardDetailResponse): EnrichedCardDetail {
     return {
       ...p,
       setSlug: set?.slug ?? "",
-      // Per printing language: a set is out in English long before it is out
-      // in French. A printing whose set is missing from the payload keeps the
-      // optimistic default rather than gaining a Preview ribbon.
+      // If set is missing from the payload, default setReleased to true.
       setReleased: set ? isReleasedIn(set.releases, p.language, today) : true,
       card: response.card,
     };
@@ -69,7 +65,6 @@ function enrichCardDetail(response: CardDetailResponse): EnrichedCardDetail {
   };
 }
 
-/** @returns Query options for a single card detail, enriched with set slugs. */
 export function cardDetailQueryOptions(cardSlug: string) {
   return queryOptions({
     queryKey: queryKeys.cards.detail(cardSlug),

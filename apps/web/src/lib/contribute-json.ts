@@ -1,12 +1,3 @@
-/**
- * Helpers for the "contribute card data" form: validates form state against the
- * shared contribution schema and builds the payload for the in-app submission
- * endpoint (ADR-036).
- *
- * Validation reuses `contributionFileSchema` (the same card/printing rules the
- * catalog enforces); `buildContributionJson` shapes form state into that schema
- * only so the client can surface field errors before submitting.
- */
 import type { Card, Printing } from "@openrift/shared";
 import { formatCompactUtcStamp, trimToNull, WellKnown } from "@openrift/shared";
 import type { CardSubmissionInput } from "@openrift/shared/contracts/card-submissions";
@@ -15,11 +6,6 @@ import type { core } from "zod";
 
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/u;
 
-/**
- * Snake-case JSON keys that map back to a different camelCase form-state key.
- * Anything not in this map (e.g. `name`, `type`, `domains`) keeps the same
- * spelling on both sides.
- */
 const JSON_TO_FORM_KEY: Record<string, string> = {
   super_types: "superTypes",
   might_bonus: "mightBonus",
@@ -39,13 +25,6 @@ const JSON_TO_FORM_KEY: Record<string, string> = {
   printed_year: "printedYear",
 };
 
-/**
- * Convert a Zod issue path (snake-case keys, numeric array indices) into the
- * form-state path the UI uses for error display (camelCase keys, `[n]` array
- * indices).
- * @param path The Zod issue's path.
- * @returns A dotted form-state path like `printings[0].publicCode`.
- */
 function mapJsonPathToFormPath(path: readonly PropertyKey[]): string {
   let out = "";
   for (const segment of path) {
@@ -62,7 +41,6 @@ function mapJsonPathToFormPath(path: readonly PropertyKey[]): string {
 
 interface ContributeFormCard {
   name: string;
-  /** Ordered card types (ADR-037); a Unit Gear is ["unit", "gear"]. */
   types: string[];
   superTypes: string[];
   domains: string[];
@@ -91,13 +69,11 @@ export interface ContributeFormPrinting {
   imageUrl: string | null;
   flavorText: string | null;
   language: string | null;
-  /** Printed name on this specific printing. Always populated; defaults to the card name. */
   printedName: string;
   printedYear: number | null;
 }
 
 export interface ContributeFormState {
-  /** Kebab-case slug. Used as the contribution filename and external_id base. */
   slug: string;
   card: ContributeFormCard;
   printings: ContributeFormPrinting[];
@@ -164,15 +140,6 @@ export function nameToSlug(name: string): string {
     .replaceAll(/^-+|-+$/gu, "");
 }
 
-/**
- * Validates the form state by building the contribution JSON and running it
- * through the shared `contributionFileSchema`. The slug isn't part of that
- * schema, so it gets a separate check up front; if it fails, we skip the schema
- * run since the JSON's `external_id` would derive from a bad slug and surface a
- * misleading error.
- * @param state Current form state.
- * @returns Validation result with form-state error paths (camelCase, `[n]`).
- */
 export function validateContribution(state: ContributeFormState): ValidationResult {
   const errors: ValidationError[] = [];
 
@@ -187,8 +154,7 @@ export function validateContribution(state: ContributeFormState): ValidationResu
   const result = contributionFileSchema.safeParse(json);
   if (!result.success) {
     for (const issue of result.error.issues) {
-      // The two `external_id` fields are generated from the slug, so any
-      // pattern failure there is really a slug failure — already surfaced.
+      // external_id is derived from the slug, so a pattern failure here is a slug failure, already surfaced above.
       if (issue.path.at(-1) === "external_id") {
         continue;
       }
@@ -201,12 +167,6 @@ export function validateContribution(state: ContributeFormState): ValidationResu
   return { ok: errors.length === 0, errors };
 }
 
-/**
- * Replace Zod's terse default messages with the contributor-friendly ones the
- * form has shown historically. Falls through to Zod's own message otherwise.
- * @param issue The Zod issue to humanize.
- * @returns A user-facing error message.
- */
 function humanizeIssue(issue: core.$ZodIssue): string {
   const lastKey = String(issue.path.at(-1) ?? "");
   if (lastKey === "name" && issue.path[0] === "card" && issue.code === "too_small") {
@@ -299,15 +259,7 @@ function buildPrintingJson(
   return out;
 }
 
-/**
- * Shapes form state into the schema's snake_case form so it can be validated.
- * Only {@link validateContribution} consumes this — the server mints its own
- * `external_id`s, so the ones built here exist purely to satisfy the schema's
- * pattern and are dropped by {@link buildSubmissionPayload}.
- * @param state Current form state.
- * @param dateStamp UTC date stamp from `formatCompactUtcStamp`.
- * @returns The contribution JSON object.
- */
+// Only validateContribution consumes this; the external_ids here exist to satisfy the schema and are dropped by buildSubmissionPayload.
 export function buildContributionJson(
   state: ContributeFormState,
   dateStamp: string,
@@ -326,12 +278,7 @@ export function buildContributionJson(
   return { card, printings };
 }
 
-/**
- * Canonical form of a printing for "did the contributor touch this?".
- * Slug arrays are sorted so a reordering by the pickers doesn't read as an edit.
- * @param printing The form printing to serialize.
- * @returns A string that is equal for two printings proposing the same thing.
- */
+// Slug arrays are sorted so a reordering by the pickers doesn't read as an edit.
 function printingFingerprint(printing: ContributeFormPrinting): string {
   return JSON.stringify({
     ...printing,
@@ -340,27 +287,8 @@ function printingFingerprint(printing: ContributeFormPrinting): string {
   });
 }
 
-/**
- * Builds the payload for the in-app submission endpoint (ADR-036). Same
- * snake_case card/printing fields as the contribution JSON, but without the
- * generated `external_id`s — the server mints per-submission ones. The
- * contributor's note rides alongside.
- *
- * `baseline` is the state the form opened with. Any printing still identical to
- * one in it is left out: the correction flow prefills every printing of the
- * card, so a one-field fix would otherwise arrive as eight staging rows that
- * propose nothing, burying the single cell the admin has to look at.
- *
- * Matching is by set membership rather than array position, because the form
- * lets a contributor add, duplicate and remove printings. Editing a printing's
- * public code, finish or language changes its fingerprint and so sends it,
- * which is right: that is itself a correction.
- *
- * @param state Current form state.
- * @param submissionNote Optional contributor note; trimmed, blank becomes null.
- * @param baseline The form's initial state; omit to send every printing (the image flow, whose one printing is pre-populated with the very URL being suggested).
- * @returns The request body for `cardSubmissionsContract.submit`.
- */
+// Printings unchanged from `baseline` are left out, since the correction flow prefills every
+// printing and a one-field fix would otherwise bury the edit among rows proposing nothing.
 export function buildSubmissionPayload(
   state: ContributeFormState,
   submissionNote: string | null,
@@ -386,19 +314,8 @@ export function buildSubmissionPayload(
   };
 }
 
-/**
- * Builds form state for an image-only patch on an existing printing. Only the
- * fields needed to identify the card + the target printing are populated, so
- * the resulting JSON omits everything else and the consolidation Action treats
- * absent fields as "leave alone" (mirroring how a sparse correction works).
- * @param args.cardName Display name of the existing card; written verbatim.
- * @param args.cardSlug Existing card slug; used as filename + external_id base.
- * @param args.printing The target printing whose image is being suggested.
- * @param args.setSlug Set slug (not UUID); written as `set_id`.
- * @param args.setName Set display name; written as `set_name`.
- * @param args.imageUrl The contributor-supplied https image URL.
- * @returns Form state with one printing carrying the image URL.
- */
+// Only the fields identifying the card and target printing are populated, so the resulting
+// JSON omits everything else and the consolidation Action treats absent fields as "leave alone".
 export function buildImagePatchState(args: {
   cardName: string;
   cardSlug: string;
@@ -419,9 +336,6 @@ export function buildImagePatchState(args: {
         setId: args.setSlug,
         setName: args.setName,
         finish: args.printing.finish || null,
-        // Keep the image patch sparse: only the fields that identify the
-        // printing plus the image URL. Size/channels are left out (null/[]) so
-        // the suggestion never asserts them.
         size: null,
         publicCode: args.printing.publicCode || null,
         imageUrl: args.imageUrl,
@@ -432,16 +346,7 @@ export function buildImagePatchState(args: {
   };
 }
 
-/**
- * Converts an existing OpenRift card + its printings into form state suitable
- * for the correction flow. The internal `imageId` references aren't real URLs,
- * so `imageUrl` is left blank, and the contributor supplies a fresh hosted link.
- * @param card The card to prefill.
- * @param printings All printings of that card.
- * @param setSlugById Lookup map from set UUID to set slug, used to populate `setId`.
- * @param setNameById Lookup map from set UUID to display name.
- * @returns Form state mirroring the card's current data.
- */
+// The internal imageId references aren't real URLs, so imageUrl is left blank here.
 export function prefillFromCard(
   card: Card,
   printings: Printing[],

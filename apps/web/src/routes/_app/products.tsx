@@ -9,7 +9,6 @@ import { getSiteUrl } from "@/lib/site-config";
 
 const PRODUCTS_TITLE = "Riftbound Products";
 
-/** Shared by the meta description, the JSON-LD, and the visible page intro. */
 export const PRODUCTS_DESCRIPTION =
   "Full card lists for every official Riftbound product. See exactly which cards are inside each starter set, champion deck, and pre-rift kit.";
 

@@ -10,17 +10,7 @@ import { parseMetaSubmitSearch } from "@/lib/meta-submit-link";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
-/**
- * `/meta/$slug/submit` — send a decklist for an event the archive already has
- * (ADR-014). The slug only preselects the target; an unknown one falls through
- * to the picker rather than 404ing, so a stale link still lets someone send
- * what they came to send.
- *
- * The search params carry the standings row an event page opened the form from,
- * so someone filling a hole in the record types the decklist and nothing else.
- * Every one of them is optional and none of them is trusted: the form validates
- * what it was handed exactly as it validates what is typed.
- */
+/** An unknown slug renders the picker; it does not 404. */
 export const Route = createFileRoute("/_app/_authenticated/meta_/$slug_/submit")({
   ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Send a decklist", noIndex: true }),
@@ -38,10 +28,8 @@ export const Route = createFileRoute("/_app/_authenticated/meta_/$slug_/submit")
       context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
       context.queryClient.query({ ...metaEventsQueryOptions(), staleTime: "static" }),
       context.queryClient.query({ ...catalogQueryOptions, staleTime: "static" }),
-      // The list a completion or a correction edits, in cache before the form
-      // mounts so its paste box opens already holding it. A token that no
-      // longer resolves is not fatal: the box opens empty and the sender types
-      // the list, which is what they came to do.
+      // Puts the edited list in cache before the form mounts. A token that no
+      // longer resolves is not fatal: the box just opens empty.
       deps.deck === undefined
         ? Promise.resolve()
         : context.queryClient

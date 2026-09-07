@@ -6,11 +6,6 @@ interface MutateOptions {
   onSuccess?: () => void;
 }
 
-/**
- * Stands in for the update mutation. `mutate` records its calls and, unless a
- * test says otherwise, reports success straight away — which is what lets the
- * store's `markSaved` run in the same tick as the save.
- */
 const { mutation } = vi.hoisted(() => ({
   mutation: {
     mutate: vi.fn((_body: unknown, options?: MutateOptions) => options?.onSuccess?.()),
@@ -32,19 +27,16 @@ const BOARD: TierRow[] = [
   { label: "A", cards: [] },
 ];
 
-/** Loads the saved board into the draft, as the stage does on mount. @returns Nothing. */
 function loadBoard(listId = LIST_ID) {
   act(() => useTierListBuilderStore.getState().load(listId, BOARD));
 }
 
-/** Lets the debounce elapse. @returns Nothing. */
 function settle() {
   act(() => {
     vi.advanceTimersByTime(AUTOSAVE_WAIT_MS + 50);
   });
 }
 
-/** @returns The rows of the most recent save. */
 function lastSavedRows(): TierRow[] | undefined {
   const body = mutation.mutate.mock.calls.at(-1)?.[0] as { tiers: TierRow[] } | undefined;
   return body?.tiers;
@@ -134,8 +126,6 @@ describe("useTierListAutosave", () => {
   });
 
   it("flushes on unmount with the board as it was when the save was queued", () => {
-    // The stage drops the draft as it leaves, so a saver that read the store at
-    // fire time would send the empty board the reset left behind.
     const { unmount } = renderHook(() => useTierListAutosave(LIST_ID));
     loadBoard();
 

@@ -7,17 +7,14 @@ import { describe, expect, it, vi } from "vitest";
 
 import { runSettleBatch } from "./trade-settle-batch";
 
-/** @returns A reserved trade on the given side, with only the fields the batch reads. */
 function trade(id: string, role: CardTradeRole, quantity: number): CardTradeResponse {
   return { id, role, quantity, groupSlug: "friday-night" } as unknown as CardTradeResponse;
 }
 
-/** @returns A copy-options response that either prompts or does not. */
 function options(choiceMatters: boolean): CardTradeCopyOptionsResponse {
   return { tradeId: "t", quantity: 1, choiceMatters, copies: [] } as CardTradeCopyOptionsResponse;
 }
 
-/** @returns Batch deps whose settle always succeeds and whose options never prompt. */
 function deps(overrides: Partial<Parameters<typeof runSettleBatch>[1]> = {}) {
   return {
     settle: vi.fn(async () => undefined),
@@ -72,7 +69,6 @@ describe("runSettleBatch", () => {
   });
 
   it("never sends a target collection on the giver's side", async () => {
-    // The giver is removing their own copies; there is nothing to file.
     const d = deps();
     await runSettleBatch([{ trade: trade("t1", "giver", 1), quantity: 1 }], {
       ...d,
@@ -85,7 +81,6 @@ describe("runSettleBatch", () => {
   });
 
   it("never reads copy options for the receiver", async () => {
-    // The copies at stake are the other party's, and the route 403s a receiver.
     const d = deps();
     await runSettleBatch([{ trade: trade("t1", "receiver", 1), quantity: 1 }], d);
 
@@ -93,8 +88,6 @@ describe("runSettleBatch", () => {
   });
 
   it("holds a giver's row back when the candidate copies differ", async () => {
-    // Settling hard-deletes a specific card, so the per-row prompt has to
-    // survive being batched rather than being skipped for speed.
     const held = trade("t1", "giver", 3);
     const d = deps({ readCopyOptions: vi.fn(async () => options(true)) });
     const result = await runSettleBatch([{ trade: held, quantity: 2 }], d);
@@ -113,8 +106,6 @@ describe("runSettleBatch", () => {
   });
 
   it("settles a giver's row when the options read failed", async () => {
-    // The read refines the settle, it does not gate it — the same fallback the
-    // per-row button takes. A failure that matters resurfaces on the settle.
     const d = deps({ readCopyOptions: vi.fn(async () => null) });
     const result = await runSettleBatch([{ trade: trade("t1", "giver", 1), quantity: 1 }], d);
 

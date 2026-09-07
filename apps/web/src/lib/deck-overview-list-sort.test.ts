@@ -9,17 +9,11 @@ import { sortDeckOverviewList } from "./deck-overview-list-sort";
 
 const RARITY_ORDER = ["common", "uncommon", "rare", "epic"];
 
-// Origins leads, the promo set trails — the app's set order, which is what the
-// ID sort follows rather than the alphabetical prefix inside the short code.
 const SET_INDEXES = new Map([
   ["set-origins", 0],
   ["set-promo", 1],
 ]);
 
-/**
- * Builds a sort context from a per-card map of the facts each sort reads.
- * @returns A DeckListSortContext resolving entries from the given map.
- */
 function contextFrom(entries: Record<string, Partial<CardOwnership>>): DeckListSortContext {
   return {
     getEntry: (card: DeckBuilderCard) =>
@@ -35,10 +29,6 @@ const EMPTY_CONTEXT: DeckListSortContext = {
   setIndexById: SET_INDEXES,
 };
 
-/**
- * Shorthand for the printing fields the ID sort reads off an ownership entry.
- * @returns A partial ownership entry carrying just the display printing.
- */
 function withPrinting(setId: string, shortCode: string): Partial<CardOwnership> {
   return { displayPrinting: { setId, shortCode } as CardOwnership["displayPrinting"] };
 }
@@ -54,7 +44,6 @@ describe("sortDeckOverviewList", () => {
       stubDeckBuilderCard({ cardId: "b", cardName: "Ashe", energy: 1 }),
       stubDeckBuilderCard({ cardId: "c", cardName: "Bard", energy: 1, power: 2 }),
     ];
-    // energy asc → power asc → name; direction is ignored for "default"
     expect(names(sortDeckOverviewList(cards, "default", "desc", EMPTY_CONTEXT))).toEqual([
       "Ashe",
       "Bard",
@@ -100,8 +89,6 @@ describe("sortDeckOverviewList", () => {
   });
 
   it("orders by set before card number, in the app's set order", () => {
-    // The promo's code sorts alphabetically ahead of "OGN", but its set comes
-    // second in the catalog, so the Origins card leads.
     const cards = [
       stubDeckBuilderCard({ cardId: "promo", cardName: "Promo" }),
       stubDeckBuilderCard({ cardId: "origins", cardName: "Origins" }),
@@ -127,8 +114,6 @@ describe("sortDeckOverviewList", () => {
   });
 
   it("orders by the row's own printing when the list resolves one", () => {
-    // "Show my printings" is on: the IDs come from the printings the viewer
-    // owns, which order the two rows the other way round.
     const cards = [
       stubDeckBuilderCard({ cardId: "a", cardName: "Ashe" }),
       stubDeckBuilderCard({ cardId: "b", cardName: "Bard" }),
@@ -163,8 +148,6 @@ describe("sortDeckOverviewList", () => {
   });
 
   it("breaks card-ID ties by name", () => {
-    // Two rows of the same card (different zones or pinned printings) resolve
-    // the same printing, so the name decides rather than the input order.
     const cards = [
       stubDeckBuilderCard({ cardId: "b", cardName: "Bard" }),
       stubDeckBuilderCard({ cardId: "a", cardName: "Ashe" }),
@@ -199,8 +182,6 @@ describe("sortDeckOverviewList", () => {
   });
 
   it("orders by the row's own price when the list resolves one", () => {
-    // "Show my printings" is on: each row prices the printing the viewer owns,
-    // which reverses the order the deck's display prices would give.
     const cards = [
       stubDeckBuilderCard({ cardId: "a", cardName: "Ashe" }),
       stubDeckBuilderCard({ cardId: "b", cardName: "Bard" }),
@@ -220,8 +201,6 @@ describe("sortDeckOverviewList", () => {
       stubDeckBuilderCard({ cardId: "blank", cardName: "Blank" }),
     ];
     const ctx: DeckListSortContext = {
-      // The blank row has a display price, but the printing it shows has none,
-      // so it renders no price and must sort with the other unpriced rows.
       ...contextFrom({ priced: { displayPrice: 900 }, blank: { displayPrice: 100 } }),
       getRowPrice: (card) => (card.cardId === "priced" ? 900 : undefined),
     };
@@ -259,8 +238,6 @@ describe("sortDeckOverviewList", () => {
   });
 
   it("orders by the row's own rarity when the list resolves one", () => {
-    // "Show my printings" is on: the rarity icons come from the printings the
-    // viewer owns, which rank the two rows the other way round.
     const cards = [
       stubDeckBuilderCard({ cardId: "a", cardName: "Ashe" }),
       stubDeckBuilderCard({ cardId: "b", cardName: "Bard" }),
@@ -283,8 +260,6 @@ describe("sortDeckOverviewList", () => {
       stubDeckBuilderCard({ cardId: "blank", cardName: "Blank" }),
     ];
     const ctx: DeckListSortContext = {
-      // Blank has a display rarity, but the printing it shows resolves to none,
-      // so it renders no icon and sorts with the unknowns.
       ...contextFrom({
         known: { displayPrinting: { rarity: "rare" } as CardOwnership["displayPrinting"] },
         blank: { displayPrinting: { rarity: "common" } as CardOwnership["displayPrinting"] },

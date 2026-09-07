@@ -30,9 +30,7 @@ const fetchTierList = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: id }): Promise<TierListResponse> => {
-    // 404 is legitimate (deleted list, or one belonging to another user) — map
-    // to NOT_FOUND so the route renders a not-found page instead of logging the
-    // response as an error.
+    // 404 here is expected (deleted list, or another user's): map to NOT_FOUND, not an error.
     const { error, data } = await safe(
       apiOrpcClient(tierListsContract, context.cookie).get({ id }),
     );
@@ -49,8 +47,7 @@ const fetchPublicTierList = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ data: token }): Promise<PublicTierListDetailResponse> => {
-    // Anonymous by design — a share link must resolve for a logged-out viewer,
-    // so no cookie is forwarded.
+    // No cookie forwarded: share links must resolve for a logged-out viewer.
     const { error, data } = await safe(apiOrpcClient(publicTierListsContract).share({ token }));
     if (error) {
       if (isDefinedError(error) && error.code === "NOT_FOUND") {
@@ -95,8 +92,6 @@ export function usePublicTierList(token: string) {
   return useSuspenseQuery(publicTierListQueryOptions(token));
 }
 
-// ── Mutations ───────────────────────────────────────────────────────────────
-
 const createTierListFn = createServerFn({ method: "POST" })
   .validator((input: CreateTierListBody) => input)
   .middleware([withCookies])
@@ -123,8 +118,7 @@ export function useUpdateTierList() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<TierListResponse, UpdateTierListBody>({
     mutationFn: (body) => updateTierListFn({ data: body }),
-    // Both the detail and the index: the index shows the card count and preview
-    // strip, so a board save changes it too.
+    // Invalidates the index too: it shows the card count and preview strip.
     invalidates: (variables) => [
       queryKeys.tierLists.detail(userId, variables.id),
       queryKeys.tierLists.all(userId),
@@ -136,9 +130,8 @@ const deleteTierListFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: id }) => {
-    // A 404 means the list is already gone (double-click on the confirm, a
-    // second tab, a retried request) — the outcome the caller asked for, so
-    // accept it as success rather than surfacing a "Not found" toast.
+    // A 404 means the list is already gone (double-click, second tab, retried request):
+    // treat it as success, not a "Not found" toast.
     const { error } = await safe(apiOrpcClient(tierListsContract, context.cookie).remove({ id }));
     if (error) {
       if (isDefinedError(error) && error.code === "NOT_FOUND") {

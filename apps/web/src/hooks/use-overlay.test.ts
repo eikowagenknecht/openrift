@@ -2,9 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { queryKeys } from "@/lib/query-keys";
 
-// The hooks in use-overlay.ts pull in server-fn machinery; the query options
-// are what's under test, so stub the server-side modules the import graph
-// touches (same pattern as use-loans.test.ts).
+// Stubs the server-side modules the import graph touches, so the query
+// options under test can load without pulling in server-fn machinery.
 vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => ({
     validator: () => ({ middleware: () => ({ handler: () => () => {} }) }),

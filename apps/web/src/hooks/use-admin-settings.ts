@@ -23,7 +23,6 @@ export const useAdminSettingsStore = create<AdminSettingsState>()(
     }),
     {
       name: "admin-settings",
-      // Validate on rehydrate: keep only known boolean fields from the blob.
       merge: (persisted, current) => {
         const raw =
           persisted && typeof persisted === "object"
@@ -40,10 +39,6 @@ export const useAdminSettingsStore = create<AdminSettingsState>()(
   ),
 );
 
-/**
- * Returns admin settings if the user is an admin, otherwise null.
- * @returns Admin settings or null for non-admins.
- */
 export function useAdminSettings(): AdminSettings | null {
   const { data: isAdmin } = useIsAdmin();
   const settings = useAdminSettingsStore((s) => s.settings);

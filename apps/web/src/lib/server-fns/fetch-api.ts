@@ -5,31 +5,16 @@ import { getApiUrl } from "./api-url";
 import { activeClientIp } from "./client-ip-context";
 
 interface FetchApiOptions {
-  // Full, user-facing sentence for the Sonner toast on failure (e.g. "Couldn't delete collection").
   errorTitle: string;
   cookie?: string;
   path: string;
   method?: string;
   body?: unknown;
   headers?: Record<string, string>;
-  // Status codes that should be returned to the caller without logging or
-  // throwing — for endpoints that use non-2xx codes as intentional control
-  // flow (e.g. /admin/me returning 401/403 for non-admins). The Response is
-  // returned as-is; callers must inspect res.ok / res.status themselves.
   acceptStatuses?: readonly number[];
 }
 
-/**
- * Fetches the API with structured error reporting. On a non-2xx response
- * (that isn't listed in acceptStatuses), it parses the standard
- * `{ error, code, details }` envelope and throws an {@link ApiError} carrying
- * the server's `error` message (so it can reach the user-facing toast), the
- * `code`, and a `diagnostic` (method/url/status/body) for the console. Parsing
- * is best-effort: a non-envelope body (HTML, better-auth, network error) falls
- * back to `errorTitle` as the message. The ok / acceptStatuses path returns the
- * Response untouched, before any parsing.
- * @returns The Response for ok or accepted statuses; throws ApiError otherwise.
- */
+// Throws ApiError on a non-2xx response not listed in acceptStatuses; otherwise returns the Response untouched.
 export async function fetchApi(options: FetchApiOptions): Promise<Response> {
   const {
     errorTitle,
@@ -48,13 +33,7 @@ export async function fetchApi(options: FetchApiOptions): Promise<Response> {
   if (body !== undefined) {
     headers["content-type"] = "application/json";
   }
-  // Inject W3C traceparent so the API can continue the trace started by the
-  // web server-side middleware. No-op when no span is active (OTel SDK not
-  // started, or this call is outside a request context).
   propagation.inject(context.active(), headers);
-  // Forward the real visitor IP (lifted onto the request context by
-  // middleware/otel-request.ts) so the API's logs and rate limiters see the
-  // user, not the web container. Absent outside a request scope.
   const clientIp = activeClientIp();
   if (clientIp !== undefined) {
     headers["x-real-ip"] = clientIp;
@@ -70,10 +49,6 @@ export async function fetchApi(options: FetchApiOptions): Promise<Response> {
   return res;
 }
 
-/**
- * Same as fetchApi, but parses the response as JSON and returns the typed payload.
- * @returns The decoded JSON body as T.
- */
 export async function fetchApiJson<T>(options: FetchApiOptions): Promise<T> {
   const res = await fetchApi(options);
   return res.json() as Promise<T>;

@@ -5,22 +5,14 @@ import { GUIDE_COLOR, RETICLE_COLORS, RETICLE_HOLD_FRAMES, gradeReticle } from "
 import type { OverlayTarget } from "@/lib/scan-overlay-paint";
 import { createDrawState, paintOverlay, syncOverlaySize } from "@/lib/scan-overlay-paint";
 
-/** One `stroke()` call, with the state the context carried into it. */
 interface Stroke {
   style: string;
   width: number;
   dash: number[];
 }
 
-/**
- * A 2D context that records what was drawn.
- *
- * jsdom has no canvas backend, so `getContext("2d")` returns null there; the
- * paint loop only ever writes to the context, which makes a recorder enough
- * to assert on.
- *
- * @returns The context, the strokes it received, and the call names in order.
- */
+// jsdom has no canvas backend (`getContext("2d")` returns null there), so
+// tests substitute a plain object that records what was drawn.
 function fakeContext() {
   const calls: string[] = [];
   const strokes: Stroke[] = [];
@@ -46,20 +38,10 @@ function fakeContext() {
   return { context: context as unknown as CanvasRenderingContext2D, calls, strokes };
 }
 
-/**
- * A canvas of a fixed size, without jsdom's missing 2D backend.
- *
- * @returns The canvas.
- */
 function fakeCanvas(width = 200, height = 400): HTMLCanvasElement {
   return { width, height } as HTMLCanvasElement;
 }
 
-/**
- * A rectangle as a quad, clockwise from the top left.
- *
- * @returns The quad.
- */
 function rect(x: number, y: number, width: number, height: number): Quad {
   return [
     { x, y },
@@ -69,11 +51,6 @@ function rect(x: number, y: number, width: number, height: number): Quad {
   ];
 }
 
-/**
- * A target aimed at a guide-mode frame, with overrides applied.
- *
- * @returns The target.
- */
 function target(overrides: Partial<OverlayTarget> = {}): OverlayTarget {
   return {
     quad: rect(20, 40, 100, 200),
@@ -81,8 +58,7 @@ function target(overrides: Partial<OverlayTarget> = {}): OverlayTarget {
     frameWidth: 200,
     frameHeight: 400,
     turns: 0,
-    // Deliberately not a winner: the lock ring strokes in the winner colour,
-    // and the assertions below tell the two strokes apart by it.
+    // Deliberately not a winner: the lock ring strokes in the winner colour.
     grade: gradeReticle({
       hasCandidate: true,
       bestInliers: 8,
@@ -137,8 +113,6 @@ describe("paintOverlay", () => {
 
     paintOverlay(fakeCanvas(), context, target({ quad: null }), createDrawState());
 
-    // The brackets still draw: they sit on the guide rather than blinking out
-    // between frames.
     expect(strokes.at(-1)?.style).not.toBe(GUIDE_COLOR);
   });
 
@@ -152,7 +126,6 @@ describe("paintOverlay", () => {
     calls.length = 0;
     paintOverlay(fakeCanvas(), context, aimed, state);
 
-    // An idle guide must not cost a canvas clear sixty times a second.
     expect(calls).toEqual([]);
   });
 
@@ -189,7 +162,6 @@ describe("paintOverlay", () => {
 
     const ring = strokes.find((stroke) => stroke.style === RETICLE_COLORS.locked);
     expect(ring).toBeDefined();
-    // Eased, not snapped: the first frame of a full run draws a partial ring.
     expect(ring?.dash[0]).toBeLessThan(ring?.dash[1] ?? 0);
     expect(state.settled).toBe(false);
   });
@@ -201,9 +173,8 @@ describe("paintOverlay", () => {
     paintOverlay(fakeCanvas(), context, target(), state);
     paintOverlay(fakeCanvas(), context, target({ quad: rect(30, 40, 100, 200) }), state);
 
-    // Halfway there, not there: consecutive detector quads on a still card
-    // differ by several pixels, and drawing each one in full is what made the
-    // reticle swim.
+    // Consecutive detector quads on a still card differ by several pixels;
+    // smoothing avoids drawing each one in full.
     expect(state.smoothed[0]).toEqual({ x: 25, y: 40 });
   });
 
@@ -220,7 +191,6 @@ describe("paintOverlay", () => {
 
     paintOverlay(fakeCanvas(), context, target({ quad: rect(20, 90, 100, 200) }), state);
 
-    // Two frames agreeing is the card having moved, so the reticle follows.
     expect(state.smoothed[0].y).toBeGreaterThan(40);
   });
 
@@ -231,8 +201,6 @@ describe("paintOverlay", () => {
     paintOverlay(fakeCanvas(), context, target(), state);
     paintOverlay(fakeCanvas(), context, target({ quad: null }), state);
 
-    // One blurred frame is not the card leaving, and snapping the brackets out
-    // to the guide and back is the biggest jump the overlay can make.
     expect(state.smoothed[0]).toEqual({ x: 20, y: 40 });
   });
 
@@ -256,7 +224,6 @@ describe("paintOverlay", () => {
       paintOverlay(fakeCanvas(), context, target({ quad: null }), state);
     }
 
-    // A card actually taken away has to give the brackets back to the guide.
     expect(state.smoothed[0].x).toBeLessThan(20);
   });
 
@@ -267,17 +234,14 @@ describe("paintOverlay", () => {
     paintOverlay(fakeCanvas(), context, target(), state);
     paintOverlay(fakeCanvas(), context, target({ quad: rect(60, 40, 100, 200), turns: 1 }), state);
 
-    // The smoothed quad is in frame pixels, so a quarter turn adopted mid-run
-    // makes it mean something else; easing across that would swing the
-    // brackets over the whole viewfinder.
+    // The smoothed quad is in frame pixels, so a quarter turn mid-run makes
+    // it mean something else; easing across that would swing the brackets.
     expect(state.smoothed[0]).toEqual({ x: 60, y: 40 });
   });
 
   it("draws no lock ring for a one-frame run", () => {
     const { context, strokes } = fakeContext();
 
-    // Capture mode locks on a single tap, so a ring would snap from nothing to
-    // full on every shot.
     paintOverlay(fakeCanvas(), context, target({ lockFraction: 1, lockRun: 1 }), createDrawState());
 
     expect(strokes.some((stroke) => stroke.style === RETICLE_COLORS.locked)).toBe(false);

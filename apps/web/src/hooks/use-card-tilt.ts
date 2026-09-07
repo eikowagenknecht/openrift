@@ -24,7 +24,6 @@ export function useCardTilt({ mode, enabled, maxTilt = 8 }: CardTiltOptions): Ca
     innerElRef.current = node;
   };
 
-  // Reset CSS vars + smooth transition when tilt is disabled
   useEffect(() => {
     if (enabled || mode === "none") {
       return;
@@ -42,7 +41,6 @@ export function useCardTilt({ mode, enabled, maxTilt = 8 }: CardTiltOptions): Ca
     }
   }, [enabled, mode]);
 
-  // Pointer mode: attach DOM listeners directly
   useEffect(() => {
     if (!enabled || mode !== "pointer") {
       return;
@@ -54,7 +52,6 @@ export function useCardTilt({ mode, enabled, maxTilt = 8 }: CardTiltOptions): Ca
     }
 
     const onEnter = () => {
-      // Remove transition so movement is instant
       inner.style.transition = "transform 0s";
     };
 
@@ -62,16 +59,13 @@ export function useCardTilt({ mode, enabled, maxTilt = 8 }: CardTiltOptions): Ca
       cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(() => {
         const rect = el.getBoundingClientRect();
-        // Clamp to 0..1 — when a scrollable parent (e.g. the detail aside)
-        // scrolls the card away from the pointer, pointerleave doesn't fire,
-        // so the next pointermove can report coordinates outside the element.
+        // Clamped: a scrolled parent can move the card away without firing pointerleave.
         const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
         const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
 
-        const rotateY = (x - 0.5) * maxTilt * 2; // -maxTilt..maxTilt
+        const rotateY = (x - 0.5) * maxTilt * 2;
         const rotateX = (0.5 - y) * maxTilt * 2;
 
-        // Map to percentage for foil gradient position
         const bgX = x * 100;
         const bgY = y * 100;
 
@@ -84,7 +78,6 @@ export function useCardTilt({ mode, enabled, maxTilt = 8 }: CardTiltOptions): Ca
 
     const onLeave = () => {
       cancelAnimationFrame(rafRef.current);
-      // Smooth reset with transition
       inner.style.transition = "transform 0.4s ease-out";
       el.style.setProperty("--foil-rotate-x", "0deg");
       el.style.setProperty("--foil-rotate-y", "0deg");

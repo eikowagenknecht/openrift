@@ -9,10 +9,8 @@ import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-// Source citations for promo printings (migration 258), full-admin only. Every
-// write invalidates the public catalog reads as well as the admin list: a
-// citation is part of the catalog response, so the `/catalog` bundle and the
-// card, promo, and set pages all go stale the moment one lands.
+// A citation is part of the catalog response, so every write must also
+// invalidate the public catalog reads, not just the admin list.
 const PUBLIC_CATALOG_KEYS = [
   queryKeys.catalog.all,
   queryKeys.promos.all,
@@ -28,16 +26,7 @@ const fetchPrintingCitations = createServerFn({ method: "GET" })
     }),
   );
 
-/**
- * One printing's citations. A plain query, not a suspense one: the editor lives
- * inside a printing card that only mounts when the card is expanded, so no
- * route loader warms it and there is no boundary to suspend against. That
- * mounting is also what scopes the fetch — a card page listing twenty printings
- * loads citations only for the rows the admin opens.
- *
- * @param printingId - The printing whose citations to load.
- * @returns The query holding the citation list.
- */
+/** Plain, not suspense: the editor mounts inside an expanded printing card, with no loader to warm it. */
 export function useAdminPrintingCitations(printingId: string) {
   return useQuery({
     queryKey: queryKeys.admin.printingCitations(printingId),
@@ -59,11 +48,6 @@ const createPrintingCitationFn = createServerFn({ method: "POST" })
     }),
   );
 
-/**
- * Adds a citation to a printing.
- *
- * @returns The mutation; resolves with the created citation row.
- */
 export function useCreatePrintingCitation() {
   return useMutationWithInvalidation<AdminPrintingCitation, CreatePrintingCitationInput>({
     mutationFn: (vars) => createPrintingCitationFn({ data: vars }),
@@ -84,11 +68,6 @@ const deletePrintingCitationFn = createServerFn({ method: "POST" })
     });
   });
 
-/**
- * Removes a citation from a printing.
- *
- * @returns The mutation.
- */
 export function useDeletePrintingCitation() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { printingId: string; citationId: string }) =>

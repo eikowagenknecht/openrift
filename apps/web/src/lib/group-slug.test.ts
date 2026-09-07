@@ -21,7 +21,6 @@ describe("deriveGroupSlug", () => {
   });
 
   it("trims a dash the truncation lands on", () => {
-    // 30 characters would cut mid-gap and leave "…-", which the slug pattern rejects.
     expect(deriveGroupSlug(`${"a".repeat(29)} bravo`)).toBe("a".repeat(29));
   });
 });

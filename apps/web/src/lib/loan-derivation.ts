@@ -1,9 +1,5 @@
 import type { LoanResponse, LoanStatus } from "@openrift/shared";
 
-/**
- * Plain label for a loan status (ADR-039).
- * @returns The user-facing status label.
- */
 export function loanStatusLabel(status: LoanStatus): string {
   switch (status) {
     case "active": {
@@ -18,31 +14,15 @@ export function loanStatusLabel(status: LoanStatus): string {
   }
 }
 
-/**
- * Copies still physically out on a loan.
- * @returns `quantity - returnedQuantity`, never negative.
- */
 export function outstandingQuantity(loan: LoanResponse): number {
   return Math.max(0, loan.quantity - loan.returnedQuantity);
 }
 
-/**
- * Display name for the other party of a loan: the member's name, the free-text
- * borrower name, or a placeholder for a member who deleted their account.
- * @returns The counterparty label.
- */
 export function loanCounterpartyLabel(loan: LoanResponse): string {
   return loan.counterparty?.name ?? loan.counterpartyName ?? "Former member";
 }
 
-/**
- * Tooltip sentence for a deck row's borrow glyph — the mirror of
- * `lockedReasonText`. Borrowed copies are in hand and count as buildable, so
- * without this the row says nothing at all about where they came from.
- * Lenders may be empty when the loans feed hasn't loaded yet, which reads as
- * the vaguer "from a friend" rather than an empty name.
- * @returns One sentence naming the borrowed copies and who they came from.
- */
+/** An empty `lenders` means the loans feed hasn't loaded yet, not that there are none. */
 export function borrowedReasonText(count: number, lenders: readonly string[]): string {
   const copies = count === 1 ? "1 copy is" : `${count} copies are`;
   if (lenders.length === 0) {
@@ -55,16 +35,9 @@ export function borrowedReasonText(count: number, lenders: readonly string[]): s
   return `${copies} borrowed from ${names}`;
 }
 
-/** The Loans-page bucket a loan renders in. */
 export type LoanSection = "attention" | "lent" | "borrowed" | "history";
 
-/**
- * Buckets a loan for the Loans page (ADR-039): closed loans are history;
- * an unconfirmed borrowed loan or a rejected lent loan needs attention;
- * everything else splits by role. A borrower's rejected loans are hidden
- * entirely (they disowned it; it stays visible to the lender).
- * @returns The section, or `null` when the loan is hidden from the viewer.
- */
+/** A borrower's rejected loans are hidden entirely; they stay visible to the lender. */
 export function loanSection(loan: LoanResponse): LoanSection | null {
   if (loan.status !== "active") {
     return "history";

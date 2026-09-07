@@ -63,10 +63,6 @@ describe("sanitize-preferences — topLevelFilters", () => {
 });
 
 describe("sanitize-preferences — languages", () => {
-  // Migration 204 renamed ZH to SC in the database. localStorage is out of a
-  // migration's reach, so a returning user's persisted "ZH" has to be remapped
-  // on read or it filters on a code no printing carries — an empty grid with an
-  // active filter chip and no error anywhere.
   describe("retired language codes", () => {
     it("rewrites a persisted ZH to SC", () => {
       const { overrides } = sanitizeOverrides({ overrides: { languages: ["ZH"] } });
@@ -79,8 +75,6 @@ describe("sanitize-preferences — languages", () => {
     });
 
     it("collapses ZH and SC to one entry rather than emitting a duplicate", () => {
-      // The preferences contract rejects duplicates, so a user holding both the
-      // old and new code must not end up with ["SC", "SC"].
       const { overrides } = sanitizeOverrides({ overrides: { languages: ["SC", "ZH"] } });
       expect(overrides.languages).toEqual(["SC"]);
     });
@@ -96,8 +90,6 @@ describe("sanitize-preferences — languages", () => {
     });
 
     it("passes through unknown codes rather than dropping them", () => {
-      // Languages are DB rows, not a compile-time enum — an admin can add one
-      // any time, so an unrecognized code is not necessarily a stale one.
       const { overrides } = sanitizeOverrides({ overrides: { languages: ["JA"] } });
       expect(overrides.languages).toEqual(["JA"]);
     });
@@ -122,7 +114,6 @@ describe("sanitize-preferences — maxColumns", () => {
   });
 
   it("keeps an explicit null, which means auto", () => {
-    // null is a real setting here, distinct from "the blob has no value".
     expect(sanitizeOverrides({ overrides: {}, maxColumns: null }).maxColumns).toBeNull();
   });
 
@@ -137,7 +128,6 @@ describe("sanitize-preferences — maxColumns", () => {
 });
 
 describe("sanitize-preferences — legacy flat persisted shape", () => {
-  // Before the overrides split, every field sat at the top level of the blob.
   it("reads top-level fields when there is no overrides key", () => {
     const { overrides } = sanitizeOverrides({ showImages: false, defaultCurrency: "EUR" });
 
@@ -161,8 +151,6 @@ describe("sanitize-preferences — legacy flat persisted shape", () => {
   });
 
   it("leaves foilEffect unset when richEffects was on, since it has no tri-state answer", () => {
-    // Only `richEffects: false` maps onto foilEffect; a true value falls
-    // through to null so the current default applies.
     const { overrides } = sanitizeOverrides({ richEffects: true });
 
     expect(overrides.fancyFan).toBe(true);
@@ -266,8 +254,6 @@ describe("sanitizePaneDocked", () => {
   });
 
   it("leaves blobs written before the pane became opt-in on the default", () => {
-    // A pre-toggle blob carries displayMode and friends but no paneDocked, so
-    // those users land on the modal rather than inheriting a docked pane.
     expect(sanitizePaneDocked({ displayMode: "grid", filtersExpanded: true }, false)).toBe(false);
   });
 });
@@ -279,8 +265,6 @@ describe("sanitizeTierTileStep", () => {
   });
 
   it("falls back for a step past the end of the ladder", () => {
-    // A blob written when the ladder was longer must not strand the board on a
-    // step that no longer exists.
     expect(sanitizeTierTileStep({ tierTileStep: 9 }, 6, 2)).toBe(2);
     expect(sanitizeTierTileStep({ tierTileStep: -1 }, 6, 2)).toBe(2);
   });
@@ -309,8 +293,6 @@ describe("sanitizeThemePreference", () => {
   });
 
   it("treats an explicit null preference as set, not as a missing key", () => {
-    // A user who cleared their preference stores null. Falling back to the
-    // legacy `theme` here would resurrect a choice they just dropped.
     expect(sanitizeThemePreference({ preference: null, theme: "dark" })).toBeNull();
   });
 

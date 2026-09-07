@@ -22,9 +22,7 @@ export const Route = createFileRoute("/_app/decks_/share/$token")({
       return seoHead({ siteUrl, title: "Shared deck", path, unlisted: true });
     }
     const { deck, owner } = data;
-    // Server-rendered beautified deck image (ADR-031): Legend hero, rune-domain
-    // summary, battlefields, and the cost-sorted deck. Versioned off the deck's
-    // updatedAt (bumped on every card change), so the immutable URL busts on edit.
+    // Versioned off the deck's updatedAt so the immutable image URL busts on edit.
     const ogImage = deckShareImageUrl(siteUrl, params.token, shareImageVersion(deck.updatedAt));
     // The `<head>` strings ship in the HTML before /init runs, so the
     // admin-managed display label isn't available here.
@@ -60,12 +58,7 @@ export const Route = createFileRoute("/_app/decks_/share/$token")({
   notFoundComponent: SharedDeckNotFound,
 });
 
-/**
- * Loading skeleton that mirrors the loaded page's shape: the KPI strip, the
- * small-zone tile row, and the main-deck block, so content pops in without a
- * layout jump.
- * @returns The share-page pending skeleton.
- */
+/** Mirrors the loaded page's shape (KPI strip, zone tiles, deck block) so content pops in without a layout jump. */
 function SharedDeckPending() {
   return (
     <div className={cn(PAGE_PADDING, PAGE_WIDTH.full, "flex flex-col gap-6 py-4 pt-6")}>
@@ -85,11 +78,6 @@ function SharedDeckPending() {
   );
 }
 
-/**
- * Shown when the share token resolves to nothing — a revoked link or a
- * mistyped/truncated one. Says so instead of the generic 404 joke.
- * @returns The revoked-share-link explanation.
- */
 function SharedDeckNotFound() {
   return (
     <div className={cn(PAGE_PADDING, PAGE_WIDTH.full)}>

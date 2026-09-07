@@ -36,8 +36,6 @@ type UpdateListEntryInput = Omit<
   entryId: string;
 };
 
-// ── LIST ─────────────────────────────────────────────────────────────────────
-
 const fetchLists = createServerFn({ method: "GET" })
   .validator((input: { intent?: ListIntent } | undefined) => input)
   .middleware([withCookies])
@@ -89,8 +87,6 @@ export function useListDetail(listId: string) {
   return useSuspenseQuery(listDetailQueryOptions(userId, listId));
 }
 
-// ── MUTATIONS ────────────────────────────────────────────────────────────────
-
 const createListFn = createServerFn({ method: "POST" })
   .validator((input: CreateListInput) => input)
   .middleware([withCookies])
@@ -102,8 +98,6 @@ export function useCreateList() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (body: CreateListInput) => createListFn({ data: body }),
-    // Invalidate the un-filtered key plus the intent-filtered key so both
-    // the "all lists" and the per-intent sidebar groups refresh.
     invalidates: (variables) => [
       queryKeys.lists.all(userId),
       queryKeys.lists.all(userId, variables.intent),
@@ -130,13 +124,6 @@ export function useUpdateList() {
   });
 }
 
-/**
- * Moves a list behind the sidebar's "Show more" toggle, or back out of it.
- * Optimistic because the row jumps groups the instant you pick the menu item —
- * waiting a round-trip there reads as a menu that did nothing.
- *
- * @returns A mutation taking `{ listId, hidden }`.
- */
 export function useSetListSidebarHidden() {
   const userId = useRequiredUserId();
   const queryClient = useQueryClient();
@@ -164,8 +151,7 @@ export function useSetListSidebarHidden() {
       if (context?.previous) {
         queryClient.setQueryData(queryKeys.lists.all(userId), context.previous);
       }
-      // Declaring onError here replaces the QueryClient's default one, so the
-      // rollback would otherwise put the row back with nothing saying why.
+      // Replaces the QueryClient's default onError; report here or the rollback is silent.
       reportMutationError(error, queryClient);
     },
     onSettled: () => {
@@ -196,14 +182,6 @@ const reorderListsFn = createServerFn({ method: "POST" })
     await apiOrpcClient(listsContract, context.cookie).reorder(data);
   });
 
-/**
- * Reorders the user's lists within one intent bucket. Lists from other
- * intents stay where they are in the cache. On error we restore the
- * snapshot we took in `onMutate`.
- *
- * @returns A mutation that takes `{ intent, orderedIds }` and reorders the
- *   matching intent bucket in the sidebar.
- */
 export function useReorderLists() {
   const userId = useRequiredUserId();
   const queryClient = useQueryClient();
@@ -229,9 +207,8 @@ export function useReorderLists() {
       if (context?.previous) {
         queryClient.setQueryData(queryKeys.lists.all(userId), context.previous);
       }
-      // Declaring onError here replaces the QueryClient's default one, so the
-      // rollback would otherwise revert the order with nothing telling the user
-      // the reorder failed.
+      // Replaces the QueryClient's default onError; report here or the rollback
+      // reverts silently.
       reportMutationError(error, queryClient);
     },
     onSettled: () => {
@@ -239,8 +216,6 @@ export function useReorderLists() {
     },
   });
 }
-
-// ── ENTRIES ──────────────────────────────────────────────────────────────────
 
 const bulkAddEntriesFn = createServerFn({ method: "POST" })
   .validator(
@@ -282,12 +257,8 @@ export function useBulkAddListEntries() {
     { prev: ListDetailResponse | undefined }
   >({
     mutationFn: (vars) => bulkAddEntriesFn({ data: vars }),
-    // Optimistic update: bump the quantity of any matching existing entry
-    // *before* the server responds, so rapid +/- clicks render the new value
-    // immediately. Fresh adds (no matching entry yet) wait for the refetch —
-    // we don't have card/printing detail on the variables to fabricate a
-    // synthetic entry, and the 0 → 1 transition isn't visually jarring the
-    // way a backwards n+1 → n flicker is.
+    // Bumps a matching existing entry's quantity before the server responds. Fresh
+    // adds wait for the refetch: there's no card/printing detail here to fabricate one.
     onMutate: async (vars) => {
       const detailKey = queryKeys.lists.detail(userId, vars.listId);
       await queryClient.cancelQueries({ queryKey: detailKey });
@@ -328,9 +299,7 @@ export function useBulkAddListEntries() {
       if (context?.prev !== undefined) {
         queryClient.setQueryData(queryKeys.lists.detail(userId, vars.listId), context.prev);
       }
-      // This handler replaces the QueryClient's default onError, so the failed
-      // add needs its toast raised here — otherwise the quantity just snaps
-      // back with no explanation.
+      // Replaces the QueryClient's default onError; report here or the revert is silent.
       reportMutationError(err, queryClient);
     },
     onSettled: (_data, _err, vars) => {
@@ -340,8 +309,8 @@ export function useBulkAddListEntries() {
   });
 }
 
-// Drag-from-collections sugar. The server derives the right entry shape from
-// the list's kind, so the client just passes raw copy IDs.
+// The server derives the right entry shape from the list's kind, so the client
+// just passes raw copy IDs.
 const bulkAddCopiesToListFn = createServerFn({ method: "POST" })
   .validator((input: { listId: string; copyIds: string[] }) => input)
   .middleware([withCookies])
@@ -363,9 +332,6 @@ export function useBulkAddCopiesToList() {
   });
 }
 
-// List-to-list move. The server enforces same-kind + same-intent + same-user.
-// We invalidate both list details + the lists index so the source's grid
-// drops the entries and the destination's gains them.
 const moveListEntriesFn = createServerFn({ method: "POST" })
   .validator((input: { fromListId: string; toListId: string; entryIds: string[] }) => input)
   .middleware([withCookies])
@@ -414,9 +380,6 @@ export function useUpdateListEntry() {
     { prev: ListDetailResponse | undefined }
   >({
     mutationFn: (vars) => updateListEntryFn({ data: vars }),
-    // Same optimistic-update pattern as useBulkAddListEntries — update the
-    // entry's quantity/override in the cache immediately so the row renders
-    // the new values on click, then reconcile via the invalidation in onSettled.
     onMutate: async (vars) => {
       const detailKey = queryKeys.lists.detail(userId, vars.listId);
       await queryClient.cancelQueries({ queryKey: detailKey });
@@ -444,8 +407,7 @@ export function useUpdateListEntry() {
       if (context?.prev !== undefined) {
         queryClient.setQueryData(queryKeys.lists.detail(userId, vars.listId), context.prev);
       }
-      // Same as the bulk-add above: the default toast is replaced by this
-      // handler, so report the failure before the entry reverts.
+      // Replaces the QueryClient's default onError; report here or the revert is silent.
       reportMutationError(err, queryClient);
     },
     onSettled: (_data, _err, vars) => {
@@ -496,8 +458,6 @@ export function useBulkRemoveListEntries() {
     ],
   });
 }
-
-// ── SHARING ──────────────────────────────────────────────────────────────────
 
 const shareListFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)

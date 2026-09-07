@@ -23,20 +23,12 @@ import { withTimeout } from "@/lib/with-timeout";
 
 const BATCH_SIZE = 500;
 
-// Shown when every id in a batch mutation (move/dispose/update) turned out to
-// be a temp id (still in flight from useBatchedAddCopies) — rejecting instead
-// of silently no-op-ing keeps the caller's onError path (error toast,
-// selection kept) instead of a success toast for an action that did nothing.
 const STILL_ADDING_ERROR_MESSAGE = "These cards are still being added. Try again in a moment.";
 
 /**
  * Resolves a collection's owning group from the cached collections list, so
  * optimistic copy rows carry the same `groupId` the server feed would assign.
- * Without it, a copy added to a group collection would briefly count as a
- * personal "owned" copy until the next feed refetch. Returns null for personal
- * collections (and when the collection isn't cached yet — the common case is
- * personal, and a refetch corrects any miss).
- * @returns The collection's group id, or null.
+ * Returns null for personal collections and when the collection isn't cached yet.
  */
 function groupIdForCollection(
   queryClient: QueryClient,
@@ -78,13 +70,9 @@ export function useCopies(collectionId?: string): {
 
 /**
  * Which of the viewer's own lists reference `copyIds`. Backs the dispose
- * confirmation's cross-list warning, so it stays disabled until `enabled` (the
- * dialog is open) and there is at least one id. Ids are deduped + sorted for a
- * stable query key across selection order. Pass `excludeListId` to drop the
- * originating list from the result — used by the "Sold" action on a list page,
- * where the copy is necessarily on the current list and only the *other* lists
- * are worth warning about.
- * @returns react-query result carrying a `CopyListMembershipsResponse`.
+ * confirmation's cross-list warning. Ids are deduped and sorted for a stable
+ * query key across selection order. Pass `excludeListId` to drop the
+ * originating list from the result (the "Sold" action on a list page).
  */
 export function useCopyListMemberships(
   copyIds: string[],
@@ -103,22 +91,6 @@ export function useCopyListMemberships(
   });
 }
 
-// ── Mutations ────────────────────────────────────────────────────────────────
-//
-// All three mutations run entirely client-side: direct fetch to /api/v1/*
-// with an AbortController so the timeout can actually cancel the in-flight
-// request (vs the createServerFn indirection, which stalls indefinitely
-// when the client can't reach the Start server).
-//
-// Optimistic state flows through the copies collection:
-//   - Adds: writeInsert with a temp id at click time (in useBatchedAddCopies);
-//     the mutation swaps temp → real via writeBatch on success, writeDelete
-//     on error.
-//   - Moves: collection.update inside createTransaction; mutationFn confirms
-//     via utils.writeUpdate.
-//   - Deletes: collection.delete inside createTransaction; mutationFn
-//     confirms via utils.writeDelete.
-
 /** A created copy as returned by POST /copies — CopyResponse minus groupId
  *  (derived client-side from the cached collections list). */
 type AddCopyResult = Omit<CopyResponse, "groupId">;
@@ -134,12 +106,8 @@ const EMPTY_COPY_METADATA = {
   links: [],
 } satisfies Partial<CopyResponse>;
 
-// Normalize a genuine network failure (offline/DNS/CORS, which fetch throws as a
-// TypeError) into a message the toast can show. An abort throws a
-// DOMException("AbortError"), which is NOT a TypeError and so propagates
-// untouched to withTimeout — exactly as before. A non-2xx becomes an ApiError
-// (from callApi/callApiJson) carrying the server's message, also propagated.
-// Shared by the three copy mutations, all of which run directly in the browser.
+// fetch throws a TypeError for offline/DNS/CORS failures; an abort throws
+// DOMException("AbortError") instead and must propagate untouched.
 function rethrowAsNetworkError(error: unknown): never {
   if (error instanceof TypeError) {
     // oxlint-disable-next-line unicorn/prefer-type-error -- this is a network failure, not a type check
@@ -153,8 +121,6 @@ async function addCopiesApi(
   signal: AbortSignal,
 ): Promise<AddCopyResult[]> {
   try {
-    // POST /copies returns the { items } envelope (CopyAddResponse) — the typed
-    // client infers it, so the caller maps over the real array, not the object.
     const { items } = await browserApiOrpcClient(copiesContract).add(body, { signal });
     return items;
   } catch (error) {
@@ -187,22 +153,13 @@ export function useAddCopies() {
   const copiesCollection = useCopiesCollection();
 
   return useMutation({
-    // "always" means the mutationFn runs regardless of browser online state.
-    // Default is "online", which *pauses* the mutation when offline — fetch
-    // never fires, our AbortController / withTimeout never trigger, the user
-    // sees the optimistic temp row stuck with zero feedback. We want: fetch
-    // fires, fails fast with TypeError, catch runs writeDelete + toast.
+    // Default networkMode "online" pauses the mutation while offline, leaving
+    // the optimistic temp row stuck with no feedback.
     networkMode: "always",
     mutationFn: async (body: {
       copies: { printingId: string; collectionId?: string }[];
-      // Caller-provided temp ids for optimistic rows already in the synced
-      // store (see useBatchedAddCopies). On success we swap temps → reals
-      // atomically; on failure we remove the temps.
       tempIds?: string[];
     }): Promise<AddCopyResult[]> => {
-      // Hook runs on the public /cards page (via useQuickAddActions ->
-      // useBatchedAddCopies), but the add buttons are gated on isLoggedIn,
-      // so reaching mutationFn without a userId means a UI bug.
       if (!userId) {
         throw new Error("Cannot add copies while signed out");
       }
@@ -231,19 +188,12 @@ export function useAddCopies() {
             copiesCollection.utils.writeInsert(realRows);
           }
         }
-        // Mark the shared per-user copies cache stale (without an eager
-        // refetch). The collection's queryFn reads this cache via
-        // query(), so without invalidation the next refetch (e.g.
-        // on network reconnect) would hand back pre-mutation data and
-        // clobber our writes to the synced store.
+        // Marks the cache stale without refetching, so a later refetch (e.g. on
+        // reconnect) doesn't hand back pre-mutation data and clobber the synced store.
         void queryClient.invalidateQueries({
           queryKey: queryKeys.copies.all(userId),
           refetchType: "none",
         });
-        // Refetch the collections list so the header's totalValueCents /
-        // unpricedCopyCount catch up. copyCount is already live (derived
-        // from the copies collection in useCollections), but value totals
-        // are computed server-side via joins to the price table.
         void queryClient.invalidateQueries({
           queryKey: queryKeys.collections.all(userId),
         });
@@ -276,31 +226,14 @@ export function useMoveCopies() {
       if (!userId || !copiesCollection) {
         return;
       }
-      // Drop optimistic temp ids — they reference rows still in flight from
-      // useBatchedAddCopies and aren't valid uuids, so the move API would
-      // 400. The temp row's collectionId was set at insert time, and the
-      // server-assigned row that replaces it on add-success will inherit
-      // whatever collection the original add targeted; treating the move as
-      // a no-op for in-flight rows keeps the user's intent local to this
-      // mutation rather than reaching across the in-flight add.
+      // Temp ids aren't valid uuids, so the move API would 400; treat as a no-op.
       const realCopyIds = copyIds.filter((id) => !isTempCopyId(id));
       if (realCopyIds.length === 0) {
-        // Every id was a temp id still in flight from an optimistic add —
-        // there is nothing real to move. Reject so the caller's onError
-        // path fires (error toast, selection kept) instead of resolving as
-        // if the move happened.
         throw new Error(STILL_ADDING_ERROR_MESSAGE);
       }
       const collection = copiesCollection;
-      // A move across the personal/group boundary changes who owns the copy,
-      // so the row's derived `groupId` has to travel with `collectionId`. The
-      // server recomputes it from the destination collection, but the
-      // invalidation below is `refetchType: "none"`, so nothing re-reads the
-      // feed and a row written with only the new `collectionId` keeps its old
-      // `groupId` for the rest of the session. That is what left the viewer's
-      // owned totals unchanged after taking a card out of a group's bulk box:
-      // personal counts skip every copy with a `groupId`, so the taken copy
-      // stayed invisible to them.
+      // groupId must travel with collectionId: the invalidation below is
+      // refetchType "none", so nothing re-reads the feed to recompute it.
       const toGroupId = groupIdForCollection(queryClient, userId, toCollectionId);
       const tx = createTransaction<CopyResponse>({
         mutationFn: async ({ transaction }) => {
@@ -314,10 +247,8 @@ export function useMoveCopies() {
                 abortController: controller,
               },
             );
-            // Confirm this chunk in the synced store immediately, so a later
-            // chunk's failure only rolls back the not-yet-committed
-            // remainder instead of discarding chunks the server already
-            // committed.
+            // Confirm each chunk immediately so a later chunk's failure only rolls
+            // back the not-yet-committed remainder.
             collection.utils.writeUpdate(
               batch.map((id) => ({ id, collectionId: toCollectionId, groupId: toGroupId })),
             );
@@ -326,9 +257,6 @@ export function useMoveCopies() {
             queryKey: queryKeys.copies.all(userId),
             refetchType: "none",
           });
-          // Refresh per-collection totals. The source and destination
-          // collections' totalValueCents shift even though the global total
-          // doesn't.
           void queryClient.invalidateQueries({
             queryKey: queryKeys.collections.all(userId),
           });
@@ -359,12 +287,8 @@ async function updateCopiesApi(
 }
 
 /**
- * Applies one metadata patch (condition, grading, notes, links — ADR-038) to a
- * batch of copies, optimistically. The patch is normalized with the same
- * shared helper the server uses, so the optimistic rows match what the next
- * feed refetch would return.
- *
- * @returns The mutation; call `mutate({ copyIds, patch })`.
+ * Applies one metadata patch (condition, grading, notes, links) to a batch of
+ * copies, optimistically.
  */
 export function useUpdateCopies() {
   const userId = useUserId();
@@ -377,14 +301,8 @@ export function useUpdateCopies() {
       if (!userId || !copiesCollection) {
         return;
       }
-      // Drop optimistic temp ids — rows still in flight from
-      // useBatchedAddCopies aren't valid uuids, so the API would 400.
       const realCopyIds = copyIds.filter((id) => !isTempCopyId(id));
       if (realCopyIds.length === 0) {
-        // Every id was a temp id still in flight from an optimistic add —
-        // there is nothing real to update. Reject so the caller's onError
-        // path fires (error toast, selection kept) instead of resolving as
-        // if the update happened.
         throw new Error(STILL_ADDING_ERROR_MESSAGE);
       }
       const applied = definedCopyMetadataFields(normalizeCopyMetadataPatch(patch));
@@ -398,10 +316,8 @@ export function useUpdateCopies() {
               label: "Update copies",
               abortController: controller,
             });
-            // Confirm this chunk in the synced store immediately, so a
-            // later chunk's failure only rolls back the not-yet-committed
-            // remainder instead of discarding chunks the server already
-            // committed.
+            // Confirm each chunk immediately so a later chunk's failure only rolls
+            // back the not-yet-committed remainder.
             collection.utils.writeUpdate(batch.map((id) => ({ id, ...applied })));
           }
           void queryClient.invalidateQueries({
@@ -422,8 +338,6 @@ export function useUpdateCopies() {
   });
 }
 
-// ── Batched add ─────────────────────────────────────────────────────────────
-
 const BATCH_DELAY = 300;
 
 interface PendingAdd {
@@ -442,25 +356,18 @@ interface BatchedAddCallbacks {
 /**
  * Batches rapid add-copy calls into a single POST request and applies
  * optimistic inserts into the copies collection so owned-count reflects the
- * new rows immediately. On API success, temp rows are swapped for server-
- * assigned rows atomically. On failure, temps are removed.
+ * new rows immediately.
  *
  * Caller must pass a concrete collectionId — the inbox-default path doesn't
  * support optimistic because the inbox id isn't known from the add call.
- *
- * Optional batch callbacks fire once per API batch (not per add), so callers
- * can surface one toast per batch instead of one per click.
- * @returns An `add` function, a `tempId` provider for optimistic session
- *   tracking, and an `isPending` flag.
  */
 export function useBatchedAddCopies(callbacks?: BatchedAddCallbacks) {
   const copiesCollection = useCopiesCollection();
   const addCopies = useAddCopies();
   const queryClient = useQueryClient();
   const userId = useUserId();
-  // useBatcher captures its handler once; ref keeps the latest callbacks
-  // so we don't recreate the batcher whenever the consumer re-renders.
-  // Update in an effect — writing to a ref during render trips React Compiler.
+  // useBatcher captures its handler once; ref keeps callbacks current without
+  // recreating it. Updated in an effect, not during render, to satisfy React Compiler.
   const callbacksRef = useRef(callbacks);
   useEffect(() => {
     callbacksRef.current = callbacks;
@@ -500,12 +407,6 @@ export function useBatchedAddCopies(callbacks?: BatchedAddCallbacks) {
     printingId: string,
     collectionId: string,
   ): { tempId: string; result: Promise<AddCopyResult> } => {
-    // Optimistic: insert the row into the synced store immediately with a
-    // temp id so owned-count / grid filters update now, not after the 300ms
-    // batch window + API round-trip. The mutation swaps this for the real
-    // server-assigned row on success. The tempId is returned so callers
-    // can record it in session-level "recently added" UI immediately and
-    // swap for the real id after the API confirms.
     const tempId = `${TEMP_COPY_ID_PREFIX}${randomUuid()}`;
     if (copiesCollection) {
       const groupId = userId ? groupIdForCollection(queryClient, userId, collectionId) : null;
@@ -542,17 +443,10 @@ export function useDisposeCopies() {
       if (!userId || !copiesCollection) {
         return;
       }
-      // Drop optimistic temp ids — they reference rows still in flight from
-      // useBatchedAddCopies and aren't valid uuids, so the API would 400.
-      // Leaving the temp row alone here also avoids the swap-after-delete
-      // race where the add would later re-insert a real row the user thought
-      // they removed.
+      // Temp rows are left alone, not deleted: deleting risks a swap-after-delete
+      // race where the add later re-inserts a row the user thought they removed.
       const realCopyIds = copyIds.filter((id) => !isTempCopyId(id));
       if (realCopyIds.length === 0) {
-        // Every id was a temp id still in flight from an optimistic add —
-        // there is nothing real to dispose. Reject so the caller's onError
-        // path fires (error toast, selection kept) instead of resolving as
-        // if the dispose happened.
         throw new Error(STILL_ADDING_ERROR_MESSAGE);
       }
       const collection = copiesCollection;
@@ -565,18 +459,14 @@ export function useDisposeCopies() {
               label: "Dispose copies",
               abortController: controller,
             });
-            // Confirm this chunk's deletions in the synced store
-            // immediately, so a later chunk's failure only rolls back the
-            // not-yet-committed remainder instead of discarding chunks the
-            // server already committed.
+            // Confirm each chunk immediately so a later chunk's failure only rolls
+            // back the not-yet-committed remainder.
             collection.utils.writeDelete(batch);
           }
           void queryClient.invalidateQueries({
             queryKey: queryKeys.copies.all(userId),
             refetchType: "none",
           });
-          // Refresh the collections list so the header's totalValueCents /
-          // unpricedCopyCount drop to match the new copies state.
           void queryClient.invalidateQueries({
             queryKey: queryKeys.collections.all(userId),
           });

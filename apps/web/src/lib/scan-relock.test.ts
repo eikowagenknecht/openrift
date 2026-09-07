@@ -2,11 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { RELOCK_EMPTY_GUIDE_MS, createRelockGuard } from "./scan-relock";
 
-/**
- * Hold the guide empty for `ms`, in the small steps a frame loop delivers.
- *
- * @returns The clock reading the last observed frame carried.
- */
+/** Holds the guide empty for `ms`, in the small steps a frame loop delivers. */
 function holdEmpty(guard: ReturnType<typeof createRelockGuard>, from: number, ms: number): number {
   for (let at = from; at <= from + ms; at += 100) {
     guard.observe(false, at);
@@ -24,7 +20,6 @@ describe("createRelockGuard", () => {
     const guard = createRelockGuard();
     guard.observe(true, 0);
     guard.note("lux", 0);
-    // The engine re-armed on a wobble and locked the same card again.
     guard.observe(true, 400);
     expect(guard.allows("lux")).toBe(false);
   });
@@ -49,8 +44,6 @@ describe("createRelockGuard", () => {
     const guard = createRelockGuard();
     guard.note("lux", 0);
     holdEmpty(guard, 100, RELOCK_EMPTY_GUIDE_MS - 400);
-    // The card drifts back in, so the stretch that was nearly long enough is
-    // not banked.
     guard.observe(true, 2000);
     holdEmpty(guard, 2100, RELOCK_EMPTY_GUIDE_MS - 400);
     expect(guard.allows("lux")).toBe(false);

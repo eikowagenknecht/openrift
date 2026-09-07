@@ -1,18 +1,12 @@
 export interface Seat {
   id: string;
-  /** Rotated 180° so a player seated on the far side of the table reads it upright. */
   rotated: boolean;
 }
 
 /**
- * Arrange the players around the phone for the match board.
- *
- * The first half of the roster always sits on the far side of the table and is
- * rotated 180°. Landscape keeps a two-row grid; portrait stacks everyone into a
- * single column so two panels never have to share a narrow phone width. In
- * portrait the far-side players come first, reversed so the seating still reads
- * clockwise (e.g. four players → B A C D top to bottom).
- * @returns Rows of seats, top to bottom; each row lays its seats left to right.
+ * The first half of the roster sits on the far side of the table, rotated
+ * 180°. Portrait stacks everyone into one column, far-side first and
+ * reversed, so the seating still reads clockwise (four players → B A C D).
  */
 export function planSeats(ids: string[], isLandscape: boolean): Seat[][] {
   const topCount = Math.floor(ids.length / 2);
@@ -35,14 +29,8 @@ export function planSeats(ids: string[], isLandscape: boolean): Seat[][] {
   return column.map((seat) => [seat]);
 }
 
-/** Gap (px) between board rows; mirrors the `gap-2` in the board layout. */
 const ROW_GAP = 8;
 
-/**
- * Height (px) one panel gets, given the measured board height split across its
- * rows. Drives how large the score can be.
- * @returns The per-row pixel height, or 0 when nothing has been measured yet.
- */
 export function perRowHeight(boardHeight: number, rowCount: number): number {
   if (rowCount <= 0 || boardHeight <= 0) {
     return 0;
@@ -50,12 +38,7 @@ export function perRowHeight(boardHeight: number, rowCount: number): number {
   return (boardHeight - ROW_GAP * (rowCount - 1)) / rowCount;
 }
 
-/**
- * Pick the Tailwind text size for the score so it grows on tall cards and
- * shrinks to fit short ones. The match score is a display numeral and is the
- * one place the type scale extends past `text-5xl` (see docs/typography.md).
- * @returns A `text-*` class from `text-4xl` up to `text-9xl`.
- */
+/** The match score is the one place the type scale extends past `text-5xl` (docs/typography.md). */
 export function scoreSizeClass(panelHeight: number): string {
   if (panelHeight >= 380) {
     return "text-9xl";
@@ -78,10 +61,8 @@ export function scoreSizeClass(panelHeight: number): string {
 export type MedallionSize = "sm" | "md" | "lg";
 
 /**
- * Pick a size tier for the three scoring medallions. They sit at the panel's
- * outer edge and compete with the score for height, so a four-player board
- * drops to the small tier, which also hides their labels.
- * @returns The medallion size tier for the given per-panel height.
+ * The three medallions compete with the score for height; a four-player
+ * board drops to the small tier and hides their labels.
  */
 export function medallionSizeTier(panelHeight: number): MedallionSize {
   if (panelHeight >= 300) {
@@ -95,12 +76,6 @@ export function medallionSizeTier(panelHeight: number): MedallionSize {
 
 export type XpSize = "sm" | "md" | "lg" | "xl";
 
-/**
- * Pick an XP-cluster size tier that scales with the panel height, roughly
- * tracking the score: small on cramped phone cards, about double on a
- * two-player board, larger still on a big desktop window.
- * @returns The XP size tier for the given per-panel height.
- */
 export function xpSizeTier(panelHeight: number): XpSize {
   if (panelHeight >= 320) {
     return "xl";

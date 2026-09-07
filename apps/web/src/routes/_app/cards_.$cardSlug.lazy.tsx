@@ -83,8 +83,6 @@ const PriceHistoryChart = lazy(async () => {
   return { default: m.PriceHistoryChart };
 });
 
-// Split out so the logged-out SEO path never downloads the copies collection
-// and its live-query machinery.
 const CardPageCollectionActions = lazy(async () => {
   const m = await import("@/components/cards/card-page-collection-actions");
   return { default: m.CardPageCollectionActions };
@@ -102,8 +100,6 @@ function CardDetailPage() {
   const { card, sets } = data;
   const { labels } = useEnumOrders();
   const effectiveLanguageOrder = useEffectiveLanguageOrder();
-  // Sort by the DB-computed canonicalRank (via the `printings_ordered` view).
-  // User language preference overrides the language axis client-side.
   const rankByLang = new Map(effectiveLanguageOrder.map((lang, i) => [lang, i]));
   const unlistedRank = effectiveLanguageOrder.length;
   const printings = data.printings.toSorted((a, b) => {
@@ -111,20 +107,15 @@ function CardDetailPage() {
     const bRank = rankByLang.get(b.language) ?? unlistedRank;
     return aRank - bRank || a.canonicalRank - b.canonicalRank;
   });
-  // Derived from `?printingId=`, never held in state: the route component
-  // stays mounted when only `$cardSlug` changes (e.g. following a related-card
-  // link), so a useState here kept showing the previous card's printing. The
-  // same helper drives the SSR meta tags, so page and unfurl always agree.
+  // Derived from `?printingId=`, not useState: the route stays mounted across
+  // `$cardSlug` changes, and state would keep showing the previous card's printing.
   const selectedPrinting = resolveCardMetaPrinting(
     printings,
     linkedPrintingId,
     effectiveLanguageOrder,
   );
 
-  // Mirror the selected printing into `?printingId=` so the URL is shareable
-  // (deep-link unfurls read this in the route's `head()`). The canonical tag
-  // still points at `/cards/$cardSlug`, so search engines don't see variants
-  // as duplicates.
+  // Mirrored into `?printingId=`; the route's `head()` reads this for deep-link unfurls.
   const selectPrinting = (printing: Printing) => {
     void navigate({
       to: ".",
@@ -148,8 +139,6 @@ function CardDetailPage() {
   const isLandscape = getOrientation(card.types) === "landscape";
   const heroWidth = isLandscape ? 558 : 400;
   const heroHeight = isLandscape ? 400 : 558;
-  // End of the hero's image chain: printing image → standard-art fallback →
-  // this drawn placeholder.
   const heroPlaceholder = (
     <CardPlaceholderImage
       name={card.name}
@@ -171,9 +160,6 @@ function CardDetailPage() {
     />
   );
 
-  // Substitute artwork (same-language standard printing, else EN) shown when
-  // the selected printing has no image or its image fails to load. The nested
-  // ImgWithFallback keeps the drawn placeholder as the chain's last resort.
   const heroFallbackArt = findStandardArtFallback(selectedPrinting, printings);
   const heroFallback = heroFallbackArt ? (
     <div className="relative">
@@ -195,8 +181,6 @@ function CardDetailPage() {
     heroPlaceholder
   );
 
-  // Info table rows: printing-specific on the left, card-level on the right.
-  // The right column sits beside the left on desktop and stacks below on mobile.
   const leftRows: [string, ReactNode][] = [
     [
       "Set",
@@ -326,7 +310,6 @@ function CardDetailPage() {
       </PageTopBarSticky>
       <div className={cn(PAGE_WIDTH.capped, PAGE_PADDING_NO_TOP, "flex flex-col gap-4 pt-3")}>
         <div className="flex flex-col gap-6 md:flex-row">
-          {/* Left column: card image */}
           <div className="shrink-0 md:w-80">
             {frontImage ? (
               <ImgWithFallback
@@ -345,7 +328,6 @@ function CardDetailPage() {
             )}
           </div>
 
-          {/* Right column: card info */}
           <CardPanel className="min-w-0 flex-1 p-4">
             <table className="w-full table-fixed text-sm">
               <tbody>
@@ -370,7 +352,6 @@ function CardDetailPage() {
                     </tr>
                   );
                 })}
-                {/* Right column rows stacked on mobile */}
                 {/* oxlint-disable-next-line jsx-a11y/control-has-associated-label -- presentational info-table row, not a control */}
                 <tr className="sm:hidden">
                   {/* oxlint-disable-next-line jsx-a11y/control-has-associated-label -- presentational info-table cell, not a control */}
@@ -389,7 +370,6 @@ function CardDetailPage() {
               </tbody>
             </table>
 
-            {/* Full-width rows: text, errata, bans */}
             <table className="w-full table-fixed text-sm">
               <tbody>
                 {selectedPrinting.printedRulesText && (
@@ -479,7 +459,6 @@ function CardDetailPage() {
 
         <CollectionSlot cardSlug={cardSlug} printing={selectedPrinting} siblings={printings} />
 
-        {/* Printings grouped by language */}
         {printings.length > 0 &&
           [...Map.groupBy(printings, (p) => p.language)].map(([lang, group]) => (
             <div key={lang}>
@@ -487,9 +466,7 @@ function CardDetailPage() {
                 <LanguageChip code={lang} />
                 {languageLabels[lang] ?? lang}
               </h2>
-              {/* grid-cols-1 matters: without it the implicit column sizes to the
-                  widest printing card and pushes the whole page past a phone
-                  viewport (long treatment paths get clipped off-screen). */}
+              {/* grid-cols-1: an implicit column would size to the widest printing card and push the page past a phone viewport. */}
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {group.map((printing) => (
                   <PrintingCard
@@ -503,7 +480,6 @@ function CardDetailPage() {
             </div>
           ))}
 
-        {/* Price history section for selected printing */}
         {selectedPrinting && <PriceHistorySection printing={selectedPrinting} />}
 
         <RelatedCardsSection related={data.related} />
@@ -645,18 +621,7 @@ function PowerValue({ power, domains }: { power: number; domains: string[] }) {
   );
 }
 
-/**
- * "Found in": every sealed thing this printing came in, as one list.
- *
- * Deliberately renders two models side by side. A product (ADR-015) is a full
- * content manifest with quantities and its own page; a product-kind
- * distribution channel is only a tag on the printing. The distinction matters
- * to the catalog, not to a reader asking "what can I buy to get this card", so
- * the row merges them and lets the link target carry the difference. Products
- * sort first as the higher-fidelity record.
- *
- * @returns The row, or null when the printing is in nothing.
- */
+/** "Found in": every sealed thing this printing came in, as one list. */
 function FoundInRow({
   printing,
   products,
@@ -680,7 +645,6 @@ function FoundInRow({
   return (
     <InfoRow label="Found in">
       <div className="border-border/50 bg-muted/30 rounded-md border px-2.5 py-1.5">
-        {/* A lone entry needs no bullet to disambiguate it from its neighbours. */}
         {entries.length === 1 ? (
           entries[0].node
         ) : (
@@ -700,12 +664,7 @@ function FoundInRow({
   );
 }
 
-/**
- * "Sources": where the claims about this printing come from. Shares the boxed
- * treatment of "Found in" and "Note" so the info table reads as one column.
- *
- * @returns The row, or null when the printing is uncited.
- */
+/** "Sources": where the claims about this printing come from. */
 function SourcesRow({ printing }: { printing: Printing }) {
   const citations = printing.citations ?? [];
   if (citations.length === 0) {
@@ -823,9 +782,6 @@ function PrintingCard({
     );
   }
 
-  // Channel labels rendered as plain text so crawlers index them alongside
-  // the card name, and long-tail searches ("<card> promo", "<card> <artist>")
-  // can land on this page even without visiting each variant individually.
   const channelSummary = printing.distributionChannels
     .map((link) =>
       link.ancestorLabels.length > 0
@@ -889,10 +845,8 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
   const [source, setSource] = useState<Marketplace>(marketplaceOrder[0] ?? "cardtrader");
   const { labels } = useEnumOrders();
 
-  // Also fetch the active range for the table
   const { data: rangeData } = usePriceHistory(printing.id, range);
 
-  // Hide the entire section if no marketplace has any data
   const hasAnyData =
     data &&
     ALL_MARKETPLACES.some((mp) => {
@@ -904,7 +858,6 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
     return null;
   }
 
-  // Compute available ranges from the "all" data
   const allSnapshots = data?.[source]?.snapshots;
   const dataSpanDays =
     allSnapshots && allSnapshots.length >= 2
@@ -924,7 +877,6 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
     ? range
     : ("all" as TimeRange);
 
-  // Build table rows from range data
   const dateMap = new Map<
     string,
     { tcgplayer?: number; cardmarket?: number; cardtrader?: number }
@@ -950,8 +902,7 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
     ? ALL_MARKETPLACES.filter((mp) => rangeData[mp]?.available)
     : [];
 
-  // Normalized the same way the chart plots them (market for TCG/CM, the
-  // Zero-eligible low for CardTrader) so the trend matches the drawn line.
+  // Must match PriceHistoryChart's normalization (market for TCG/CM, zeroLow for CardTrader).
   const plottedValues = (rangeData?.[source]?.snapshots ?? []).reduce<number[]>((values, s) => {
     const value = "market" in s ? s.market : s.zeroLow;
     if (value !== null) {
@@ -977,7 +928,6 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
         <PricingSection printing={printing} range={effectiveRange} />
       </div>
 
-      {/* Shared toolbar */}
       <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
         <ToggleGroup
           variant="outline"
@@ -998,8 +948,6 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
-        {/* Names the plotted series and how it moved, from the same values the
-            chart draws. The toggle at the end of the row is logos only. */}
         <span className="text-muted-foreground inline-flex items-center gap-1.5 text-sm">
           {marketplaceLabel(source)}
           <PriceTrend values={plottedValues} range={effectiveRange} />
@@ -1041,7 +989,6 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
         </ToggleGroup>
       </div>
 
-      {/* Chart + Table side by side */}
       <div className="flex flex-col gap-4 xl:flex-row">
         <CardPanel className="min-w-0 p-4 xl:flex-1 xl:basis-0">
           <Suspense fallback={<Skeleton className="aspect-[2.5/1] w-full rounded-lg" />}>
@@ -1058,10 +1005,8 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
           </Suspense>
         </CardPanel>
         {tableRows.length > 0 && (
-          // contain-inline-size: the scroll box below still reports the table's
-          // intrinsic width up the flex column, widening the whole page past a
-          // phone viewport; containment zeroes that contribution so the table
-          // scrolls inside instead.
+          // contain-inline-size: without it the table's intrinsic width leaks up the
+          // flex column and widens the page past a phone viewport.
           <div className="min-w-0 contain-inline-size xl:flex-1 xl:basis-0">
             <div className="max-h-[400px] overflow-auto rounded-lg border">
               <table className="w-full text-sm">
@@ -1112,16 +1057,8 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
   );
 }
 
-/**
- * The record-this-card slot: a signup pitch when logged out, the owned count
- * and its +/- when signed in.
- *
- * The panel's counts come from a live query, which has no server snapshot, so
- * it mounts only after hydration. This is a full-SSR route, so the server keeps
- * rendering what it rendered before (the nudge for anonymous visitors and
- * crawlers, nothing for signed-in ones), and so does the first client render.
- * @returns The nudge, the panel, or nothing while either is still resolving.
- */
+// The counts come from a live query with no server snapshot, so this mounts
+// only after hydration to avoid a server/client mismatch.
 function CollectionSlot({
   cardSlug,
   printing,
@@ -1149,12 +1086,6 @@ function CollectionSlot({
   );
 }
 
-/**
- * Signup pitch for logged-out visitors, most of whom land here from a search
- * engine and would otherwise never learn the site is more than a card
- * database.
- * @returns The signup pitch.
- */
 function TrackCollectionNudge({ cardSlug }: { cardSlug: string }) {
   return (
     <CardPanel className="flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
@@ -1221,19 +1152,15 @@ function ShareLinkButton({ cardName }: { cardName: string }) {
     }
     const url = globalThis.location.href;
 
-    // Prefer the native share sheet on mobile (iOS Safari, Chrome Android) so
-    // the user can pick Messages / WhatsApp / etc. in one tap. Desktop browsers
-    // mostly don't implement this, so they fall through to clipboard.
     if (typeof navigator.share === "function") {
       try {
         await navigator.share({ title: cardName, url });
         return;
       } catch (error) {
-        // AbortError = user dismissed the share sheet; stay silent.
+        // AbortError: user dismissed the share sheet; stay silent.
         if (error instanceof Error && error.name === "AbortError") {
           return;
         }
-        // Any other failure falls through to clipboard below.
       }
     }
 

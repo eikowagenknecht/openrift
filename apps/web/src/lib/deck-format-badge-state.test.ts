@@ -53,9 +53,6 @@ describe("deckFormatBadgeState", () => {
   });
 
   it("shows the figure for formats the list never reports invalid", () => {
-    // Freeform and Custom-Region come back valid from the deck-list endpoint
-    // whatever their contents, so `building` is what keeps them from losing
-    // their card figure entirely.
     expect(
       deckFormatBadgeState({
         format: "freeform",

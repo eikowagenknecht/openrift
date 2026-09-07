@@ -12,7 +12,6 @@ import { useTierListBuilderStore } from "./tier-list-builder-store";
 
 const reset = createStoreResetter(useTierListBuilderStore);
 
-/** @returns A row whose entries all follow the default printing. */
 function tier(label: string, cardIds: string[]): TierRow {
   return { label, cards: cardIds.map((cardId) => ({ cardId, printingId: null })) };
 }
@@ -21,19 +20,16 @@ function board(): TierRow[] {
   return [tier("S", ["card-1", "card-2"]), tier("A", ["card-3"]), tier("B", [])];
 }
 
-/** @returns The store's current state, for assertions. */
 function state() {
   return useTierListBuilderStore.getState();
 }
 
-/** @returns The board as `label → card ids`, which reads better in assertions. */
 function rowsByLabel(): Record<string, string[]> {
   return Object.fromEntries(
     state().rows.map((current) => [current.label, current.cards.map((card) => card.cardId)]),
   );
 }
 
-/** @returns The printing pinned to `cardId`, or undefined when it isn't ranked. */
 function pinnedPrinting(cardId: string): string | null | undefined {
   return state()
     .rows.flatMap((current) => current.cards)
@@ -78,7 +74,6 @@ describe("load", () => {
 });
 
 describe("assign caps", () => {
-  /** @returns `count` distinct card ids with the given prefix. */
   function ids(prefix: string, count: number): string[] {
     return Array.from({ length: count }, (_unused, index) => `${prefix}-${index}`);
   }
@@ -98,7 +93,6 @@ describe("assign caps", () => {
   });
 
   it("refuses to grow the board past the total cap, while still allowing moves", () => {
-    // 400 + 400 + 200 = the total cap, with the target row far under its own cap.
     state().load("list-total", [
       tier("S", ids("a", MAX_CARDS_PER_TIER)),
       tier("A", ids("b", MAX_CARDS_PER_TIER)),
@@ -107,7 +101,6 @@ describe("assign caps", () => {
     state().assign("card-9", 2);
     expect(rowsByLabel().B).toHaveLength(MAX_TIER_LIST_CARDS - 2 * MAX_CARDS_PER_TIER);
 
-    // Moving a card already on the board doesn't change the total, so it stays legal.
     state().assign("a-0", 2);
     expect(rowsByLabel().B).toHaveLength(MAX_TIER_LIST_CARDS - 2 * MAX_CARDS_PER_TIER + 1);
     expect(rowsByLabel().S).toHaveLength(MAX_CARDS_PER_TIER - 1);
@@ -140,8 +133,6 @@ describe("assign", () => {
 
   it("lands before the target when dragging rightwards within a row", () => {
     state().load("list-4", [tier("S", ["a", "b", "c"])]);
-    // Dropping "a" onto "c" (index 2) must place it before "c", not after —
-    // lifting "a" out first shifts "c" down to index 1.
     state().assign("a", 0, { position: 2 });
     expect(rowsByLabel().S).toEqual(["b", "a", "c"]);
   });
@@ -454,9 +445,7 @@ describe("markSaved and reset", () => {
   it("keeps the board dirty when it changed after the save snapshot", () => {
     state().assign("card-9", 0);
     const snapshot = state().rows;
-    // A drag lands while the save is in flight…
     state().assign("card-10", 1);
-    // …so the save's success must not mark the newer edit as saved.
     state().markSaved(snapshot);
     expect(state().dirty).toBe(true);
   });

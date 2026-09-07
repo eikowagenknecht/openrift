@@ -9,11 +9,7 @@ beforeEach(() => {
   resetIdCounter();
 });
 
-/**
- * Groups printings the way the hooks do, so the tests exercise the same shape
- * `Map.groupBy(cards, (p) => p.cardId)` produces.
- * @returns Printings keyed by card ID.
- */
+/** Groups the way the hooks do, via `Map.groupBy(cards, (p) => p.cardId)`. */
 function groupByCardId(printings: Printing[]): Map<string, Printing[]> {
   return Map.groupBy(printings, (printing) => printing.cardId);
 }

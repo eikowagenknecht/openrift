@@ -1,12 +1,8 @@
-/** A hand/library entry: one physical copy, uniquely keyed. */
 interface KeyedCard {
   key: string;
 }
 
-/**
- * Fisher-Yates shuffle into a fresh array.
- * @returns The shuffled copy.
- */
+/** Fisher-Yates shuffle into a fresh array. */
 export function shuffle<Value>(items: readonly Value[]): Value[] {
   const result = [...items];
   for (let index = result.length - 1; index > 0; index--) {
@@ -16,16 +12,8 @@ export function shuffle<Value>(items: readonly Value[]): Value[] {
   return result;
 }
 
-/**
- * Applies the Riftbound mulligan to a drawn hand: the selected cards are set
- * aside, that many replacements are drawn from the top of the library, and the
- * set-aside cards are Recycled to the bottom of the library in random order
- * (rules 118 and Recycle) — so later draws can still reach them.
- *
- * `randomize` orders the recycled cards; inject {@link shuffle} in product
- * code, an identity in tests.
- * @returns The new hand and library.
- */
+// Recycles the set-aside cards to the library bottom in random order (rules 118, Recycle).
+// `randomize` is the hook: inject {@link shuffle} in product code, identity in tests.
 export function applyMulligan<Card extends KeyedCard>(
   hand: readonly Card[],
   library: readonly Card[],

@@ -1,12 +1,5 @@
 import { useLayoutEffect, useState } from "react";
 
-/**
- * Observed border-box width of an element, rounded to whole pixels — the width
- * sibling of `useMeasuredHeight` (page-top-bar.tsx). 0 until the element
- * exists and has been measured, so callers can treat "unmeasured" and "absent"
- * the same way.
- * @returns The measured width in px.
- */
 export function useMeasuredWidth(el: HTMLElement | null): number {
   const [width, setWidth] = useState(0);
   const [measuredEl, setMeasuredEl] = useState(el);

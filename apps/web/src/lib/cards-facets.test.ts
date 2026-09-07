@@ -133,7 +133,6 @@ describe("extractCatalogFacets", () => {
       "p-2": makePrinting({ shortCode: "OGN-002" }),
       "p-3": makePrinting({ shortCode: "OGN-003" }),
     };
-    // Wire prices are integer cents; the facet extractor divides by 100.
     const prices: PricesResponse = {
       prices: {
         "p-1": { cardtrader: 150, tcgplayer: 99_900, cardmarket: 5000 },
@@ -145,7 +144,6 @@ describe("extractCatalogFacets", () => {
     };
     const facets = extractCatalogFacets(makeCatalog(cards, printings), prices, ORDERS);
 
-    // boundsOf snaps min down and max up to whole numbers (major units: 1.5 … 12.3).
     expect(facets.price).toEqual({ min: 1, max: 13 });
   });
 
@@ -267,13 +265,8 @@ describe("extractCardCounts", () => {
   });
 });
 
-// Pins `extractCatalogFacets` to the contract "= getAvailableFilters over
-// `enrichCatalog(catalog).allPrintings` with cardtrader-priced getPrice."
-// `useCardData` makes the equivalent call client-side with
-// `favoriteMarketplace = marketplaceOrder[0] ?? "cardtrader"`, so for a
-// default-marketplace user the SSR shell and the hydrated CardBrowser see
-// identical facets — no slider snap, no chip-list reorder. If anyone tweaks
-// one path without the other, this test fails.
+// Contract: extractCatalogFacets must equal getAvailableFilters(enrichCatalog(catalog).allPrintings, ...)
+// with cardtrader-priced getPrice, as used by useCardData for default-marketplace users.
 describe("extractCatalogFacets ↔ useCardData parity", () => {
   it("returns the same value the client-side path computes for default-marketplace users", () => {
     const cards = {
@@ -338,8 +331,6 @@ describe("extractCatalogFacets ↔ useCardData parity", () => {
 
     const ssrFacets = extractCatalogFacets(catalog, prices, ORDERS);
 
-    // Replicate the client path exactly: same enrichment, same args, same
-    // marketplace ("cardtrader" matches `extractCatalogFacets`'s default).
     const enriched = enrichCatalog(catalog);
     const lookup = priceLookupFromMap(prices.prices);
     const getPrice = (printing: Printing) => lookup.get(printing.id, "cardtrader");

@@ -21,7 +21,6 @@ vi.mock("@tanstack/react-start", () => ({
 vi.mock("@/lib/server-fns/middleware", () => ({ withCookies: () => {} }));
 vi.mock("@/lib/auth-session", () => ({ useUserId: () => "test-user-id" }));
 
-// Controllable client-hydration flag — the fix gates the read on this.
 let hydratedValue = true;
 vi.mock("@/hooks/use-hydrated", () => ({ useHydrated: () => hydratedValue }));
 
@@ -32,10 +31,7 @@ interface FetchCall {
   body: unknown;
 }
 
-// Stubs global fetch: GET returns `prefs`, PATCH/other returns 200. Records
-// calls. oRPC's OpenAPI link sends a body-bearing request as a `Request` object
-// (first arg) rather than `(url, init)`, so read the method/body from whichever
-// shape the call used.
+// oRPC's OpenAPI link sends a body-bearing request as a `Request` object, the fetch call's first arg.
 function stubFetch(prefs: UserPreferencesResponse) {
   const calls: FetchCall[] = [];
   const fetchMock = vi.fn(async (input: unknown, init?: { method?: string; body?: string }) => {
@@ -72,11 +68,6 @@ afterEach(() => {
 
 describe("useEmailNotifications", () => {
   it("reports not-loading and never fetches until the client has hydrated", () => {
-    // Before hydration the controls must render in their non-loading (enabled)
-    // state, matching the SSR and first-client render. `useUserId()` reads the
-    // session query, which is present during SSR but not on the first client
-    // render, so gating isLoading on `hydrated` is what keeps the switches'
-    // disabled/tabIndex from flipping and tripping a hydration mismatch.
     hydratedValue = false;
     const { fetchMock } = stubFetch({});
     const { result } = renderHook(() => useEmailNotifications(), { wrapper: wrap() });

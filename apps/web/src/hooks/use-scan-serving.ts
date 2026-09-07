@@ -15,10 +15,6 @@ const REBUILD_SCAN_BANK_KIND = "scan.rebuild_bank";
 const MANIFEST_KEY = ["scan", "manifest"] as const;
 const REBUILD_RUN_KEY = ["admin", "job-runs", REBUILD_SCAN_BANK_KIND] as const;
 
-/**
- * The scanner's downloadable assets, all served from `media/scan` as
- * content-hashed, immutable files.
- */
 interface ScanAssets {
   bankUrl: string;
   labelsUrl: string;
@@ -29,13 +25,7 @@ interface ScanAssets {
   builtAt: string | null;
 }
 
-/**
- * Resolution state of the serving manifest.
- *
- * There is deliberately no local fallback. Dev and production load the same
- * files through the same manifest, so an unpublished bank leaves the scanner
- * unavailable rather than quietly running a different engine than users get.
- */
+// No local fallback: an unpublished bank leaves the scanner unavailable.
 export type ScanServing =
   | { status: "loading"; assets: null }
   | { status: "unavailable"; assets: null }
@@ -47,12 +37,6 @@ const fetchScanManifestFn = createServerFn({ method: "GET" })
     apiOrpcClient(scanContract, context.cookie).manifest(),
   );
 
-/**
- * The serving manifest, resolved to usable asset URLs.
- *
- * @returns The resolution state: loading, unavailable when no bank has been
- *   published (or the manifest failed), or the assets to download.
- */
 export function useScanServing(): ScanServing {
   const manifest = useQuery({
     queryKey: MANIFEST_KEY,
@@ -92,20 +76,12 @@ export function useRebuildScanBank() {
   return useMutation({
     mutationFn: () => rebuildScanBankFn(),
     onSuccess: () => {
-      // Surface the running row immediately; the manifest refreshes once the
-      // rebuild lands a new generation.
       void queryClient.invalidateQueries({ queryKey: REBUILD_RUN_KEY });
       void queryClient.invalidateQueries({ queryKey: MANIFEST_KEY });
     },
   });
 }
 
-/**
- * Poll the latest rebuild run: every 2s while running so the page flips to
- * the result quickly, every 60s otherwise.
- *
- * @returns A react-query result with the latest run row or null.
- */
 export function useLatestScanBankRun() {
   return useQuery({
     queryKey: REBUILD_RUN_KEY,

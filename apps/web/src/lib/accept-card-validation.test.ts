@@ -20,8 +20,6 @@ describe("describeAcceptCardFieldIssues", () => {
     expect(describeAcceptCardFieldIssues(validCard)).toEqual([]);
   });
 
-  // Regression: numeric fields hand-edited in the spreadsheet used to commit as
-  // strings, which the API rejected with a generic "Input validation failed".
   it("names a numeric field committed as a string", () => {
     const card = { ...validCard, energy: "3" } as unknown as CardFields;
     expect(describeAcceptCardFieldIssues(card)).toEqual(["Energy: must be a whole number"]);
@@ -68,9 +66,6 @@ describe("describeAcceptCardFieldIssues", () => {
 });
 
 describe("hasRequiredActiveFields", () => {
-  // The Active column keys its selections by the spreadsheet field keys, where
-  // the card-type field is `types` (plural). Regression: the button gate read
-  // `type` (singular), so it never saw the selection and stayed disabled forever.
   it("recognizes a fully selected Active column keyed by `types`", () => {
     expect(hasRequiredActiveFields({ name: "Ambessa", types: ["unit"], domains: ["order"] })).toBe(
       true,

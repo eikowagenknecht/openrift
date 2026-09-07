@@ -17,7 +17,6 @@ describe("adminSectionForPathname", () => {
   });
 
   it("matches on segment boundaries, not raw prefixes", () => {
-    // /admin/card-types must not match card-review's /admin/cards
     expect(adminSectionForPathname("/admin/card-types")).toBeNull();
     expect(adminSectionForPathname("/admin/cardsX")).toBeNull();
   });

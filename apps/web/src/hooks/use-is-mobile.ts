@@ -19,10 +19,6 @@ function getServerSnapshot(): boolean {
   return false;
 }
 
-/**
- * Reactively tracks the mobile media query (viewport below Tailwind's `md` breakpoint).
- * @returns Whether the viewport currently matches the mobile breakpoint.
- */
 export function useIsMobile(): boolean {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }

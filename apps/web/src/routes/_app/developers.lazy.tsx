@@ -6,11 +6,8 @@ export const Route = createLazyFileRoute("/_app/developers")({
   component: DevelopersPage,
 });
 
-// All API paths on this page are relative to the site origin on purpose:
-// rendering an absolute URL in the body would need getSiteUrl(), which reads
-// window.location.origin on the client and can mismatch the SSR value (#418
-// with our full-document hydration). Relative paths are correct on every
-// deploy (prod, preview, dev) with zero hydration risk.
+// Paths stay relative to the site origin: getSiteUrl() reads window.location.origin
+// on the client and can mismatch the SSR value, causing a hydration error.
 const ENDPOINTS = [
   {
     path: "/api/v1/catalog",

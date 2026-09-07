@@ -26,8 +26,6 @@ describe("deckListSearchSchema", () => {
   });
 
   it("drops a validity value the list can't apply", () => {
-    // A stale bookmark or hand-edited URL loses the bad value rather than
-    // reaching the filter code.
     expect(deckListSearchSchema.parse({ validity: "kinda" }).validity).toBeUndefined();
   });
 

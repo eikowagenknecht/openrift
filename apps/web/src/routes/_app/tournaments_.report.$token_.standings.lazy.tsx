@@ -20,9 +20,6 @@ function ReportStandingsRoute() {
       render={(data) => {
         const variant = data.pairingStyle === "swiss" ? "swiss" : "pod";
         return (
-          // The same composition as the signed-in Standings tab. This is the
-          // page spectators and unclaimed players actually open, so it gets the
-          // throne too rather than a bare table.
           <div className="flex flex-col gap-6">
             <StandingsPodium
               standings={data.standings}

@@ -11,8 +11,6 @@ import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-// ── READ ─────────────────────────────────────────────────────────────────────
-
 const fetchDeckFolders = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }): Promise<DeckFolderListResponse> =>
@@ -28,16 +26,7 @@ function deckFoldersQueryOptions(userId: string) {
   });
 }
 
-/**
- * The signed-in user's deck folders. A plain `useQuery` rather than a suspense
- * one: the deck list renders perfectly well before folders arrive, and folders
- * are chrome on top of it rather than the page's subject.
- *
- * Uses `useUserId` rather than `useRequiredUserId` because `/decks` also serves
- * signed-out visitors (browser-local decks, ADR-035). With no session the query
- * is disabled and the surface hides its folder controls.
- * @returns The folders query; `data` stays undefined while signed out.
- */
+/** `/decks` also serves signed-out visitors; with no session the query is disabled. */
 export function useDeckFolders() {
   const userId = useUserId();
   return useQuery({
@@ -45,8 +34,6 @@ export function useDeckFolders() {
     enabled: userId !== null && userId !== undefined,
   });
 }
-
-// ── MUTATIONS ────────────────────────────────────────────────────────────────
 
 const createDeckFolderFn = createServerFn({ method: "POST" })
   .validator((input: { name: string }) => input)
@@ -85,11 +72,7 @@ const removeDeckFolderFn = createServerFn({ method: "POST" })
     await apiOrpcClient(deckFoldersContract, context.cookie).remove(data);
   });
 
-/**
- * Deletes a folder. The decks in it are untouched, so the deck list has to
- * refetch too — every deck that was filed here loses a chip.
- * @returns A mutation taking `{ id }`.
- */
+/** Also invalidates the deck list: each deck's folder chip comes from that query. */
 export function useRemoveDeckFolder() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<void, { id: string }>({
@@ -105,11 +88,6 @@ const reorderDeckFoldersFn = createServerFn({ method: "POST" })
     await apiOrpcClient(deckFoldersContract, context.cookie).reorder(data);
   });
 
-/**
- * Reorders the folders. Optimistic because the rows move under the pointer as
- * you drag; waiting a round trip there reads as a drag that snapped back.
- * @returns A mutation taking `{ orderedIds }`.
- */
 export function useReorderDeckFolders() {
   const userId = useRequiredUserId();
   const queryClient = useQueryClient();
@@ -135,9 +113,8 @@ export function useReorderDeckFolders() {
       if (context?.previous) {
         queryClient.setQueryData(queryKeys.deckFolders.all(userId), context.previous);
       }
-      // Declaring onError here replaces the QueryClient's default one, so the
-      // rollback would otherwise revert the order with nothing telling the user
-      // the reorder failed.
+      // Declaring onError here replaces the QueryClient's default one; call it
+      // explicitly or the rollback happens silently with no error toast.
       reportMutationError(error, queryClient);
     },
     onSettled: () => {
@@ -153,11 +130,7 @@ const setDeckFoldersFn = createServerFn({ method: "POST" })
     apiOrpcClient(deckFoldersContract, context.cookie).setForDeck(data),
   );
 
-/**
- * Replaces one deck's folder membership. Invalidates the deck list as well as
- * the folders, since both the deck's chips and every folder's count can shift.
- * @returns A mutation taking `{ id, folderIds }`.
- */
+/** Also invalidates the deck list: folder membership changes both chips and counts. */
 export function useSetDeckFolders() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<DeckFolderListResponse, { id: string; folderIds: string[] }>({

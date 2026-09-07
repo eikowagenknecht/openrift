@@ -27,8 +27,7 @@ export const Route = createFileRoute("/_app/users_/share/$token")({
       "",
     );
     // Fold the list count into the version so removing a list from the bundle
-    // advances the cache key; a plain MAX over surviving lists would not (the
-    // same removal argument ADR-024 makes for entries, one level up).
+    // advances the cache key; a plain MAX over surviving lists would not.
     const bundleVersion = `${shareImageVersion(latestUpdate)}-${data.lists.length}`;
     const ogImage = bundleShareImageUrl(siteUrl, params.token, bundleVersion);
     return seoHead({ siteUrl, title, description, path, ogImage, oembed: true, unlisted: true });

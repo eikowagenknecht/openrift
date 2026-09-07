@@ -46,8 +46,6 @@ afterEach(() => {
   void collection.cleanup();
 });
 
-// ── addCardAction ───────────────────────────────────────────────────────────
-
 describe("addCardAction", () => {
   it("adds a card to the target zone", () => {
     const card = stubDeckBuilderCard({ cardType: "unit" });
@@ -141,7 +139,6 @@ describe("addCardAction", () => {
   });
 
   it("ignores overflow copies when capping main/sideboard", () => {
-    // 3 copies parked in overflow must not block adding 3 to an empty main.
     const parked = stubDeckBuilderCard({
       cardId: "card-1",
       cardType: "unit",
@@ -343,8 +340,6 @@ describe("addCardAction", () => {
   });
 });
 
-// ── canAddRune ──────────────────────────────────────────────────────────────
-
 describe("canAddRune", () => {
   const dualLegend = () =>
     stubDeckBuilderCard({
@@ -427,8 +422,6 @@ describe("canAddRune", () => {
   });
 });
 
-// ── removeCardAction ────────────────────────────────────────────────────────
-
 describe("removeCardAction", () => {
   it("decrements quantity when above 1", () => {
     const card = stubDeckBuilderCard({ cardId: "card-1", zone: "main", quantity: 3 });
@@ -499,14 +492,9 @@ describe("removeCardAction", () => {
     removeCardAction(collection, "fury-rune", "runes", EMPTY_RUNES, "constructed");
     const runes = cardsOf(collection).filter((card) => card.zone === "runes");
     const total = runes.reduce((sum, card) => sum + card.quantity, 0);
-    // Demonstrates the F5 bug shape: with an empty catalog, the rebalance can't
-    // backfill an opposite-domain rune. The fix lives in the deck-editor page,
-    // which now hydrates runesByDomain regardless of activeZone.
     expect(total).toBe(11);
   });
 });
-
-// ── moveCardAction ──────────────────────────────────────────────────────────
 
 describe("moveCardAction", () => {
   it("moves all copies from one zone to another", () => {
@@ -620,8 +608,6 @@ describe("moveCardAction", () => {
   });
 });
 
-// ── moveOneCardAction ───────────────────────────────────────────────────────
-
 describe("moveOneCardAction", () => {
   it("moves exactly one copy from source to target", () => {
     const card = stubDeckBuilderCard({
@@ -675,8 +661,6 @@ describe("moveOneCardAction", () => {
   });
 });
 
-// ── setQuantityAction ───────────────────────────────────────────────────────
-
 describe("setQuantityAction", () => {
   it("sets the quantity of an existing card", () => {
     const card = stubDeckBuilderCard({ cardId: "card-1", zone: "main", quantity: 1 });
@@ -699,8 +683,6 @@ describe("setQuantityAction", () => {
     expect(cardsOf(collection)).toHaveLength(0);
   });
 });
-
-// ── setLegendAction ─────────────────────────────────────────────────────────
 
 describe("setLegendAction", () => {
   it("replaces an existing legend", () => {
@@ -748,8 +730,6 @@ describe("setLegendAction", () => {
   });
 
   it("keeps compatible runes and drops only incompatible ones on a partial-overlap switch", () => {
-    // Regression: a single incompatible rune previously wiped every rune row,
-    // including compatible ones and their preferredPrintingId picks.
     const legend = stubDeckBuilderCard({
       cardId: "legend-1",
       cardType: "legend",
@@ -836,8 +816,6 @@ describe("setLegendAction", () => {
     expect(totalQty).toBe(12);
   });
 });
-
-// ── freeform behavior ──────────────────────────────────────────────────────
 
 describe("freeform format", () => {
   it("allows multiple distinct legends instead of replacing", () => {
@@ -928,7 +906,6 @@ describe("freeform format", () => {
     const runesByDomain = new Map<string, DeckBuilderCard[]>([["calm", [calmCatalogRune]]]);
     collection = createDraftCollection([legend, furyRune]);
     removeCardAction(collection, "fury-rune", "runes", runesByDomain, "freeform");
-    // Constructed would backfill an opposite-domain rune; freeform must not.
     const runes = cardsOf(collection).filter((card) => card.zone === "runes");
     expect(runes).toHaveLength(1);
     expect(runes[0].cardId).toBe("fury-rune");
@@ -993,8 +970,6 @@ describe("freeform format", () => {
   });
 });
 
-// ── preferred printing split rows ───────────────────────────────────────────
-
 describe("preferred printings", () => {
   it("keeps separate rows when the same card is added with distinct printings", () => {
     const base = stubDeckBuilderCard({
@@ -1028,7 +1003,7 @@ describe("preferred printings", () => {
       preferredPrintingId: "printing-alt",
     });
     addCardAction(collection, base, "main", 2, EMPTY_RUNES, "constructed");
-    addCardAction(collection, alt, "main", 2, EMPTY_RUNES, "constructed"); // only 1 should fit
+    addCardAction(collection, alt, "main", 2, EMPTY_RUNES, "constructed");
     const total = cardsOf(collection)
       .filter((c) => c.cardId === "c1" && c.zone === "main")
       .reduce((sum, c) => sum + c.quantity, 0);

@@ -51,7 +51,6 @@ describe("buildRarityRows", () => {
     card({ cardId: "a", quantity: 3 }),
     card({ cardId: "b", quantity: 2 }),
     card({ cardId: "c", quantity: 1, zone: "champion" }),
-    // Outside the population: never counted.
     card({ cardId: "d", quantity: 4, zone: "sideboard" }),
   ];
   const rarities = new Map([
@@ -107,7 +106,6 @@ describe("buildOwnershipRows", () => {
   const segments = new Map<string, OwnershipBandSegments>([
     [getDeckCardKey(cards[0]), { exact: 2, other: 0, borrowed: 0, locked: 0, missing: 1 }],
     [getDeckCardKey(cards[1]), { exact: 0, other: 2, borrowed: 0, locked: 0, missing: 0 }],
-    // Sideboard entry must not count even though it has segments.
     [getDeckCardKey(cards[2]), { exact: 4, other: 0, borrowed: 0, locked: 0, missing: 0 }],
   ]);
 
@@ -132,8 +130,6 @@ describe("buildOwnershipRows", () => {
   });
 
   it("counts locked copies as missing", () => {
-    // The chart's Missing column must keep matching the shortfall figures
-    // (hero chip, missing dialog), which treat locked copies as missing.
     const lockedCards = [card({ cardId: "a", quantity: 3 })];
     const lockedSegments = new Map<string, OwnershipBandSegments>([
       [getDeckCardKey(lockedCards[0]), { exact: 1, other: 0, borrowed: 0, locked: 1, missing: 1 }],
@@ -142,9 +138,6 @@ describe("buildOwnershipRows", () => {
     expect(rows.find((row) => row.key === "missing")?.total).toBe(2);
   });
 
-  // The inverse of the locked case: borrowed copies are in hand and already
-  // shrank the shortfall, so folding them into Missing would make the chart
-  // contradict the hero chip it sits under.
   it("counts borrowed copies as their own class, not as missing", () => {
     const borrowedCards = [card({ cardId: "a", quantity: 3 })];
     const borrowedSegments = new Map<string, OwnershipBandSegments>([

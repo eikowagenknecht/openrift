@@ -17,7 +17,6 @@ export const Route = createFileRoute("/_app/_authenticated/tier-lists_/$tierList
   validateSearch: filterSearchSchema,
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Tier list", noIndex: true }),
   beforeLoad: ({ search, location, params }) => {
-    // Strip unknown / malformed search params — same canonicalization as /cards.
     const cleaned = cleanedSearchForRedirect(filterSearchSchema, search, location.searchStr);
     if (cleaned) {
       throw redirect({
@@ -45,11 +44,6 @@ export const Route = createFileRoute("/_app/_authenticated/tier-lists_/$tierList
   notFoundComponent: TierListNotFound,
 });
 
-/**
- * Shown when the id resolves to nothing — a deleted list, or one belonging to
- * another account.
- * @returns The not-found explanation.
- */
 function TierListNotFound() {
   return (
     <div className={cn(PAGE_PADDING, PAGE_WIDTH.full)}>

@@ -1,9 +1,6 @@
-// Shared, long-lived QueryClient that caches public, non-user-specific data on
-// the Start server. This avoids redundant API calls during SSR: 100 concurrent
-// requests for /cards result in 1 API call (or 0, if the cache is fresh).
-//
-// IMPORTANT: Never put user-specific data in this cache. Auth-dependent queries
-// must always use the per-request QueryClient with forwarded cookies.
+// Shared, long-lived QueryClient caching public, non-user-specific data across
+// SSR requests. Never put user-specific data here; auth-dependent queries must
+// use the per-request QueryClient with forwarded cookies.
 
 import { QueryClient } from "@tanstack/react-query";
 

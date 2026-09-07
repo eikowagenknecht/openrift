@@ -13,10 +13,7 @@ import {
   shouldDownscale,
 } from "./card-designer";
 
-// A portrait photo taller than the card (aspect < CARD_ASPECT): cover crops
-// top/bottom, so it should be vertically pannable even at zoom 1.
 const PORTRAIT_ASPECT = 0.5;
-// A landscape photo wider than the card: cover crops left/right.
 const LANDSCAPE_ASPECT = 2;
 
 describe("buildAttribution", () => {
@@ -75,7 +72,6 @@ describe("clampImageTransform", () => {
       offsetX: 0,
       offsetY: 0,
     });
-    // scale 2 -> max offset (2-1)/2 = 0.5 of the card
     expect(clampImageTransform({ scale: 2, offsetX: 9, offsetY: -9 })).toEqual({
       scale: 2,
       offsetX: 0.5,
@@ -87,14 +83,14 @@ describe("clampImageTransform", () => {
     const clamped = clampImageTransform({ scale: 1, offsetX: 9, offsetY: 9 }, PORTRAIT_ASPECT);
     const maxY = (CARD_ASPECT / PORTRAIT_ASPECT - 1) / 2;
     expect(maxY).toBeGreaterThan(0);
-    expect(clamped.offsetX).toBe(0); // no horizontal overflow
+    expect(clamped.offsetX).toBe(0);
     expect(clamped.offsetY).toBeCloseTo(maxY, 5);
   });
 
   it("lets a landscape image pan horizontally at zoom 1", () => {
     const clamped = clampImageTransform({ scale: 1, offsetX: 9, offsetY: 9 }, LANDSCAPE_ASPECT);
     const maxX = (LANDSCAPE_ASPECT / CARD_ASPECT - 1) / 2;
-    expect(clamped.offsetY).toBe(0); // no vertical overflow
+    expect(clamped.offsetY).toBe(0);
     expect(clamped.offsetX).toBeCloseTo(maxX, 5);
   });
 });
@@ -106,13 +102,11 @@ describe("backgroundLayout", () => {
     expect(layout.widthPct).toBeCloseTo(100, 5);
     expect(layout.heightPct).toBeCloseTo(coverH * 100, 5);
     expect(layout.leftPct).toBeCloseTo(0, 5);
-    // top is negative: the image extends above the card (cropped top)
     expect(layout.topPct).toBeCloseTo(((1 - coverH) / 2) * 100, 5);
     expect(layout.topPct).toBeLessThan(0);
   });
 
   it("can pan a portrait image so its top aligns with the card top", () => {
-    // Dragging down to the limit should bring topPct to 0 (the reported bug).
     const layout = backgroundLayout(PORTRAIT_ASPECT, 1, 0, 99);
     expect(layout.topPct).toBeCloseTo(0, 5);
   });

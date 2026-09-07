@@ -9,15 +9,6 @@ interface ListImportParseResult {
   rowCount: number;
 }
 
-/**
- * Parses list-import input, accepting either a known CSV export (OpenRift,
- * Piltover Archive, RiftCore, RiftMana) or the plain-text `<quantity> <name>`
- * deck format. CSV exports carry finish/variant/promo detail, which lets
- * printing-kind lists resolve to a specific printing; plain text resolves by
- * name only. The format is sniffed from the header so the user doesn't have to
- * declare it.
- * @returns Parsed entries, errors, and the count of source rows seen.
- */
 export function parseListImport(text: string): ListImportParseResult {
   if (detectImportFormat(text) !== null) {
     const { entries, errors, rowCount } = parseImportData(text);
@@ -26,17 +17,7 @@ export function parseListImport(text: string): ListImportParseResult {
   return parseCardListText(text);
 }
 
-/**
- * Parses the deck-text format produced by `formatCardListAsDeckText`:
- * one `<quantity> <cardName>` per line. Blank lines are skipped, malformed
- * lines surface as errors. Same-name lines are merged (quantities summed) so
- * the preview shows one row per card even if the source had duplicates.
- *
- * The matcher pipeline operates on `ImportEntry`, so we synthesize one per
- * card with placeholder source-code / variant fields — the matcher's name
- * resolution handles it from there.
- * @returns Parsed entries, errors, and the count of non-blank rows seen.
- */
+/** Parses the deck-text format produced by `formatCardListAsDeckText`. */
 export function parseCardListText(text: string): ListImportParseResult {
   const errors: string[] = [];
   const aggregated = new Map<string, ImportEntry>();

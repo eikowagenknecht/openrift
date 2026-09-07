@@ -81,7 +81,6 @@ describe("resolveProxyCards", () => {
 
   it("respects the user language preference when no printing is pinned", () => {
     const card = stubCard({ slug: "RB1-002", name: "Lang Sensitive" });
-    // Insert non-EN printings first to defeat any DB-order fallback.
     const scPrinting = stubPrinting({
       cardId: "card-2",
       setId: "set-2",
@@ -181,7 +180,6 @@ describe("resolveProxyCards", () => {
       "overflow",
     ] as const;
 
-    // Deliberately jumbled: main Spell, then Legend, then main Unit.
     const deckCards = [
       stubDeckBuilderCard({
         cardId: "card-spell",

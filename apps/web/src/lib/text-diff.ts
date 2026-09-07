@@ -27,21 +27,6 @@ function merge(segments: DiffSegment[]): DiffSegment[] {
   return out;
 }
 
-/**
- * Compute a diff between two strings using LCS.
- *
- * Segments are tagged as:
- * - "equal"   — text present in both
- * - "removed" — text only in `oldText`
- * - "added"   — text only in `newText`
- *
- * `granularity` controls the unit of comparison:
- * - "word" (default) — words, whitespace runs, and punctuation runs
- * - "char" — individual characters; use when sub-word changes matter
- *   (typography, smart quotes, accents)
- *
- * @returns Merged diff segments
- */
 export function textDiff(
   oldText: string,
   newText: string,

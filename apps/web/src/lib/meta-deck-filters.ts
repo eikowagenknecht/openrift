@@ -8,44 +8,24 @@ import type { MetaEra, MetaScope, ScopeFacetDefaults } from "@/lib/meta-scope";
 import { isScopeCustomized } from "@/lib/meta-scope";
 import { scopeMatches } from "@/lib/meta-scope-match";
 
-/**
- * The tiers the browser opens on. Local events outnumber the rest of the
- * archive many times over and mostly hold partial lists, so a reader asking
- * what did well starts with the events that counted.
- */
 const DEFAULT_DECK_TIERS: readonly string[] = ["premier", "competitive"];
 
 export const DECK_SCOPE_DEFAULTS: ScopeFacetDefaults = { tiers: DEFAULT_DECK_TIERS };
 
 /**
- * The meta deck browser's filter state: the archive-wide scope every page
- * carries, plus the axes only a deck list has. Each of those is a union within
- * itself and an intersection against the others, so a deck passes when it
- * matches at least one selected value on every populated axis.
+ * Each axis is a union within itself and an intersection against the others:
+ * a deck passes when it matches at least one selected value on every populated axis.
  */
 export interface MetaDeckFilterValues {
   scope: MetaScope;
-  /** The eras the scope's era key is resolved against. */
   eras: readonly MetaEra[];
-  /** Event slugs to keep; empty means every event. */
   events: string[];
-  /** Legend card ids to keep; empty means every legend. */
   legends: string[];
-  /**
-   * The worst finish still shown, as a rank bound: 1 = winners, 4 = top 4, and
-   * so on. Null means any finish.
-   */
   maxRank: number | null;
   maxCost: number | null;
   valueMin: number | null;
   valueMax: number | null;
-  /** Not an axis: the context's costs are computed with it. */
   includeSideboard: boolean;
-  /**
-   * Opens every archived list instead of the curated one-per-legend-per-event
-   * view. Not an axis — it rejects no deck — but the faceted counts read it, so
-   * a control's number matches the grid it is counting.
-   */
   showAll: boolean;
 }
 
@@ -53,7 +33,6 @@ export interface MetaDeckFilterContext {
   costs?: ReadonlyMap<string, MetaDeckCost>;
 }
 
-/** The finish buckets offered in the browser, best first. */
 export const META_FINISH_OPTIONS: { value: number; label: string }[] = [
   { value: 1, label: "Winner" },
   { value: 4, label: "Top 4" },
@@ -61,14 +40,8 @@ export const META_FINISH_OPTIONS: { value: number; label: string }[] = [
   { value: 16, label: "Top 16" },
 ];
 
-/** One axis of {@link MetaDeckFilterValues}, for the per-axis faceted counts. */
 type MetaDeckFilterAxis = "scope" | "events" | "legends" | "finish" | "cost" | "value";
 
-/**
- * Whether one deck passes a single axis. Split out so the faceted counts can
- * ask "would this deck pass everything except axis X?" without duplicating the
- * predicates.
- */
 function passesAxis(
   deck: MetaDeckSummary,
   filters: MetaDeckFilterValues,
@@ -88,8 +61,8 @@ function passesAxis(
     return filters.maxRank === null || deck.rank <= filters.maxRank;
   }
   if (axis === "cost") {
-    // Inert until the costs have loaded, so a shared `?cost=` link does not open
-    // on an empty archive while the bridge answers.
+    // Inert until costs load, so a shared `?cost=` link doesn't open on an
+    // empty archive while the bridge answers.
     if (filters.maxCost === null || context.costs === undefined) {
       return true;
     }
@@ -114,7 +87,6 @@ function passesAxis(
 
 const ALL_AXES: MetaDeckFilterAxis[] = ["scope", "events", "legends", "finish", "cost", "value"];
 
-/** Narrows the archive to the decks matching every populated axis. */
 export function filterMetaDecks(
   decks: readonly MetaDeckSummary[],
   filters: MetaDeckFilterValues,
@@ -123,18 +95,7 @@ export function filterMetaDecks(
   return decks.filter((deck) => ALL_AXES.every((axis) => passesAxis(deck, filters, context, axis)));
 }
 
-/**
- * The best finish each legend reached at each event, which is what the browser
- * opens on: the whole archive lists the same legend once per pilot, and a reader
- * scanning what a tournament produced wants one tile per legend that showed up.
- *
- * The pick is made inside one event, where a finish is a published fact. It
- * never compares legends against each other, and never orders events by how a
- * legend did in them.
- *
- * A deck whose legend the archive does not know stands alone rather than being
- * folded in with every other unknown legend at that event.
- */
+/** A deck with an unknown legend stands alone; it is not merged with other unknown-legend decks at the event. */
 function curateBestPerLegend(decks: readonly MetaDeckSummary[]): MetaDeckSummary[] {
   const best = new Map<string, MetaDeckSummary>();
   for (const deck of decks) {
@@ -144,8 +105,7 @@ function curateBestPerLegend(decks: readonly MetaDeckSummary[]): MetaDeckSummary
       best.set(key, deck);
       continue;
     }
-    // Same finish, so the source published no order between them: keep whichever
-    // name comes first, so the tile does not change between renders.
+    // Ties break by name for a stable render order.
     if (deck.rank === held.rank && deck.playerName.localeCompare(held.playerName) < 0) {
       best.set(key, deck);
     }
@@ -153,11 +113,7 @@ function curateBestPerLegend(decks: readonly MetaDeckSummary[]): MetaDeckSummary
   return [...best.values()];
 }
 
-/**
- * The decks the grid actually renders. Both the grid and the faceted counts go
- * through this, so a control can never advertise a count the grid then folds
- * away.
- */
+/** Both the grid and the faceted counts go through this, so a count never lies about the grid. */
 export function curateMetaDecks(
   decks: readonly MetaDeckSummary[],
   filters: Pick<MetaDeckFilterValues, "showAll">,
@@ -165,11 +121,7 @@ export function curateMetaDecks(
   return filters.showAll ? [...decks] : curateBestPerLegend(decks);
 }
 
-/**
- * Orders decks for the browser. Date keeps one event's lists together, best
- * finish first; the other columns fall back to that order for ties. A deck whose
- * value or cost is not known yet sorts last whichever way the column runs.
- */
+/** A deck whose value or cost is not known yet sorts last whichever way the column runs. */
 export function sortMetaDecks(
   decks: readonly MetaDeckSummary[],
   sort: MetaDeckSort = DEFAULT_DECK_SORT,
@@ -209,10 +161,6 @@ export function sortMetaDecks(
   });
 }
 
-/**
- * Where a click on a sort header lands: the same column flips, a new column
- * opens on newest, best or cheapest first.
- */
 export function nextDeckSort(
   current: { sort: MetaDeckSort; direction: MetaDeckSortDirection },
   column: MetaDeckSort,
@@ -223,7 +171,6 @@ export function nextDeckSort(
   return { sort: column, direction: column === "date" ? "desc" : "asc" };
 }
 
-/** The grid's sort menu: one entry per column, in the order that reads first. */
 export const META_DECK_SORT_PRESETS: {
   sort: MetaDeckSort;
   direction: MetaDeckSortDirection;
@@ -252,11 +199,9 @@ function shownWithoutAxis(
   );
 }
 
-/** Faceted counts per axis, keyed by the axis value the control offers. */
 export interface MetaDeckFilterCounts {
   events: Map<string, number>;
   legends: Map<string, number>;
-  /** Keyed by the bucket bound (1, 4, 8, 16) rather than a deck's own rank. */
   finish: Map<number, number>;
 }
 
@@ -264,15 +209,7 @@ function bump<K>(counts: Map<K, number>, key: K): void {
   counts.set(key, (counts.get(key) ?? 0) + 1);
 }
 
-/**
- * How many decks each option would leave, counted with every *other* axis
- * already applied — the same faceting the card browser's filters use, so a
- * value's count reflects the list you would actually get by picking it.
- *
- * Each axis is curated the same way the grid is, because the curation runs after
- * the filtering: counting the raw matches would promise "Kennen (12)" and then
- * render one tile per event.
- */
+/** Counted with every other axis already applied and curated like the grid, or a count would promise decks the grid folds away. */
 export function metaDeckFilterCounts(
   decks: readonly MetaDeckSummary[],
   filters: MetaDeckFilterValues,
@@ -304,25 +241,17 @@ export function metaDeckFilterCounts(
   return counts;
 }
 
-/** A selectable value plus the label the control shows for it. */
 interface MetaDeckFilterOption {
   value: string;
   label: string;
 }
 
-/** The option lists the browser's controls offer, derived from the archive. */
 export interface MetaDeckFilterOptions {
   events: MetaDeckFilterOption[];
   legends: MetaDeckFilterOption[];
-  /** Uppercase ISO codes the archive's events were held in, alphabetical. */
   countries: string[];
 }
 
-/**
- * The distinct values present in the archive, so a control never offers a legend
- * or a country nothing was played in. Events come out newest first (the order the
- * browser groups them in); legends alphabetically.
- */
 export function metaDeckFilterOptions(decks: readonly MetaDeckSummary[]): MetaDeckFilterOptions {
   const events = new Map<string, { label: string; date: string }>();
   const legends = new Map<string, string>();
@@ -348,10 +277,7 @@ export function metaDeckFilterOptions(decks: readonly MetaDeckSummary[]): MetaDe
   };
 }
 
-/**
- * Whether anything narrows the archive. The eras are irrelevant here: an era
- * selection narrows whether or not the page can resolve it to dates yet.
- */
+/** Eras are irrelevant here: an era selection narrows whether the page can resolve it to dates yet. */
 export function hasActiveMetaDeckFilters(filters: Omit<MetaDeckFilterValues, "eras">): boolean {
   return (
     isScopeCustomized(filters.scope) ||

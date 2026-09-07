@@ -26,8 +26,6 @@ describe("deriveOverlayWalk", () => {
   });
 
   it("offers the first card when the live one was pushed from outside the queue", () => {
-    // A mid-stream search push: the card is on screen but has no place in the
-    // queue, so forward starts the run rather than doing nothing.
     const walk = deriveOverlayWalk(["a", "b"], "searched");
 
     expect(walk).toEqual({

@@ -38,9 +38,7 @@ const fetchCollectionValueHistory = createServerFn({ method: "GET" })
       query.collectionIds = data.collectionIds;
     }
 
-    // Every scope axis travels under its own field name (array axes as
-    // comma-separated lists), so the shared key tuples drive the whole mapping
-    // instead of an if per dimension.
+    // Array axes travel as comma-separated lists; the shared key tuples drive the mapping.
     const scope = JSON.parse(data.scope) as CompletionScopePreference;
     for (const key of COMPLETION_SCOPE_ARRAY_KEYS) {
       const values = scope[key] as string[] | undefined;
@@ -60,11 +58,6 @@ const fetchCollectionValueHistory = createServerFn({ method: "GET" })
     );
   });
 
-/**
- * Fetches collection value over time, respecting marketplace, time range, collection, and scope filters.
- *
- * @returns Query result with the value history time series.
- */
 export function useCollectionValueHistory(
   marketplace: Marketplace,
   range: TimeRange,
@@ -90,8 +83,7 @@ export function useCollectionValueHistory(
           scope: scopeStr,
         },
       }),
-    // The wire carries integer cents; expose major-unit `value` to the
-    // chart at this single boundary so display code stays unit-agnostic.
+    // The wire carries integer cents; convert to major-unit `value` at this boundary.
     select: (data) => ({
       series: data.series.map((point) => ({
         date: point.date,

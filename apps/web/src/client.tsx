@@ -16,32 +16,8 @@ if (import.meta.env.DEV && !import.meta.env.VITE_DISABLE_DEVTOOLS) {
   scan({ enabled: true });
 }
 
-// React surfaces render/hydration errors through three hydrateRoot callbacks,
-// none of which go via window.onerror or an error boundary (all Sentry hooks):
-//   - onRecoverableError: a mismatch React recovered from by client-rendering
-//     (typically a <body> subtree).
-//   - onUncaughtError:    an error no error boundary caught. A hydration
-//     mismatch in <head>/<html> — e.g. a <meta> injected outside React's tree —
-//     is NOT recoverable and lands HERE, not in onRecoverableError.
-//   - onCaughtError:      an error an error boundary caught.
-// We console.error first, unconditionally: it works even when Sentry never
-// initializes (the hydration throw can interrupt getRouter()'s Sentry.init),
-// and the component stack names the offending subtree — host tags like <head>
-// and <meta> aren't minified, so it pinpoints the mismatch. Then buffer for
-// Sentry: these fire during the first hydrateRoot commit, before the lazily-
-// imported Sentry client finishes initializing in getRouter(), so a direct
-// captureException would hit an uninitialized hub and be dropped. The buffer
-// keeps Sentry out of the entry chunk and is flushed by initClientSentry() once
-// the hub is armed (see lib/hydration-error-buffer.ts).
-//
-// These callbacks fire for the LIFETIME of the app, not just during hydration —
-// onCaughtError in particular reports every error-boundary catch, which can be
-// an ordinary runtime crash minutes after load. Stamp each report with whether
-// it fired before the initial hydration commit painted, so the Sentry
-// `hydration` tag stays truthful. Two nested rAFs mark the first paint after
-// hydrateRoot's synchronous commit; a mismatch in late-hydrating streamed
-// Suspense content can land after the flag flips, but those errors still name
-// hydration in their message (#418/#423/#425), so nothing is lost.
+// These callbacks fire for the app's whole lifetime, not just hydration, so
+// reports are stamped with whether they landed before first paint (below).
 let initialHydrationSettled = false;
 
 function reportHydrationError(
@@ -61,23 +37,15 @@ function reportHydrationError(
       componentStack: errorInfo.componentStack,
     });
   }
-  // Supplying onUncaughtError replaces React's default (reportGlobalError), so
-  // an uncaught render error never reaches the window "error" listener where
-  // initChunkErrorReloader's bare-throw recovery lives — and uncaught means no
-  // boundary held it, so React unmounted the tree and the user is on a white
-  // page. Recover the bare-throw subset the same way: reload once. Runs after
-  // the Sentry buffering above so the event is captured (or queued) first.
+  // onUncaughtError replaces React's default, so this error never reaches the
+  // window "error" listener where initChunkErrorReloader's recovery lives.
   if (phase === "uncaught") {
     reloadIfUncaughtBareThrow(error);
   }
 }
 
-// Sentry client init happens inside getRouter() in router.ts, gated on !isServer.
-// That lets Sentry.tanstackRouterBrowserTracingIntegration() receive the router
-// instance, which is needed for route-named transactions and navigation spans.
-// Recover from deploys: detect bundle-vs-API build mismatch and dead-chunk
-// fetches, reload once per session. Wraps window.fetch before hydrateRoot so
-// the very first API calls (during route loaders) are covered.
+// Wraps window.fetch, so it must run before hydrateRoot to cover the first
+// API calls made during route loaders.
 initStaleBundleWatcher();
 initChunkErrorReloader();
 initVisibilityVersionCheck();

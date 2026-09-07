@@ -4,26 +4,14 @@ import { useEffect, useRef, useState } from "react";
 export interface ElementSpec {
   width: number;
   height: number;
-  /** Computed border-radius, e.g. "6px", "50%", or "" when unset. */
   radius: string;
-  /** True when the element is clipped (the corner-cut signature shape). */
   cornerCut: boolean;
-  /** Computed font-size, e.g. "14px". */
   fontSize: string;
-  /** Computed background-color. */
   background: string;
-  /** Computed text color. */
   color: string;
-  /** True when the element renders any text (spec lines omit font size otherwise). */
   hasText: boolean;
 }
 
-/**
- * Watches the root element for theme or palette flips (the `dark` class and
- * the `data-palette` attribute) and invokes the callback on each change.
- *
- * @returns A cleanup function that disconnects the observer.
- */
 export function observeThemeChanges(onChange: () => void): () => void {
   const observer = new MutationObserver(onChange);
   observer.observe(document.documentElement, {
@@ -33,13 +21,6 @@ export function observeThemeChanges(onChange: () => void): () => void {
   return () => observer.disconnect();
 }
 
-/**
- * Reads the rendered spec of an element: box size, radius, clip, font size,
- * and resolved colors. Measuring the live DOM means the numbers can never
- * drift from the styles that produced them.
- *
- * @returns The element's rendered spec.
- */
 export function readElementSpec(element: Element): ElementSpec {
   const rect = element.getBoundingClientRect();
   const style = globalThis.getComputedStyle(element);
@@ -55,12 +36,6 @@ export function readElementSpec(element: Element): ElementSpec {
   };
 }
 
-/**
- * Whether a computed color value is fully transparent (alpha 0), so swatches
- * can skip the background chip on ghost/outline/link variants.
- *
- * @returns True for transparent values like "rgba(0, 0, 0, 0)".
- */
 export function isTransparentColor(value: string): boolean {
   if (value === "" || value === "transparent") {
     return true;
@@ -79,11 +54,6 @@ export function isTransparentColor(value: string): boolean {
   return alpha === 0;
 }
 
-/**
- * Parses a computed length like "14px" to its number, NaN when unparseable.
- *
- * @returns The numeric part of the length.
- */
 export function parsePx(value: string): number {
   // oxlint-disable-next-line unicorn/prefer-number-coercion -- computed values carry px units; Number() would reject them
   return Number.parseFloat(value);
@@ -94,11 +64,8 @@ function roundPx(value: number): number {
 }
 
 /**
- * Formats a measured spec as a compact caption, e.g. "32×32 · r 6 · text 14".
- * Square elements show both dimensions; content-sized ones show height only
- * (their width is driven by the label, not the component).
- *
- * @returns The caption string.
+ * Square elements show both dimensions; content-sized ones show height only,
+ * since their width is driven by the label, not the component.
  */
 export function formatSpecLine(spec: ElementSpec): string {
   const width = roundPx(spec.width);
@@ -124,11 +91,8 @@ export function formatSpecLine(spec: ElementSpec): string {
 }
 
 /**
- * Measures the first element child of the ref'd wrapper and keeps the spec
- * fresh across theme/palette flips. Attach `ref` to a plain wrapper around
- * the component under inspection; `spec` is null until the client measures.
- *
- * @returns The wrapper ref and the measured spec.
+ * Attach `ref` to a plain wrapper around the component under inspection;
+ * `spec` stays null until the client measures its first element child.
  */
 export function useElementSpec<T extends HTMLElement = HTMLDivElement>(): {
   ref: React.RefObject<T | null>;

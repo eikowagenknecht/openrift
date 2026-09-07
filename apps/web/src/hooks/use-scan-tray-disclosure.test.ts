@@ -29,7 +29,6 @@ describe("useScanTrayDisclosure", () => {
     act(() => result.current.toggle("jinx"));
     expect(result.current.openId).toBe("jinx");
 
-    // Same scan count: a re-render (a copy confirming, say) is not a new card.
     rerender({ ids: ["jinx", "lux"] });
     expect(result.current.openId).toBe("jinx");
   });

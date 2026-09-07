@@ -81,29 +81,17 @@ function stub(overrides: Partial<Printing> = {}): Printing {
   } satisfies Printing;
 }
 
-// ---------------------------------------------------------------------------
-// formatCardId
-// ---------------------------------------------------------------------------
-
 describe("formatCardId", () => {
   it("returns the source id", () => {
     expect(formatCardId(stub({ shortCode: "OGS-042" }))).toBe("OGS-042");
   });
 });
 
-// ---------------------------------------------------------------------------
-// formatPublicCode
-// ---------------------------------------------------------------------------
-
 describe("formatPublicCode", () => {
   it("returns the public code", () => {
     expect(formatPublicCode(stub({ publicCode: "XYZ9" }))).toBe("XYZ9");
   });
 });
-
-// ---------------------------------------------------------------------------
-// formatPrice
-// ---------------------------------------------------------------------------
 
 describe("formatPrice", () => {
   it("formats a number with two decimal places", () => {
@@ -122,10 +110,6 @@ describe("formatPrice", () => {
     expect(formatPrice()).toBe("--");
   });
 });
-
-// ---------------------------------------------------------------------------
-// priceColorClass
-// ---------------------------------------------------------------------------
 
 describe("priceColorClass", () => {
   it("returns muted for null", () => {
@@ -156,14 +140,6 @@ describe("priceColorClass", () => {
     expect(priceColorClass(100)).toBe("text-destructive");
   });
 });
-
-// ---------------------------------------------------------------------------
-// formatPriceCompact
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// formatPriceCompact
-// ---------------------------------------------------------------------------
 
 describe("formatPriceCompact", () => {
   it('returns "--" for null', () => {
@@ -200,10 +176,6 @@ describe("formatPriceCompact", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// formatImportPrintingLabelParts
-// ---------------------------------------------------------------------------
-
 describe("formatImportPrintingLabelParts", () => {
   it("returns the code with no language for a standard English printing", () => {
     expect(formatImportPrintingLabelParts(stub({ shortCode: "OGS-021" }), TEST_LABELS)).toEqual({
@@ -228,10 +200,6 @@ describe("formatImportPrintingLabelParts", () => {
     ).toEqual({ code: "OGS-021", language: "SC", rest: ["Foil"] });
   });
 });
-
-// ---------------------------------------------------------------------------
-// formatPriceEur
-// ---------------------------------------------------------------------------
 
 describe("formatImportPrintingLabel", () => {
   it("returns just the card id for a standard English printing", () => {
@@ -300,8 +268,6 @@ describe("describePriceChange", () => {
   });
 
   it("marks a loss with a minus and a positive magnitude", () => {
-    // The magnitude stays positive so a currency formatter does not print a
-    // second, differently-styled negative sign next to this one.
     expect(describePriceChange(80, 100)).toEqual({ sign: "\u2212", magnitude: 20, percent: -20 });
   });
 
@@ -310,7 +276,6 @@ describe("describePriceChange", () => {
   });
 
   it("returns a null percent when the baseline is zero", () => {
-    // An empty collection on the first day of the range has no base to divide by.
     expect(describePriceChange(40, 0)).toEqual({ sign: "+", magnitude: 40, percent: null });
   });
 

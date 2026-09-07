@@ -2,10 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { contrastGlyphTint, contrastText } from "./color";
 
-// ---------------------------------------------------------------------------
-// contrastText
-// ---------------------------------------------------------------------------
-
 describe("contrastText", () => {
   it("returns dark text on a white background", () => {
     expect(contrastText("#ffffff")).toBe("#1a1a1a");
@@ -16,22 +12,18 @@ describe("contrastText", () => {
   });
 
   it("returns dark text on light domain colors", () => {
-    expect(contrastText("#CDA902")).toBe("#1a1a1a"); // order
-    expect(contrastText("#E2710C")).toBe("#1a1a1a"); // body
-    expect(contrastText("#16AA71")).toBe("#1a1a1a"); // calm
+    expect(contrastText("#CDA902")).toBe("#1a1a1a");
+    expect(contrastText("#E2710C")).toBe("#1a1a1a");
+    expect(contrastText("#16AA71")).toBe("#1a1a1a");
   });
 
   it("returns light text on dark domain colors", () => {
-    expect(contrastText("#CB212D")).toBe("#ffffff"); // fury
-    expect(contrastText("#227799")).toBe("#ffffff"); // mind
-    expect(contrastText("#6B4891")).toBe("#ffffff"); // chaos
-    expect(contrastText("#737373")).toBe("#ffffff"); // colorless
+    expect(contrastText("#CB212D")).toBe("#ffffff");
+    expect(contrastText("#227799")).toBe("#ffffff");
+    expect(contrastText("#6B4891")).toBe("#ffffff");
+    expect(contrastText("#737373")).toBe("#ffffff");
   });
 });
-
-// ---------------------------------------------------------------------------
-// contrastGlyphTint
-// ---------------------------------------------------------------------------
 
 describe("contrastGlyphTint", () => {
   it("picks black for light backgrounds", () => {

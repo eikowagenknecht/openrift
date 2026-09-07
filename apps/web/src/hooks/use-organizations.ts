@@ -17,8 +17,6 @@ import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-// ── Server functions: queries ────────────────────────────────────────────────
-
 const fetchMyOrganizations = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }): Promise<OrganizationListResponse> =>
@@ -37,8 +35,6 @@ const fetchAdminOrganizations = createServerFn({ method: "GET" })
   .handler(({ context }): Promise<OrganizationListResponse> =>
     apiOrpcClient(adminOrganizationsContract, context.cookie).list(),
   );
-
-// ── Query options + hooks ────────────────────────────────────────────────────
 
 export function myOrganizationsQueryOptions(userId: string) {
   return queryOptions({
@@ -72,8 +68,6 @@ export function useOrganization(id: string) {
 export function useAdminOrganizations() {
   return useSuspenseQuery(adminOrganizationsQueryOptions);
 }
-
-// ── Server functions: mutations ──────────────────────────────────────────────
 
 const addMemberFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; email: string; role: OrganizationRole }) => input)
@@ -122,12 +116,6 @@ const adminDeleteOrgFn = createServerFn({ method: "POST" })
     await apiOrpcClient(adminOrganizationsContract, context.cookie).remove({ id });
   });
 
-// ── Mutation hooks ───────────────────────────────────────────────────────────
-
-/**
- * Invalidates the org list and a single org's detail after a membership change.
- * @returns A mutation wired with the org invalidation set.
- */
 function useOrgDetailMutation<TVariables extends { id: string }>(
   mutationFn: (variables: TVariables) => Promise<OrganizationDetailResponse>,
 ) {

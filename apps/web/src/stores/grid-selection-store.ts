@@ -3,9 +3,7 @@ import { create } from "zustand";
 import { isTempCopyId } from "@/lib/temp-copy-id";
 
 interface GridSelectionState {
-  /** Selected copy IDs. */
   selected: Set<string>;
-  /** Whether the grid is in multi-select mode rather than browse mode. */
   selectMode: boolean;
   toggleSelect: (copyId: string) => void;
   toggleStack: (copyIds: string[]) => void;
@@ -13,28 +11,13 @@ interface GridSelectionState {
   addToSelection: (ids: string[]) => void;
   clearSelection: () => void;
   setSelectMode: (on: boolean) => void;
-  /**
-   * Drops the selection and leaves select mode. For a scope change (another
-   * collection, another list): a copy selected in the previous scope isn't in
-   * the new grid, so the float bar would act on rows nobody can see.
-   */
+  // Used on scope change: a copy selected in the previous scope isn't in the
+  // new grid, so the float bar would otherwise act on rows nobody can see.
   resetSelection: () => void;
 }
 
-/**
- * Multi-select state for the /collections grid.
- *
- * Lifted into a Zustand store so per-cell components can subscribe to "am I
- * selected?" with a granular selector. The previous `useCardSelection` hook
- * stored the set in `useState`, which forced every cell in the grid to
- * re-render whenever the selection changed.
- *
- * Optimistic rows inserted by `useBatchedAddCopies` live in the grid with a
- * `temp-` prefixed id until the add API returns a server-assigned uuid. Those
- * rows must not enter the selection set: dispose/move would 400 on the API
- * (invalid uuid) or race with the in-flight add. Filtering at the store level
- * makes every callsite safe without sprinkling the same guard everywhere.
- */
+// Optimistic rows from useBatchedAddCopies carry a temp- id until the add API
+// returns a server uuid; toggle/add filter those out so dispose/move never 400s.
 export const useGridSelectionStore = create<GridSelectionState>()((set) => ({
   selected: new Set(),
   selectMode: false,

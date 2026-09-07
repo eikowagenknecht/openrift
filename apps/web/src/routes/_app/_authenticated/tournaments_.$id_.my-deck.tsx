@@ -10,8 +10,8 @@ export const Route = createFileRoute("/_app/_authenticated/tournaments_/$id_/my-
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "My deck", noIndex: true }),
   loader: async ({ context, params }) => {
     const detail = await loadTournamentDetail(context.queryClient, context.userId, params.id);
-    // The page is the viewer's own entry, so holding one is the whole gate: a
-    // judge without a deck of their own has no business here either.
+    // No staff role check: holding an entry is the whole gate, so a judge
+    // without a deck of their own is redirected too.
     if (!detail.myDeckEntry) {
       redirectToTournamentOverview(params.id);
     }

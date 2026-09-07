@@ -10,7 +10,6 @@ import { stubPrinting } from "@/test/factories";
 
 const SET_ID = "00000000-0000-0000-0000-00000000set1";
 
-// Strips the enriched fields back off a stub Printing to get the wire value shape.
 function toCatalogValue(printing: Printing) {
   const { id: _id, setSlug: _slug, setReleased: _released, card: _card, ...value } = printing;
   return { ...value, setId: SET_ID };
@@ -76,8 +75,6 @@ describe("useStandardArtFallback", () => {
   it("returns null and does not fetch when the catalog is not cached", () => {
     const { client, result } = setup();
     expect(result.current(stubPrinting())).toBeNull();
-    // enabled: false must keep the ~310 KB catalog fetch off surfaces that
-    // don't otherwise load it.
     expect(client.getQueryState(queryKeys.catalog.all)?.fetchStatus ?? "idle").toBe("idle");
   });
 });

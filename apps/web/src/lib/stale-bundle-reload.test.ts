@@ -49,15 +49,13 @@ describe("markNewVersionAvailable", () => {
 
   it("cancels a pending reload-flag clear so a stale page load doesn't re-arm the guard", () => {
     vi.useFakeTimers();
-    // Prime the guard so there's a clear to cancel.
     reloadIfUncaughtBareThrow(undefined);
     expect(reloadSpy).toHaveBeenCalledTimes(1);
     scheduleReloadFlagClear();
 
-    markNewVersionAvailable(); // mismatch seen mid-page-load — must veto the clear
+    markNewVersionAvailable();
 
     vi.advanceTimersByTime(10_000);
-    // Guard should still be set: a second bare throw must not auto-reload again.
     reloadIfUncaughtBareThrow(undefined);
     expect(reloadSpy).toHaveBeenCalledTimes(1);
     expect(notifierSpy).toHaveBeenCalled();
@@ -89,13 +87,13 @@ describe("reload loop guard (driven via reloadIfUncaughtBareThrow)", () => {
 describe("scheduleReloadFlagClear", () => {
   it("clears the sessionStorage guard after the delay, re-arming the automatic reload", () => {
     vi.useFakeTimers();
-    reloadIfUncaughtBareThrow(undefined); // spend the automatic reload
+    reloadIfUncaughtBareThrow(undefined);
     expect(reloadSpy).toHaveBeenCalledTimes(1);
 
     scheduleReloadFlagClear();
     vi.advanceTimersByTime(10_000);
 
-    reloadIfUncaughtBareThrow(undefined); // guard cleared — reloads again
+    reloadIfUncaughtBareThrow(undefined);
     expect(reloadSpy).toHaveBeenCalledTimes(2);
   });
 
@@ -107,7 +105,7 @@ describe("scheduleReloadFlagClear", () => {
     scheduleReloadFlagClear();
     vi.advanceTimersByTime(10_000);
 
-    reloadIfUncaughtBareThrow(undefined); // still guarded
+    reloadIfUncaughtBareThrow(undefined);
     expect(reloadSpy).toHaveBeenCalledTimes(1);
     expect(notifierSpy).toHaveBeenCalled();
   });
@@ -128,12 +126,12 @@ describe("scheduleReloadFlagClear", () => {
 
 describe("forceReload", () => {
   it("always reloads, bypassing the loop guard entirely", () => {
-    reloadIfUncaughtBareThrow(undefined); // spend the guard
-    reloadIfUncaughtBareThrow(undefined); // blocked
+    reloadIfUncaughtBareThrow(undefined);
+    reloadIfUncaughtBareThrow(undefined);
 
     forceReload("user clicked reload");
 
-    expect(reloadSpy).toHaveBeenCalledTimes(2); // 1 automatic + 1 forced
+    expect(reloadSpy).toHaveBeenCalledTimes(2);
   });
 });
 

@@ -94,9 +94,6 @@ describe("extractFirstRow", () => {
   });
 
   it("leads with main-set cards even when a supplemental set sorts earlier in catalog.sets", () => {
-    // Regression: the SSR first-row preview must match the hydrated grid's
-    // groupItemsBySet, which orders main sets before supplemental ones. A
-    // supplemental set placed first in catalog.sets must not lead the preview.
     const cards = { "card-a": makeCard(), "card-b": makeCard() };
     const printings = {
       "p-supp": makePrinting({ cardId: "card-a", shortCode: "PROMO-001", setId: "set-supp" }),
@@ -248,7 +245,7 @@ describe("extractFirstRow", () => {
   });
 
   describe("cards view (default)", () => {
-    it("dedups multiple printings of the same card in the same set to one tile", () => {
+    it("dedups multiple printings of the same card in the same set to one tile, earliest canonicalRank wins", () => {
       const cards = { "card-1": makeCard() };
       const printings = {
         "p-foil": makePrinting({ shortCode: "OGN-001★", finish: "foil", canonicalRank: 5 }),
@@ -260,7 +257,6 @@ describe("extractFirstRow", () => {
         }),
       };
       const result = extractFirstRow(makeCatalog(cards, printings), NO_FILTERS, 10);
-      // Earliest in (langRank, canonicalRank) wins: p-normal (canonicalRank 1).
       expect(result.map((r) => r.printingId)).toEqual(["p-normal"]);
     });
 

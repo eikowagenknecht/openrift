@@ -4,7 +4,6 @@ import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 
 export interface DeckLastChange {
   cardName: string;
-  /** Copies gained (positive) or lost (negative) across the whole deck. */
   delta: number;
 }
 
@@ -13,12 +12,7 @@ interface CardTotal {
   quantity: number;
 }
 
-/**
- * Collapses a deck to one total per card, ignoring zones — a card moved from
- * the sideboard to the main deck hasn't changed in count, and the dock should
- * not announce it as an edit.
- * @returns cardId → name and total quantity.
- */
+/** Ignores zones: a card moved from sideboard to main hasn't changed in count. */
 function totalsByCard(cards: readonly DeckBuilderCard[]): Map<string, CardTotal> {
   const totals = new Map<string, CardTotal>();
   for (const card of cards) {
@@ -39,16 +33,7 @@ function totalsByCard(cards: readonly DeckBuilderCard[]): Map<string, CardTotal>
   return totals;
 }
 
-/**
- * The headline difference between two deck states, for the "+2 Honest Broker"
- * readout. One edit usually touches one card; when several moved at once (a
- * legend switch drops one and adds another, autofill rebalances runes) the
- * biggest swing is the one worth naming, with the card name breaking ties so
- * the result is stable.
- *
- * @returns The card and its signed delta, or null when the two states hold the
- * same copies of everything.
- */
+/** When several cards changed at once, names the biggest swing; ties break by card name for a stable result. */
 export function lastChange(
   previous: readonly DeckBuilderCard[],
   current: readonly DeckBuilderCard[],

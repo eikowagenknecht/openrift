@@ -12,8 +12,6 @@ const MOCK_STYLES: KeywordsResponse["items"] = {
   Temporary: { color: "#95b229", darkText: true, costKeyword: false },
 };
 
-// Same keywords with translations attached: a CJK label and a French one whose
-// apostrophe and accent both have to survive folding.
 const TRANSLATED_STYLES: KeywordsResponse["items"] = {
   Accelerate: { ...MOCK_STYLES.Accelerate, translations: { fr: "Coup d’éclat" } },
   Shield: { ...MOCK_STYLES.Shield, translations: { sc: "护盾" } },
@@ -67,8 +65,6 @@ describe("getKeywordStyle", () => {
 
 describe("buildTranslationReverseMap", () => {
   it("keys entries by their folded label, not merely lowercased", () => {
-    // The keyword search in filters.ts looks up a folded term, so the keys have
-    // to be folded the same way or an accented label never resolves.
     const map = buildTranslationReverseMap(TRANSLATED_STYLES);
     expect(map.get("coup declat")).toBe("Accelerate");
     expect(map.get("护盾")).toBe("Shield");

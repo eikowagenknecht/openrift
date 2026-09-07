@@ -1,9 +1,5 @@
 import type { MetaCrossSourceRow } from "@openrift/shared";
 
-// The cross-mirror review's pure parts (ADR-014, "Two mirrors on one event"):
-// how far along one mirror's review is, and which of its entries are safe to
-// link in one go.
-
 export interface MetaCrossSourceProgress {
   total: number;
   linked: number;
@@ -11,13 +7,6 @@ export interface MetaCrossSourceProgress {
   unreviewed: number;
 }
 
-/**
- * How much of one mirror's review is done.
- *
- * @param rows - The review's rows, of every mirror.
- * @param provider - The mirror to count.
- * @returns The four counts, which the panel's header prints.
- */
 export function crossSourceProgress(
   rows: readonly MetaCrossSourceRow[],
   provider: string,
@@ -31,7 +20,6 @@ export function crossSourceProgress(
   };
 }
 
-/** One entry the bulk action would link, and the live row it would link it to. */
 export interface CrossSourceAutoLink {
   provider: string;
   sourceIdentity: string;
@@ -40,12 +28,8 @@ export interface CrossSourceAutoLink {
 }
 
 /**
- * The undecided entries whose match needs no judgement: exactly one suggestion
- * is exact, meaning the same normalized name and the same finish. Two entries
- * reaching for one live row are both left out; a human settles those.
- *
- * @param rows - The review's rows.
- * @returns The links the bulk action would write, in the rows' own order.
+ * Only the undecided entries with exactly one exact suggestion (same
+ * normalized name and finish). Two entries reaching for one live row are both left out.
  */
 export function crossSourceAutoLinks(rows: readonly MetaCrossSourceRow[]): CrossSourceAutoLink[] {
   const picks: CrossSourceAutoLink[] = [];

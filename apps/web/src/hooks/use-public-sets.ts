@@ -22,9 +22,7 @@ const fetchSetDetail = createServerFn({ method: "GET" })
     serverCache.query({
       queryKey: ["server-cache", "set-detail", data],
       queryFn: async () => {
-        // 404 is legitimate (unknown slug) — the contract declares it as a
-        // typed NOT_FOUND error; map it to the sentinel the caller expects
-        // without logging. oRPC also reports a bare 404 as code NOT_FOUND.
+        // 404 (unknown slug) maps to the NOT_FOUND sentinel the caller expects.
         const { error, data: detail } = await safe(
           apiOrpcClient(setsContract).detail({ setSlug: data }),
         );
@@ -62,7 +60,6 @@ export const publicSetListQueryOptions = queryOptions({
   staleTime: 5 * 60 * 1000,
 });
 
-/** @returns Query options for a single set detail, enriched with card references. */
 export function publicSetDetailQueryOptions(setSlug: string) {
   return queryOptions({
     queryKey: queryKeys.sets.detail(setSlug),

@@ -9,44 +9,21 @@ export interface CardRowClickModifiers {
   ctrl?: boolean;
 }
 
-/**
- * Actions offered by the /collections right-click menu. The bulk trio mirrors
- * the floating action bar; "copyDetails" opens the per-copy metadata dialog
- * (ADR-038) for the clicked tile's copies; "lend" opens the lend-to-a-friend
- * dialog (ADR-039) for the clicked tile's printing.
- */
+/** "copyDetails" opens the per-copy metadata dialog; "lend" opens the lend-to-a-friend dialog. */
 export type CollectionContextAction = "move" | "addToList" | "lend" | "dispose" | "copyDetails";
 
-/**
- * Bulk actions offered by the /lists right-click menu (mirror the floating
- * action bar). "remove" unlists card/printing-kind entries directly. "takeOff"
- * is the copy-kind (tradelist) path: it opens a chooser asking whether the copy
- * was kept (just unlist) or sold/traded (also dispose it from the collection),
- * so the two outcomes aren't two lookalike buttons.
- */
+/** "takeOff" opens a kept-vs-sold/traded chooser. */
 export type ListBulkAction = "move" | "remove" | "takeOff";
 
-/**
- * The card-browser surfaces that register handlers here. Exactly one is mounted
- * at a time (each is its own route), and the tag makes that an assertion rather
- * than an assumption — it is what lets a surface's cleanup tell "I am the
- * registered owner, clear the slot" from "someone else already took over".
- */
+/** Exactly one surface is mounted at a time; a cleanup checks this to tell its own registration from a successor's. */
 export type CardRowSurface = "catalog" | "collection" | "deck" | "list";
 
 /** Handlers every card-browser surface can offer. */
 interface BaseRowHandlers {
-  /**
-   * Table row click. `itemId` identifies the clicked row, which matters where
-   * one printing spans several rows (collections copies view).
-   */
+  /** `itemId` identifies the clicked row, for when one printing spans several rows. */
   onRowClick?: (printing: Printing, itemId?: string) => void;
   onSiblingClick?: (printing: Printing) => void;
-  /**
-   * Add one copy/entry of `printing`, or `quantity` of them when the caller
-   * asks for more. Only the grid's digit-key shortcut passes a quantity; every
-   * click path leaves it undefined and means one.
-   */
+  /** `quantity` is set only by the grid's digit-key shortcut; every other path means one. */
   onIncrement?: (printing: Printing, modifiers?: CardRowClickModifiers, quantity?: number) => void;
   onDecrement?: (
     printing: Printing,
@@ -58,37 +35,21 @@ interface BaseRowHandlers {
     anchorEl: HTMLElement,
     intent: VariantPopoverIntent,
   ) => void;
-  /**
-   * Cell-aware click: dispatched on the grid tile with modifier keys. The
-   * handler resolves mode-specific behavior (browse → open detail, select →
-   * toggle / shift-range, ctrl in browse → enter select mode + toggle).
-   */
+  /** Resolves mode-specific behavior: browse → open detail, select → toggle/shift-range. */
   onItemClick?: (itemId: string, printing: Printing, modifiers: CardRowClickModifiers) => void;
   /** Toggle the cell's stack in select mode (used by the cell's checkbox). */
   onItemToggle?: (itemId: string) => void;
-  /**
-   * Open the wishlist picker for `printing`. A wish is a card- or
-   * printing-kind entry, so the picker shapes it to the list the user lands
-   * on rather than the surface deciding up front.
-   */
   onAddToWishlist?: (printing: Printing) => void;
 }
 
 /** Handlers only /collections registers. */
 interface CollectionRowHandlers {
   /**
-   * A right-click menu action on a card. The grid resolves the target — the
-   * current multi-selection when this card is part of it, otherwise just this
-   * card — then opens the matching dialog. `printing` is the cell's *displayed*
-   * printing (sibling swaps included), for actions that target one printing
-   * rather than the whole tile ("lend", ADR-039).
+   * The grid resolves the target (multi-selection, or just this card) before opening the dialog;
+   * `printing` is the cell's *displayed* printing (sibling swaps included).
    */
   onContextAction?: (itemId: string, action: CollectionContextAction, printing?: Printing) => void;
-  /**
-   * Group "bulk box": take `count` copies of this card from the shared group
-   * collection into the viewer's inbox (a free-pile claim, capped to what the
-   * box holds). Only wired up when the collection is group-owned.
-   */
+  /** Claim `count` copies from the shared group collection; wired up only when group-owned. */
   onTake?: (itemId: string, count: number) => void;
 }
 
@@ -102,33 +63,15 @@ interface ListRowHandlers {
   onSetPreference?: (entryId: string) => void;
   /** Is the given entry currently waiting on a pending quantity mutation? */
   isQuantityPendingFor?: (entryId: string) => boolean;
-  /**
-   * A right-click menu bulk action on an entry. The browser resolves the
-   * target — the current multi-selection when this entry is part of it,
-   * otherwise just this entry — then opens the matching dialog.
-   */
+  /** The browser resolves the target (multi-selection, or just this entry) before opening the dialog. */
   onListBulkAction?: (entryId: string, action: ListBulkAction) => void;
-  /**
-   * Copy-kind entries: move the physical copies behind them into another
-   * collection. Keyed by copy id rather than entry id, so rule-produced
-   * entries (ADR-034, no `list_entries` row) can be moved too — a copy exists
-   * whether or not a rule is what put it on the list. The browser widens the
-   * target to the current selection when this entry is part of it.
-   */
+  /** Keyed by copy id, not entry id, so rule-produced entries (no `list_entries` row) can be moved too. */
   onMoveCopyToCollection?: (copyId: string) => void;
-  /**
-   * Drop a rule-produced entry from the list's dynamic rules (ADR-034). Rule
-   * entries have no `list_entries` row, so they can't be removed — only
-   * excluded, which appends the target id to the producing rule(s) and re-saves.
-   */
+  /** Rule-produced entries have no `list_entries` row; this excludes them from the rule, not removes them. */
   onExcludeFromRule?: (target: RuleExcludeTarget) => void;
 }
 
-/**
- * What a surface may register, keyed by surface. The dispatchers below read
- * through the union, so a handler stays reachable from any cell; the split is
- * what stops a surface registering another surface's vocabulary by accident.
- */
+/** Keyed by surface, so a surface can't register another surface's vocabulary by accident. */
 export interface HandlersBySurface {
   catalog: BaseRowHandlers;
   collection: BaseRowHandlers & CollectionRowHandlers;
@@ -146,21 +89,10 @@ interface CardRowActionsState {
     owner: TSurface,
     handlers: HandlersBySurface[TSurface],
   ) => void;
-  /**
-   * Empty the slot, but only if `owner` still holds it. An unconditional clear
-   * would let a surface unmounting after its successor mounted wipe the
-   * successor's registration.
-   */
+  /** No-ops when `owner` isn't the current slot holder, so a late-unmounting surface can't wipe a successor's registration. */
   clearHandlers: (owner: CardRowSurface) => void;
 }
 
-// Why a registry instead of prop drilling: card-browser's quick-add handlers
-// close over TanStack mutation results that get a fresh object identity every
-// render. Drilling them through the virtualized table/grid blew memo() on
-// every row whenever the parent re-rendered (mutation pending flips, owned
-// count map updates). Rows now read at click time via getState() — no React
-// subscription, so registry updates don't trigger re-renders, and the row's
-// prop surface stays stable across parent re-renders.
 export const useCardRowActionsStore = create<CardRowActionsState>()((set) => ({
   owner: null,
   handlers: {},
@@ -169,14 +101,8 @@ export const useCardRowActionsStore = create<CardRowActionsState>()((set) => ({
     set((state) => (state.owner === owner ? { owner: null, handlers: {} } : state)),
 }));
 
-// Module-scoped trampolines with permanent identity. Pass these as props to
-// memoized children (e.g. CardThumbnail) where a fresh closure each render
-// would bail the memo. Each call resolves the latest registered handler via
-// getState(), so behavior tracks the active CardBrowser/CollectionGrid.
-// Grid cells pass this straight to their click handler, which calls it with a
-// mouse event as the second argument — hence the single declared parameter, so
-// the event can never be mistaken for a row's `itemId`. The table, which does
-// know its row id, calls the handler directly.
+// Module-scoped trampolines with permanent identity, so passing them to memoized
+// children (e.g. CardThumbnail) never bails the memo on a fresh closure.
 export function dispatchRowClick(printing: Printing): void {
   useCardRowActionsStore.getState().handlers.onRowClick?.(printing);
 }

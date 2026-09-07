@@ -13,8 +13,6 @@ let closed: number;
 /**
  * Stand in for `document.createElement("canvas")`: jsdom has no 2D backend, so
  * a real canvas would answer `getContext` with null.
- *
- * @returns The fake canvas.
  */
 function fakeCanvas(): HTMLCanvasElement {
   recorder.canvases++;
@@ -39,11 +37,6 @@ function fakeCanvas(): HTMLCanvasElement {
   return canvas as unknown as HTMLCanvasElement;
 }
 
-/**
- * Answer the next reference fetch.
- *
- * @returns Nothing; `fetch` is stubbed for the rest of the test.
- */
 function respondWith(response: { status: number; ok?: boolean }): void {
   vi.stubGlobal(
     "fetch",
@@ -90,11 +83,9 @@ describe("fetchReference", () => {
 
     const image = await fetchReference("card-key");
 
-    // A hard white or black corner would inject an edge no photograph shows.
     expect(recorder.fills).toEqual([{ style: "rgb(128, 128, 128)", width: 400, height: 560 }]);
     expect(recorder.drawn).toBe(1);
     expect(image).toEqual({ data: expect.any(Uint8ClampedArray), width: 400, height: 560 });
-    // The bitmap holds decoded pixels until it is closed.
     expect(closed).toBe(1);
   });
 
@@ -104,8 +95,6 @@ describe("fetchReference", () => {
     await fetchReference("first");
     await fetchReference("second");
 
-    // A canvas per card would churn memory on a page that fetches one per
-    // shortlist entry.
     expect(recorder.canvases).toBe(1);
   });
 
@@ -120,8 +109,6 @@ describe("fetchReference", () => {
     const { fetchReference } = await import("./scan-reference-image");
     respondWith({ status: 503 });
 
-    // A cached transient miss would silently remove the rival that refuses a
-    // wrong winner, on every frame until restart.
     await expect(fetchReference("flaky")).rejects.toThrow("status 503");
   });
 
@@ -132,7 +119,6 @@ describe("fetchReference", () => {
       vi.fn(() => Promise.reject(new Error("bad image"))),
     );
 
-    // It will not improve on retry.
     await expect(fetchReference("corrupt")).resolves.toBeNull();
   });
 });

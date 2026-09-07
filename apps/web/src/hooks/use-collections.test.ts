@@ -16,7 +16,7 @@ vi.mock("@/lib/server-fns/middleware", () => ({ withCookies: {} }));
 const { resetCollectionsFn } = await import("./use-collections");
 
 // The createServerFn mock unwraps the chain to the raw handler, which takes
-// the ({ context }) shape instead of the wrapped client signature.
+// the ({ context }) shape, not the wrapped client signature.
 const callResetFn = () =>
   (resetCollectionsFn as unknown as (args: { context: { cookie?: string } }) => Promise<unknown>)({
     context: {},
@@ -35,8 +35,6 @@ describe("resetCollectionsFn", () => {
   });
 
   it("rethrows the defined CONFLICT error as a plain Error with the server message", async () => {
-    // The 409 guard fires while copies are reserved in trades / out on loans;
-    // the dialog shows error.message, so the server text must survive.
     const message = "Some of your cards are reserved in active trades — cancel those trades first.";
     vi.stubGlobal(
       "fetch",

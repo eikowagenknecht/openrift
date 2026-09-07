@@ -33,10 +33,6 @@ const upsertCardErrataFn = createServerFn({ method: "POST" })
     });
   });
 
-/**
- * Upserts card errata (creates or replaces).
- * @returns A mutation that POSTs to `/admin/cards/:id/errata`.
- */
 export function useUpsertCardErrata() {
   return useMutationWithInvalidation({
     mutationFn: async ({
@@ -71,10 +67,6 @@ const deleteCardErrataFn = createServerFn({ method: "POST" })
     });
   });
 
-/**
- * Deletes card errata.
- * @returns A mutation that DELETEs `/admin/cards/:id/errata`.
- */
 export function useDeleteCardErrata() {
   return useMutationWithInvalidation({
     mutationFn: async ({ cardId }: { cardId: string }) => {
@@ -100,10 +92,6 @@ const uploadErrataFn = createServerFn({ method: "POST" })
     apiOrpcClient(adminCardMutationsContract, context.cookie).uploadErrata(data),
   );
 
-/**
- * Bulk-upload card errata from a JSON payload.
- * @returns A mutation that POSTs to `/admin/cards/errata/upload`.
- */
 export function useUploadErrata() {
   return useMutationWithInvalidation({
     mutationFn: (payload: BulkErrataUploadBody) => uploadErrataFn({ data: payload }),

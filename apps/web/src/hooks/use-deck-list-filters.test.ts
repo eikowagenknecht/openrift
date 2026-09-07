@@ -16,11 +16,7 @@ vi.mock("@tanstack/react-router", () => ({
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { useDeckListFilters } from "./use-deck-list-filters";
 
-/**
- * Applies the search updater the hook handed to `navigate` against the current
- * search, giving the params that would land in the URL.
- * @returns The resulting search object.
- */
+/** Applies the search updater the hook handed to `navigate`, giving the params that would land in the URL. */
 function resultingSearch(): Record<string, unknown> {
   const call = mockNavigate.mock.calls.at(-1)?.[0] as {
     search: (prev: DeckListSearch) => Record<string, unknown>;
@@ -64,8 +60,6 @@ describe("useDeckListFilters", () => {
   });
 
   it("does not count the archived toggle as an active filter", () => {
-    // It widens the list rather than narrowing it, so a "reset filters" button
-    // has nothing to do when it's the only thing set.
     mockSearch = { archived: true };
     const { result } = renderHook(() => useDeckListFilters());
     expect(result.current.showArchived).toBe(true);
@@ -89,9 +83,7 @@ describe("useDeckListFilters", () => {
     expect(resultingSearch()).toEqual({ validity: "invalid" });
   });
 
-  it("cycles a format through include and exclude", () => {
-    // The shared ADR-034 cycle: a fresh axis includes, a second click on the
-    // sole include flips the axis to "all but this", a third clears it.
+  it("cycles a format through include, exclude-only, and clear", () => {
     const { result } = renderHook(() => useDeckListFilters());
     result.current.cycleFormat("freeform");
     expect(resultingSearch()).toEqual({ formats: ["freeform"] });
@@ -115,8 +107,6 @@ describe("useDeckListFilters", () => {
   });
 
   it("cycles legality off, on, inverted, off", () => {
-    // The card browser's flag badges run this cycle, and the deck list's
-    // legality flag borrows it, so the two behave the same under a click.
     const { result } = renderHook(() => useDeckListFilters());
     result.current.cycleValidity();
     expect(resultingSearch()).toEqual({ validity: "valid" });

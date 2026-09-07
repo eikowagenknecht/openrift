@@ -8,7 +8,6 @@ import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchPriceHistoryFn = createServerFn({ method: "GET" })
-  // range is the TimeRange enum on the route (was loose `string` under fetchApi).
   .validator((input: { printingId: string; range: TimeRange }) => input)
   .middleware([withCookies])
   .handler(({ context, data }): Promise<PriceHistoryResponse> =>

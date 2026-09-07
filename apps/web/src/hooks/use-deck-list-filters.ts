@@ -6,81 +6,53 @@ import { cycleIncludeExclude } from "@/lib/filter-cycle";
 
 const routeApi = getRouteApi("/_app/decks/");
 
-/** Absent = both, "valid" / "invalid" = require that state. */
 export type DeckListValidity = "all" | "valid" | "invalid";
 
-/** Draft variants (ADR-042): "all" = show them, "hide" / "only" = one side. */
 export type DeckListDrafts = "all" | "hide" | "only";
 
 export interface DeckListFilterValues {
   search: string;
-  /** Deck-format slugs to require; empty means every format. */
   formats: string[];
-  /** Deck-format slugs to reject (ADR-034). */
   formatsExclude: string[];
   validity: DeckListValidity;
   drafts: DeckListDrafts;
   domains: Domain[];
   domainsExclude: Domain[];
-  /** Folder ids to require; empty means every folder. */
   folders: string[];
-  /** Folder ids to reject (ADR-034). */
   foldersExclude: string[];
   showArchived: boolean;
-  /** True when anything narrows the list. The archived toggle widens it, so it doesn't count. */
   hasActiveFilters: boolean;
 }
 
 export interface DeckListFilterActions {
   setSearch: (value: string) => void;
-  /** Cycles one format off → include → exclude → off. */
   cycleFormat: (value: string) => void;
-  /** Cycles one domain off → include → exclude → off. */
   cycleDomain: (value: string) => void;
-  /** Cycles one folder off → include → exclude → off. */
   cycleFolder: (value: string) => void;
-  /** Cycles all → valid → invalid → all, matching the card browser's flag badges. */
   cycleValidity: () => void;
   setValidity: (value: DeckListValidity) => void;
-  /** Cycles all → only → hide → all, the same flag-badge cycle validity uses. */
   cycleDrafts: () => void;
   setDrafts: (value: DeckListDrafts) => void;
   setShowArchived: (value: boolean) => void;
   clearAllFilters: () => void;
 }
 
-/** The flag-badge cycle: off → include → exclude → off. */
 const VALIDITY_CYCLE: Record<DeckListValidity, DeckListValidity> = {
   all: "valid",
   valid: "invalid",
   invalid: "all",
 };
 
-/** Same cycle for drafts: require them, then reject them, then don't care. */
 const DRAFTS_CYCLE: Record<DeckListDrafts, DeckListDrafts> = {
   all: "only",
   only: "hide",
   hide: "all",
 };
 
-/**
- * The deck list's filters, held in the URL like the card browser's are, so a
- * filtered list is linkable and the back button walks the filter history.
- *
- * The URL carries only what narrows the list. Density, sort and grouping stay
- * in the preference stores — they are how the user reads every deck list, not
- * a property of the one they are looking at.
- * @returns The current filter values and their actions.
- */
 export function useDeckListFilters(): DeckListFilterValues & DeckListFilterActions {
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
 
-  // Empty values are dropped rather than written as "" / [] / false, so a
-  // default list keeps a clean URL and the back button doesn't step through
-  // states that look identical. Each change pushes a history entry, as on the
-  // card browser; the search box debounces through `useSearchUrlSync` so
-  // typing doesn't leave one entry per keystroke.
   const update = (patch: Partial<DeckListSearch>) => {
     void navigate({
       search: (prev) => {

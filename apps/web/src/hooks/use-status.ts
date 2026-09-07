@@ -17,7 +17,7 @@ const fetchStatus = createServerFn({ method: "GET" })
 const clearSsrCache = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context }) => {
-    // Verify admin auth by hitting the status endpoint (reuses existing auth check)
+    // Discarded result: this call exists only for its admin auth check.
     await apiOrpcClient(adminStatusContract, context.cookie).get();
     serverCache.clear();
   });
@@ -34,12 +34,6 @@ export function useAdminStatus() {
   return useQuery(adminStatusQueryOptions);
 }
 
-/**
- * Clears the SSR query cache on the server, forcing fresh API calls for all
- * subsequent server-rendered requests.
- *
- * @returns A mutation that clears the server-side SSR cache.
- */
 export function useClearSsrCache() {
   return useMutation({
     mutationFn: () => clearSsrCache(),

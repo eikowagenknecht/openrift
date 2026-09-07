@@ -2,13 +2,7 @@ import type { ListEntryDetailResponse } from "@openrift/shared";
 import { create } from "zustand";
 
 interface ListEntriesState {
-  /** Entry keyed by grid item id — used in browse mode where items are derived from entries. */
   entryByItemId: Map<string, ListEntryDetailResponse>;
-  /**
-   * Entry keyed by cardId (card-kind lists) or printingId (others). Used in
-   * library mode where item.id is a catalog printingId rather than an entry id,
-   * so we have to ask "is this card on the list at all?" with the kind-aware key.
-   */
   entryByKey: Map<string, ListEntryDetailResponse>;
   setEntries: (
     entryByItemId: Map<string, ListEntryDetailResponse>,
@@ -16,15 +10,8 @@ interface ListEntriesState {
   ) => void;
 }
 
-/**
- * Per-cell entry lookup for the /lists grid.
- *
- * Reading `entryByItemId` / `entryByKey` directly in the parent's `renderCard`
- * closure would make every entry mutation re-derive the maps and force every
- * visible cell to re-render. With this store, cells select their own entry via
- * a per-key selector: when only THIS card's entry changed, Object.is equality
- * on the selector return value lets other cells skip rendering.
- */
+// Cells select their own entry via a per-key selector so an entry mutation
+// only re-renders the cell whose entry actually changed.
 export const useListEntriesStore = create<ListEntriesState>()((set) => ({
   entryByItemId: new Map(),
   entryByKey: new Map(),

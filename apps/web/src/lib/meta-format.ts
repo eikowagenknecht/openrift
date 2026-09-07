@@ -1,43 +1,24 @@
 import type { MetaEventTier, MetaListStatus, MetaPlayerOverlayField } from "@openrift/shared";
 import { META_PLAYER_OVERLAY_FIELDS, todayUtc } from "@openrift/shared";
 
-// The deck share image prints the same finish and record, so both live in
-// `shared` and reach every archive surface through this module.
+// The deck share image also uses these; they live in `shared` for both to import.
 export { formatRank, formatRecord } from "@openrift/shared";
 
-/**
- * How much of a player's list the archive holds, in the words the archive uses
- * for it. `none` labels a standings-only entry, which is most of a real field;
- * `full` is what a reader already assumes, so nothing prints it.
- */
 export const META_LIST_STATUS_LABELS: Record<MetaListStatus, string> = {
   full: "Full list",
   partial: "Partial list",
   none: "No list",
 };
 
-/**
- * The finishes that wear a medal instead of a printed rank. Every archive
- * surface that ranks a field reads this, so the podium is the same three places
- * on all of them.
- */
 export const MEDAL_RANKS = 3;
 
-/** How much an event counts for, in the words the archive shows readers. */
 export const META_EVENT_TIER_LABELS: Record<MetaEventTier, string> = {
   premier: "Premier",
   competitive: "Competitive",
   local: "Local",
 };
 
-/**
- * What an archive index's title bar says it is showing: the count on its own
- * while nothing is narrowed, and "N of M" once something is.
- *
- * Counts of what the archive holds, never a proportion. Grouping is pinned to
- * `en-US` because the page is server-rendered and a server on another default
- * would send "1.247" into a browser that renders "1,247".
- */
+/** Grouping is pinned to `en-US`: SSR would otherwise send a different locale's separator than the browser renders. */
 export function metaShownLabel(
   shown: number,
   total: number,
@@ -50,13 +31,7 @@ export function metaShownLabel(
   return `${shown.toLocaleString("en-US")} of ${total.toLocaleString("en-US")} ${label}`;
 }
 
-/**
- * "Nova", "Nova and Rell", "Nova, Rell and Sett" — every name printed, however
- * many there are.
- *
- * Built by hand rather than through `Intl.ListFormat` so the string is the same
- * for every reader, which is how the rest of the archive's rendered text works.
- */
+/** Not `Intl.ListFormat`: this must render the same string for every reader regardless of locale. */
 export function joinNames(names: readonly string[]): string {
   if (names.length <= 1) {
     return names[0] ?? "";
@@ -64,28 +39,14 @@ export function joinNames(names: readonly string[]): string {
   return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
 }
 
-/** A legend's name split into the two halves the archive prints separately. */
 export interface LegendNameParts {
-  /** The champion the legend is named for, or the whole name when it has none. */
   champion: string;
-  /** The legend card's own title, null for a legend with no champion tag. */
   title: string | null;
 }
 
 /**
- * Undoes `legendDisplayName`'s join so the identity unit can weight the two
- * halves differently ("Lux · Lady of Luminosity"). The API sends the composed
- * form, and re-deriving it would need the card's tags, which the archive's
- * denormalized card refs do not carry.
- *
- * Splits on the first ", " only, which is where the composer put it.
- *
- * The split cannot tell a composed name from an untagged legend whose printed
- * name happens to carry a comma, and would read such a name as champion plus
- * title. Nothing in the catalogue is that card: every Legend is champion-tagged,
- * and the only four printed with a comma are the ", Starter" qualifiers, which
- * `legendDisplayName` trims before it ever composes. The behaviour is pinned by
- * a test so a change in either of those facts fails loudly.
+ * Assumes every Legend is champion-tagged: an untagged legend, or a printed
+ * name with a natural comma, would misparse as champion plus title.
  */
 export function splitLegendName(name: string): LegendNameParts {
   const at = name.indexOf(", ");
@@ -95,14 +56,7 @@ export function splitLegendName(name: string): LegendNameParts {
   return { champion: name.slice(0, at), title: name.slice(at + 2) };
 }
 
-/**
- * A record's rank among the other records, as a standings table orders them:
- * most wins first, fewest losses breaking the tie. Null when the source
- * published no record, which sorts to the end.
- *
- * The two parts pack into one number because a column sorts on a single value.
- * No archived event runs a thousand rounds, so wins always outweigh losses.
- */
+/** Assumes no event runs 1000+ rounds, or wins would stop outweighing losses in the packed value. */
 export function recordSortValue(wins: number | null, losses: number | null): number | null {
   if (wins === null) {
     return null;
@@ -111,14 +65,8 @@ export function recordSortValue(wins: number | null, losses: number | null): num
 }
 
 /**
- * The ranks the archive holds no row for: the holes inside the standings it
- * fetched, and the tail when the source reported a longer field than the last
- * row covers.
- *
- * A field published as cut tiers is exempt. Its ranks repeat and skip by
- * design ("1st, 2nd, T4, T4, T8..."), so every bucket boundary would read as a
- * hole. An event with no standings at all is exempt too: it is pending, not
- * incomplete.
+ * Exempt: cut-tier fields (ranks repeat and skip by design) and events with
+ * no standings yet (pending, not incomplete).
  */
 export function standingsGaps(
   players: readonly { rank: number; rankIsTier: boolean }[],
@@ -138,11 +86,7 @@ export function standingsGaps(
   return gaps;
 }
 
-/**
- * A sorted rank list as runs: "83, 118" for scattered holes, "91–128" for a
- * missing tail. Past `limit` runs the rest are counted rather than named, so a
- * barely-fetched event does not print a paragraph.
- */
+/** Runs past `limit` are counted, not named. */
 export function formatRankRuns(ranks: readonly number[], limit = 6): string {
   const runs: string[] = [];
   let start: number | null = null;
@@ -170,38 +114,13 @@ export function formatRankRuns(ranks: readonly number[], limit = 6): string {
   return `${runs.slice(0, limit).join(", ")} and ${runs.length - limit} more`;
 }
 
-/** The event fields a row's detail line is built from. */
 export interface MetaCountedEvent {
   eventDate: string;
-  /** The field size the source published, which can exceed the rows we hold. */
   playerCount: number | null;
   playerRowCount: number;
   deckCount: number;
 }
 
-/**
- * What an event row says about its field and its results.
- *
- * The field size is the source's own number rather than the standings rows the
- * archive holds: a reader scanning a list wants to know how big the tournament
- * was, and an event mirrored before it is played publishes a registration count
- * long before it publishes a single result.
- *
- * With no standings on file "0 decks" would read as an event that went badly
- * rather than one the archive holds nothing for, so the second fragment says
- * which of the two it is. A played event says what is true today rather than
- * promising results: most sources publish standings within days or never, so an
- * event that has none by now is unlikely to grow them. A future date says so
- * outright, since nothing is missing from it yet.
- *
- * @returns The fragments for the row's detail line.
- */
-/**
- * The one-line status an index row shows in place of its holdings columns: an
- * event with nothing archived yet is one fact, not three empty cells.
- *
- * @returns The status line, or null for an event with holdings to count.
- */
 export function metaEventEmptyStatus(event: MetaCountedEvent, today = todayUtc()): string | null {
   if (event.playerRowCount > 0 || event.deckCount > 0) {
     return null;
@@ -209,12 +128,6 @@ export function metaEventEmptyStatus(event: MetaCountedEvent, today = todayUtc()
   return event.eventDate > today ? "Not played yet" : "No results on file";
 }
 
-/**
- * How many played an event: the source's own field size, else the standings rows
- * the archive holds.
- *
- * @returns The size, or null when neither is known.
- */
 export function metaEventFieldSize(
   event: Pick<MetaCountedEvent, "playerCount" | "playerRowCount">,
 ): number | null {
@@ -235,7 +148,6 @@ export function metaEventCounts(event: MetaCountedEvent, today = todayUtc()): st
   return parts;
 }
 
-/** What a claimed standings field is called on screen, in the reader's words. */
 const META_PLAYER_CLAIM_LABELS: Record<MetaPlayerOverlayField, string> = {
   playerName: "Name",
   rank: "Finish",
@@ -254,25 +166,12 @@ const META_PLAYER_CLAIM_LABELS: Record<MetaPlayerOverlayField, string> = {
   listStatus: "Decklist",
 };
 
-/** One chip on a standings row: what is claimed, and the field a release names. */
 export interface MetaPlayerClaimChip {
-  /** The field to release. `cards` stands for the pair it releases with. */
   field: MetaPlayerOverlayField;
   label: string;
 }
 
-/**
- * The claims a standings row wears, as chips.
- *
- * `cards` and `listStatus` collapse into one: a list and its status can never
- * disagree, so the archive claims and releases them together and showing two
- * chips would offer a release that is not a separate choice. Anything outside
- * the overlay's vocabulary is dropped rather than printed raw — a slug in the
- * table is worse than a missing chip.
- *
- * @param claimedFields - The row's `claimedFields`.
- * @returns The chips to render, in the overlay vocabulary's own order.
- */
+/** `cards` and `listStatus` always collapse into one chip; unknown fields are dropped, not printed raw. */
 export function metaPlayerClaimChips(claimedFields: readonly string[]): MetaPlayerClaimChip[] {
   const fields = new Set<string>(claimedFields);
   if (fields.has("listStatus")) {

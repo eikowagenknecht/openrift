@@ -49,7 +49,6 @@ export function setServerError(
     return;
   }
 
-  // Schema validation errors use "[body.field] message" format
   if (error.message) {
     const match = BODY_FIELD_RE.exec(error.message);
     if (match) {
@@ -72,13 +71,7 @@ export function setServerError(
   });
 }
 
-/**
- * Message to show on the "request a code" step when sending the verification
- * OTP fails. Only the cases better-auth actually reports back surface here —
- * a malformed email and rate limiting. A delivery (SMTP) failure is swallowed
- * server-side and returns success, so it never reaches this mapper.
- * @returns The human-readable error message.
- */
+/** A delivery (SMTP) failure is swallowed server-side and returns success, so it never reaches here. */
 export function requestOtpErrorMessage(error: { code?: string; status?: number }): string {
   if (error.status === 429) {
     return "Too many requests. Please wait a moment and try again.";
@@ -91,12 +84,6 @@ export function requestOtpErrorMessage(error: { code?: string; status?: number }
 
 const OTP_ERROR_CODES = new Set(["OTP_EXPIRED", "INVALID_OTP", "TOO_MANY_ATTEMPTS"]);
 
-/**
- * Message to show beneath an OTP input after a failed verification. Reuses the
- * shared CODE_TO_FIELD copy for the known OTP codes and falls back to the
- * server message (or a generic message) for anything else.
- * @returns The human-readable error message.
- */
 export function otpErrorMessage(error: { code?: string; message?: string }): string {
   if (error.code && OTP_ERROR_CODES.has(error.code)) {
     return CODE_TO_FIELD[error.code].message;

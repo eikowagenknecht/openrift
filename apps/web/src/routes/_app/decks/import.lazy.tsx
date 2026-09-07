@@ -102,27 +102,18 @@ export const Route = createLazyFileRoute("/_app/decks/import")({
   component: DeckImportPage,
 });
 
-// Used when the deck-name field is left empty. It is the field's placeholder, so
-// an importer who doesn't care about the name never has to clear a prefilled one.
 const DEFAULT_IMPORT_DECK_NAME = "Imported Deck";
 
-/**
- * DOM id of a preview row, so the summary badges can scroll one into view.
- * @returns The row element's id.
- */
 function entryRowId(index: number): string {
   return `deck-import-entry-${index}`;
 }
 
-// Problems first, matching the collection import flow: when zone and name tie,
-// surface the entries that still need attention before the resolved ones.
 const STATUS_SORT_ORDER: Record<DeckMatchStatus, number> = {
   unresolved: 0,
   "needs-review": 1,
   exact: 2,
 };
 
-/** @returns Display name for sorting purposes. */
 function entryDisplayName(entry: DeckMatchedEntry): string {
   return (
     entry.resolvedCard?.cardName ??
@@ -134,10 +125,8 @@ function entryDisplayName(entry: DeckMatchedEntry): string {
 
 type ImportStep = "input" | "preview";
 
-/** The input modes: automatic detection (default) plus one manual override per format. */
 type DeckImportMode = "auto" | DeckImportFormat;
 
-/** Labels for the format dropdown. */
 const IMPORT_MODE_LABELS: Record<DeckImportMode, string> = {
   auto: "Detect automatically",
   text: "Text",
@@ -145,10 +134,8 @@ const IMPORT_MODE_LABELS: Record<DeckImportMode, string> = {
   tts: "TTS",
 };
 
-/** Dropdown order: auto first, then the manual formats. */
 const IMPORT_MODE_ORDER: DeckImportMode[] = ["auto", "text", "piltover", "tts"];
 
-/** Human labels for the preview's "detected as ..." note. */
 const DETECTED_FORMAT_LABELS: Record<DeckImportFormat, string> = {
   piltover: "deck code",
   text: "text list",
@@ -201,7 +188,6 @@ const IMPORT_DESCRIPTIONS: Record<DeckImportMode, React.ReactNode> = {
 };
 
 function DeckImportPage() {
-  // Auth-optional (ADR-035): logged out, an import creates a browser-local deck.
   const userId = useUserId();
   const {
     replaceDeckId,
@@ -217,8 +203,6 @@ function DeckImportPage() {
   const navigate = useNavigate();
 
   const localDecks = useLocalDecksStore((state) => state.decks);
-  // Local decks replace in this browser's store, session or not; server decks
-  // need a session. With no valid target, the flow creates a new deck instead.
   const replaceTarget = resolveReplaceTarget(
     replaceDeckId,
     Boolean(userId),
@@ -228,9 +212,7 @@ function DeckImportPage() {
     ...deckDetailQueryOptions(userId ?? "", replaceDeckId ?? ""),
     enabled: replaceTarget.mode === "server",
   });
-  // The deck being replaced, from whichever store holds it. Replace mode keeps
-  // the target's own name, format and format config, so the summary panel has
-  // to validate against those rather than the (hidden) format picker.
+  // Replace mode keeps the target's own name, format, and format config.
   const replaceTargetDeck =
     replaceTarget.mode === "local"
       ? localDecks[replaceTarget.deckId]
@@ -258,9 +240,6 @@ function DeckImportPage() {
   const [sourceLinkDropped, setSourceLinkDropped] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // The page the deck came from, offered by the browser extension. Saved with
-  // a new deck as an outbound link unless the importer drops it. Replace mode
-  // keeps the target deck's own links, like its name and format.
   const sourceLink = sourceLinkDropped || isReplaceMode ? undefined : prefillSource;
 
   const finishParse = (entries: DeckImportEntry[], warnings: string[]) => {
@@ -287,7 +266,6 @@ function DeckImportPage() {
     setMatchedEntries(sorted);
     setSkippedIndices(new Set());
 
-    // Auto-expand non-exact entries so the user sees what needs attention
     const nonExact: string[] = [];
     for (let index = 0; index < sorted.length; index++) {
       if (sorted[index].status !== "exact") {
@@ -301,9 +279,8 @@ function DeckImportPage() {
 
   const resolveShareLink = async (token: string) => {
     setIsResolvingLink(true);
-    // No try/finally: the React Compiler can't yet compile finalizer clauses
-    // and would bail on the whole component. The catch never rethrows, so the
-    // flag reset after the block is reached on both paths.
+    // No try/finally: the React Compiler can't yet compile finalizer clauses.
+    // The catch never rethrows, so the reset below still runs on both paths.
     let data: PublicDeckDetailResponse | null = null;
     try {
       data = await queryClient.query(publicDeckQueryOptions(token));
@@ -319,8 +296,6 @@ function DeckImportPage() {
       return;
     }
 
-    // Prefill deck name and format from the shared deck (create mode only;
-    // replace mode keeps the target deck's own name and format).
     if (!isReplaceMode) {
       setDeckName(data.deck.name);
       if (deckFormats.some((format) => format.slug === data.deck.format)) {
@@ -338,9 +313,7 @@ function DeckImportPage() {
   const handleParse = async (text: string) => {
     setSourceNote(null);
 
-    // URLs are never valid content for any of the text formats, so a pasted
-    // link is handled the same way on every tab: resolve an OpenRift share
-    // link via the API, or pull an embedded deck code straight from the URL.
+    // A pasted URL is always resolved as a share link or embedded deck code, never parsed as deck content.
     const urlSniff = extractDeckFromUrl(text);
     if (urlSniff) {
       switch (urlSniff.kind) {
@@ -375,12 +348,7 @@ function DeckImportPage() {
     void handleImportFileUpload(event, fileRef, setRawText, handleParse);
   };
 
-  // Deep links (e.g. the Discord bot's "Open in OpenRift" button or the
-  // browser extension) land with ?code=<deck code or URL-encoded text list>.
-  // Sniff the format like the manual paste path and parse right away so the
-  // preview is ready without a manual Parse click; invalid input stays on the
-  // input step with the text prefilled and the warning shown. The catalog
-  // behind finishParse is suspense-loaded, so it is ready on first render.
+  // ?code=<deck code or URL-encoded text list> auto-parses; no manual Parse click required.
   const autoParsedRef = useRef(false);
   useEffect(() => {
     if (!prefillCode || autoParsedRef.current) {
@@ -433,8 +401,6 @@ function DeckImportPage() {
   const importableEntries = matchedEntries.filter(
     (entry, index) => entry.resolvedCard && !skippedIndices.has(index),
   );
-  // The rows that would actually be created. Computed here rather than only at
-  // import time so the summary panel measures exactly what the button imports.
   const importCards = dedupeMatchedEntries(importableEntries);
   const summaryFormat = replaceTargetDeck?.format ?? deckFormat;
   const summaryFormatConfig = replaceTargetDeck?.formatConfig ?? null;
@@ -477,13 +443,10 @@ function DeckImportPage() {
 
   const executeCreate = () => {
     const trimmedName = deckName.trim() || DEFAULT_IMPORT_DECK_NAME;
-    // No title: the chip then reads the site's name, which is what the link
-    // is worth saying here ("RiftDecks"), not the deck's own name repeated.
     const links = sourceLink ? [{ url: sourceLink }] : undefined;
 
     setIsImporting(true);
 
-    // Logged out: build a browser-local deck instead of a server deck.
     if (!userId) {
       const localId = useLocalDecksStore.getState().createDeck(deckFormat, trimmedName);
       useLocalDecksStore.getState().setCards(localId, importCards);
@@ -614,10 +577,6 @@ function DeckImportPage() {
     </>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Step 1: Input
-// ---------------------------------------------------------------------------
 
 function InputStep({
   rawText,
@@ -753,10 +712,6 @@ function InputStep({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Step 2: Preview
-// ---------------------------------------------------------------------------
-
 function PreviewStep({
   matchedEntries,
   allPrintings,
@@ -812,9 +767,7 @@ function PreviewStep({
   importableCount: number;
   skippedCount: number;
   totalCards: number;
-  /** The deduped rows the import would create, for the summary panel. */
   importCards: ImportedDeckCard[];
-  /** Format the summary validates against — the target deck's in replace mode. */
   summaryFormat: DeckFormat;
   summaryFormatConfig: DeckFormatConfig | null;
   isLoggedIn: boolean;
@@ -836,8 +789,6 @@ function PreviewStep({
   const canImport = importableCount > 0;
   const isMobile = useIsMobile();
 
-  // Rows are ordered by zone then name, so the ones needing attention are spread
-  // through the list. The badge below the list is the fastest way back to them.
   const jumpToFirstNeedsAttention = () => {
     const index = matchedEntries.findIndex(
       (entry, entryIndex) =>
@@ -847,15 +798,11 @@ function PreviewStep({
     if (index === -1) {
       return;
     }
-    // block: "center" keeps the row clear of the sticky header and top bar
-    // without having to track their measured heights here.
     document
       .querySelector(`#${entryRowId(index)}`)
       ?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
-  // Built once and placed in exactly one of two slots (inline on desktop, the
-  // sticky bar on phones), so the label and disabled logic can't drift apart.
   const importButton = (
     <Button
       variant={isReplaceMode ? "destructive" : "default"}
@@ -896,8 +843,6 @@ function PreviewStep({
           {sourceNote ? ` (${sourceNote})` : null}
         </PageDescription>
 
-        {/* What the import adds up to, before the row-by-row detail: size,
-            domains, format legality, and how much of it the importer owns. */}
         <DeckImportSummary
           cards={importCards}
           format={summaryFormat}
@@ -906,7 +851,6 @@ function PreviewStep({
           isLoggedIn={isLoggedIn}
         />
 
-        {/* Entry list */}
         <Accordion
           multiple
           value={expandedValues}
@@ -930,7 +874,6 @@ function PreviewStep({
           ))}
         </Accordion>
 
-        {/* Parse warnings */}
         {parseWarnings.length > 0 && (
           <Alert variant="warning">
             <AlertTitle>
@@ -944,7 +887,6 @@ function PreviewStep({
           </Alert>
         )}
 
-        {/* Summary + deck options + import button */}
         <div className="bg-muted/30 space-y-4 rounded-md border p-4">
           <ImportStatusBadges
             readyCount={readyCount}
@@ -958,8 +900,6 @@ function PreviewStep({
 
           <ImportTroubleNote needsAttentionCount={needsAttentionCount} />
 
-          {/* The page the extension picked the deck up from. Shown rather than
-              attached silently, because the link is public on a shared deck. */}
           {sourceLink !== undefined && (
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className="text-muted-foreground">Save a link to</span>
@@ -1015,10 +955,6 @@ function PreviewStep({
               </>
             )}
 
-            {/* On phones the button lives in the sticky bar below instead, so a
-                long entry list can't bury it. One or the other is rendered
-                (rather than a CSS-hidden pair) so only one Import control ever
-                exists in the DOM. */}
             {!isMobile && importButton}
             {needsAttentionCount > 0 && !isImporting && (
               <span className="text-muted-foreground text-sm">
@@ -1037,10 +973,6 @@ function PreviewStep({
     </>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Single entry row
-// ---------------------------------------------------------------------------
 
 const BUCKET_CONFIG: Record<ImportBucket, { icon: React.ElementType; className: string }> = {
   ready: { icon: CheckCircle2Icon, className: "text-success" },
@@ -1077,19 +1009,9 @@ function DeckImportEntryRow({
   const rawFieldEntries = Object.entries(entry.entry.rawFields);
   const displayName =
     entry.resolvedCard?.cardName ?? entry.entry.cardName ?? entry.entry.shortCode ?? "Unknown";
-  // These are the only controls on the preview step, so on touch they go up to
-  // the app's standard 32px control height instead of the desktop compact size.
   const isMobile = useIsMobile();
-  // A matched row needs nothing done to it, and on a phone its three controls
-  // are most of the row's width. Fold them away with the raw fields so the list
-  // reads as a list of cards; rows that still need work keep theirs in reach.
-  // A skipped row keeps them too, so undoing the skip never takes two taps.
   const foldActions = isMobile && bucket === "ready" && !isSkipped;
 
-  // The row's title is the card we landed on, which for a corrected name or a
-  // code-only source (deck codes, TTS) is not what the source said. Naming the
-  // match keeps the panel from reading as a contradiction. An exact name match
-  // needs no note — the source values already say it.
   const sourceName = entry.entry.cardName?.trim();
   const resolved = entry.resolvedCard;
   const matchedNote =
@@ -1146,8 +1068,8 @@ function DeckImportEntryRow({
   const hasDetails = rawFieldEntries.length > 0 || matchedNote !== null;
   const hasPanel = hasDetails || foldActions;
 
-  // The same icon in both arrangements below: `group` sits on whichever element
-  // is the accordion trigger, so the rotation follows the panel either way.
+  // `group` sits on whichever element is the accordion trigger, so the
+  // chevron's rotation class follows the panel either way.
   const chevronIcon = (
     <ChevronRightIcon className="size-4 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
   );
@@ -1159,8 +1081,6 @@ function DeckImportEntryRow({
           <span className="text-muted-foreground">{chevronIcon}</span>
         ) : (
           <AccordionPrimitive.Header className="flex">
-            {/* -m-2 p-2 grows the hit area to 32px without moving anything: the
-                padding and the negative margin cancel in the layout box. */}
             <AccordionPrimitive.Trigger
               className="group text-muted-foreground hover:text-foreground -m-2 shrink-0 p-2 outline-none"
               disabled={!hasPanel}
@@ -1177,14 +1097,8 @@ function DeckImportEntryRow({
       name={displayName}
       actions={foldActions ? null : actions}
       trailing={
-        // Which zone a card lands in is the one thing the folded row would
-        // otherwise stop reporting. Once open, the picker below says it, so
-        // the label steps aside rather than stating the zone twice.
-        //
-        // Hidden by CSS off the trigger's own open state, never by unmounting:
-        // this label sits inside the row-wide trigger, and a subtree that
-        // changes on every click makes a click mid-transition read as a fresh
-        // open instead of a reverse.
+        // Hidden via CSS, not unmounted: unmounting mid-click inside the row-wide
+        // trigger registers as a new open, not a toggle-close.
         foldActions ? (
           <span className="text-muted-foreground text-xs group-data-[panel-open]:hidden">
             {zoneLabels[entry.zone]}
@@ -1200,10 +1114,9 @@ function DeckImportEntryRow({
       value={String(index)}
       className={cn("not-last:border-b-0", isSkipped && "opacity-40")}
     >
-      {/* With the controls folded away the row holds nothing else clickable, so
-          the whole row becomes the trigger — a chevron-sized target is a poor
-          one on a phone. Rows that keep their controls can't do this: the
-          buttons and the zone select would end up nested inside the trigger. */}
+      {/* Whole row is the trigger only when folded: rows that keep their
+          controls can't do this, or the buttons and zone select would end
+          up nested inside the trigger. */}
       {foldActions ? (
         <AccordionPrimitive.Header className="flex">
           <AccordionPrimitive.Trigger className="group focus-visible:ring-ring hover:bg-muted w-full cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-inset">
@@ -1213,9 +1126,6 @@ function DeckImportEntryRow({
       ) : (
         row
       )}
-      {/* No top border on the panel: the list already draws a divider between
-          rows, and a second line there splits one entry into what looks like
-          two. The muted fill is enough to mark the panel as part of its row. */}
       {hasPanel && (
         <AccordionContent className="bg-muted/30 px-4 py-2">
           <div className="space-y-2">
@@ -1228,10 +1138,6 @@ function DeckImportEntryRow({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Zone picker
-// ---------------------------------------------------------------------------
-
 function ZonePicker({
   zone,
   zoneOrder,
@@ -1242,7 +1148,6 @@ function ZonePicker({
   zone: DeckZone;
   zoneOrder: DeckZone[];
   zoneLabels: Record<DeckZone, string>;
-  /** Touch sizing for the trigger and its options; owned by the calling row. */
   isMobile: boolean;
   onZoneChange: (zone: DeckZone) => void;
 }) {
@@ -1272,13 +1177,8 @@ function ZonePicker({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Card search (for correction UI)
-// ---------------------------------------------------------------------------
-
 const MAX_SEARCH_RESULTS = 20;
 
-/** One letter is a useful filter here, the way it is in the palettes. */
 const MIN_QUERY_LENGTH = 1;
 
 function CardSearch({
@@ -1296,8 +1196,6 @@ function CardSearch({
     label: row.name,
     sublabel: row.card.shortCode,
     leading: <CardThumbnail cardId={row.id} className="h-8" />,
-    // The row's own resolved card, handed straight back on pick: the
-    // correction needs the whole record, not just the id.
     card: row.card,
   }));
 
@@ -1305,8 +1203,6 @@ function CardSearch({
     <CardSearchDropdown
       ariaLabel="Search cards"
       placeholder="Search cards..."
-      // Full width on phones: the cluster is already indented under the card
-      // name, so the default 176px box leaves too little room to read a result.
       className="h-8 w-full sm:h-7 sm:w-44"
       results={results}
       onSearch={setQuery}
@@ -1315,14 +1211,7 @@ function CardSearch({
   );
 }
 
-/**
- * Deduplicates the catalog to one {@link ResolvedCard} per card, keeping each
- * card's first printing as its representative. The colloquial Legend name is
- * the display name ("Azir, Emperor of the Sands") so the dropdown reads like
- * the rest of the app, and it is what the matcher indexes.
- *
- * @returns One searchable row per unique card, and the codes to search them by.
- */
+/** Deduplicates the catalog to one {@link ResolvedCard} per card, keeping each card's first printing as its representative. */
 function useResolvedCardIndex(allPrintings: Printing[]) {
   const rows = useMemo(() => {
     const seen = new Set<string>();

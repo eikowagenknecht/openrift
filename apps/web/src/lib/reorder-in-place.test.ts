@@ -22,22 +22,17 @@ describe("reorderInPlace", () => {
   });
 
   it("reorders ids only within the slots they originally occupied", () => {
-    // Reordering a + c (slots 0 and 2): "a" → slot 0 stays "a", but we swap
-    // them so slot 0 takes c and slot 2 takes a. b and d don't move.
     const result = reorderInPlace(rows, ["c", "a"]);
     expect(result.map((row) => row.id)).toEqual(["c", "b", "a", "d"]);
   });
 
   it("preserves non-reordered items in their original positions", () => {
-    // Reorder only b/d (slots 1 and 3). a and c stay at 0 and 2.
     const result = reorderInPlace(rows, ["d", "b"]);
     expect(result.map((row) => row.id)).toEqual(["a", "d", "c", "b"]);
   });
 
   it("ignores ids that aren't present in items", () => {
     const result = reorderInPlace(rows, ["zzz", "a", "c"]);
-    // Slots used: a@0, c@2. Reordering by [a, c] (after stripping unknown) =>
-    // result keeps a@0 and c@2; b and d untouched.
     expect(result.map((row) => row.id)).toEqual(["a", "b", "c", "d"]);
   });
 
@@ -53,8 +48,8 @@ describe("reorderInPlace", () => {
 
   it("returns identity-stable references for non-reordered items", () => {
     const result = reorderInPlace(rows, ["c", "a"]);
-    expect(result[1]).toBe(rows[1]); // b
-    expect(result[3]).toBe(rows[3]); // d
+    expect(result[1]).toBe(rows[1]);
+    expect(result[3]).toBe(rows[3]);
   });
 
   it("returns the same array shape when orderedIds is empty", () => {

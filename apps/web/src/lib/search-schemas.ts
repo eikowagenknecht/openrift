@@ -3,20 +3,13 @@ import { GROUP_BY_FIELDS, SORT_DIRECTIONS, SORT_OPTIONS } from "@openrift/shared
 import { createContext, useContext } from "react";
 import { z } from "zod";
 
-// Each field uses `.catch(undefined)` so malformed URL values (wrong type,
-// unparseable) are silently dropped rather than crashing the route. Unknown
-// keys are stripped by zod's default object parsing.
+// `.catch(undefined)` drops malformed URL values silently; it does not throw.
 const stringField = () => z.string().optional().catch(undefined);
 const numberField = () => z.number().optional().catch(undefined);
 const stringArray = () => z.array(z.string()).optional().catch(undefined);
 const boolFlag = () => z.boolean().optional().catch(undefined);
 const presenceField = () => z.enum(["any", "none"]).optional().catch(undefined);
 
-// Every group-by axis accepted at the URL level. The shared axes cover
-// /cards, /collections, and /decks; /promos additionally groups by "card".
-// An unknown value (an old bookmark after a rename, a hand-edited URL)
-// coerces to undefined — the surface's default — instead of reaching the
-// grouping code, where it would crash the grid.
 const URL_GROUP_BY_VALUES = [...GROUP_BY_FIELDS, "card"] as const;
 const ownedFilter = () =>
   z
@@ -27,11 +20,8 @@ const ownedFilter = () =>
 export type OwnedBucket = "none" | "partial" | "full" | "extra";
 
 /**
- * Search param schema for routes that use the card filter system.
  * Applied individually to /cards, /collections, /decks, and /promos routes.
- * Routes that don't expose every facet should pass `hiddenSections` to the
- * filter UI components.
- * @returns Zod schema for filter search params.
+ * Routes that don't expose every facet pass `hiddenSections` to the filter UI.
  */
 export const filterSearchSchema = z.object({
   search: stringField(),
@@ -49,7 +39,6 @@ export const filterSearchSchema = z.object({
   customTags: stringArray(),
   keywords: stringArray(),
   tags: stringArray(),
-  // Negation companions (ADR-034): exclude params per multi-select facet.
   setsEx: stringArray(),
   languagesEx: stringArray(),
   raritiesEx: stringArray(),
@@ -63,7 +52,6 @@ export const filterSearchSchema = z.object({
   customTagsEx: stringArray(),
   keywordsEx: stringArray(),
   tagsEx: stringArray(),
-  // Tri-state "standard printing" constraint (ADR-034).
   standard: boolFlag(),
   energyMin: numberField(),
   energyMax: numberField(),
@@ -78,8 +66,6 @@ export const filterSearchSchema = z.object({
   owned: ownedFilter(),
   signed: boolFlag(),
   overnumbered: boolFlag(),
-  // Generic presence (any/none) params, one per PRESENCE_DIMENSIONS entry.
-  // `markersPresence` supersedes the old `promo` boolean flag.
   markersPresence: presenceField(),
   superTypesPresence: presenceField(),
   customTagsPresence: presenceField(),
@@ -98,24 +84,16 @@ export const filterSearchSchema = z.object({
 export type FilterSearch = z.infer<typeof filterSearchSchema>;
 
 /**
- * Search params of the single-collection route: the shared filter set plus the
- * `wanted` toggle, which narrows a group "bulk box" to the printings the
- * viewer's wish lists still want. Absent (not `false`) when off, so the URL
- * stays clean everywhere the toggle doesn't apply.
- * @returns Zod schema for the collection detail route's search params.
+ * `wanted` narrows a group "bulk box" to printings the viewer's wish lists
+ * still want; absent (not `false`) when off, so the URL stays clean.
  */
 export const collectionDetailSearchSchema = filterSearchSchema.extend({
   wanted: boolFlag(),
 });
 
 /**
- * Re-validates `search` and reports whether the raw URL carries keys the
- * schema would drop. TanStack merges raw URL keys onto the validated search
- * (Object.assign in buildLocation), so unknown keys survive into the
- * validated object — re-parsing with the schema yields the clean set. Used by
- * the card-browser routes' beforeLoad to canonicalize bookmarked/shared URLs.
- * @returns The cleaned search params when the raw URL has extraneous keys (the
- *   caller should redirect to them), or null when the URL is already clean.
+ * TanStack merges raw URL keys onto the validated search (Object.assign in
+ * buildLocation), so re-parsing with the schema is needed to get the clean set.
  */
 export function cleanedSearchForRedirect<Output extends Record<string, unknown>>(
   schema: z.ZodType<Output>,
@@ -139,11 +117,6 @@ const FilterSearchContext = createContext<FilterSearch | null>(null);
 
 export const FilterSearchProvider = FilterSearchContext;
 
-/**
- * Read filter search params provided by the nearest FilterSearchProvider.
- * Must be called within a route that wraps its content with the provider.
- * @returns The current filter search params.
- */
 export function useFilterSearch(): FilterSearch {
   const value = useContext(FilterSearchContext);
   if (value === null) {

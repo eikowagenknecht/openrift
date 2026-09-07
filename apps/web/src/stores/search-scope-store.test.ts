@@ -42,7 +42,6 @@ describe("useSearchScopeStore", () => {
       useSearchScopeStore.getState().selectOnly("name");
       useSearchScopeStore.getState().toggleField("name");
 
-      // Should still have "name" since removing it would leave scope empty
       expect(useSearchScopeStore.getState().scope).toEqual(["name"]);
     });
   });

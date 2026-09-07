@@ -16,11 +16,6 @@ import {
 
 const GATES: EncoderGates = gatesForEmbedDim(0);
 
-/**
- * Plans for one mode, with the rest of the input at its common value.
- *
- * @returns The live and catch-up plans.
- */
 function plansFor(
   mode: ScannerMode,
   overrides: { slowDevice?: boolean; canonical?: boolean } = {},
@@ -34,11 +29,6 @@ function plansFor(
   });
 }
 
-/**
- * A bank of `count` keys embedded at `dim` floats each.
- *
- * @returns The bank, with vectors sized to match.
- */
 function bankOf(dim: number, count: number): EmbedBank {
   return {
     keys: Array.from({ length: count }, (_, index) => `key-${index}`),
@@ -48,8 +38,6 @@ function bankOf(dim: number, count: number): EmbedBank {
 
 describe("gatesForBank", () => {
   it("reads the encoder off the bank's embedding dimension", () => {
-    // 256 floats per key is the custom encoder, which ranks tightly enough to
-    // run a shortlist of 2.
     expect(gatesForBank(bankOf(256, 8)).topK).toBe(2);
     expect(gatesForBank(bankOf(512, 8)).topK).toBe(DEFAULT_SESSION_OPTIONS.topK);
   });
@@ -83,16 +71,12 @@ describe("scanSessionPlans", () => {
   });
 
   it("only re-locks after a rearm in single mode", () => {
-    // Counting repeated copies is the placement detector's job there. In
-    // capture mode the tap is the user saying "count this".
     expect(plansFor("single").live.accept.relockOnlyAfterRearm).toBe(true);
     expect(plansFor("capture").live.accept.relockOnlyAfterRearm).toBeUndefined();
     expect(plansFor("pan").live.accept.relockOnlyAfterRearm).toBe(false);
   });
 
   it("gives every capture tap its own run", () => {
-    // Frames only advance per tap, so the live-mode gap tolerance would
-    // otherwise swallow a second copy of the same card.
     expect(plansFor("capture").live.accept).toEqual({ lockRun: 1, maxGapFrames: 0 });
   });
 
@@ -112,16 +96,12 @@ describe("scanSessionPlans", () => {
   });
 
   it("restricts the rotation search to the 180-degree partner only in guide mode", () => {
-    // The guide rules out the foreshortening aspect flip and a canonical bank
-    // rules out the quarter turn; neither holds while panning.
     expect(plansFor("single", { canonical: true }).live.rotationPairOnly).toBe(true);
     expect(plansFor("single", { canonical: false }).live.rotationPairOnly).toBe(false);
     expect(plansFor("pan", { canonical: true }).live.rotationPairOnly).toBe(false);
   });
 
   it("keeps the catch-up pass guide-anchored, never-locking and off the slow bounds", () => {
-    // It replays a frame that already cost a placement, so it gets the full
-    // search whatever the live pass was told to skip.
     for (const mode of ["single", "capture", "pan"] as const) {
       const catchUp = plansFor(mode, { slowDevice: true }).catchUp;
       expect(catchUp.guide).toBe(true);

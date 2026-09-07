@@ -33,8 +33,6 @@ describe("isCardBanned", () => {
   });
 
   it("is false for a mode-scoped ban alone", () => {
-    // 2v2 bans stay a display-only ribbon: a deck has no play-mode identity,
-    // so they must not invalidate it.
     expect(isCardBanned({ bans: [ban(WellKnown.banFormat.TWO_V_TWO)] })).toBe(false);
   });
 
@@ -59,8 +57,6 @@ describe("isCardAllowedInZone", () => {
   ];
 
   it("rejects Token cards in every zone, overflow included", () => {
-    // Tokens are created by effects during play, never registered in a deck,
-    // so no zone takes one — not even the overflow parking area.
     const token = { cardTypes: ["unit"] as CardType[], superTypes: ["token"] as SuperType[] };
     for (const zone of ALL_ZONES) {
       expect(isCardAllowedInZone(token, zone)).toBe(false);
@@ -131,11 +127,9 @@ describe("isCardAllowedInZone", () => {
   });
 
   it("gates multi-type cards on the whole type set (ADR-037)", () => {
-    // A Unit Gear is a normal main-deck card.
     const unitGear = { cardTypes: ["unit", "gear"] as CardType[], superTypes: [] as SuperType[] };
     expect(isCardAllowedInZone(unitGear, "main")).toBe(true);
     expect(isCardAllowedInZone(unitGear, "sideboard")).toBe(true);
-    // Any Legend/Rune/Battlefield type in the set locks the card out of main.
     const unitRune = { cardTypes: ["unit", "rune"] as CardType[], superTypes: [] as SuperType[] };
     expect(isCardAllowedInZone(unitRune, "main")).toBe(false);
     expect(isCardAllowedInZone(unitRune, "runes")).toBe(true);
@@ -151,8 +145,6 @@ describe("isDeckZoneFullForDrag", () => {
   const cardId = "card-1";
 
   it("allows dropping back into the source zone when at the 3-copy cap", () => {
-    // Regression: previously, dragging a card at 3 copies disabled every
-    // copy-limit zone — including its own source — forcing the user to discard.
     const allCards = [{ cardId, zone: "main" as DeckZone, quantity: 3 }];
     expect(
       isDeckZoneFullForDrag({
@@ -166,7 +158,6 @@ describe("isDeckZoneFullForDrag", () => {
   });
 
   it("allows cross-zone moves between copy-limit zones at the cap", () => {
-    // Move preserves the cross-zone total, so the cap is not violated.
     const allCards = [
       { cardId, zone: "main" as DeckZone, quantity: 2 },
       { cardId, zone: "sideboard" as DeckZone, quantity: 1 },
@@ -199,8 +190,6 @@ describe("isDeckZoneFullForDrag", () => {
   });
 
   it("blocks moves from overflow into a capped zone that is already at the cap", () => {
-    // Regression: overflow copies don't count toward the total, so nothing
-    // else caps a move out of overflow — the destination-zone check must.
     const allCards = [
       { cardId, zone: "main" as DeckZone, quantity: 3 },
       { cardId, zone: "overflow" as DeckZone, quantity: 1 },
@@ -262,7 +251,6 @@ describe("isDeckZoneFullForDrag", () => {
   });
 
   it("ignores overflow copies when capping a capped zone", () => {
-    // 3 copies parked in overflow must not block adding to an empty main.
     const allCards = [{ cardId, zone: "overflow" as DeckZone, quantity: 3 }];
     expect(
       isDeckZoneFullForDrag({

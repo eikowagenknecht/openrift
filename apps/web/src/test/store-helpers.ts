@@ -1,17 +1,9 @@
 /**
- * Utilities for testing Zustand stores.
- *
- * Zustand stores are singletons. These helpers ensure each test starts with
- * a clean slate by resetting stores to their initial state.
+ * Zustand stores are singletons; these helpers reset a store to its initial
+ * state so each test starts clean.
  */
 import type { StoreApi } from "zustand";
 
-/**
- * Captures the initial state of a store and returns a cleanup function
- * that restores it. Call in beforeEach/afterEach.
- *
- * @returns A function that resets the store to its initial state.
- */
 export function createStoreResetter<T>(store: StoreApi<T>): () => void {
   const initialState = store.getState();
   return () => {

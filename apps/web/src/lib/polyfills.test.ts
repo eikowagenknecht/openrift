@@ -2,9 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { groupByShim } from "./polyfills";
 
-// The test runtime already has a native Map.groupBy, so the install branch in
-// polyfills.ts is inert here. These exercise the shim directly instead — it is
-// the code that actually runs on the browsers that lack the built-in.
+// The test runtime already has a native Map.groupBy, making the install
+// branch inert here; these exercise the shim directly.
 describe("groupByShim", () => {
   it("groups items by the selector key", () => {
     const cards = [
@@ -59,8 +58,8 @@ describe("groupByShim", () => {
   });
 });
 
-// The install branch is what actually runs in the browser, so exercise it by
-// simulating an engine without the built-in (iOS Safari < 17.4).
+// Simulates an engine without the built-in (iOS Safari < 17.4) to exercise
+// the install branch.
 describe("Map.groupBy install", () => {
   it("installs the shim when the built-in is missing", async () => {
     const native = Map.groupBy;

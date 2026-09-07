@@ -1,14 +1,8 @@
 import type { MetaEventFieldEdits } from "@openrift/shared";
 
 /**
- * The event facts a reader can propose a new value for, and the checks the
- * dialog runs before the contract sees them.
- *
- * Every box is held as a string while it is edited, seeded with what the archive
- * says today. A box left as it was proposes nothing; a box emptied proposes
- * nothing either, because clearing a value is not expressible — "there was no
- * organizer" belongs in the note, and a tri-state control in front of someone
- * who spotted a wrong date is worse than the fact it would capture.
+ * An unchanged box and an emptied box both propose nothing: clearing a value
+ * is not expressible here, only replacing it.
  */
 export interface MetaEventCorrectionDraft {
   name: string;
@@ -21,7 +15,6 @@ export interface MetaEventCorrectionDraft {
   note: string;
 }
 
-/** The archive's own values, as the dialog reads them off the event page. */
 export interface MetaEventCorrectionSubject {
   name: string;
   eventDate: string;
@@ -36,10 +29,9 @@ const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
 const WHOLE_NUMBER_PATTERN = /^\d+$/u;
 const COUNTRY_PATTERN = /^[A-Za-z]{2}$/u;
 
-/** Mirrors the contract's own ceiling, so a fat-fingered zero is named here rather than 400ing. */
+/** Mirrors the contract's own ceiling. */
 const MAX_PLAYER_COUNT = 1_000_000;
 
-/** A blank dialog, seeded with what the archive holds. */
 export function metaEventCorrectionDraft(
   event: MetaEventCorrectionSubject,
 ): MetaEventCorrectionDraft {
@@ -55,23 +47,17 @@ export function metaEventCorrectionDraft(
   };
 }
 
-/** @returns The trimmed box, or null when it says nothing. */
 function value(box: string): string | null {
   const trimmed = box.trim();
   return trimmed.length === 0 ? null : trimmed;
 }
 
-/** @returns True when the box holds something other than what the archive has. */
 function changed(box: string, current: string | null): boolean {
   const next = value(box);
   return next !== null && next !== current;
 }
 
-/**
- * The new values this draft proposes: every box the sender changed, and nothing
- * else. A draft that changes nothing produces an empty object, which is a
- * message about the event rather than a set of edits.
- */
+/** A draft that changes nothing produces an empty object, not an error. */
 export function metaEventCorrectionEdits(
   draft: MetaEventCorrectionDraft,
   event: MetaEventCorrectionSubject,
@@ -102,12 +88,7 @@ export function metaEventCorrectionEdits(
   return edits;
 }
 
-/**
- * Checks a draft against the bounds the contract enforces, naming the problem
- * beside the box instead of surfacing a 400 with a server sentence in it.
- *
- * @returns The first problem found, or null when the draft is ready to send.
- */
+/** Bounds mirror the contract's own limits. */
 export function validateMetaEventCorrectionDraft(
   draft: MetaEventCorrectionDraft,
   event: MetaEventCorrectionSubject,

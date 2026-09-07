@@ -2,15 +2,6 @@ import type { DistributionChannel } from "@openrift/shared";
 
 const SEP = " › ";
 
-/**
- * Build a map of `channelId → "Root › Parent › Channel"` by walking each
- * channel's parentId chain. Useful when leaf labels alone are ambiguous
- * (e.g. multiple "Top 8" channels under different parents).
- *
- * Lookups for unknown ids fall back to the channel's own label.
- *
- * @returns Map keyed by channel id; values are full breadcrumb strings.
- */
 export function buildChannelBreadcrumbs(
   channels: readonly DistributionChannel[],
 ): Map<string, string> {
@@ -41,12 +32,6 @@ export function buildChannelBreadcrumbs(
   return cache;
 }
 
-/**
- * Build a map keyed by channel slug (instead of id), for callers that store
- * channel selection in the URL by slug.
- *
- * @returns Map keyed by channel slug; values are full breadcrumb strings.
- */
 export function buildChannelBreadcrumbsBySlug(
   channels: readonly DistributionChannel[],
 ): Map<string, string> {

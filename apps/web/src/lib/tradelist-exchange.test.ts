@@ -130,8 +130,6 @@ describe("requestListKind", () => {
   });
 
   it("makes a new wishlist printing-kind so it matches only the requested printing", () => {
-    // Regression: a new wishlist used to be created card-kind, which matched
-    // every printing of the card and surfaced far more matches than intended.
     expect(requestListKind(undefined)).toBe("printing");
   });
 

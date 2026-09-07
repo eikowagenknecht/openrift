@@ -16,37 +16,12 @@ import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient, browserApiOrpcClient } from "@/lib/server-fns/orpc-client";
 
-/**
- * How often the OBS browser source asks for the current card. The response
- * carries `Cache-Control: private, no-cache` and an ETag, so an unchanged
- * second is a 304 with no body — the browser serves the stored copy and this
- * code never sees the difference.
- */
 export const OVERLAY_POLL_MS = 1000;
 
-/**
- * One client for the life of the page. The poll fires every second for the
- * length of a stream, and `browserApiOrpcClient` reads `globalThis.location`
- * lazily, so building the link once at module scope is safe and keeps the
- * tick from reconstructing it thousands of times an hour.
- */
+/** `browserApiOrpcClient` reads `globalThis.location` lazily; safe to build once at module scope. */
 const overlayStateClient = browserApiOrpcClient(publicOverlayContract);
 
-// ---------------------------------------------------------------------------
-// OBS browser source (token-addressed, no session)
-// ---------------------------------------------------------------------------
-
-/**
- * The poll's query options, split out so its timing and resilience settings
- * are testable without rendering the hook.
- *
- * Fetched straight from the browser rather than through a server function: the
- * source runs for the length of a stream, and routing every second through the
- * web server would double the hops and hide the conditional GET that makes the
- * poll nearly free.
- *
- * @returns Query options for the channel's current state.
- */
+/** Must fetch directly from the browser: routing through the web server doubles the hops and hides the conditional GET. */
 export function overlayStateQueryOptions(token: string, presetId?: string) {
   return queryOptions({
     queryKey: queryKeys.overlay.stateByToken(token, presetId),
@@ -56,31 +31,16 @@ export function overlayStateQueryOptions(token: string, presetId?: string) {
     // stops the moment the streamer clicks away and the card never updates.
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: false,
-    // A dropped API deploy or a blip must not blank someone's stream: keep
-    // showing the last good state rather than falling back to undefined.
+    // A dropped API deploy or blip must not blank the stream: keep the last good state.
     retry: true,
     staleTime: 0,
   });
 }
 
-/**
- * Polls the overlay state for one channel token.
- *
- * `presetId` comes from the source URL's `?preset=`, and the API merges that
- * preset's dressing into the state it returns — so one channel can feed two
- * scenes dressed differently. An unknown id is ignored server-side rather than
- * erroring, because a source pinned to a since-deleted preset has to keep
- * painting rather than blank the stream.
- *
- * @returns The query for the channel's current state.
- */
+/** An unknown `presetId` is ignored server-side, not treated as an error, so a deleted preset keeps painting. */
 export function useOverlayState(token: string, presetId?: string) {
   return useQuery(overlayStateQueryOptions(token, presetId));
 }
-
-// ---------------------------------------------------------------------------
-// Control dashboard (session-gated)
-// ---------------------------------------------------------------------------
 
 const fetchOverlayChannelFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
@@ -88,11 +48,7 @@ const fetchOverlayChannelFn = createServerFn({ method: "GET" })
     apiOrpcClient(overlayContract, context.cookie).get(),
   );
 
-/**
- * The signed-in creator's channel. The API creates it on first read, so this
- * never has an "no overlay yet" state to handle.
- * @returns Query options for the user's overlay channel.
- */
+/** The API creates the channel on first read, so there is no "no overlay yet" state. */
 export function overlayChannelQueryOptions(userId: string) {
   return queryOptions({
     queryKey: queryKeys.overlay.channel(userId),
@@ -113,14 +69,8 @@ const pushOverlayCardFn = createServerFn({ method: "POST" })
   );
 
 /**
- * Shared shape of the dashboard mutations: every one returns the complete
- * updated channel, so the response seeds the channel query directly instead of
- * invalidating it — the dashboard is driven mid-stream, and an invalidate
- * would leave the live preview and the Clear button a full extra round trip
- * behind each action. No `onError` here: declaring one would replace the
- * QueryClient's default, which owns the error toast.
- *
- * @returns The mutation, seeding the channel cache on success.
+ * No `onError` here: declaring one would replace the QueryClient's default,
+ * which owns the error toast.
  */
 function useOverlayChannelMutation<TVariables = void>(
   mutationFn: (variables: TVariables) => Promise<OverlayChannelResponse>,
@@ -135,7 +85,6 @@ function useOverlayChannelMutation<TVariables = void>(
   });
 }
 
-/** @returns The mutation that puts a card on stream. */
 export function usePushOverlayCard() {
   return useOverlayChannelMutation((input: OverlayPush) => pushOverlayCardFn({ data: input }));
 }
@@ -147,7 +96,6 @@ const pushOverlayBoardFn = createServerFn({ method: "POST" })
     apiOrpcClient(overlayContract, context.cookie).pushBoard(data),
   );
 
-/** @returns The mutation that puts a tier board on stream. */
 export function usePushOverlayBoard() {
   return useOverlayChannelMutation((input: OverlayPushBoard) =>
     pushOverlayBoardFn({ data: input }),
@@ -161,12 +109,7 @@ const setOverlayBoardRevealFn = createServerFn({ method: "POST" })
     apiOrpcClient(overlayContract, context.cookie).setBoardReveal(data),
   );
 
-/**
- * Steps the reveal of the board already on stream. Sends the count alone, so a
- * creator holding Next does not put the whole ranking on the wire per press.
- *
- * @returns The mutation that moves the reveal.
- */
+/** Sends the count alone, so holding Next does not put the whole ranking on the wire per press. */
 export function useSetOverlayBoardReveal() {
   return useOverlayChannelMutation((input: OverlaySetBoardReveal) =>
     setOverlayBoardRevealFn({ data: input }),
@@ -180,13 +123,7 @@ const setOverlayHiddenFn = createServerFn({ method: "POST" })
     apiOrpcClient(overlayContract, context.cookie).setHidden(data),
   );
 
-/**
- * Takes the scene off stream without giving up what is on it, so a break in the
- * segment does not cost the creator their place. Unlike {@link useClearOverlay},
- * the card or board survives and comes back when this is sent false.
- *
- * @returns The mutation that drops or raises the curtain.
- */
+/** Unlike {@link useClearOverlay}, the card or board survives and returns when sent false. */
 export function useSetOverlayHidden() {
   return useOverlayChannelMutation((input: OverlaySetHidden) =>
     setOverlayHiddenFn({ data: input }),
@@ -199,7 +136,6 @@ const clearOverlayFn = createServerFn({ method: "POST" })
     apiOrpcClient(overlayContract, context.cookie).clear(),
   );
 
-/** @returns The mutation that takes the current card off stream. */
 export function useClearOverlay() {
   return useOverlayChannelMutation(() => clearOverlayFn());
 }
@@ -211,7 +147,6 @@ const updateOverlaySettingsFn = createServerFn({ method: "POST" })
     apiOrpcClient(overlayContract, context.cookie).updateSettings(data),
   );
 
-/** @returns The mutation that updates the overlay's corner / scale / plate settings. */
 export function useUpdateOverlaySettings() {
   return useOverlayChannelMutation((input: OverlaySettings) =>
     updateOverlaySettingsFn({ data: input }),
@@ -224,7 +159,6 @@ const rotateOverlayTokenFn = createServerFn({ method: "POST" })
     apiOrpcClient(overlayContract, context.cookie).rotateToken(),
   );
 
-/** @returns The mutation that issues a fresh token, blinding old browser sources. */
 export function useRotateOverlayToken() {
   return useOverlayChannelMutation(() => rotateOverlayTokenFn());
 }

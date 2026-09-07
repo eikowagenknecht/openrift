@@ -16,7 +16,6 @@ import {
   validateMetaSubmissionDraft,
 } from "./meta-submission-form";
 
-/** @returns A catalog big enough to resolve the lists these tests paste. */
 function catalog(): Printing[] {
   return [
     stubPrinting({
@@ -78,8 +77,6 @@ describe("parseMetaSubmissionList", () => {
     );
 
     expect(parsed.unmatched).toEqual(["Definitely Not A Card"]);
-    // The line still travels: the server's alias index may know a spelling this
-    // one does not, and if it does not either, it comes back as unresolved.
     expect(parsed.cards).toContainEqual({
       name: "Definitely Not A Card",
       zone: WellKnown.deckZone.MAIN,

@@ -29,8 +29,6 @@ describe("asPromoGrouping", () => {
   });
 
   it("falls back to channel for the shared axes the page doesn't offer", () => {
-    // "none" would render one unlabelled section; "collection" needs items that
-    // are physical copies. See PromoGrouping.
     expect(asPromoGrouping("none")).toBe("channel");
     expect(asPromoGrouping("collection")).toBe("channel");
   });

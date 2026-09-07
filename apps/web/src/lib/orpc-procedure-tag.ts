@@ -1,18 +1,11 @@
 /**
- * The procedure an oRPC call was made against, recorded on the error it threw.
- *
- * oRPC rebuilds the API's error from JSON, so every fault arrives with the same
- * message and the same two-frame stack no matter which endpoint produced it.
- * This tag is what lets Sentry tell them apart. It lives alone so the SSR
- * Sentry bootstrap can read it without pulling in the oRPC client graph.
+ * oRPC rebuilds errors from JSON, so every fault has the same message and
+ * stack regardless of endpoint. This tag is how Sentry tells them apart.
+ * Kept standalone so the SSR Sentry bootstrap avoids the oRPC client graph.
  */
 
 const ORPC_PROCEDURE_KEY = "orpcProcedure";
 
-/**
- * Records the failing procedure on an error, in place.
- * @returns Nothing; a non-object error is left alone.
- */
 export function tagProcedure(error: unknown, path: readonly string[]): void {
   if (typeof error !== "object" || error === null) {
     return;
@@ -23,10 +16,6 @@ export function tagProcedure(error: unknown, path: readonly string[]): void {
   });
 }
 
-/**
- * Reads the tag back.
- * @returns The dotted procedure path, or undefined for anything untagged.
- */
 export function taggedProcedure(error: unknown): string | undefined {
   if (typeof error !== "object" || error === null) {
     return undefined;

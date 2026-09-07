@@ -11,8 +11,7 @@ export const Route = createFileRoute("/_app/_authenticated/tournaments_/$id")({
   ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Tournament", noIndex: true }),
   loader: async ({ context, params }) => {
-    // The participant roster is staff-gated on the API (it carries claim
-    // links), so resolve the viewer's roles first — prefetching it for a plain
+    // The roster endpoint is staff-gated; prefetching it for a plain
     // participant 403s the whole loader into the error screen.
     const detail = await loadTournamentDetail(context.queryClient, context.userId, params.id);
     if (isTournamentStaff(detail.myRoles)) {

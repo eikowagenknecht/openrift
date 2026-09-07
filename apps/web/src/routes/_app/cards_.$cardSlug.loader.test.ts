@@ -1,7 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// The loader pulls card detail, init and prices. Only the query *keys* matter
-// here — the fixtures below stand in for the real responses.
 vi.mock("@/hooks/use-card-detail", () => ({
   cardDetailQueryOptions: (cardSlug: string) => ({ queryKey: ["cards", "detail", cardSlug] }),
 }));
@@ -16,7 +14,6 @@ vi.mock("@/hooks/use-prices", () => ({
 const { fetchPricesForSeo } = await import("@/hooks/use-prices");
 const { Route } = await import("./cards_.$cardSlug");
 
-// One printing with prices in cents, so the loader's offer math is exercised.
 const PRICES = {
   prices: { "p-en": { tcgplayer: 250, cardmarket: 199, cardtrader: 300 } },
   currencies: { tcgplayer: "USD", cardmarket: "EUR", cardtrader: "EUR" },
@@ -65,12 +62,6 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-// Regression: the loader used to call `query(pricesQueryOptions)`
-// unconditionally. TanStack Start dehydrates the router's query cache into the
-// SSR HTML, so that inlined the whole catalog price map — ~270 KB, 74% of the
-// document — into every card page, purely to emit three JSON-LD offers. The
-// server path must fetch prices outside the query client. Without the fix the
-// first test here sees "prices" among the ensured keys and fails.
 describe("/cards/$cardSlug loader — prices stay out of the SSR payload", () => {
   describe("on the server", () => {
     beforeEach(() => {
@@ -102,9 +93,6 @@ describe("/cards/$cardSlug loader — prices stay out of the SSR payload", () =>
     it("still computes the JSON-LD marketplace offers", async () => {
       const { marketplaceOffers } = await runLoader(makeContext());
 
-      // 300 / 250 / 199 cents on the single printing, converted to major
-      // units, in the app's marketplace order (CardTrader first) so the meta
-      // description's price line quotes the preferred marketplace.
       expect(marketplaceOffers).toEqual([
         { seller: "CardTrader", currency: "EUR", priceLow: 3, priceHigh: 3, offerCount: 1 },
         { seller: "TCGplayer", currency: "USD", priceLow: 2.5, priceHigh: 2.5, offerCount: 1 },
@@ -121,9 +109,6 @@ describe("/cards/$cardSlug loader — prices stay out of the SSR payload", () =>
     });
   });
 
-  // The pricing, footer and printing-picker components read prices through
-  // `usePrices()`, a suspense query. On the client the loader must keep warming
-  // that cache or those subtrees suspend on entry.
   describe("on the client", () => {
     beforeEach(() => {
       vi.stubGlobal("window", {});

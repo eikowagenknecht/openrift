@@ -1,17 +1,4 @@
-// Dev-only React Compiler diagnostic. Intercepts React's
-// "previous cache was allocated with size X but size Y was requested" warning
-// and dumps the call stack at the moment it fires. The top frames name the
-// compiled function whose `_c(Y)` landed on a memoCache slot previously
-// written at a different size — usually a `"use memo"` helper called behind
-// a conditional in its caller, or compiled differently across render passes.
-//
-// The entire module body is wrapped in `if (import.meta.env.DEV)`. In
-// production Vite replaces `import.meta.env.DEV` with `false`, the block is
-// dead code, and the bundler strips it — nothing ships to prod beyond an
-// empty module file.
-//
-// Only fires on the specific React-Compiler size-mismatch warning; all other
-// console.error calls pass through untouched.
+// Keep behind import.meta.env.DEV: Vite dead-code-eliminates this only if the guard stays.
 if (import.meta.env.DEV) {
   const original = console.error;
   console.error = function interceptedError(...args: unknown[]): void {

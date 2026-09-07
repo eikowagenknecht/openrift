@@ -3,20 +3,15 @@ import { WellKnown } from "@openrift/shared";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { choose } from "@/lib/deck-draw-odds";
 
-/** Turns the rune-odds table reports on. */
 export const RUNE_ODDS_TURNS: readonly number[] = [1, 2, 3, 4];
 
-/** Highest "at least N" row offered per domain. */
 const MAX_THRESHOLD = 3;
 
-/** Rows this certain at turn 1 say nothing — the domain is simply always there. */
 const CERTAIN = 0.995;
 
 /**
- * Runes channeled by the end of a turn: two per turn, plus one more on the
- * first turn when going second (the turn-1 energy split the curve presets
- * encode — 2 going first, 3 going second).
- * @returns How many runes have left the rune deck by then.
+ * Two runes per turn, plus one more on turn 1 when going second, matching
+ * the turn-1 energy split the curve presets encode (2 first, 3 second).
  */
 export function runesChanneledByTurn(turn: number, goingSecond: boolean): number {
   return turn * 2 + (goingSecond ? 1 : 0);
@@ -24,9 +19,7 @@ export function runesChanneledByTurn(turn: number, goingSecond: boolean): number
 
 /**
  * Hypergeometric P(at least `k` hits) when drawing `draws` cards from a
- * `deckSize` deck holding `copies` hits. Generalizes the "at least one" case
- * in {@link chanceToDraw}.
- * @returns A probability in [0, 1].
+ * `deckSize` deck holding `copies` hits.
  */
 export function chanceAtLeast(k: number, copies: number, deckSize: number, draws: number): number {
   if (k <= 0) {
@@ -35,7 +28,6 @@ export function chanceAtLeast(k: number, copies: number, deckSize: number, draws
   if (copies < k) {
     return 0;
   }
-  // Past this point there are enough copies, so drawing the deck is certain.
   if (draws >= deckSize) {
     return 1;
   }
@@ -53,24 +45,15 @@ export function chanceAtLeast(k: number, copies: number, deckSize: number, draws
 
 export interface RuneOddsRow {
   domain: string;
-  /** Runes of that domain; a dual-domain rune counts toward both. */
   copies: number;
-  /** The "at least this many" the row reports on. */
   threshold: number;
-  /** Chance by each of {@link RUNE_ODDS_TURNS}, in that order. */
   byTurn: number[];
 }
 
 /**
- * Odds of having channeled at least N runes of each domain by turns 1-4.
- * Runes are their own shuffled deck, so this is a plain hypergeometric on the
- * RUNES zone — independent of the main deck and of any sideboard experiment.
- *
- * Rows that would tell the player nothing are dropped: a domain already
- * certain on turn 1, and thresholds no draw can reach.
- *
- * @returns The rows, sorted by domain then threshold; empty when the deck has
- * no runes.
+ * Runes are their own shuffled deck, independent of the main deck. Rows a
+ * domain is already certain of by turn 1, or that no draw can reach, are
+ * dropped.
  */
 export function buildRuneOddsRows(
   cards: readonly DeckBuilderCard[],

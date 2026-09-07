@@ -62,9 +62,6 @@ describe("computeDeckOwnership", () => {
   });
 
   it("counts the deck proper (runes included, sideboard excluded) for the required-zone basis", () => {
-    // Regression: the hero's owned chip used totalNeeded (which includes the
-    // sideboard), so its denominator never matched the "X / 56" completion
-    // figure. requiredZone* must count runes but not the sideboard.
     const deckCards = [
       stubDeckBuilderCard({ cardId: "rune-1", quantity: 12, zone: "runes" }),
       stubDeckBuilderCard({ cardId: "unit-1", quantity: 3, zone: "main" }),
@@ -86,24 +83,18 @@ describe("computeDeckOwnership", () => {
       EN_FIRST,
     );
 
-    // Full totals keep the sideboard for the missing-cards flows.
     expect(result.totalNeeded).toBe(17);
     expect(result.totalOwned).toBe(15);
-    // The deck-proper basis drops the sideboard but keeps the runes.
     expect(result.requiredZoneNeeded).toBe(15);
     expect(result.requiredZoneOwned).toBe(13);
-    // Both missing copies sit in the deck proper here.
     expect(result.requiredZoneMissing).toBe(2);
     expect(result.sideboardMissing).toBe(0);
   });
 
   it("splits the missing count between the deck proper and the sideboard", () => {
-    // The hero chip renders the split as "1 + 2 side missing"; the two figures
-    // must always sum to missingCount so the dialog and the chip agree.
     const deckCards = [
       stubDeckBuilderCard({ cardId: "unit-1", quantity: 3, zone: "main" }),
       stubDeckBuilderCard({ cardId: "side-1", quantity: 2, zone: "sideboard" }),
-      // Overflow is parked, not part of the deck — must not count as missing.
       stubDeckBuilderCard({ cardId: "spare-1", quantity: 4, zone: "overflow" }),
     ];
     const printings = [
@@ -129,9 +120,6 @@ describe("computeDeckOwnership", () => {
   });
 
   it("prices missing copies at the cheapest printing in the viewer's languages", () => {
-    // Regression: a creator pinning a premium printing made the missing cost
-    // extraordinary. Completion pricing uses the cheapest acceptable copy; the
-    // pinned figure survives separately as missingAsDisplayedValueCents.
     const cardId = "card-1";
     const deckCards = [
       stubDeckBuilderCard({ cardId, quantity: 2, zone: "main", preferredPrintingId: "fancy" }),
@@ -147,22 +135,13 @@ describe("computeDeckOwnership", () => {
       "cheaper-sc": { tcgplayer: 100 },
     });
 
-    const result = computeDeckOwnership(
-      deckCards,
-      printings,
-      {},
-      "tcgplayer",
-      prices,
-      // Viewer accepts EN only — the even cheaper SC printing must not win.
-      ["EN"],
-    );
+    const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer", prices, ["EN"]);
 
     expect(result.missingValueCents).toBe(600);
     expect(result.missingAsDisplayedValueCents).toBe(10_000);
     const entry = result.byCardZone.get(`${cardId}:main`);
     expect(entry?.cheapestPrice).toBe(300);
     expect(entry?.cheapestPrinting?.id).toBe("cheap-en");
-    // The deck's displayed value keeps the creator's pin.
     expect(entry?.displayPrice).toBe(5000);
   });
 
@@ -341,7 +320,6 @@ describe("computeDeckOwnership", () => {
       stubDeckBuilderCard({ cardId, quantity: 2, zone: "sideboard" }),
     ];
     const printings = [stubPrinting({ id: printingId, cardId })];
-    // Only own 3 copies, but need 4 (2 main + 2 sideboard)
     const owned = { [printingId]: 3 };
 
     const result = computeDeckOwnership(
@@ -361,7 +339,6 @@ describe("computeDeckOwnership", () => {
   it("computes deck value from the deck row's resolved printing", () => {
     const cardId = "card-1";
 
-    // No preferredPrintingId, so canonical fallback picks EN (p1) over DE (p2).
     const deckCards = [stubDeckBuilderCard({ cardId, quantity: 2, zone: "main" })];
     const printings = [
       stubPrinting({ id: "p1", cardId, language: "EN" }),
@@ -375,9 +352,6 @@ describe("computeDeckOwnership", () => {
 
     const result = computeDeckOwnership(deckCards, printings, owned, "tcgplayer", prices, EN_FIRST);
 
-    // The viewer's language order accepts DE, so every value figure prices at
-    // the cheaper DE printing ($3); the displayed EN printing only feeds the
-    // "as displayed" totals.
     expect(result.deckValueCents).toBe(6);
     expect(result.missingValueCents).toBe(3);
     expect(result.asDisplayedValueCents).toBe(10);
@@ -385,10 +359,6 @@ describe("computeDeckOwnership", () => {
   });
 
   it("uses preferredPrintingId when set, even when another language is cheaper", () => {
-    // Regression: deck has EN Master Yi pinned; missing-cards dialog must show
-    // EN price/short code, not the cheaper SC variant. (See bug report
-    // 2026-04-25: EN deck row was showing SC prices because the hook picked
-    // the global cheapest printing instead of the deck row's chosen one.)
     const cardId = "master-yi";
 
     const deckCards = [
@@ -415,18 +385,11 @@ describe("computeDeckOwnership", () => {
       landscape: false,
     });
     expect(entry?.displayPrice).toBe(500);
-    // The headline value still prices at the cheapest acceptable printing —
-    // SC is in the viewer's language order here, so the pin only moves the
-    // "as displayed" figure.
     expect(result.deckValueCents).toBe(100);
     expect(result.asDisplayedValueCents).toBe(500);
   });
 
   it("keeps a premium pin out of the headline value", () => {
-    // The user's report: pinning an expensive showcase legend for looks must
-    // not inflate the deck's value. The headline stays at the cheapest
-    // printing in the viewer's languages; the pin's total is only visible as
-    // asDisplayedValueCents.
     const cardId = "legend-1";
     const deckCards = [
       stubDeckBuilderCard({ cardId, quantity: 1, zone: "legend", preferredPrintingId: "metal" }),
@@ -479,15 +442,12 @@ describe("computeDeckOwnership", () => {
   });
 
   it("omits displayPrice when the resolved printing has no price on the marketplace", () => {
-    // Even with cheaper data on a different language variant, we no longer
-    // borrow that price — show "--" until the resolved printing has its own.
     const cardId = "card-1";
     const deckCards = [stubDeckBuilderCard({ cardId, quantity: 1, zone: "main" })];
     const printings = [
       stubPrinting({ id: "p1", cardId, language: "EN", shortCode: "OGN-001" }),
       stubPrinting({ id: "p2", cardId, language: "SC", shortCode: "OGN-001-SC" }),
     ];
-    // Only the SC printing has a price; canonical EN resolves but has none.
     const prices = stubPriceLookup({ p2: { tcgplayer: 3 } });
 
     const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer", prices, EN_FIRST);
@@ -530,9 +490,6 @@ describe("computeDeckOwnership", () => {
   });
 
   it("counts borrowed copies as buildable, tracked separately from owned", () => {
-    // ADR-039: copies borrowed from a friend are physically in hand, so they
-    // reduce the shortfall — but they aren't owned. 1 owned + 2 borrowed of a
-    // 4-of card leaves exactly 1 missing.
     const cardId = "card-1";
     const printingId = "printing-1";
 
@@ -593,10 +550,6 @@ describe("computeDeckOwnership", () => {
   });
 
   it("treats locked copies as not-owned and reports them per zone", () => {
-    // Regression: when a collection is excluded from deck building, the
-    // deck-builder should not count its copies as fulfilling the deck. A
-    // user with 2 available + 2 locked copies of a 4-of card should see
-    // shortfall 2, owned 2, locked 2 — not owned 4.
     const cardId = "card-1";
     const printingId = "printing-1";
 
@@ -627,7 +580,6 @@ describe("computeDeckOwnership", () => {
   });
 
   it("caps locked count at the remaining shortfall", () => {
-    // 4 locked copies, but only 1 still missing → locked surfaces as 1.
     const cardId = "card-1";
     const printingId = "printing-1";
 
@@ -651,10 +603,6 @@ describe("computeDeckOwnership", () => {
   });
 
   it("distributes locked copies across zones after available is exhausted", () => {
-    // Need 2 main + 2 sideboard = 4 total; own 1 available + 2 locked.
-    // Available covers main slot 1, locked fills main slot 2 (1 of 2 main
-    // shortfall; 1 locked copy remains but main only had 1 missing).
-    // Sideboard has 2 missing; the leftover 1 locked covers 1 of them.
     const cardId = "card-1";
     const printingId = "printing-1";
 
@@ -709,9 +657,6 @@ describe("computeDeckOwnership", () => {
   });
 
   it("annotates the shortfall with incoming copies without reducing it", () => {
-    // The whole point of the incoming bucket: cards on their way from a
-    // reserved trade explain part of the gap but aren't in hand, so the deck
-    // still counts them missing. Contrast with borrowed, which does cover need.
     const cardId = "card-1";
     const printingId = "printing-1";
 
@@ -738,9 +683,6 @@ describe("computeDeckOwnership", () => {
   });
 
   it("caps incoming at the shortfall locked has not already explained", () => {
-    // Need 4, own 1 available, 2 locked, 2 incoming. Shortfall is 3; locked
-    // claims 2 of it, so incoming may only claim the remaining 1. Without the
-    // chained cap the row would explain 4 missing copies out of a gap of 3.
     const cardId = "card-1";
     const printingId = "printing-1";
 
@@ -770,8 +712,6 @@ describe("computeDeckOwnership", () => {
   });
 
   it("distributes incoming copies across zones without double-claiming", () => {
-    // 2 incoming copies against 2 main + 2 sideboard, none owned. The main
-    // zone is walked first and takes both; the sideboard gets none.
     const cardId = "card-1";
     const printingId = "printing-1";
 
@@ -801,8 +741,6 @@ describe("computeDeckOwnership", () => {
   });
 
   it("leaves the missing value untouched by incoming copies", () => {
-    // The buy list still prices every missing copy: the cards aren't here yet,
-    // and a trade can fall through. The annotation is the only signal.
     const cardId = "card-1";
     const printingId = "printing-1";
 
@@ -867,11 +805,11 @@ describe("computeDeckOwnership", () => {
     const result = computeDeckOwnership(deckCards, printings, owned, "tcgplayer", prices, EN_FIRST);
 
     expect(result.totalNeeded).toBe(6);
-    expect(result.totalOwned).toBe(3); // 3 of Alpha, 0 of Beta, 0 of Gamma
-    expect(result.missingCount).toBe(3); // 0 + 2 + 1
-    expect(result.missingCards).toHaveLength(2); // Beta and Gamma
-    expect(result.deckValueCents).toBe(15); // 3*1 + 2*5 + 1*2
-    expect(result.missingValueCents).toBe(12); // 2*5 + 1*2
+    expect(result.totalOwned).toBe(3);
+    expect(result.missingCount).toBe(3);
+    expect(result.missingCards).toHaveLength(2);
+    expect(result.deckValueCents).toBe(15);
+    expect(result.missingValueCents).toBe(12);
   });
 
   it("splits deck value into main deck and sideboard", () => {
@@ -893,14 +831,11 @@ describe("computeDeckOwnership", () => {
 
     const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer", prices, EN_FIRST);
 
-    expect(result.mainValueCents).toBe(32); // legend 1*20 + main 3*4
-    expect(result.sideboardValueCents).toBe(6); // 2*3
+    expect(result.mainValueCents).toBe(32);
+    expect(result.sideboardValueCents).toBe(6);
     expect(result.deckValueCents).toBe(38);
   });
 
-  // The panel splits the cost-to-complete the same way it splits deck value,
-  // so the two splits have to be independent: what's owned sits in the deck
-  // proper here, which moves the missing split away from the value split.
   it("splits missing value into main deck and sideboard", () => {
     const deckCards = [
       stubDeckBuilderCard({ cardId: "l", quantity: 1, zone: "legend" }),
@@ -927,8 +862,8 @@ describe("computeDeckOwnership", () => {
       EN_FIRST,
     );
 
-    expect(result.missingMainValueCents).toBe(8); // 2 of 3 main copies missing
-    expect(result.missingSideboardValueCents).toBe(6); // 2*3
+    expect(result.missingMainValueCents).toBe(8);
+    expect(result.missingSideboardValueCents).toBe(6);
     expect(result.missingValueCents).toBe(14);
   });
 
@@ -944,8 +879,6 @@ describe("computeDeckOwnership", () => {
   });
 
   it("leaves overflow out of every ownership and value total", () => {
-    // Overflow is a parking zone — cards stashed there aren't part of the deck,
-    // so they must not inflate the cost, the card counts, or the buy list.
     const deckCards = [
       stubDeckBuilderCard({ cardId: "a", cardName: "Alpha", quantity: 2, zone: "main" }),
       stubDeckBuilderCard({ cardId: "z", cardName: "Zed", quantity: 4, zone: "overflow" }),
@@ -976,7 +909,7 @@ describe("computeDeckOwnership", () => {
     expect(result.totalBorrowed).toBe(0);
     expect(result.missingCount).toBe(1);
     expect(result.missingCards.map((entry) => entry.cardName)).toEqual(["Alpha"]);
-    expect(result.deckValueCents).toBe(20); // 2 * 10, no 4 * 50
+    expect(result.deckValueCents).toBe(20);
     expect(result.mainValueCents).toBe(20);
     expect(result.missingValueCents).toBe(10);
   });
@@ -998,14 +931,10 @@ describe("computeDeckOwnership", () => {
     const entry = result.byCardZone.get("z:overflow");
     expect(entry?.owned).toBe(2);
     expect(entry?.displayPrice).toBe(9);
-    // Present for display only — the deck itself has no priced cards.
     expect(result.deckValueCents).toBeUndefined();
   });
 
   it("does not let an overflow copy claim ownership away from the main deck", () => {
-    // Regression: deck cards arrive in zone order, so an overflow row listed
-    // before the main row used to claim the only owned copy and report the
-    // main row as missing.
     const cardId = "card-1";
     const deckCards = [
       stubDeckBuilderCard({ cardId, quantity: 1, zone: "overflow" }),
@@ -1030,16 +959,6 @@ describe("computeDeckOwnership", () => {
 });
 
 describe("computeDeckOwnership (source-level regression)", () => {
-  // React Compiler must NOT compile `computeDeckOwnership` with its own
-  // useMemoCache. When a `"use memo"` helper is called from another compiled
-  // function, the outer compiler wraps the call in a cache check; on cache
-  // hits the call is skipped and the helper's `_c(N)` never fires. That
-  // shifts every later `_c` slot in the parent fiber's memoCache and
-  // produces "previous cache was allocated with size X but size Y was
-  // requested" warnings.
-  //
-  // `useDeckOwnership` already memoizes this call at its own call site, so
-  // an inner `"use memo"` is redundant — and triggers the bug. Keep it off.
   it("does not carry a `use memo` directive", () => {
     const source = readFileSync(path.resolve(__dirname, "./use-deck-ownership.ts"), "utf-8");
     const body = /export function computeDeckOwnership[\s\S]+?^\}/mu.exec(source);

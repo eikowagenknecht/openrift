@@ -1,7 +1,6 @@
 import { RULE_REFERENCE_REGEX } from "@openrift/shared";
 import { fromMarkdown } from "mdast-util-from-markdown";
 
-/** Minimal MDAST shape used by the remark passes in the rules pipeline. */
 export interface MdNode {
   type: string;
   value?: string;
@@ -9,7 +8,6 @@ export interface MdNode {
   children?: MdNode[];
 }
 
-/** Minimal HAST shape used by the rehype passes and the diff renderer. */
 export interface HastNode {
   type: string;
   tagName?: string;
@@ -70,24 +68,16 @@ function visitMdastTextNodes(node: MdNode): void {
   }
 }
 
-/**
- * Remark plugin that wraps rule references (`rule 540`, `603.7`, `CR 116`)
- * in links to their anchors.
- *
- * @returns The plugin transform function.
- */
+/** Wraps rule references (`rule 540`, `603.7`, `CR 116`) in links to their anchors. */
 export const remarkLinkifyRuleReferences = () => (tree: MdNode) => {
   visitMdastTextNodes(tree);
 };
 
-// Tournament penalty labels — matched as literal `[Label]` strings inside
-// rule bodies.
 const PENALTY_REGEX =
   /\[(?<penalty>Warnings?|Game Loss|No Penalty|Match Loss|Disqualification)\]/gu;
 
-// IPG-style sources often italicize the label inside the brackets, e.g.
-// `[*Warnings*]`. Strip the inner emphasis markers so the regex above (and the
-// markdown parser) see clean `[Label]` tokens.
+// IPG-style sources often italicize the label, e.g. `[*Warnings*]`; strip the
+// inner emphasis markers so the regex above sees a clean `[Label]` token.
 const PENALTY_NORMALIZE_REGEX =
   /\[\s*[*_]*\s*(?<penalty>Warnings?|Game Loss|No Penalty|Match Loss|Disqualification)\s*[*_]*\s*\]/gu;
 
@@ -140,60 +130,39 @@ function visitHastTextNodes(node: HastNode): void {
   }
 }
 
-/**
- * Rehype plugin that wraps `[Warning]`-style penalty labels in
- * `<span data-penalty>` elements so they render as badges.
- *
- * @returns The plugin transform function.
- */
+/** Wraps `[Warning]`-style penalty labels in `<span data-penalty>` elements. */
 export const rehypeHighlightPenalties = () => (tree: HastNode) => {
   visitHastTextNodes(tree);
 };
 
 /**
- * Normalizes a rule body for the markdown pipeline: collapses italicized
- * penalty labels to plain `[Label]` tokens and turns every newline into a
- * markdown hard break.
- *
- * @returns The processed markdown source.
+ * Collapses italicized penalty labels to plain `[Label]` tokens and turns
+ * every newline into a markdown hard break.
  */
 export function preprocessRuleMarkdown(content: string): string {
   return content.replaceAll(PENALTY_NORMALIZE_REGEX, "[$<penalty>]").replaceAll("\n", "  \n");
 }
 
-// ---------------------------------------------------------------------------
-// Structural inline diff
-//
-// The diff view can't diff raw markdown source: interleaving the emphasis
-// markers of two versions produces marker sequences that pair up differently
-// than in either version (stray literal `*`, italics over wrong ranges). So
-// both versions are parsed first, the resulting inline trees are flattened to
-// word tokens that carry their formatting context, the tokens are diffed by
-// text only, and a single merged tree is rebuilt from the result.
-// ---------------------------------------------------------------------------
+// Diffing raw markdown source is unsafe: interleaving the emphasis markers of
+// two versions can pair them up differently than in either version. Instead
+// both versions are parsed, flattened to word tokens carrying their
+// formatting context, diffed by text only, then rebuilt into a merged tree.
 
 interface InlineFrame {
   tag: "em" | "strong" | "code" | "a" | "penalty" | "diff";
-  /** Link target, for `a` frames. */
   href?: string;
-  /** Penalty label, for `penalty` frames. */
   penalty?: string;
-  /** Diff state, for `diff` frames. */
   diff?: "added" | "removed";
 }
 
 interface WsAtom {
-  /** True renders a `<br>`; false renders `value` as whitespace text. */
   hardBreak: boolean;
   value: string;
 }
 
 interface InlineToken {
-  /** The word or punctuation run. Never whitespace. */
   text: string;
-  /** Whitespace (and hard breaks) between the previous token and this one. */
   pre: WsAtom[];
-  /** Formatting context, outermost first. */
   frames: InlineFrame[];
 }
 
@@ -222,9 +191,7 @@ function pushTextTokens(text: string, frames: InlineFrame[], state: FlattenState
 }
 
 function flattenText(text: string, frames: InlineFrame[], state: FlattenState): void {
-  // Penalty labels are atomic tokens (`[Warning]` as one unit) so a changed
-  // label diffs as one badge removed plus one badge added, not a per-word
-  // shred of the badge.
+  // Match penalty labels (e.g. `[Warning]`) as single tokens before word splitting.
   const penaltyRegex = new RegExp(PENALTY_REGEX.source, "gu");
   let last = 0;
   let match: RegExpExecArray | null = penaltyRegex.exec(text);
@@ -278,9 +245,6 @@ function flattenNode(node: MdNode, frames: InlineFrame[], state: FlattenState): 
       return;
     }
     default: {
-      // Any other node (paragraphs, lists, raw HTML, images) contributes only
-      // its children — raw HTML and images have none, mirroring the render
-      // pipeline's skipHtml behavior.
       flattenChildren(node, frames, state);
     }
   }
@@ -310,12 +274,8 @@ interface DiffEntry {
 }
 
 /**
- * LCS over the token texts. Whitespace never participates (it lives on the
- * tokens' `pre`), and formatting is ignored — a word whose emphasis, link
- * target, or badge changed but whose text didn't compares equal and renders
- * with the new version's formatting.
- *
- * @returns One entry per token; equal entries carry the new version's token.
+ * LCS over the token texts only; formatting is ignored, so a word whose
+ * emphasis, link, or badge changed but whose text didn't compares equal.
  */
 function diffTokens(oldTokens: InlineToken[], newTokens: InlineToken[]): DiffEntry[] {
   const n = oldTokens.length;
@@ -452,13 +412,8 @@ function parseRuleMarkdown(source: string): MdNode {
 
 /**
  * Computes an inline word-level diff between two rule bodies as a merged
- * HAST-like tree. Both versions run through the full parse pipeline first
- * (hard breaks, rule-reference links, penalty badges), so formatting can
- * never be mangled by the diff: changed words are wrapped in
- * `<span data-diff="added|removed">`, unchanged words render with the new
- * version's formatting, and whitespace-only changes produce no marks.
- *
- * @returns The merged tree's top-level nodes, ready for rendering.
+ * HAST-like tree. Both versions run through the full parse pipeline first,
+ * so formatting can't be mangled by the diff.
  */
 export function diffRuleMarkdown(oldSource: string, newSource: string): HastNode[] {
   const newTokens = flattenTree(parseRuleMarkdown(newSource));
@@ -471,10 +426,7 @@ export function diffRuleMarkdown(oldSource: string, newSource: string): HastNode
 
 /**
  * Whether `diffRuleMarkdown` would render any add/remove marks for this pair.
- * The diff compares token text only, so two bodies that differ purely in
- * whitespace, emphasis, or link markup render identically and are silent.
- *
- * @returns True when at least one word was added or removed.
+ * Bodies differing only in whitespace, emphasis, or link markup are silent.
  */
 export function hasVisibleRuleChanges(oldSource: string, newSource: string): boolean {
   if (oldSource === newSource) {

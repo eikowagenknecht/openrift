@@ -14,19 +14,12 @@ import { isResumableCheckpoint } from "@openrift/shared/contracts/admin/meta-cat
 import type { MetaCoverageRow } from "@/components/admin/meta-coverage-chips";
 import { summarizeRunResult } from "@/lib/job-run-display";
 
-// Pure display helpers for the Meta Archive's catalogue triage and sync panels
-// (ADR-014). Kept out of the components so the source's own vocabulary, the
-// date-filter boundaries, and the job-result summaries are testable without a
-// DOM.
-
-/** What each source is called on screen; the slugs are ours, the names theirs. */
 export const META_SOURCE_LABELS: Record<MetaSource, string> = {
   uvsgames: "UVS Games",
   playloltcg: "Play LoL TCG",
   topdeck: "TopDeck.gg",
 };
 
-/** A label and the Badge tone it is rendered with. */
 export interface CatalogChipDisplay {
   label: string;
   variant: "warning" | "subtle" | "success" | "muted" | "outline";
@@ -38,19 +31,10 @@ const STATUS_DISPLAY: Record<string, CatalogChipDisplay> = {
   complete: { label: "Complete", variant: "success" },
 };
 
-/**
- * The chip for the source's own status. Unknown values are shown verbatim: the
- * vocabulary belongs to the source, not to us, so a new one must stay readable
- * rather than disappear.
- *
- * @param status - The source's `display_status`.
- * @returns The chip's label and tone.
- */
 export function catalogStatusDisplay(status: string): CatalogChipDisplay {
   return STATUS_DISPLAY[status] ?? { label: status, variant: "outline" };
 }
 
-/** Where each lifecycle step lands in the three statuses the chips speak. */
 const PLAYLOLTCG_COVERAGE_STATUS: Record<PlayloltcgStatus, string> = {
   1: "upcoming",
   2: "upcoming",
@@ -68,31 +52,19 @@ const PLAYLOLTCG_STATUS_DISPLAY: Record<PlayloltcgStatus, CatalogChipDisplay> = 
 };
 
 /**
- * The chip for playloltcg's `sortWeight` lifecycle. The source can report a step
- * outside the five it documents, which is why this answers undefined rather than
- * inventing a label: a number the reader cannot act on is worse than no chip.
- *
- * @param status - The source's `sortWeight`, or null when it published none.
- * @returns The chip's label and tone, or undefined for a step we do not know.
+ * A `sortWeight` outside the five documented steps answers undefined rather
+ * than inventing a label.
  */
 export function playloltcgStatusDisplay(status: number | null): CatalogChipDisplay | undefined {
   return status === null ? undefined : PLAYLOLTCG_STATUS_DISPLAY[status as PlayloltcgStatus];
 }
 
-/** The lifecycle as a filter's options, in the order the source runs through it. */
 export const PLAYLOLTCG_STATUS_CHOICES = PLAYLOLTCG_STATUSES.map((status) => ({
   value: String(status),
   label: PLAYLOLTCG_STATUS_DISPLAY[status].label,
 }));
 
-/**
- * A playloltcg row in the vocabulary the shared coverage chips read. The source
- * publishes no decklist status: it releases standings and decks in one act, so
- * "were decks published" is not a question it can answer ahead of the fetch.
- *
- * @param row - The catalogue row.
- * @returns The coverage fields, with the lifecycle mapped onto the chips' three statuses.
- */
+/** The source releases standings and decks in one act, so it publishes no decklist status. */
 export function playloltcgCoverageRow(row: PlayloltcgCatalogRow): MetaCoverageRow {
   return {
     triage: row.triage,
@@ -107,13 +79,12 @@ export function playloltcgCoverageRow(row: PlayloltcgCatalogRow): MetaCoverageRo
   };
 }
 
-/** The source's own format vocabulary, as the catalogue's second filter axis. */
 export const TOPDECK_FORMAT_CHOICES = TOPDECK_FORMATS.map((format) => ({
   value: format,
   label: format,
 }));
 
-/** The search answers about completed tournaments only, so every row is complete and there is no recheck ladder to report. */
+/** The search answers about completed tournaments only, so every row is complete. */
 export function topdeckCoverageRow(row: TopdeckCatalogRow): MetaCoverageRow {
   return {
     triage: row.triage,
@@ -134,37 +105,16 @@ const TRIAGE_DISPLAY: Record<MetaCatalogTriage, CatalogChipDisplay> = {
   dismissed: { label: "Dismissed", variant: "muted" },
 };
 
-/**
- * The chip for a row's triage state.
- *
- * @param triage - The derived triage state.
- * @returns The chip's label and tone.
- */
 export function catalogTriageDisplay(triage: MetaCatalogTriage): CatalogChipDisplay {
   return TRIAGE_DISPLAY[triage];
 }
 
-/**
- * Where the event runs, as one line. Both fields are optional at the source, so
- * either half may be missing.
- *
- * @param row - The catalogue row's venue fields.
- * @returns The store and location, or an em-dash placeholder when neither is set.
- */
 export function catalogVenueText(row: Pick<MetaCatalogRow, "storeName" | "location">): string {
   const parts = [row.storeName, row.location].filter((part): part is string => Boolean(part));
   return parts.length === 0 ? "—" : parts.join(", ");
 }
 
-/**
- * Turns a picked calendar day into the instant the date filter needs. The
- * catalogue stores start times as instants, so a day filter has to name a
- * boundary; both ends are UTC, matching how every other ops surface reads a day.
- *
- * @param day - An ISO calendar day (`2026-08-15`), or an empty string.
- * @param edge - Whether the day opens or closes the range.
- * @returns The ISO instant, or undefined when there is no day to bound.
- */
+/** Both ends are UTC, matching how every other ops surface reads a day. */
 export function catalogDayBoundary(day: string, edge: "start" | "end"): string | undefined {
   if (!/^\d{4}-\d{2}-\d{2}$/u.test(day)) {
     return undefined;
@@ -177,23 +127,12 @@ export function catalogDayBoundary(day: string, edge: "start" | "end"): string |
   return parsed.toISOString();
 }
 
-/** What a manual trigger's outcome is announced as. */
 export interface SyncTriggerAnnouncement {
   title: string;
   description: string;
-  /** False for the outcomes that need the maintainer's attention. */
   ok: boolean;
 }
 
-/**
- * How a manual trigger's outcome reads. The long crawls answer before they
- * finish, so "started" and "finished" are genuinely different things to say,
- * and a second click while one is in flight is answered rather than ignored.
- *
- * @param label - The trigger's name, as the button spells it.
- * @param result - What the endpoint answered.
- * @returns The announcement to toast.
- */
 export function syncTriggerAnnouncement(
   label: string,
   result: MetaSyncTriggerResult,
@@ -218,26 +157,15 @@ export function syncTriggerAnnouncement(
   return { title: `${label} finished`, description: summarizeRunResult(result.result), ok: true };
 }
 
-/** The backfill's state, as the maintenance section presents it. */
 export type BackfillDisplay =
   | { phase: "idle" }
   | { phase: "running"; coveredThrough: string | null }
   | {
       phase: "resumable";
       coveredThrough: string;
-      /** Whether the stopped run was cancelled rather than falling short. */
       cancelled: boolean;
     };
 
-/**
- * Which backfill controls to show, read through the same
- * {@link isResumableCheckpoint} the server's resume rule uses, so the buttons
- * promise exactly what `runBackfill` will do.
- *
- * @param runs - The status endpoint's recent runs, newest first.
- * @param kind - The source's backfill job kind.
- * @returns The backfill's phase, and the resume point if any.
- */
 export function backfillDisplay(runs: MetaSyncStatus["runs"], kind: string): BackfillDisplay {
   const latest = runs.find((run) => run.kind === kind);
   if (latest === undefined) {
@@ -258,20 +186,11 @@ export function backfillDisplay(runs: MetaSyncStatus["runs"], kind: string): Bac
   return { phase: "idle" };
 }
 
-/**
- * The run a Stop would be aimed at: the newest run of the kind, and only while
- * it is still running.
- *
- * @param runs - The status endpoint's recent runs, newest first.
- * @param kind - The job kind to look for.
- * @returns The running run's id, or null when none is.
- */
 export function runningRunId(runs: MetaSyncStatus["runs"], kind: string): string | null {
   const latest = runs.find((run) => run.kind === kind);
   return latest?.status === "running" ? latest.id : null;
 }
 
-/** Where an alert sends the maintainer to act on it. */
 export type MetaSyncAlertTarget =
   | "runs"
   | "failed-runs"
@@ -279,40 +198,26 @@ export type MetaSyncAlertTarget =
   | "catalogue-accepted-missing"
   | "review";
 
-/** One thing wrong with the sync, in the words the overview prints. */
 export interface MetaSyncAlert {
   id: string;
   message: string;
   target: MetaSyncAlertTarget;
 }
 
-/** Past this, the mirror has missed enough crawls that something is wrong. */
 const STALE_CRAWL_MS = 8 * 24 * 60 * 60 * 1000;
 
 const RECENT_FAILURE_MS = 24 * 60 * 60 * 1000;
 
-/** One recheck batch's worth. More than this and the ladder is falling behind. */
 const DUE_RECHECK_LIMIT = 40;
 
-/** The queue counts the overview's funnel and its alerts read. */
 export interface OverlayProviderCounts {
   pendingReview: number;
   unresolvedCards: number;
 }
 
 /**
- * The overlay queue narrowed to one source.
- *
- * The queue itself is cross-source, but the overview is a per-source screen, so
- * counting the whole queue on every tab made both tabs report the same number
- * and fed the alerts a figure neither source could act on. An overlay a person
- * sent carries no provider, and it belongs on the tab of the source whose event
- * it patches — which the queue row does not name — so those count on every tab
- * rather than on none.
- *
- * @param overlays - The whole review queue.
- * @param provider - The source tab doing the asking.
- * @returns The pending and unmatched-name counts for that tab.
+ * An overlay with no provider belongs on the tab of the source whose event it
+ * patches, which the queue row does not name, so it counts on every tab.
  */
 export function overlayCountsForProvider(
   overlays: readonly MetaOverlayQueueRow[],
@@ -325,16 +230,6 @@ export function overlayCountsForProvider(
   };
 }
 
-/**
- * What the overview should be shouting about, newest concern first. Everything
- * here is derived rather than stored, so the panel has no state of its own to
- * keep in step with the counters.
- *
- * @param status - The sync status the panel is showing.
- * @param unresolvedCardCount - Unmatched card names on this source's overlays.
- * @param now - The instant to measure staleness against.
- * @returns The active alerts, empty when the sync is healthy.
- */
 export function metaSyncAlerts(
   status: MetaSyncStatus,
   unresolvedCardCount: number,
@@ -356,10 +251,8 @@ export function metaSyncAlerts(
     });
   }
 
-  // A failure heals once a newer run of the same kind succeeds: the alert is
-  // about the job being broken now, not about history the run table already
-  // shows. A partial crawl heals the same way, but only a *complete* newer run
-  // re-reads the range the partial one missed.
+  // A failure or partial crawl heals once a newer run of the same kind
+  // succeeds, but a partial only heals on a *complete* newer run.
   const lastSuccessAt = new Map<string, number>();
   const lastFullSuccessAt = new Map<string, number>();
   for (const run of runs) {

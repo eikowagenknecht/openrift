@@ -25,7 +25,6 @@ import type { ImportCopyMetadata } from "@/lib/import-parsers";
 import { copyIdsInCollection, LIST_TARGET_PREFIX } from "@/lib/import-replace";
 import { useDisplayStore } from "@/stores/display-store";
 
-/** A list the importer can target, narrowed to the kinds that accept imported cards. */
 export interface ImportableListOption {
   id: string;
   name: string;
@@ -33,10 +32,8 @@ export interface ImportableListOption {
 }
 
 /**
- * Narrows the user's lists to those that can receive an import. Lists store
- * cards (`cardId`) or printings (`printingId`); copy-kind lists track specific
- * owned copies, which a CSV can't reference, so they're excluded.
- * @returns The importable lists as target options.
+ * Copy-kind lists track specific owned copies, which a CSV can't reference,
+ * so they're excluded here.
  */
 export function toImportableListOptions(
   lists: readonly { id: string; name: string; kind: ListKind }[],
@@ -46,11 +43,6 @@ export function toImportableListOptions(
     .map((list) => ({ id: list.id, name: list.name, kind: list.kind as ImportableListKind }));
 }
 
-/**
- * Manages all state and handlers for the import flow: parsing, matching,
- * resolving needs-review entries, skipping, and batch-importing into a collection.
- * @returns Import flow state and action handlers.
- */
 export function useImportFlow() {
   const { allPrintings } = useCards();
   const addCopies = useAddCopies();
@@ -143,21 +135,15 @@ export function useImportFlow() {
       toast.success(`Added ${summary.totalCards} ${cardLabel} to ${list.name}.`);
       void navigate({ to: "/collections/lists/$listId", params: { listId } });
     } catch {
-      // Deliberately a SECOND toast on top of the global mutation error one:
-      // that one says why the call failed, this one says the import was left
-      // half-done. Batches before the failing one already committed.
+      // Deliberate second toast: batches before the failing one already
+      // committed, so this says the import was left half-done.
       toast.error("Import failed. Some cards may have been added.");
       setIsImporting(false);
     }
   };
 
-  /**
-   * Runs the import. When `replaceExisting` is set, the target collection's
-   * current copies are disposed first, so the collection ends up holding
-   * exactly the imported cards (chosen via the "Replace" path of the
-   * non-empty-collection confirm dialog). Lists and the create-new target are
-   * always additive — a fresh collection has nothing to replace.
-   */
+  // Lists and the create-new target are always additive; only an existing
+  // collection with `replaceExisting` disposes its current copies first.
   const handleImport = async ({ replaceExisting = false } = {}) => {
     if (collectionId.startsWith(LIST_TARGET_PREFIX)) {
       await importIntoList(collectionId.slice(LIST_TARGET_PREFIX.length));
@@ -166,7 +152,6 @@ export function useImportFlow() {
 
     let targetCollectionId = collectionId;
 
-    // Create new collection if needed
     if (targetCollectionId === "__new__") {
       const trimmed = newCollectionName.trim();
       if (!trimmed) {
@@ -178,7 +163,7 @@ export function useImportFlow() {
         const result = await createCollection.mutateAsync({ name: trimmed });
         targetCollectionId = result.id;
       } catch {
-        // Reported by the global mutation error toast (see reportMutationError).
+        // The global mutation error toast reports the failure.
         setIsCreatingCollection(false);
         return;
       }
@@ -192,10 +177,8 @@ export function useImportFlow() {
 
     setIsImporting(true);
 
-    // Replace: clear the target collection's current copies before adding the
-    // imported ones. Disposal mirrors a manual "remove from collection" — it
-    // logs removal events and refuses copies reserved by a live trade, so if
-    // any card is pinned to a trade the clear fails and nothing is imported.
+    // Disposal refuses copies reserved by a live trade, so a pinned card
+    // fails the clear and nothing is imported.
     if (replaceExisting) {
       const existingCopyIds = copiesCollection
         ? copyIdsInCollection(copiesCollection.toArray, targetCollectionId)
@@ -204,9 +187,7 @@ export function useImportFlow() {
         try {
           await disposeCopies.mutateAsync({ copyIds: existingCopyIds });
         } catch {
-          // Deliberately a SECOND toast on top of the global mutation error
-          // one: that one says why the clear failed, this one says the import
-          // never started, so the collection is untouched.
+          // Deliberate second toast: this says the collection is untouched.
           toast.error("Couldn't clear the collection, so nothing was imported.");
           setIsImporting(false);
           return;
@@ -214,8 +195,6 @@ export function useImportFlow() {
       }
     }
 
-    // Build copies payload — expand quantities into individual entries, each
-    // carrying the entry's per-copy metadata (condition etc., ADR-038).
     const copies: ({ printingId: string; collectionId: string } & ImportCopyMetadata)[] = [];
     for (const entry of importableEntries) {
       for (let count = 0; count < entry.entry.quantity; count++) {
@@ -227,7 +206,6 @@ export function useImportFlow() {
       }
     }
 
-    // Batch in groups of 500
     const batches: (typeof copies)[] = [];
     for (let offset = 0; offset < copies.length; offset += IMPORT_BATCH_SIZE) {
       batches.push(copies.slice(offset, offset + IMPORT_BATCH_SIZE));
@@ -248,16 +226,14 @@ export function useImportFlow() {
         params: { collectionId: targetCollectionId },
       });
     } catch {
-      // Deliberately a SECOND toast on top of the global mutation error one:
-      // that one says why the call failed, this one says the import was left
-      // half-done. Batches before the failing one already committed.
+      // Deliberate second toast: batches before the failing one already
+      // committed, so this says the import was left half-done.
       toast.error("Import failed. Some cards may have been added.");
       setIsImporting(false);
     }
   };
 
   return {
-    // State
     step,
     rawText,
     matchedEntries,
@@ -272,7 +248,6 @@ export function useImportFlow() {
     fileRef,
     allPrintings,
 
-    // Derived
     readyCount: summary.readyCount,
     toVerifyCount: summary.toVerifyCount,
     needsAttentionCount: summary.needsAttentionCount,
@@ -280,7 +255,6 @@ export function useImportFlow() {
     skippedCount,
     totalCards: summary.totalCards,
 
-    // Actions
     handleRawTextChange: setRawText,
     handleCollectionChange: setCollectionId,
     handleNewCollectionNameChange: setNewCollectionName,

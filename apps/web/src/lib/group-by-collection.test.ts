@@ -56,8 +56,6 @@ describe("groupItemsByCollection", () => {
   });
 
   it("buckets copies with no collection id alongside the other unknowns", () => {
-    // Stacked views leave `collectionId` unset. The axis isn't offered there,
-    // but a stale value must not drop the items out of the grid entirely.
     const groups = groupItemsByCollection([copy(), copy("col-inbox")], collectionOrder);
     expect(groups.map((group) => group.group.name)).toEqual(["Inbox", "Other"]);
     expect(groups.flatMap((group) => group.items)).toHaveLength(2);

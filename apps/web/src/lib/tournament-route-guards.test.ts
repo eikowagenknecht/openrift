@@ -8,8 +8,6 @@ import {
   redirectToTournamentOverview,
 } from "./tournament-route-guards";
 
-// The guards delegate to the query-options factories; stub them so the test
-// stays off the server-fn import chain and can assert the delegation.
 vi.mock("@/hooks/use-tournaments", () => ({
   tournamentDetailQueryOptions: (userId: string, id: string) => ({
     queryKey: ["tournament-detail", userId, id],
@@ -34,8 +32,6 @@ describe("loadTournamentDetail", () => {
   });
 
   it("converts the NOT_FOUND sentinel into the router's notFound", async () => {
-    // Regression: a deleted or unknown tournament must
-    // render the 404 page, not the generic error screen.
     const query = vi.fn().mockRejectedValue(new Error("NOT_FOUND"));
     const queryClient = { query } as unknown as QueryClient;
 

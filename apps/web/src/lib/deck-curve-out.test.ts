@@ -57,20 +57,15 @@ describe("curveOutRate", () => {
   });
 
   it("never curves out when every card is dead on the early turns", () => {
-    // 7-cost cards can't be played on turn 1 either way (2 or 3 runes), and a
-    // curve-out needs a play on every turn.
     const cards = [mainCard({ energy: 7 }, 39)];
     expect(curveOutRate(cards, { goingSecond: false, throughTurn: 3 })).toBe(0);
     expect(curveOutRate(cards, { goingSecond: true, throughTurn: 3 })).toBe(0);
-    // A deck of 2-cost cards fits every turn's budget on both play orders.
     const cheap = [mainCard({ energy: 2 }, 39)];
     expect(curveOutRate(cheap, { goingSecond: false, throughTurn: 3 })).toBe(1);
     expect(curveOutRate(cheap, { goingSecond: true, throughTurn: 3 })).toBe(1);
   });
 
   it("counts energy plus power as the rune demand", () => {
-    // 1 energy + 2 power = 3 runes: unaffordable turn 1 going first (2 runes),
-    // affordable going second (3 runes).
     const cards = [mainCard({ energy: 1, power: 2 }, 39)];
     expect(curveOutRate(cards, { goingSecond: false, throughTurn: 1 })).toBe(0);
     expect(curveOutRate(cards, { goingSecond: true, throughTurn: 1 })).toBe(1);
@@ -87,7 +82,6 @@ describe("curveOutRate", () => {
       }),
     ];
     expect(curveOutRate(spells, { goingSecond: false, throughTurn: 1 })).toBe(0);
-    // From turn 2 on the same spells are fine.
     const mixed = [mainCard({ energy: 0 }, 4), ...spells];
     expect(curveOutRate(mixed, { goingSecond: false, throughTurn: 1 })).toBeGreaterThan(0);
   });
@@ -101,8 +95,6 @@ describe("curveOutRate", () => {
     const first = curveOutRate(cards, { goingSecond: false });
     expect(first).toBe(curveOutRate(cards, { goingSecond: false }));
     expect(first).not.toBeNull();
-    // Going second sees one more card and one more rune per turn, so the rate
-    // can only be at least as good.
     const second = curveOutRate(cards, { goingSecond: true });
     expect(second ?? 0).toBeGreaterThanOrEqual(first ?? 0);
   });

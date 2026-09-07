@@ -29,9 +29,6 @@ describe("cardDetailQueryOptions", () => {
   });
 
   it("throws Error('NOT_FOUND') when the API returns 404", async () => {
-    // The server sends a typed (defined) NOT_FOUND error body; the client
-    // narrows it with isDefinedError and the handler maps it to the sentinel.
-    // Mock global fetch — the boundary the oRPC OpenAPI link calls.
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -75,7 +72,6 @@ describe("cardDetailQueryOptions select (enrichCardDetail)", () => {
     cardId: "card-1",
     language,
   });
-  // Released long ago in English, still pending in French.
   const releases = {
     EN: { releasedAt: "2025-01-01", precision: "day" },
     FR: { releasedAt: "2099-01-01", precision: "day" },
@@ -126,7 +122,6 @@ describe("cardDetailQueryOptions select (enrichCardDetail)", () => {
       products: [],
     });
 
-    // The page falls back to `?? []`, so an absent key is the empty case.
     expect(result.productsByPrinting.get("p1")).toBeUndefined();
     expect(result.productsByPrinting.size).toBe(0);
   });
@@ -151,7 +146,7 @@ describe("cardDetailQueryOptions select (enrichCardDetail)", () => {
     ]);
   });
 
-  it("still denormalizes set data onto printings", () => {
+  it("falls back to an empty setSlug when the printing's set is missing", () => {
     const result = runSelect({
       card,
       printings: [printing("p1", "s1"), printing("p2", "missing-set")],
@@ -160,7 +155,6 @@ describe("cardDetailQueryOptions select (enrichCardDetail)", () => {
     });
 
     expect(result.printings[0]).toMatchObject({ setSlug: "ogn", setReleased: false });
-    // An unknown set falls back rather than throwing.
     expect(result.printings[1]).toMatchObject({ setSlug: "", setReleased: true });
   });
 
@@ -178,7 +172,6 @@ describe("cardDetailQueryOptions select (enrichCardDetail)", () => {
   });
 
   it("resolves setReleased per printing language", () => {
-    // Same set, two languages: English is out, French is not.
     const result = runSelect({
       card,
       printings: [printing("p1", "s1", "EN"), printing("p2", "s1", "FR")],

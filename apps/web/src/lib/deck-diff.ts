@@ -1,7 +1,6 @@
 import type { Card, DeckCardResponse, DeckZone } from "@openrift/shared";
 import { legendDisplayName, WellKnown } from "@openrift/shared";
 
-/** One side's card list, reduced to the fields the diff cares about. */
 export interface DeckDiffCard {
   cardId: string;
   cardName: string;
@@ -13,9 +12,7 @@ export interface DeckDiffEntry {
   cardId: string;
   cardName: string;
   kind: "add" | "cut" | "change";
-  /** Copies in the open deck. 0 for "add". */
   ours: number;
-  /** Copies in the compared list. 0 for "cut". */
   theirs: number;
 }
 
@@ -25,17 +22,12 @@ interface DeckDiffZone {
 }
 
 export interface DeckDiff {
-  /** Zones in display order; a zone with no differing entries is omitted. */
   zones: DeckDiffZone[];
-  /** Copies present on both sides, summed over (card, zone). */
   sharedCount: number;
-  /** Total copies to add to reach the compared list. */
   addCount: number;
-  /** Total copies to cut to reach the compared list. */
   cutCount: number;
 }
 
-/** Display order for the diff's zone sections, mirroring the deck sidebar. */
 export const ZONE_DIFF_ORDER: readonly DeckZone[] = [
   WellKnown.deckZone.LEGEND,
   WellKnown.deckZone.CHAMPION,
@@ -53,14 +45,6 @@ const KIND_SORT_ORDER: Record<DeckDiffEntry["kind"], number> = {
   cut: 2,
 };
 
-/**
- * Reshapes a stored deck's cards for the diff, naming each one from the
- * catalog. A card id the catalog doesn't know is dropped rather than shown
- * nameless — it can only be a printing the current language filter hides or a
- * row left over from a card that left the catalog.
- *
- * @returns The deck's cards in diff shape.
- */
 export function deckDiffCardsFrom(
   cards: readonly DeckCardResponse[],
   cardsById: Record<string, Card>,
@@ -92,12 +76,6 @@ function slotKey(cardId: string, zone: DeckZone): string {
   return `${cardId}|${zone}`;
 }
 
-/**
- * Sums a side's copies per (card, zone). The builder can hold one card as
- * several rows when printings are pinned, so the raw lists are not keyed the
- * way the diff needs.
- * @returns A map of "cardId|zone" to the summed slot.
- */
 function aggregate(cards: readonly DeckDiffCard[]): Map<string, Aggregated> {
   const slots = new Map<string, Aggregated>();
   for (const card of cards) {
@@ -117,15 +95,7 @@ function aggregate(cards: readonly DeckDiffCard[]): Map<string, Aggregated> {
   return slots;
 }
 
-/**
- * Compares the open deck against a pasted list, in the direction "what turns
- * my deck into that one": an `add` is only in theirs, a `cut` is only in ours,
- * and a `change` is in both at different counts. Copies of the same card in
- * different zones are separate slots, so a card that moved from main to
- * sideboard shows as a cut plus an add rather than a change.
- *
- * @returns The per-zone entries plus the shared / add / cut copy totals.
- */
+/** A card that moved zones is a cut plus an add, not a change. */
 export function diffDecks(
   ours: readonly DeckDiffCard[],
   theirs: readonly DeckDiffCard[],
@@ -164,8 +134,6 @@ export function diffDecks(
     const entries = byZone.get(slot.zone) ?? [];
     entries.push({
       cardId: slot.cardId,
-      // Both sides carry a name; ours wins so the diff reads in the catalog
-      // language the builder is already showing.
       cardName: ourSlot?.cardName ?? slot.cardName,
       kind,
       ours: ourQuantity,

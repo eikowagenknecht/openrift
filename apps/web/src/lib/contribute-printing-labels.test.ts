@@ -17,7 +17,6 @@ function printing(overrides: Partial<ContributeFormPrinting> = {}): ContributeFo
   return { ...emptyPrinting(), setId: "ogn", publicCode: "OGN-024/298", ...overrides };
 }
 
-// The label a row would show: what the shared labeller makes of the adapted printing.
 function labelOf(target: ContributeFormPrinting, siblings: ContributeFormPrinting[]): string {
   return formatPrintingVariantLabel(
     toVariantLabelPrinting(target, markerLabels),
@@ -45,13 +44,9 @@ describe("toVariantLabelPrinting", () => {
   });
 
   it("separates printings that differ only by marker", () => {
-    // The case that made a hand-rolled labeller emit "EN · Foil" twice: these
-    // two are a legal pair in the catalog precisely because the markers differ.
     const plain = printing({ language: "EN", finish: "foil" });
     const promo = printing({ language: "EN", finish: "foil", markerSlugs: ["promo"] });
     const siblings = [plain, promo];
-    // Both are foil, so the finish they share drops out and the marker is the
-    // whole contrast.
     expect(labelOf(plain, siblings)).toBe("Standard");
     expect(labelOf(promo, siblings)).toBe("Promo");
   });

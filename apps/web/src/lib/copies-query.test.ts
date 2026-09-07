@@ -9,10 +9,7 @@ function makeCopy(id: string): CopyResponse {
   return stubCopy({ id, printingId: `print-${id}`, collectionId: "col-1" });
 }
 
-// fetchCopies builds an absolute same-origin URL (window.location.origin is
-// http://localhost:3000 under jsdom). Both the global /copies feed and the
-// per-collection feed go through the oRPC OpenAPI client, which may call fetch
-// with a Request object or a (url, init) pair. Normalize both.
+// The oRPC OpenAPI client may call fetch with a Request object or a (url, init) pair.
 function fetchedUrl(call: unknown[]): string {
   const first = call[0];
   return first instanceof Request ? first.url : String(first);
@@ -59,7 +56,6 @@ describe("copiesQueryOptions", () => {
     const response = await fetchCopies();
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    // Later pages carry the cursor as a query param.
     expect(fetchedUrl(fetchMock.mock.calls[1])).toContain("cursor=cur-1");
     expect(fetchedUrl(fetchMock.mock.calls[2])).toContain("cursor=cur-2");
     expect(response.items.map((c) => c.id)).toEqual(["a", "b", "c", "d"]);

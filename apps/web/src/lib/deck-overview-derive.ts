@@ -9,17 +9,6 @@ import { COPY_LIMIT_ZONES, getDeckCardKey, RUNE_TARGET } from "@/lib/deck-builde
 import type { OwnershipBandSegments } from "@/lib/deck-ownership-band";
 import { formatterForMarketplace } from "@/lib/format";
 
-/**
- * Per-entry lookups the deck overview builds once for the whole surface, so a
- * zone's `.map()` callback closes over stable maps instead of recomputing per
- * thumb.
- */
-
-/**
- * Zones whose thumbs get the full − / N / + stepper. The rest hold exactly one
- * card (legend, champion) or one copy per card (battlefield), so their only
- * edit is removal.
- */
 export const STEPPER_ZONES: ReadonlySet<DeckZone> = new Set([
   WellKnown.deckZone.RUNES,
   WellKnown.deckZone.MAIN,
@@ -27,29 +16,17 @@ export const STEPPER_ZONES: ReadonlySet<DeckZone> = new Set([
   WellKnown.deckZone.OVERFLOW,
 ]);
 
-/** Stable empty map for the thumbs when ownership bands are off or unloaded. */
 export const NO_BANDS: ReadonlyMap<string, OwnershipBandSegments> = new Map();
 
-/** Stable empty map for the thumbs while the price chips are off. */
 export const NO_PRICE_TEXTS: ReadonlyMap<string, string> = new Map();
 
-/** Stable empty list so the focused-stats pass doesn't recompute when nothing is focused. */
 export const NO_CARDS: DeckBuilderCard[] = [];
 
-/** Stable empty map for read-only surfaces, which never show the stepper. */
 export const NO_ADD_ROOM: ReadonlyMap<string, number> = new Map();
 
-/**
- * Copies each entry's + button can still add before the format's caps stop it,
- * keyed by {@link getDeckCardKey}. `Infinity` where nothing caps the zone.
- * Mirrors the checks `addCardAction` makes so the button can disable itself
- * rather than silently doing nothing, and so shift-click knows how many copies
- * "fill up" means.
- * @returns Deck card key → copies the + button may still add.
- */
+// Must mirror the checks `addCardAction` makes.
 export function buildAddRoom(cards: DeckBuilderCard[], format: DeckFormat): Map<string, number> {
   const room = new Map<string, number>();
-  // Freeform validates nothing, so every zone stays open.
   const freeform = format === WellKnown.deckFormat.FREEFORM;
   const runeTotal = cards.reduce(
     (sum, card) => (card.zone === WellKnown.deckZone.RUNES ? sum + card.quantity : sum),
@@ -62,8 +39,7 @@ export function buildAddRoom(cards: DeckBuilderCard[], format: DeckFormat): Map<
       continue;
     }
     if (card.zone === WellKnown.deckZone.RUNES) {
-      // At the 12-rune target `canAddRune` still allows a swap on a two-domain
-      // legend, which is one copy at a time rather than a bulk fill.
+      // canAddRune still allows a one-copy swap at the rune target on a two-domain legend.
       room.set(key, canAddRune(card, cards) ? Math.max(1, RUNE_TARGET - runeTotal) : 0);
       continue;
     }
@@ -78,19 +54,12 @@ export function buildAddRoom(cards: DeckBuilderCard[], format: DeckFormat): Map<
       room.set(key, Math.max(0, copyLimitFor(card) - held));
       continue;
     }
-    // Overflow parks cards without a cap.
     room.set(key, Number.POSITIVE_INFINITY);
   }
   return room;
 }
 
-/**
- * Preformatted per-copy price for each entry, keyed by {@link getDeckCardKey}.
- * Resolution mirrors the list rows: the owned printing's price while "show my
- * printings" is on (falling back to the display price until the price map
- * lands), the entry's display printing otherwise.
- * @returns Deck card key → formatted price string.
- */
+// Must mirror the price resolution the list rows use.
 export function buildPriceTexts(
   cards: DeckBuilderCard[],
   ownershipData: DeckOwnershipData,
@@ -114,12 +83,6 @@ export function buildPriceTexts(
   return texts;
 }
 
-/**
- * Expands a zone's cards for rendering: with "show every copy" on, a card held
- * in multiples becomes one entry per physical copy (badge-less); otherwise one
- * entry per card with its ×N badge. `copyIndex` is null for the stacked form.
- * @returns One entry per thumb to render.
- */
 export function expandCopies(
   cards: DeckBuilderCard[],
   showAllCopies: boolean,
@@ -134,7 +97,6 @@ export function expandCopies(
   );
 }
 
-/** Runes only expand when `showAllRuneCopies` is also on. */
 export function zoneShowsAllCopies(
   zone: DeckZone,
   showAllCopies: boolean,
@@ -143,15 +105,7 @@ export function zoneShowsAllCopies(
   return zone === WellKnown.deckZone.RUNES ? showAllCopies && showAllRuneCopies : showAllCopies;
 }
 
-/**
- * Gates the floating hover preview by display mode. Stacks mode has its own
- * hover language — a pile expands the card under the cursor in place — so the
- * docked preview panel would be a second, competing answer to the same gesture.
- * The piles themselves never wire it up; this keeps the zones that don't stack
- * (a single-card Legend or Chosen Champion, a short Runes row) consistent with
- * them instead of being the only thumbs in the view that pop a preview.
- * @returns The hover handler, or undefined in stacks mode.
- */
+// Stacks mode expands cards in place; suppress the docked hover preview there.
 export function overviewHoverHandler(
   stacked: boolean,
   onHoverCard?: HoverHandler,

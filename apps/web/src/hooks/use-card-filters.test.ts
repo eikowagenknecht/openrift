@@ -8,7 +8,6 @@ import type { ReactNode } from "react";
 import { createElement } from "react";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
-// Mock TanStack Router — track navigate calls
 const mockNavigate = vi.fn();
 
 vi.mock("@tanstack/react-router", () => ({
@@ -17,7 +16,6 @@ vi.mock("@tanstack/react-router", () => ({
   }),
 }));
 
-// Mock useSearchScopeStore
 const mockToggleSearchField = vi.fn();
 vi.mock("@/stores/search-scope-store", () => ({
   useSearchScopeStore: (selector: (s: { scope: string[]; toggleField: () => void }) => unknown) =>
@@ -32,21 +30,12 @@ import { useDisplayStore } from "@/stores/display-store";
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { useFilterActions, useFilterValues, useStaleGroupByGuard } from "./use-card-filters";
 
-/**
- * Test harness that merges the focused filter hooks so a single `renderHook`
- * exposes both values and actions.
- * @returns Combined filter values and action functions.
- */
 function useCardFilters() {
   return { ...useFilterValues(), ...useFilterActions() };
 }
 
 let mockSearch: Record<string, unknown> = {};
 
-/**
- * Wrapper that provides FilterSearchProvider with the current mock search state.
- * @returns The wrapped component.
- */
 function wrapper({ children }: { children: ReactNode }) {
   return createElement(FilterSearchProvider, { value: mockSearch }, children);
 }
@@ -55,11 +44,6 @@ function defaultSearchState() {
   return {};
 }
 
-/**
- * Extract the resolved `search` value from the most recent `router.navigate` call.
- * Handles both plain objects and `(prev) => next` callback forms.
- * @returns The search params from the last navigate call.
- */
 function lastNavigateSearch(): Record<string, unknown> {
   const call = mockNavigate.mock.calls.at(-1)?.[0];
   const search = call?.search;
@@ -74,8 +58,6 @@ describe("useCardFilters", () => {
     mockSearch = defaultSearchState();
     mockNavigate.mockClear();
     mockToggleSearchField.mockClear();
-    // Pin the URL-fallback view to "cards" so the existing setView/default
-    // assertions remain stable regardless of the shared PREFERENCE_DEFAULTS.
     useDisplayStore.setState({ defaultCardView: "cards" });
   });
 
@@ -195,9 +177,6 @@ describe("useCardFilters", () => {
   });
 
   it("cycleArrayFilter deselects (not excludes) one of several included values", () => {
-    // Regression: with other includes present, the remaining set already drops
-    // this value, so a second click should just remove it — not add a redundant
-    // exclude (`+RB2 -RB1` filters identically to `+RB2`).
     mockSearch = { sets: ["RB1", "RB2"] };
     const { result } = renderHook(() => useCardFilters(), { wrapper });
 
@@ -479,9 +458,7 @@ describe("useCardFilters", () => {
     expect(result.current.hasActiveFilters).toBe(true);
   });
 
-  // Printed-tags dimension: URL params `tags` / `tagsEx` / `tagsPresence` map
-  // onto the shared `tags` / `tagsExclude` / `presence.tags` filter fields.
-  it("maps tags params into the shared filter shape", () => {
+  it("maps tags/tagsEx/tagsPresence params onto tags/tagsExclude/presence.tags", () => {
     mockSearch = { tags: ["Mount Targon"], tagsEx: ["Poro"], tagsPresence: "any" };
     const { result } = renderHook(() => useCardFilters(), { wrapper });
 
@@ -641,28 +618,15 @@ describe("useCardFilters", () => {
     expect(lastNavigateSearch()).toMatchObject({ view: "printings", groupBy: "marker" });
   });
 
-  // Regression: React Compiler bails on the entire hook if it encounters a
-  // TemplateLiteral in a computed object-expression key (Todo::lowerExpression).
-  // When that happens, `setRange`, `setSearch`, `setArrayFilters`, etc. return
-  // fresh closures every render and every downstream callback (onZoneClick,
-  // onActivate, onIncrement, …) cascades into a full tree re-render. The
-  // compiler logger in vite.config.ts will surface the CompileError, but this
-  // AST-level guard catches the pattern even when the compiler isn't running
-  // (e.g. in vitest).
+  // React Compiler cannot lower a TemplateLiteral computed object-expression
+  // key; this AST-level guard catches it even when the compiler isn't running.
   it("does not use TemplateLiteral computed keys (React Compiler cannot lower them)", () => {
     const source = readFileSync(path.resolve(__dirname, "./use-card-filters.ts"), "utf-8");
     expect(source).not.toMatch(/\[`\$\{[^`]+\}[^`]*`\]\s*:/u);
   });
 
-  // Regression (the /collections redraw loop): passing the whole `filterState`
-  // object into a helper call makes React Compiler treat it as maybe-mutated.
-  // That un-memoizes toFilterState, so `filters` got a fresh identity on every
-  // render, and useDeferredValue(sortedCards) downstream chased it forever in
-  // a self-sustaining background render loop. The presence map must stay
-  // inlined (or helpers must take primitive fields, never the whole object).
-  // Source-level guard because vitest runs uncompiled code, where identity
-  // stability cannot be asserted directly. Returning filterState from the hook
-  // is fine (escape-by-return stays memoizable); only call arguments poison.
+  // Passing the whole `filterState` object into a helper call makes React
+  // Compiler treat it as maybe-mutated, un-memoizing everything downstream.
   it("never passes the whole filterState object into a function call (React Compiler memo poisoning)", () => {
     const source = readFileSync(path.resolve(__dirname, "./use-card-filters.ts"), "utf-8");
     expect(source).not.toMatch(/[\w$]\(\s*filterState\s*[,)]/u);
@@ -735,7 +699,6 @@ describe("useCardFilters", () => {
     mockSearch = { ownedCountMin: 1, ownedCountMax: 4 };
     const { result } = renderHook(() => useCardFilters(), { wrapper });
 
-    // min only ("≥3"): max is dropped from the URL.
     act(() => result.current.setOwnedCountRange(3, null));
     const search = lastNavigateSearch();
     expect(search).toMatchObject({ ownedCountMin: 3 });
@@ -779,15 +742,12 @@ describe("useCardFilters", () => {
     mockSearch = {};
     const { result } = renderHook(() => useCardFilters(), { wrapper });
 
-    // First toggle: adds "unit"
     act(() => result.current.toggleArrayFilter("types", "unit"));
     expect(lastNavigateSearch()).toMatchObject({ types: ["unit"] });
 
-    // Simulate router state updating synchronously after navigate
     mockSearch = { types: ["unit"] };
     mockNavigate.mockClear();
 
-    // Second toggle: should see ["unit"] and add "spell"
     act(() => result.current.toggleArrayFilter("types", "spell"));
     expect(lastNavigateSearch()).toMatchObject({ types: ["unit", "spell"] });
   });
@@ -838,9 +798,6 @@ describe("useStaleGroupByGuard", () => {
   });
 
   it("fires the correction only once while the stale URL persists (no loop)", () => {
-    // The navigate is mocked, so mockSearch never updates — the predicate stays
-    // true across re-renders. The effect keys on the predicate, not on the
-    // unstable setter, so it must not re-fire on a re-render.
     mockSearch = { view: "cards", groupBy: "marker" };
     const { rerender } = renderHook(() => useStaleGroupByGuard(), { wrapper });
 

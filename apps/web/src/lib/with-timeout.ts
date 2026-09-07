@@ -1,22 +1,12 @@
-// Shared timeout wrapper for network calls. If the underlying promise
-// doesn't settle within the timeout, rejects with a labelled error — which
-// gives callers a chance to roll back optimistic state and surface an error
-// toast instead of hanging on a stalled fetch (offline, network partition,
-// origin unreachable).
-//
-// Pass an AbortController to actually cancel the underlying fetch on
-// timeout; otherwise the fetch keeps running in the background and the
-// server may still succeed after the UI has already rolled back.
+// Without an AbortController, the underlying fetch keeps running in the
+// background on timeout and the server may still succeed after the UI has
+// already rolled back.
 
 const DEFAULT_TIMEOUT_MS = 5000;
 
 interface WithTimeoutOptions {
   label: string;
   timeoutMs?: number;
-  /**
-   * If provided, the controller is aborted on timeout so the underlying
-   * fetch cancels instead of running to completion in the background.
-   */
   abortController?: AbortController;
 }
 

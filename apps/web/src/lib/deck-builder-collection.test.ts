@@ -8,9 +8,7 @@ import { createStoreResetter } from "@/test/store-helpers";
 
 import { getDeckDraftCollection, hydrateDeckDraft } from "./deck-builder-collection";
 
-// The server save sink calls this; mock it so the server branch is observable
-// and the local branch is proven NOT to touch the network. `vi.hoisted` keeps
-// the spy available to the hoisted `vi.mock` factory.
+// `vi.hoisted` keeps the spy available to the hoisted `vi.mock` factory below.
 const { saveDeckCardsSpy } = vi.hoisted(() => ({
   saveDeckCardsSpy: vi.fn(async (_arg: unknown) => ({ cards: [] })),
 }));
@@ -66,9 +64,7 @@ describe("getDeckDraftCollection", () => {
     const cleanupSpy = vi.spyOn(previous, "cleanup");
     expect(previous.status).not.toBe("cleaned-up");
 
-    // Switching to a different user should evict and tear down the prior
-    // user's drafts. With no live-query subscribers attached, the cleanup
-    // is silent and runs immediately.
+    // No live-query subscribers attached, so cleanup runs synchronously.
     getDeckDraftCollection(queryClient, userB, "deck-1");
 
     await vi.waitFor(() => expect(cleanupSpy).toHaveBeenCalled());
@@ -139,7 +135,6 @@ describe("persistence sink (ADR-035 local decks)", () => {
     const collection = getDeckDraftCollection(queryClient, "local", localId);
 
     collection.insert(stubDeckBuilderCard({ cardId: "card-a", zone: "main", quantity: 2 }));
-    // Debounced save fires after SAVE_DEBOUNCE_MS.
     await vi.advanceTimersByTimeAsync(1000);
 
     expect(saveDeckCardsSpy).not.toHaveBeenCalled();

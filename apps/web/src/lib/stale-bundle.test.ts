@@ -2,11 +2,8 @@ import { API_FORMAT_VERSION } from "@openrift/shared/contracts/api-format";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-// Covers both halves of the stale-bundle split: detection + toast in
-// stale-bundle.ts, reload mechanics in stale-bundle-reload.ts. They form one
-// feature (the loop-guard tests deliberately drive both), so they share this
-// file. Importing ./stale-bundle also installs the reload module's stale
-// notifier, exactly like the real entry does.
+// Importing ./stale-bundle also installs the reload module's stale notifier,
+// exactly like the real entry does.
 import {
   _resetReloadFlagForTesting,
   initStaleBundleWatcher,
@@ -24,18 +21,11 @@ import {
 
 vi.mock("sonner", () => ({ toast: vi.fn() }));
 
-// COMMIT_HASH is set to "test" by vitest.config's `define`. Build IDs in tests
-// either match "test" (no signal) or use a different literal to force a
-// mismatch. A mismatch surfaces a toast (soft staleness); only a chunk-load
-// failure or a stale-version navigation reloads immediately.
-
+// COMMIT_HASH is set to "test" by vitest.config's `define`, so build IDs in
+// tests either match "test" or use a different literal to force a mismatch.
 const originalFetch = globalThis.fetch;
 const reloadSpy = vi.fn();
 
-/**
- * Pulls the action callback off the most recent new-version toast.
- * @returns The toast's `{ label, onClick }` action.
- */
 function lastToastAction(): { label: string; onClick: () => void } {
   const lastCall = vi.mocked(toast).mock.calls.at(-1);
   if (!lastCall) {
@@ -112,10 +102,6 @@ describe("initStaleBundleWatcher", () => {
   });
 
   test("ignores a mismatched X-Build-Id on a cacheable response (browser-cache replay)", async () => {
-    // First-deploy transition: bodies cached before the server stopped
-    // stamping cacheable responses still carry the previous build's id. A
-    // cache-served copy says nothing about the live server, so it must not
-    // trip the prompt.
     globalThis.fetch = vi.fn().mockResolvedValue(
       new Response("ok", {
         headers: {
@@ -148,9 +134,9 @@ describe("initStaleBundleWatcher", () => {
           message: "Failed to fetch dynamically imported module: /assets/foo-OLD.js",
         }),
       );
-      expect(reloadSpy).toHaveBeenCalledTimes(1); // guard set
+      expect(reloadSpy).toHaveBeenCalledTimes(1);
 
-      await globalThis.fetch("/api/v1/catalog"); // cache-served — must not re-arm
+      await globalThis.fetch("/api/v1/catalog");
       vi.advanceTimersByTime(10_000);
 
       globalThis.dispatchEvent(
@@ -158,7 +144,7 @@ describe("initStaleBundleWatcher", () => {
           message: "Failed to fetch dynamically imported module: /assets/foo-OLD.js",
         }),
       );
-      expect(reloadSpy).toHaveBeenCalledTimes(1); // still guarded — prompt instead
+      expect(reloadSpy).toHaveBeenCalledTimes(1);
       expect(toast).toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
@@ -179,10 +165,6 @@ describe("initStaleBundleWatcher", () => {
   });
 });
 
-// Cacheable API responses carry X-Api-Format (the payload format version)
-// instead of X-Build-Id. An older body means a cache replayed a pre-deploy
-// payload the current bundle may not parse — refetch fresh, transparently. A
-// newer body means the bundle itself is stale — prompt, don't crash.
 describe("initStaleBundleWatcher API format check", () => {
   function formatResponse(format: number | string, body = "cached"): Response {
     return new Response(body, { headers: { "X-Api-Format": String(format) } });
@@ -260,11 +242,6 @@ describe("initStaleBundleWatcher API format check", () => {
   });
 });
 
-// Regression coverage for a wedged tab seen in production: the automatic
-// reload landed on stale edge-cached HTML, which set the sessionStorage loop
-// guard — and the guard then also blocked the toast's Reload button and every
-// later auto-reload, leaving the session permanently stale with no recovery
-// path short of a manual refresh.
 describe("reload loop guard", () => {
   function dispatchChunkError(): void {
     globalThis.dispatchEvent(
@@ -281,10 +258,10 @@ describe("reload loop guard", () => {
       .mockResolvedValue(new Response("ok", { headers: { "X-Build-Id": "deadbeef" } }));
     initStaleBundleWatcher();
 
-    dispatchChunkError(); // automatic reload — sets the loop guard
+    dispatchChunkError();
     expect(reloadSpy).toHaveBeenCalledTimes(1);
 
-    await globalThis.fetch("/api/v1/cards"); // still stale after the reload — toast
+    await globalThis.fetch("/api/v1/cards");
     lastToastAction().onClick();
 
     expect(reloadSpy).toHaveBeenCalledTimes(2);
@@ -297,7 +274,7 @@ describe("reload loop guard", () => {
     expect(reloadSpy).toHaveBeenCalledTimes(1);
     expect(toast).not.toHaveBeenCalled();
 
-    dispatchChunkError(); // guard set — must not reload again, must prompt
+    dispatchChunkError();
     expect(reloadSpy).toHaveBeenCalledTimes(1);
     expect(toast).toHaveBeenCalledTimes(1);
 
@@ -314,26 +291,18 @@ describe("reload loop guard", () => {
         .mockResolvedValue(new Response("ok", { headers: { "X-Build-Id": "test" } }));
       initStaleBundleWatcher();
 
-      dispatchChunkError(); // automatic reload — sets the loop guard
+      dispatchChunkError();
       expect(reloadSpy).toHaveBeenCalledTimes(1);
 
-      await globalThis.fetch("/api/v1/cards"); // bundle confirmed current…
-      vi.advanceTimersByTime(10_000); // …and no mismatch vetoed it — guard cleared
+      await globalThis.fetch("/api/v1/cards");
+      vi.advanceTimersByTime(10_000);
 
-      dispatchChunkError(); // next deploy's chunk failure auto-reloads again
+      dispatchChunkError();
       expect(reloadSpy).toHaveBeenCalledTimes(2);
     } finally {
       vi.useRealTimers();
     }
   });
-
-  // Regression coverage for the post-deploy reload loop seen in production:
-  // after a release, the browser HTTP cache kept replaying a pre-deploy
-  // /api/v1/catalog response whose X-Build-Id was the previous build, while
-  // live no-store responses matched the current bundle. The instant guard
-  // clear on the first match re-armed the automatic reload on every page
-  // load, so every navigation reloaded again for up to the cache's max-age.
-  // A page load that sees ANY mismatch must keep the guard.
 
   test("a stale cache-served response vetoes a pending guard clear", async () => {
     vi.useFakeTimers();
@@ -345,14 +314,14 @@ describe("reload loop guard", () => {
         .mockResolvedValueOnce(new Response("ok", { headers: { "X-Build-Id": "deadbeef" } }));
       initStaleBundleWatcher();
 
-      dispatchChunkError(); // automatic reload — sets the loop guard
+      dispatchChunkError();
       expect(reloadSpy).toHaveBeenCalledTimes(1);
 
-      await globalThis.fetch("/api/health"); // live response, current build — clear scheduled
-      await globalThis.fetch("/api/v1/catalog"); // cached pre-deploy response — cancels the clear
+      await globalThis.fetch("/api/health");
+      await globalThis.fetch("/api/v1/catalog");
       vi.advanceTimersByTime(10_000);
 
-      dispatchChunkError(); // guard must still be set — prompt, don't reload
+      dispatchChunkError();
       expect(reloadSpy).toHaveBeenCalledTimes(1);
       expect(toast).toHaveBeenCalled();
     } finally {
@@ -370,14 +339,14 @@ describe("reload loop guard", () => {
         .mockResolvedValueOnce(new Response("ok", { headers: { "X-Build-Id": "test" } }));
       initStaleBundleWatcher();
 
-      dispatchChunkError(); // automatic reload — sets the loop guard
+      dispatchChunkError();
       expect(reloadSpy).toHaveBeenCalledTimes(1);
 
-      await globalThis.fetch("/api/v1/catalog"); // cached pre-deploy response — mismatch flagged
-      await globalThis.fetch("/api/health"); // live match must not schedule a clear now
+      await globalThis.fetch("/api/v1/catalog");
+      await globalThis.fetch("/api/health");
       vi.advanceTimersByTime(10_000);
 
-      dispatchChunkError(); // guard must still be set — prompt, don't reload
+      dispatchChunkError();
       expect(reloadSpy).toHaveBeenCalledTimes(1);
       expect(toast).toHaveBeenCalled();
     } finally {
@@ -387,10 +356,6 @@ describe("reload loop guard", () => {
 });
 
 describe("initVersionStaleNavigationReload", () => {
-  /**
-   * Captures the onResolved callback so tests can drive a navigation.
-   * @returns The fake router plus a `navigate()` helper that fires onResolved.
-   */
   function fakeRouter(): { subscribe: ReturnType<typeof vi.fn>; navigate: () => void } {
     let resolved: (() => void) | undefined;
     const subscribe = vi.fn((_event: string, callback: () => void) => {
@@ -412,7 +377,7 @@ describe("initVersionStaleNavigationReload", () => {
     initStaleBundleWatcher();
 
     await globalThis.fetch("/api/v1/cards");
-    expect(reloadSpy).not.toHaveBeenCalled(); // toast only, no reload yet
+    expect(reloadSpy).not.toHaveBeenCalled();
 
     router.navigate();
 
@@ -547,9 +512,6 @@ describe("initChunkErrorReloader", () => {
     globalThis.dispatchEvent(event);
 
     expect(reloadSpy).toHaveBeenCalledTimes(1);
-    // Regression: preventDefault() makes Vite's preload helper swallow the
-    // failure, so the dynamic import resolves with `undefined` and the router
-    // crashes on `lazyRoute.options` instead of handling a failed route load.
     expect(event.defaultPrevented).toBe(false);
   });
 
@@ -616,10 +578,6 @@ describe("initVisibilityVersionCheck", () => {
   });
 
   test("swallows network errors so a backend outage doesn't crash the tab", () => {
-    // The rejection is caught inside pingHealth's try/catch, so the
-    // dispatchEvent caller never sees it. We only assert the synchronous
-    // contract here; the X-Build-Id comparison itself is covered by
-    // initStaleBundleWatcher's own tests.
     globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
     initVisibilityVersionCheck();
 
@@ -630,9 +588,8 @@ describe("initVisibilityVersionCheck", () => {
   });
 });
 
-// CHUNK_LOAD_ERROR_PATTERN is re-exported and consumed by sentry-client.ts's
-// `ignoreErrors`, so the real-world phrasings from open Sentry issues must keep
-// matching even if the regex is rewritten.
+// Also consumed by sentry-client.ts's `ignoreErrors`, so these real-world
+// phrasings must keep matching even if the regex is rewritten.
 describe("CHUNK_LOAD_ERROR_PATTERN", () => {
   test.each([
     [
@@ -655,13 +612,7 @@ describe("CHUNK_LOAD_ERROR_PATTERN", () => {
   });
 });
 
-// A long-lived tab whose bundle predates the live deploy calls a server
-// function by a hashed ID the new server's manifest no longer has, so
-// getServerFnById throws. Polling queries (5s tournament deck-check reconcile)
-// re-fire it every interval — each a fresh SSR error — until the tab reloads.
 describe("reloadIfStaleServerFnError", () => {
-  // The exact message from getServerFnById, as it reaches the client after the
-  // seroval server-function boundary (which drops the Error prototype).
   const staleServerFnError = {
     name: "Error",
     message:
@@ -686,8 +637,6 @@ describe("reloadIfStaleServerFnError", () => {
   });
 
   test("respects the once-per-session loop guard on repeated stale calls", () => {
-    // A polling query keeps firing the same failing call; only the first should
-    // reload (the guard then falls back to the toast, deduped by id).
     reloadIfStaleServerFnError(staleServerFnError);
     reloadIfStaleServerFnError(staleServerFnError);
     reloadIfStaleServerFnError(staleServerFnError);
@@ -704,12 +653,6 @@ describe("reloadIfStaleServerFnError", () => {
   });
 });
 
-// Regression coverage: a bare `throw undefined` during
-// React rendering escapes every error boundary and unmounts the tree (white
-// page). React reports it through hydrateRoot's onUncaughtError — and because
-// client.tsx supplies that callback, React's default reportGlobalError never
-// runs, so the window "error" listener's bare-throw recovery never fired.
-// client.tsx now routes uncaught render errors through this helper.
 describe("reloadIfUncaughtBareThrow", () => {
   test.each([
     ["undefined", undefined],
@@ -731,8 +674,6 @@ describe("reloadIfUncaughtBareThrow", () => {
   });
 
   test("respects the once-per-session loop guard", () => {
-    // If the reload lands on a page that immediately bare-throws again, the
-    // guard must stop the second automatic reload and prompt instead.
     reloadIfUncaughtBareThrow(undefined);
     reloadIfUncaughtBareThrow(undefined);
 

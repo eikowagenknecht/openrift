@@ -12,7 +12,7 @@ describe("clusterLabelsFit", () => {
         gap: 6,
         buffer: 8,
       }),
-    ).toBe(true); // 460 + 3 gaps (18) + 8 = 486 ≤ 500
+    ).toBe(true);
   });
 
   it("does not fit once the required width crosses the container width", () => {
@@ -24,11 +24,10 @@ describe("clusterLabelsFit", () => {
         gap: 6,
         buffer: 8,
       }),
-    ).toBe(false); // 486 > 480
+    ).toBe(false);
   });
 
   it("counts one gap fewer than the number of children", () => {
-    // 3 children → exactly 2 gaps: 300 + 12 + 0 = 312.
     expect(
       clusterLabelsFit({
         containerWidth: 312,
@@ -62,7 +61,6 @@ describe("clusterLabelsFit", () => {
   });
 
   it("applies the anti-flicker buffer against the container width", () => {
-    // Exactly at the edge without buffer, pushed over by it.
     expect(
       clusterLabelsFit({
         containerWidth: 100,

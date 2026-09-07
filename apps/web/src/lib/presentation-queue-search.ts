@@ -4,17 +4,8 @@ import { z } from "zod";
 import { MAX_QUEUE_LENGTH } from "@/lib/presentation-queue";
 
 /**
- * The `?cards=` search param the stage arrives with, and the one place the
- * queue's cap is applied to a URL.
- *
- * Over-long input is truncated to the limit rather than rejected. A `.max()`
- * refinement fails the whole param, and with the `.catch(undefined)` fallback
- * that turns a link with one card too many into an empty queue — losing every
- * card instead of the excess few. Truncation is idempotent, so the router
- * rewriting the shortened array back into the URL settles immediately.
- *
- * Lives apart from `presentation-queue.ts` because that module is imported by
- * the queue editor component, and this one drags zod in behind it.
+ * Do not replace with a `.max()` refinement: combined with `.catch(undefined)`,
+ * a failed `.max()` drops the whole queue, not just the excess.
  */
 export const queueCardsSearchSchema = z
   .array(z.string())
@@ -22,15 +13,7 @@ export const queueCardsSearchSchema = z
   .optional()
   .catch(undefined);
 
-/**
- * The search rewrite for "Start presenting": the queue as it stands, from the
- * top. `edit` is cleared explicitly — leaving a show writes `edit: true` into
- * the URL to reopen the builder, and carrying it forward here kept the builder
- * up, which made the button do nothing on any queue that had been presented
- * once already.
- *
- * @returns The next search params, with everything else preserved.
- */
+/** Clearing `edit` here is required: carrying it forward makes this button a no-op once a queue has been presented. */
 export function startPresentingSearch<T extends object>(
   prev: T,
   ids: readonly string[],
@@ -38,14 +21,6 @@ export function startPresentingSearch<T extends object>(
   return { ...prev, cards: [...ids], i: 0, edit: undefined };
 }
 
-/**
- * The search rewrite that keeps `?cards=` tracking the queue draft as it is
- * edited, so a refresh mid-build reopens the same queue and the URL in the bar
- * is always the link it looks like. An empty queue drops the param rather than
- * writing `cards=[]`, so a cleared builder returns to the bare /stage URL.
- *
- * @returns The next search params, with everything else preserved.
- */
 export function queueDraftSearch<T extends object>(
   prev: T,
   ids: readonly string[],

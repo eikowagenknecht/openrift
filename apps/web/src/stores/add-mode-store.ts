@@ -11,26 +11,17 @@ interface AddedEntry {
   pendingCount: number;
 }
 
-/**
- * Why the popover knows how it was opened: when the user enters via a `-`
- * button or the `-` key, Enter inside the popover should remove the
- * highlighted variant. When they enter via the pill / add affordance, Enter
- * should add. Shift+Enter is always the inverse of the entry intent.
- */
+/** Which action Enter takes inside the popover; Shift+Enter is always the inverse. */
 export type VariantPopoverIntent = "add" | "remove";
 
 interface AddModeState {
   addedItems: Map<string, AddedEntry>;
   variantPopover: {
     cardId: string;
-    /** Optional setId — when present, the popover filters variants to this set. */
     setId?: string;
-    /** Optional printingId — when present, the popover shows only this printing
-     * (printings/copies view, where a tile stands for one variant). */
     printingId?: string;
     intent: VariantPopoverIntent;
     anchorEl: HTMLElement;
-    /** Positioning anchor that survives anchorEl unmounting (see createFrozenAnchor). */
     anchor: FrozenAnchor;
   } | null;
 

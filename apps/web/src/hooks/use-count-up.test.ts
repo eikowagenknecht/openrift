@@ -21,7 +21,6 @@ describe("useCountUp", () => {
     const { result } = renderHook(() => useCountUp(100, 1000));
     expect(result.current).toBe(0);
 
-    // Advance past the full duration
     act(() => {
       vi.advanceTimersByTime(1100);
     });
@@ -31,7 +30,6 @@ describe("useCountUp", () => {
   it("shows a partial value mid-animation", () => {
     const { result } = renderHook(() => useCountUp(1000, 1000));
 
-    // At ~50% through a cubic ease-out, value should be well above 0 but below target
     act(() => {
       vi.advanceTimersByTime(500);
     });
@@ -44,13 +42,11 @@ describe("useCountUp", () => {
       initialProps: { target: 100 },
     });
 
-    // Complete first animation
     act(() => {
       vi.advanceTimersByTime(1100);
     });
     expect(result.current).toBe(100);
 
-    // Change target — new animation runs toward 200
     rerender({ target: 200 });
     act(() => {
       vi.advanceTimersByTime(1100);
@@ -61,7 +57,6 @@ describe("useCountUp", () => {
   it("uses ease-out curve (faster at start, slower at end)", () => {
     const { result } = renderHook(() => useCountUp(1000, 1000));
 
-    // At 25% time, ease-out cubic should yield more than 25% progress
     act(() => {
       vi.advanceTimersByTime(250);
     });

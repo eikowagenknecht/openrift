@@ -18,10 +18,8 @@ type SentryBeforeSend = NonNullable<Parameters<typeof Sentry.init>[0]>["beforeSe
 type SentryErrorEvent = Parameters<NonNullable<SentryBeforeSend>>[0];
 type SentryEventHint = Parameters<NonNullable<SentryBeforeSend>>[1];
 
-// `throw undefined` (or null, or empty string) inside an event handler / async
-// callback surfaces through window.onerror with no stack and no message, so
-// Sentry titles the issue `<unknown>` and we can't tell what blew up. Enrich
-// these so we at least know which route the user was on.
+// A bare throw (undefined/null/"") reaches window.onerror with no stack or
+// message, so Sentry titles the issue `<unknown>`; enrich it with the route.
 export function enrichBareThrow(event: SentryErrorEvent, hint: SentryEventHint): SentryErrorEvent {
   const original = hint.originalException;
   if (original !== undefined && original !== null && original !== "") {
@@ -32,11 +30,8 @@ export function enrichBareThrow(event: SentryErrorEvent, hint: SentryEventHint):
   return {
     ...event,
     message: `Bare throw (${String(original)}) on ${pathname}`,
-    // A bare throw has no stack of its own, so `attachStacktrace` synthesizes
-    // one from the capture site — which is the same reporting helper for every
-    // bare throw, so Sentry groups unrelated routes into a single issue.
-    // Fingerprint per route so each surface gets its own issue and a new
-    // route regressing doesn't hide inside an old resolved/ignored one.
+    // Synthesized stacktraces all point at the same capture site, so without a
+    // per-route fingerprint every bare throw groups into one Sentry issue.
     fingerprint: ["bare-throw", pathname],
     tags: { ...event.tags, bare_throw: true },
     extra: {
@@ -49,18 +44,10 @@ export function enrichBareThrow(event: SentryErrorEvent, hint: SentryEventHint):
   };
 }
 
-// Browser-only Sentry setup. Loaded via dynamic import from router.ts so the
-// SSR bundle never *executes* this code, but Nitro still bundles it into the
-// SSR asset graph because it serves the client chunks. Some integrations are
-// browser-only and are undefined in the server entry of @sentry/tanstackstart-
-// react — using a namespace import keeps any IMPORT_IS_UNDEFINED warnings as
-// warnings; switching to named imports escalates them to MISSING_EXPORT errors.
-// The dynamic-import + isServer gate in router.ts guarantee the module is never
-// evaluated on the server.
+// Nitro bundles this into the SSR asset graph despite the isServer gate; the
+// namespace import keeps a missing browser-only export a warning, not a build error.
 export function initClientSentry(router: TanstackRouter): void {
-  // Skip in local dev — HMR / Fast Refresh noise (e.g. "Should have a queue"
-  // hook errors after a hot reload) would otherwise drown out real issues.
-  // Preview and production builds both have PROD === true.
+  // Skip in local dev: HMR/Fast Refresh noise would drown out real issues.
   if (!PROD) {
     return;
   }
@@ -72,33 +59,15 @@ export function initClientSentry(router: TanstackRouter): void {
   Sentry.init({
     dsn,
     release: COMMIT_HASH,
-    // Sourced from the SSR-inlined runtime config (APP_ENV) so preview builds
-    // report under "preview" instead of being lumped into "production". PROD is
-    // true for both preview and production builds, so it can't distinguish them.
+    // PROD is true for both preview and production builds, so environment is
+    // sourced separately to tell them apart in Sentry.
     environment: parseAppEnv(globalThis.__OPENRIFT_CONFIG__?.appEnv),
     integrations: [Sentry.tanstackRouterBrowserTracingIntegration(router)],
     tracesSampleRate: 0.1,
-    // Synthesize a stacktrace from the capture site for events that don't carry
-    // one (e.g. `throw undefined`). Combined with `enrichBareThrow` below this
-    // turns "<unknown>" issues into something we can actually triage.
     attachStacktrace: true,
     beforeSend: enrichBareThrow,
-    // NOT_FOUND: sentinel errors thrown by server functions (e.g. use-card-detail,
-    // use-decks) when the API returns 404. Route loaders catch these and call
-    // notFound(), but TanStack Start's auto-instrumentation reports them before
-    // the catch.
-    // Load failed / Failed to fetch / NetworkError when attempting to fetch
-    // resource: WebKit's, Chromium's, and Firefox's respective messages when
-    // fetch() is aborted mid-flight (app backgrounded, network handoff,
-    // page navigation). Always a transport condition — fetch() doesn't reject
-    // on non-2xx — and already handled by TanStack Router's loader error path.
-    // CHUNK_LOAD_ERROR_PATTERN: dynamic-import failures from stale HTML pointing
-    // at deleted /assets/*.js chunks. Already auto-recovered by
-    // initChunkErrorReloader() in client.tsx — the user gets one reload and the
-    // next page load is fine. Sentry's global handlers fire before our listener
-    // gets to reload, so every recovered session pollutes the issue tracker.
-    // INJECTED_SCRIPT_PATTERN: page scripts the visitor's browser injected, not
-    // ours. Nothing in the app can prevent or fix them.
+    // Each is already handled elsewhere or external; Sentry's global handlers
+    // fire before those handlers do, so they're filtered here too.
     ignoreErrors: [
       "NOT_FOUND",
       "Load failed",
@@ -107,19 +76,16 @@ export function initClientSentry(router: TanstackRouter): void {
       CHUNK_LOAD_ERROR_PATTERN,
       INJECTED_SCRIPT_PATTERN,
     ],
-    // Route envelopes through our own origin so they aren't dropped by Firefox
-    // Enhanced Tracking Protection or ad-blockers (which list *.ingest.sentry.io
-    // as a tracker). The API forwards them to Sentry server-side.
+    // Own-origin tunnel so Firefox ETP / ad-blockers (which list
+    // *.ingest.sentry.io) don't drop envelopes; the API forwards them.
     tunnel: "/api/v1/sentry-tunnel",
     // Shared openrift-ssr project also receives server-side events; the tag
     // distinguishes them in the issue list and for alert rules.
     initialScope: { tags: { service: "web-client" } },
   });
 
-  // Flush hydration errors that fired during the first hydrateRoot commit,
-  // before this init ran (client.tsx buffers them rather than dropping them on
-  // the uninitialized hub). captureException is now armed, so they finally
-  // reach Sentry; later mismatches forward straight through the registered sink.
+  // client.tsx buffers hydration errors that fire before this init runs;
+  // flush them now that captureException is armed.
   drainHydrationErrors((entry) =>
     captureHydrationError(
       entry.error,
@@ -130,23 +96,9 @@ export function initClientSentry(router: TanstackRouter): void {
   );
 }
 
-// Forward a React render error to Sentry. React reports these through the
-// hydrateRoot callbacks (onRecoverableError / onUncaughtError / onCaughtError),
-// never via window.onerror or an error boundary, which are the only surfaces
-// Sentry's integration hooks. Without this they stay invisible in the issue
-// tracker even though users hit them: the component stack pinpoints the failing
-// subtree, and the tags make them filterable/alertable. captureException routes
-// to the global hub, which is a no-op client until initClientSentry runs, so
-// calling this before Sentry is initialized simply drops the event rather than
-// throwing.
 /**
- * Report a React render error (a hydration mismatch or an error-boundary
- * catch) to Sentry with its component stack. `duringHydration` distinguishes
- * a genuine hydration-window error from a runtime crash reported through the
- * same hydrateRoot callbacks long after load — only the former should carry
- * `hydration: true`.
- *
- * @returns Nothing.
+ * Reports a React render error (hydration mismatch or error-boundary catch)
+ * to Sentry. A no-op, not a throw, when called before initClientSentry runs.
  */
 export function captureHydrationError(
   error: unknown,

@@ -7,11 +7,8 @@ import { filterSearchSchema } from "@/lib/search-schemas";
 export const TopBarSlotContext = createContext<HTMLDivElement | null>(null);
 
 export const Route = createFileRoute("/_app/_authenticated/collections")({
-  // data-only: the sidebar uses useLiveQuery on the copies collection
-  // (derived copyCount), which calls useSyncExternalStore without a
-  // getServerSnapshot. Skipping SSR for this subtree avoids the resulting
-  // "Switched to client rendering" error; every child route is already
-  // data-only for the same reason.
+  // The sidebar's useLiveQuery calls useSyncExternalStore without a
+  // getServerSnapshot, which throws "Switched to client rendering" under SSR.
   ssr: "data-only",
   staticData: { hideFooter: true },
   validateSearch: filterSearchSchema,

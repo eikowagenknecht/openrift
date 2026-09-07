@@ -1,12 +1,6 @@
-// Copies collection: all of one user's copies, keyed by copy id. Per-collection
-// views are live-query filters on `collectionId`, not separate collections.
-//
-// Collection identity is tied to (queryClient, userId): different users get
-// different collection instances, segregating data by construction. On a user
-// change the previous entry is evicted from the cache and `markOrphaned`
-// instruments it so we can verify subscribers detach. We never call
-// `cleanup()` ourselves — TanStack DB's auto-GC fires it once subscriberCount
-// hits 0, by which point no live query is attached, so the cleanup is silent.
+// Collection identity is tied to (queryClient, userId): a user change evicts the previous
+// entry and marks it orphaned. cleanup() is never called directly; TanStack DB's auto-GC
+// fires it once subscriberCount hits 0.
 
 import type { CopyResponse } from "@openrift/shared";
 import { queryCollectionOptions } from "@tanstack/query-db-collection";
@@ -44,18 +38,12 @@ export function getCopiesCollection(
     queryCollectionOptions<CopyResponse>({
       id: `copies:${userId}`,
       queryClient,
-      // Per-user queryKey so user A's copies cache and user B's never share
-      // a slot. Distinct from copiesQueryOptions' queryKey: this one stores
-      // an array (what QueryCollection expects), the other stores the full
-      // CopyListResponse object. The fetch is deduped via query() below.
+      // Distinct from copiesQueryOptions' queryKey: this one stores the array QueryCollection
+      // expects, not the full CopyListResponse object.
       queryKey: [...queryKeys.copies.syncedStore(userId)],
       queryFn: async () => {
-        // query() respects staleTime: returns cached data if fresh, but
-        // refetches from the server if stale. Passing staleTime: "static"
-        // here (what we used before) always returns cached, regardless of
-        // staleness — which meant our invalidateQueries after mutations never
-        // translated into a refetch, and refetchOnReconnect just handed back
-        // the stale pre-mutation snapshot.
+        // staleTime: "static" always returns cached data regardless of staleness, which
+        // breaks invalidateQueries-driven refetches after mutations. Use the default.
         const response = await queryClient.query({
           queryKey: options.queryKey,
           queryFn: options.queryFn,
@@ -70,16 +58,8 @@ export function getCopiesCollection(
   return collection;
 }
 
-/**
- * Hook variant: derives the active userId from the session and returns the
- * current user's copies collection, or null when no one is signed in.
- *
- * Live-query consumers should pass the result into the live-query body and
- * include it in their dependency array — when the collection identity
- * changes (sign-in / sign-out / verify-email), the live query re-subscribes.
- *
- * @returns The current user's copies collection, or null when signed out.
- */
+// Live-query consumers must include the result in their dependency array so a collection
+// identity change (sign-in / sign-out / verify-email) re-subscribes the query.
 export function useCopiesCollection(): Collection<CopyResponse, string | number> | null {
   const { data: session } = useSession();
   const queryClient = useQueryClient();

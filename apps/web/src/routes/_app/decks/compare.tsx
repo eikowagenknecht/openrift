@@ -9,13 +9,8 @@ import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { isLocalDeckId } from "@/stores/local-decks-store";
 
-/**
- * Both sides of the comparison, older on the left. Neither belongs in the path:
- * the page is about the pair, and either one can be re-picked without leaving
- * it. Either may be missing (a comparison opened from the deck menu starts with
- * only the deck you came from) and either may be a `local:` id, so this is not
- * a uuid check.
- */
+// Not a uuid check: either side may be a `local:` id, and either may be missing
+// (a comparison opened from the deck menu starts with only one deck).
 const compareSearchSchema = z.object({
   from: z.string().optional(),
   to: z.string().optional(),
@@ -26,8 +21,7 @@ export const Route = createFileRoute("/_app/decks/compare")({
   validateSearch: compareSearchSchema,
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Compare decks", noIndex: true }),
   loaderDeps: ({ search }) => ({ from: search.from, to: search.to }),
-  // Auth-optional (ADR-035), the same branch the deck editor takes: a
-  // comparison between browser-local decks needs no session, and those sides
+  // A comparison between two `local:` decks needs no session; those sides
   // resolve client-side from the store.
   loader: async ({ context, location, deps }) => {
     await context.queryClient.query({ ...initQueryOptions, staleTime: "static" });

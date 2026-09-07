@@ -1,19 +1,9 @@
 /**
- * Characterisation tests for the scanner hook as it is wired today.
- *
- * The hook is faked at its true boundaries only — OpenCV, the encoder, the
- * camera, canvas and the frame scheduler — so the real session configuration
- * (`scan-session.ts`) and the real shared engine run underneath. The cv and
- * embedder stubs follow the harness in
- * `packages/shared/src/scan/session.test.ts`: reference images carry an
- * identity through a WeakMap keyed by their pixel array, the fake Mat picks it
- * up in `data.set`, and `findHomography` reports a test-chosen inlier count
- * for whichever reference is being verified.
- *
- * The camera frame is deterministic per-size seeded noise rather than a blank:
- * the hook cannot open the session's focus gate the way the shared tests do
- * (`minFocus: 0`), so the fake frame has to be sharp enough to pass the real
- * `minFocus` on its own.
+ * Characterisation tests for the scanner hook, faked only at its true
+ * boundaries (OpenCV, encoder, camera, canvas, frame scheduler) so the real
+ * session config and shared engine run underneath. Reference images carry an
+ * identity through a WeakMap keyed by their pixel array, following the
+ * harness in `packages/shared/src/scan/session.test.ts`.
  */
 import type {
   CardEmbedder,
@@ -62,8 +52,6 @@ vi.mock("@/lib/camera-info", async (importOriginal) => {
   };
 });
 
-// ── Engine stubs (ported from packages/shared/src/scan/session.test.ts) ─────
-
 const imageTags = new WeakMap<ArrayLike<number>, string>();
 
 /** Stand-in for OpenCV's Size, Rect and Scalar, none of which is read back. */
@@ -75,14 +63,8 @@ class Geometry {
   }
 }
 
-/** Correspondences the fake matcher reports; above `verifyOrb`'s floor of 8. */
 const STUB_MATCHES = 20;
 
-/**
- * A reference render whose only job is to be identifiable by the fake matcher.
- *
- * @returns The image, registered under `tag`.
- */
 function taggedReference(tag: string): RgbaImage {
   const data = new Uint8ClampedArray(8 * 11 * 4);
   data.fill(200);
@@ -94,12 +76,9 @@ function taggedReference(tag: string): RgbaImage {
 }
 
 /**
- * A fake OpenCV whose feature verification reports whatever the test says for
- * the reference being compared. Both detectors find no contours, so a guide
+ * A fake OpenCV reporting the test-chosen inlier count for whichever
+ * reference is verified. Both detectors report zero contours, so a guide
  * session always falls through to the guide candidate.
- *
- * @param inliersFor Inliers to report for a reference image's tag.
- * @returns The fake engine.
  */
 function createStubCv(inliersFor: (tag: string | undefined) => number): OpenCvLike & OrbCvLike {
   let lastReferenceTag: string | undefined;
@@ -117,7 +96,6 @@ function createStubCv(inliersFor: (tag: string | undefined) => number): OpenCvLi
       return new Mat();
     }
 
-    /** @returns A buffer whose `set` records the source image's identity. */
     taggedBuffer(size: number): Uint8Array {
       const buffer = new Uint8Array(size);
       buffer.set = (values: ArrayLike<number>) => {
@@ -126,56 +104,42 @@ function createStubCv(inliersFor: (tag: string | undefined) => number): OpenCvLi
       return buffer;
     }
 
-    /** @returns Nothing; marks this mat as holding `count` inliers, all set. */
     fillInliers(count: number): void {
       this.rows = count;
       this.data = new Uint8Array(count).fill(1);
     }
 
-    /** @returns A sub-view; the mask path never reads it back. */
     roi(): Mat {
       return new Mat();
     }
 
-    setTo(): void {
-      // Masking is a no-op: the fake ORB ignores the mask.
-    }
+    setTo(): void {}
 
-    /** @returns Always false, so `verifyOrb` counts the inlier mask. */
     empty(): boolean {
       return false;
     }
 
-    delete(): void {
-      // Nothing is allocated outside the JS heap.
-    }
+    delete(): void {}
   }
 
   class MatVector {
-    /** @returns No contours, so the contour detector proposes nothing. */
     size(): number {
       return 0;
     }
 
-    /** @returns An empty contour; unreachable while `size` is zero. */
     get(): Mat {
       return new Mat();
     }
 
-    delete(): void {
-      // Nothing to free.
-    }
+    delete(): void {}
   }
 
   class KeyPointVector {
-    /** @returns A keypoint at a distinct position per index. */
     get(index: number): { pt: { x: number; y: number } } {
       return { pt: { x: index, y: index } };
     }
 
-    delete(): void {
-      // Nothing to free.
-    }
+    delete(): void {}
   }
 
   class Orb {
@@ -185,9 +149,7 @@ function createStubCv(inliersFor: (tag: string | undefined) => number): OpenCvLi
       descriptors.tag = image.tag;
     }
 
-    delete(): void {
-      // Nothing to free.
-    }
+    delete(): void {}
   }
 
   class BfMatcher {
@@ -195,18 +157,15 @@ function createStubCv(inliersFor: (tag: string | undefined) => number): OpenCvLi
       lastReferenceTag = train.tag;
     }
 
-    delete(): void {
-      // Nothing to free.
-    }
+    delete(): void {}
   }
 
   class DMatchVectorVector {
-    /** @returns The fixed correspondence count. */
     size(): number {
       return STUB_MATCHES;
     }
 
-    /** @returns A pair that always clears Lowe's ratio test. */
+    /** Distances 1 vs 10 always clear Lowe's ratio test. */
     get(index: number) {
       return {
         size: () => 2,
@@ -215,15 +174,11 @@ function createStubCv(inliersFor: (tag: string | undefined) => number): OpenCvLi
           queryIdx: index,
           trainIdx: index,
         }),
-        delete: () => {
-          // Nothing to free.
-        },
+        delete: () => {},
       };
     }
 
-    delete(): void {
-      // Nothing to free.
-    }
+    delete(): void {}
   }
 
   const cv = {
@@ -277,12 +232,6 @@ function createStubCv(inliersFor: (tag: string | undefined) => number): OpenCvLi
   return cv as unknown as OpenCvLike & OrbCvLike;
 }
 
-/**
- * A two-dimensional bank in which each key's embedding distance is exactly
- * what the caller asked for (query vector fixed at (1, 0)).
- *
- * @returns The bank.
- */
 function createBank(distances: Record<string, number>): EmbedBank {
   const bank: EmbedBank = { keys: Object.keys(distances), vectors: new Float32Array(0) };
   bank.vectors = new Float32Array(bank.keys.length * 2);
@@ -290,12 +239,7 @@ function createBank(distances: Record<string, number>): EmbedBank {
   return bank;
 }
 
-/**
- * Rewrite a bank's distances in place, so a running session sees the change on
- * its next frame.
- *
- * @returns Nothing.
- */
+/** Rewrites a bank's distances in place, so a running session sees the change on its next frame. */
 function setDistances(bank: EmbedBank, distances: Record<string, number>): void {
   bank.keys.forEach((key, index) => {
     const cosine = 1 - (distances[key] ?? 2);
@@ -307,12 +251,6 @@ function setDistances(bank: EmbedBank, distances: Record<string, number>): void 
 /** When set, every embed call rejects with this message. */
 let embedFailure: string | null = null;
 
-/**
- * An encoder returning the fixed query vector for every rotation slot, or
- * rejecting while `embedFailure` is set.
- *
- * @returns The encoder.
- */
 function createEmbedder(): CardEmbedder {
   return (_pixels, count) => {
     if (embedFailure !== null) {
@@ -326,16 +264,9 @@ function createEmbedder(): CardEmbedder {
   };
 }
 
-// ── Browser environment fakes ───────────────────────────────────────────────
-
 /** Callbacks parked until the test pumps them, so loops advance on demand. */
 let rafQueue: FrameRequestCallback[] = [];
 
-/**
- * Run every animation-frame callback queued so far, exactly once.
- *
- * @returns Nothing.
- */
 function pumpAnimationFrames(): void {
   const callbacks = rafQueue;
   rafQueue = [];
@@ -347,11 +278,6 @@ function pumpAnimationFrames(): void {
 /** The spied `performance.now` clock, advanced explicitly per frame. */
 let nowMs = 0;
 
-/**
- * Move the fake clock forward.
- *
- * @returns Nothing.
- */
 function advance(ms: number): void {
   nowMs += ms;
 }
@@ -360,11 +286,9 @@ function advance(ms: number): void {
 let sceneSeed = 0;
 
 /**
- * Deterministic per-size noise, sharp enough to pass the session's real
- * `minFocus` gate. The same size and seed always produce the same pixels, so
- * consecutive frames read as a static scene to the placement watcher.
- *
- * @returns The pixels of a fake camera frame at the requested size.
+ * Deterministic per-size noise sharp enough to pass the real `minFocus`
+ * gate; the same size and seed always produce the same pixels, so
+ * consecutive frames present as a static scene to the placement watcher.
  */
 function scenePixels(width: number, height: number): Uint8ClampedArray {
   const data = new Uint8ClampedArray(width * height * 4);
@@ -383,11 +307,8 @@ function scenePixels(width: number, height: number): Uint8ClampedArray {
 const fakeContexts = new WeakMap<HTMLCanvasElement, CanvasRenderingContext2D>();
 
 /**
- * A permissive fake 2d context: known reads are answered, everything else is a
- * cached no-op method, and property writes are accepted. `getImageData` serves
- * the current fake scene at the requested size.
- *
- * @returns The context for that canvas, one per canvas.
+ * A permissive fake 2d context: known reads are answered, everything else is
+ * a cached no-op; `getImageData` serves the current fake scene.
  */
 function fakeContextFor(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
   const existing = fakeContexts.get(canvas);
@@ -424,21 +345,11 @@ interface FakeStream {
   tracks: { stop: ReturnType<typeof vi.fn> }[];
 }
 
-/**
- * A stream whose tracks only know how to be stopped.
- *
- * @returns The stream and its spy tracks.
- */
 function createFakeStream(): FakeStream {
   const tracks = [{ stop: vi.fn() }];
   return { stream: { getTracks: () => tracks } as unknown as MediaStream, tracks };
 }
 
-/**
- * Install a controllable `getUserMedia`.
- *
- * @returns The spy, so tests can inspect calls or swap implementations.
- */
 function stubGetUserMedia(
   implementation: (constraints: MediaStreamConstraints) => Promise<MediaStream>,
 ): ReturnType<typeof vi.fn> {
@@ -450,12 +361,7 @@ function stubGetUserMedia(
   return getUserMedia;
 }
 
-/**
- * A video element the hook can drive: fixed dimensions, a resolving `play`,
- * and a writable `srcObject` (jsdom's media element supports neither).
- *
- * @returns The element.
- */
+/** Fixed dimensions and a writable `srcObject`; jsdom's video element supports neither natively. */
 function createFakeVideo(): HTMLVideoElement {
   const video = document.createElement("video");
   Object.defineProperty(video, "videoWidth", { value: 640, configurable: true });
@@ -466,10 +372,8 @@ function createFakeVideo(): HTMLVideoElement {
 }
 
 /**
- * A settled promise chain: one macrotask hop flushes every pending microtask,
- * which is what the frame pipeline's internal awaits need to run to completion.
- *
- * @returns A promise resolved on the next macrotask.
+ * One macrotask hop, which flushes every pending microtask that the frame
+ * pipeline's internal awaits need to run to completion.
  */
 function flushAsync(): Promise<void> {
   // oxlint-disable-next-line promise/avoid-new -- wrapping the setTimeout callback API to await a macrotask boundary
@@ -478,11 +382,6 @@ function flushAsync(): Promise<void> {
   });
 }
 
-/**
- * An unresolved promise with its settle functions exposed.
- *
- * @returns The deferred.
- */
 function deferred<T>(): {
   promise: Promise<T>;
   resolve: (value: T) => void;
@@ -506,18 +405,11 @@ const FAKE_CAMERA_INFO: CameraInfo = {
   capabilitiesSupported: false,
 };
 
-// ── Scenario state ──────────────────────────────────────────────────────────
-
-// The inlier count the fake verifier reports, swappable mid-test.
+/** The inlier count the fake verifier reports, swappable mid-test. */
 let currentInliers: (tag: string | undefined) => number = () => 0;
 /** The bank the mounted hook ranks against, distances rewritable in place. */
 let bankState: EmbedBank;
 
-/**
- * The bank and labels the hook is mounted with: one artwork, one printing.
- *
- * @returns The loaded bank.
- */
 function loadedBank(): LoadedScanBank {
   return {
     bank: bankState,
@@ -528,21 +420,11 @@ function loadedBank(): LoadedScanBank {
   };
 }
 
-/**
- * Put the recognisable card in front of the fake camera.
- *
- * @returns Nothing.
- */
 function cardPresent(): void {
   setDistances(bankState, { "k-a": 0.05 });
   currentInliers = () => 40;
 }
 
-/**
- * Empty the guide: nothing ranks plausibly and nothing verifies.
- *
- * @returns Nothing.
- */
 function cardAbsent(): void {
   setDistances(bankState, { "k-a": 0.9 });
   currentInliers = () => 0;
@@ -553,12 +435,6 @@ interface MountOptions {
   loaded?: LoadedScanBank | null;
 }
 
-/**
- * Render the hook with the fake engine and wait for it to come up, unless the
- * loaders were configured to hang or fail first.
- *
- * @returns The hook handle, the attached video element and the lock spy.
- */
 async function mountScanner(options: MountOptions = {}) {
   const onLock = vi.fn<(lock: LockedCard) => void>();
   const hook = renderHook(() =>
@@ -579,11 +455,6 @@ async function mountScanner(options: MountOptions = {}) {
   return { hook, video, overlay, onLock };
 }
 
-/**
- * `mountScanner`, then wait for both engine halves to report ready.
- *
- * @returns The mounted scanner.
- */
 async function mountReadyScanner(options: MountOptions = {}) {
   const mounted = await mountScanner(options);
   await waitFor(() => {
@@ -594,10 +465,8 @@ async function mountReadyScanner(options: MountOptions = {}) {
 }
 
 /**
- * Pump the frame loop through `count` iterations, advancing the clock past
- * the publish throttle each time so every processed frame reaches the readout.
- *
- * @returns Nothing.
+ * Pumps `count` frame iterations, advancing the clock past the publish
+ * throttle each time so every processed frame reaches the readout.
  */
 async function runFrames(count: number): Promise<void> {
   for (let frame = 0; frame < count; frame++) {
@@ -611,11 +480,9 @@ async function runFrames(count: number): Promise<void> {
 }
 
 /**
- * One camera-rate tick: the placement watcher, the painter and the frame loop
- * each run once. A short clock step, so a disturbance stays trusted between
- * ticks.
- *
- * @returns Nothing.
+ * One camera-rate tick: the placement watcher, the painter and the frame
+ * loop each run once. A short clock step, so a disturbance stays trusted
+ * between ticks.
  */
 async function pumpCameraFrame(): Promise<void> {
   advance(100);
@@ -627,12 +494,9 @@ async function pumpCameraFrame(): Promise<void> {
 }
 
 /**
- * Deal an unrecognisable card into the guide and let the miss grace expire:
- * a baseline frame, three disturbed frames (a hand and a card in motion), two
- * still frames to settle the placement, then the grace window. The next
- * camera tick after this books the miss and frees the catch-up slot.
- *
- * @returns Nothing.
+ * Deals an unrecognised card through baseline, disturbance and settle
+ * frames, then past the miss grace window. The next tick after this books
+ * the miss and frees the catch-up slot.
  */
 async function landUnrecognisedCard(): Promise<void> {
   await pumpCameraFrame();
@@ -646,11 +510,9 @@ async function landUnrecognisedCard(): Promise<void> {
 }
 
 /**
- * Another copy of the same card landing in the guide: the scene changes for a
- * few frames and then holds still, which is what the placement watcher reads
- * as "a card was dealt onto the pile".
- *
- * @returns Nothing; the watcher has seen the placement by the time it resolves.
+ * Another copy landing in the guide: the scene changes for a few frames
+ * then holds still, which the placement watcher treats as a card dealt
+ * onto the pile.
  */
 async function dealAnotherCopy(): Promise<void> {
   for (const seed of [11, 12, 13]) {
@@ -831,7 +693,6 @@ describe("useCardScanner", () => {
       );
       expect(hook.result.current.active).toBe(false);
 
-      // The failed start must have cleared its re-entry guard.
       getUserMedia.mockImplementation(() => Promise.resolve(createFakeStream().stream));
       await act(async () => {
         await hook.result.current.start();
@@ -909,7 +770,6 @@ describe("useCardScanner", () => {
       act(() => {
         startPromise = hook.result.current.start();
       });
-      // Stop while the permission prompt is still open.
       act(() => {
         hook.result.current.stop();
       });
@@ -973,7 +833,7 @@ describe("useCardScanner", () => {
       const readout = hook.result.current.readout;
       expect(readout.fps).toBeGreaterThan(0);
       expect(readout.winnerKey).toBeNull();
-      // Far-ranked junk of an empty guide must not read as aiming at a card.
+      // An empty guide's far-ranked junk must not present as aiming at a card.
       expect(readout.aim).toBeNull();
       expect(readout.locks).toEqual([]);
       // The guide session always proposes the guide rect itself.
@@ -1015,7 +875,6 @@ describe("useCardScanner", () => {
       advance(200);
       await act(async () => {
         pumpAnimationFrames();
-        // The frame is now awaiting the pipeline; stop before it settles.
         hook.result.current.stop();
         await flushAsync();
         await flushAsync();
@@ -1038,7 +897,6 @@ describe("useCardScanner", () => {
 
       expect(hook.result.current.error).toBe("encoder backend crashed");
 
-      // The loop must survive the failed frame and keep processing.
       embedFailure = null;
       await runFrames(2);
 
@@ -1074,7 +932,6 @@ describe("useCardScanner", () => {
         await hook.result.current.start();
       });
 
-      // Camera frames arrive, but no tap: nothing must be processed.
       await runFrames(3);
       expect(hook.result.current.readout.fps).toBe(0);
       expect(onLock).not.toHaveBeenCalled();
@@ -1086,7 +943,7 @@ describe("useCardScanner", () => {
 
       expect(onLock).toHaveBeenCalledTimes(1);
       expect(hook.result.current.readout.winnerKey).toBe("k-a");
-      // A tapped lock times the tap's processing, not a run of frames.
+      // A tapped lock times just the single tap's processing.
       expect(onLock.mock.calls[0][0].framesToLock).toBe(1);
     });
 
@@ -1109,15 +966,11 @@ describe("useCardScanner", () => {
         await flushAsync();
       });
 
-      // Each processed capture-mode tap is its own run and could lock a second
-      // copy, so exactly one lock proves the second tap was swallowed.
       expect(onLock).toHaveBeenCalledTimes(1);
     });
   });
 
   describe("placement watcher and catch-up", () => {
-    // Copy counting from the placement watcher belongs to auto mode; single
-    // mode drops it because handheld it fires on a wobble.
     const autoMode = { settings: { ...DEFAULT_SCANNER_SETTINGS, mode: "auto" as const } };
 
     it("offers a missed placement back as an unidentifiable card the user can dismiss", async () => {
@@ -1128,8 +981,6 @@ describe("useCardScanner", () => {
       });
 
       await landUnrecognisedCard();
-      // The second look verifies the held frame, but too weakly to stand
-      // alone: 15 inliers is above the floor, well short of full weight.
       setDistances(bankState, { "k-a": 0.05 });
       currentInliers = () => 15;
       await pumpCameraFrame();
@@ -1168,7 +1019,6 @@ describe("useCardScanner", () => {
       expect(hook.result.current.unidentified).toEqual([]);
 
       await runFrames(1);
-      // The recovery took the placement back off the miss ledger.
       expect(hook.result.current.readout.placements).toBe(1);
       expect(hook.result.current.readout.missedPlacements).toBe(0);
     });
@@ -1314,7 +1164,6 @@ describe("useCardScanner", () => {
       });
       expect(onLock).toHaveBeenCalledTimes(1);
 
-      // The card is still in shot; the live pass must not count it again.
       await runFrames(8);
       expect(onLock).toHaveBeenCalledTimes(1);
     });

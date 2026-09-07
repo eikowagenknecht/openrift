@@ -1,18 +1,11 @@
 import reactCompiler from "eslint-plugin-react-compiler";
 import { defineConfig } from "eslint/config";
-// Minimal ESLint config for React Compiler only
-// All other linting is handled by oxlint
 import tseslint from "typescript-eslint";
 
 export default defineConfig(
   {
-    // routeTree.gen.ts is generated and carries its own blanket eslint-disable.
-    // The generated directories need listing here as well as being excluded by
-    // `files` below: `files` only decides which files the React Compiler rule
-    // runs on, while eslint still walks everything else and reports the inline
-    // eslint-disable comments it finds there as unused directives. Under
-    // `--max-warnings=0` that fails `bun lint` on any machine that has run a
-    // build or `test:coverage`.
+    // `files` below only scopes the React Compiler rule; eslint still walks these
+    // generated dirs and flags their eslint-disable comments as unused under --max-warnings=0.
     ignores: [
       "src/routeTree.gen.ts",
       ".output/",
@@ -25,10 +18,8 @@ export default defineConfig(
     ],
   },
   {
-    // Scoped to src/ on purpose: a bundled chunk in one of the generated
-    // directories above trips the React Compiler rule with hundreds of
-    // meaningless errors. Config files at the package root stay out by the
-    // same rule.
+    // Scoped to src/: a bundled chunk in the generated dirs above trips the
+    // React Compiler rule with hundreds of spurious errors.
     files: ["src/**/*.{js,jsx,ts,tsx}"],
     extends: [tseslint.configs.base],
     plugins: {

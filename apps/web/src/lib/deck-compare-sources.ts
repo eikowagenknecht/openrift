@@ -10,13 +10,12 @@ import type { LocalDeck } from "@/stores/local-decks-store";
 export interface CompareDeckOption {
   id: string;
   name: string;
-  /** Copies across every zone, shown so same-named decks stay tellable apart. */
   cardCount: number;
 }
 
 /**
- * The fields a deck's own card rows contribute to the diff. Both the server's
- * `DeckCardResponse` and the browser store's `LocalDeckCard` satisfy it.
+ * Fields a deck's own card rows contribute to the diff; satisfied by both
+ * the server's `DeckCardResponse` and the browser store's `LocalDeckCard`.
  */
 export interface OwnDeckCard {
   cardId: string;
@@ -24,7 +23,6 @@ export interface OwnDeckCard {
   quantity: number;
 }
 
-/** @returns Total copies across every zone of a browser-local deck. */
 function localDeckCardCount(deck: LocalDeck): number {
   let total = 0;
   for (const card of deck.cards) {
@@ -33,16 +31,6 @@ function localDeckCardCount(deck: LocalDeck): number {
   return total;
 }
 
-/**
- * The decks the user can compare the open deck against: their server decks
- * plus this browser's local decks (ADR-035), minus the open deck itself.
- * Archived decks are left out — `decksQueryOptions` asks for them so the deck
- * list can show them, but they are not what someone reaches for here. The two
- * stores merge into one alphabetical list, since which of them a deck lives in
- * is not something the picker should make the user think about.
- *
- * @returns The options, sorted by name.
- */
 export function collectCompareDeckOptions(
   openDeckId: string,
   serverDecks: readonly DeckListItemResponse[] | undefined,
@@ -64,14 +52,6 @@ export function collectCompareDeckOptions(
   return options.toSorted((optionA, optionB) => optionA.name.localeCompare(optionB.name));
 }
 
-/**
- * Resolves another of the user's own decks into diff cards. Its rows already
- * carry catalog ids, so this skips the parser and name matcher a pasted list
- * needs; only a card that has since left the catalog can fail to resolve, and
- * those come back as ids so the dialog can list them like unmatched lines.
- *
- * @returns The diff cards plus the card ids that resolved to nothing.
- */
 export function ownDeckDiffCards(
   cards: readonly OwnDeckCard[],
   cardsById: Record<string, Card>,
@@ -94,19 +74,10 @@ export function ownDeckDiffCards(
   return { theirs, unmatched };
 }
 
-/** @returns The text to show for a parsed line that matched no catalog card. */
 function unmatchedLabel(entry: DeckImportEntry): string {
   return entry.cardName ?? entry.shortCode ?? "";
 }
 
-/**
- * Resolves parsed import entries into diff cards, matching each line against
- * the catalog the same way the import page does. A line that resolves to
- * nothing comes back as its raw label rather than being dropped silently, so
- * the comparison can say how much of the pasted list it could not read.
- *
- * @returns The diff cards plus the lines that resolved to nothing.
- */
 export function diffCardsFromEntries(
   entries: DeckImportEntry[],
   allPrintings: Printing[],

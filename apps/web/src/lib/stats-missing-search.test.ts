@@ -11,9 +11,7 @@ const setIdToSlug = new Map([
 const emptyScope: CompletionScopePreference = {};
 
 describe("buildMissingSearch", () => {
-  it("returns undefined when countMode is not 'cards'", () => {
-    // The /cards browser filters at the card level, so per-printing modes
-    // (printings/copies) have no equivalent URL to land on.
+  it("returns undefined for printing/copies count modes, which /cards can't filter at that level", () => {
     expect(
       buildMissingSearch({
         countMode: "printings",
@@ -35,10 +33,6 @@ describe("buildMissingSearch", () => {
   });
 
   it("emits a typed owned array (not a 'false' string) for cards-mode set rows", () => {
-    // Regression: the prior URL builder set `owned=false`, which is not a valid
-    // OwnedBucket value and got dropped by validateSearch — so the link landed
-    // on an unfiltered /cards page. The fix narrows to the two not-complete
-    // buckets and uses the set slug, not the set id.
     const search = buildMissingSearch({
       countMode: "cards",
       groupBy: "set",
@@ -139,8 +133,6 @@ describe("buildMissingSearch", () => {
   });
 
   it("forwards the scope's exclude arrays to the /cards exclude params", () => {
-    // Regression: the excludes were dropped here, so a "View missing" link
-    // opened a wider card list than the stats row it came from.
     const scope: CompletionScopePreference = {
       setsExclude: ["PRX"],
       languagesExclude: ["ja"],
@@ -214,8 +206,6 @@ describe("buildMissingSearch", () => {
   });
 
   it("omits empty scope arrays from the payload", () => {
-    // empty arrays would still survive `value && value.length > 0` if we used
-    // truthiness alone; the helper must drop them so the /cards URL stays clean.
     const search = buildMissingSearch({
       countMode: "cards",
       groupBy: "domain",

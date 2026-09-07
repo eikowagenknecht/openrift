@@ -1,8 +1,6 @@
 import type { MetaEventMatch, MetaEventPhase } from "@openrift/shared";
 
-/** One side of a bracket match. */
 export interface MetaBracketSeat {
-  /** Null on the empty side of a bye. */
   playerId: string | null;
   isWinner: boolean;
   gamesWon: number | null;
@@ -14,35 +12,25 @@ export interface MetaBracketMatch {
 }
 
 export interface MetaBracketRound {
-  /** "Quarterfinals", "Semifinals", "Final", or "Top 16" and up. */
   label: string;
   matches: MetaBracketMatch[];
-  /**
-   * The round that decided the event, and holding the one match that decided
-   * it. A last round carrying a third-place match beside the final is not
-   * marked: nothing in the payload says which of the two is which, and gilding
-   * the wrong one is worse than gilding neither.
-   */
   isFinal: boolean;
 }
 
 export interface MetaBracket {
-  /** "Top 8", from the cut's own entry rank where the source published one. */
   title: string;
   rounds: MetaBracketRound[];
 }
 
 const ROUND_LABELS = ["Final", "Semifinals", "Quarterfinals"];
 
-/** Named by how far the round sits from the last one, not by its match count. */
 function roundLabel(fromEnd: number): string {
   return ROUND_LABELS[fromEnd] ?? `Top ${2 ** (fromEnd + 1)}`;
 }
 
 /**
  * `roundType` is source vocabulary kept raw (`SWISS`,
- * `RANKED_SINGLE_ELIMINATION`), so this matches on the substring rather than a
- * fixed list a new source would fall outside of.
+ * `RANKED_SINGLE_ELIMINATION`); matched by substring, not a fixed list.
  */
 export function isSingleElimination(roundType: string): boolean {
   return roundType.toUpperCase().includes("SINGLE_ELIMINATION");
@@ -66,7 +54,6 @@ function toBracketMatch(match: MetaEventMatch): MetaBracketMatch {
   };
 }
 
-/** Matches of one phase, grouped by round and ordered as they were played. */
 function roundsOfPhase(matches: readonly MetaEventMatch[], phaseOrder: number): MetaEventMatch[][] {
   const byRound = new Map<number, MetaEventMatch[]>();
   for (const match of matches) {
@@ -84,10 +71,8 @@ function roundsOfPhase(matches: readonly MetaEventMatch[], phaseOrder: number): 
 }
 
 /**
- * The cut's own phase, which is the one the source called single elimination and
- * ran the most matches in. Match count rather than phase order, because a
- * third-place playoff is often filed as a single-elimination phase of its own
- * and would otherwise win by sitting last.
+ * Ranked by match count, not phase order: a third-place playoff is often
+ * filed as its own single-elimination phase and would otherwise win by sitting last.
  */
 function cutPhase(
   matches: readonly MetaEventMatch[],
@@ -107,12 +92,8 @@ function cutPhase(
 }
 
 /**
- * The last phase's rounds, accepted only when they halve to a single match.
- *
- * This is the read for an event whose source published pairings but no phase
- * list. It is deliberately strict: Swiss rounds keep their size and fail it, so
- * a field of unrelated tables never renders as a bracket. Two rounds is the
- * least it takes — a lone final is a result, not a bracket.
+ * Fallback for a source with no phase list: accepted only when the last
+ * phase's rounds halve down to a single match, so Swiss rounds never render as a bracket.
  */
 function derivedRounds(matches: readonly MetaEventMatch[]): MetaEventMatch[][] {
   if (matches.length === 0) {
@@ -131,15 +112,6 @@ function derivedRounds(matches: readonly MetaEventMatch[]): MetaEventMatch[][] {
   return rounds;
 }
 
-/**
- * The single-elimination cut an event's matches record, or nothing.
- *
- * The phase list is authoritative and is used whenever the source published one:
- * it names the cut outright and carries the standing that entered it, so a
- * bronze match beside the final, a thinning Swiss, and a cut whose early rounds
- * were never published all read correctly. Events with no phase list fall back
- * to reading the shape of the rounds — see {@link derivedRounds}.
- */
 export function metaEventBracket(
   matches: readonly MetaEventMatch[],
   phases: readonly MetaEventPhase[] = [],
@@ -149,8 +121,6 @@ export function metaEventBracket(
   if (rounds.length === 0) {
     return null;
   }
-  // One published round is worth showing only when the cut's own size says what
-  // it was the final of; without that it is a single match under a made-up title.
   if (rounds.length < 2 && (phase === null || phase.rankRequired === null)) {
     return null;
   }
@@ -161,6 +131,8 @@ export function metaEventBracket(
     rounds: rounds.map((round, index) => ({
       label: roundLabel(lastIndex - index),
       matches: round.map((match) => toBracketMatch(match)),
+      // A last round with a third-place match beside the final isn't marked:
+      // nothing in the payload says which of the two is which.
       isFinal: index === lastIndex && round.length === 1,
     })),
   };

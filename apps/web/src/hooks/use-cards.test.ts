@@ -6,9 +6,7 @@ import type {
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 
-// Mock createServerFn to execute the handler directly instead of making RPC
-// calls. This is necessary because there is no TanStack Start server running
-// in the vitest/jsdom environment.
+// No TanStack Start server runs in the vitest/jsdom environment.
 vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => {
     const chain = {
@@ -20,8 +18,7 @@ vi.mock("@tanstack/react-start", () => ({
   },
 }));
 
-// Mock server-cache with a test-local QueryClient to avoid cross-test cache
-// pollution (the real serverCache is a long-lived singleton).
+// The real serverCache is a long-lived singleton; use a test-local instance.
 vi.mock("@/lib/server-cache", async () => {
   const { QueryClient: QC } = await import("@tanstack/react-query");
   return { serverCache: new QC({ defaultOptions: { queries: { retry: false } } }) };
@@ -131,7 +128,6 @@ describe("useCards", () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
-    // `select: undefined` skips the enrichment, so this checks the raw shape
     const raw = await queryClient.query({ ...catalogQueryOptions, select: undefined });
 
     expect(Object.keys(raw.printings)).toHaveLength(2);
@@ -148,7 +144,6 @@ describe("useCards", () => {
   });
 
   it("enrichCatalog joins card data onto printings and restores ids", () => {
-    // Test the select/enrichment function directly
     const select = catalogQueryOptions.select!;
     const enriched = select(CATALOG_RESPONSE);
 
@@ -180,9 +175,6 @@ describe("useCards", () => {
   });
 
   it("throws an Error when catalog fetch fails", async () => {
-    // The catalog reader fetches the catalog URL directly; a non-2xx surfaces
-    // an ApiError carrying the server's message, or the "Couldn't load catalog"
-    // fallback when the body has no { error } field.
     (fetch as ReturnType<typeof vi.fn>).mockImplementation(() =>
       Promise.resolve(Response.json({}, { status: 500 })),
     );

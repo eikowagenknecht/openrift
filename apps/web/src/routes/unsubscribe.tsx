@@ -7,7 +7,6 @@ import { seoHead } from "@/lib/seo";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { getSiteUrl } from "@/lib/site-config";
 
-/** Read-only view of one channel, used to render the confirmation page. */
 export interface UnsubscribePreview {
   valid: boolean;
   channel: EmailNotificationChannel | null;
@@ -22,9 +21,8 @@ const INVALID_PREVIEW: UnsubscribePreview = {
   alreadyUnsubscribed: false,
 };
 
-// Safe, read-only: resolves the channel + state for display. The mutation lives
-// in the POST confirm action, so opening this link (incl. by a link scanner)
-// never changes anything.
+// GET-only and side-effect free: the mutation lives in the POST confirm action,
+// so opening this link (incl. by a link scanner) never changes anything.
 const previewUnsubscribeFn = createServerFn({ method: "GET" })
   .validator((token: string) => token)
   .handler(({ data }): Promise<UnsubscribePreview> => {

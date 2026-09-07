@@ -15,13 +15,7 @@ export function useSiteSettingValue(key: string): string | undefined {
   return (data as SiteSettings)[key];
 }
 
-// The route's create/update body constrains scope to this enum (was loose
-// `string` under fetchApi, which skipped body typing).
 type SettingScope = "web" | "api";
-
-// ---------------------------------------------------------------------------
-// Admin hooks (hit the /admin/site-settings endpoints)
-// ---------------------------------------------------------------------------
 
 const fetchAdminSiteSettings = createServerFn({ method: "GET" })
   .middleware([withCookies])

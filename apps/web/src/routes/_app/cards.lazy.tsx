@@ -13,12 +13,9 @@ export const Route = createLazyFileRoute("/_app/cards")({
   component: CardsPage,
 });
 
-// Render the SSR-discoverable preview on the server (and during the hydration
-// window on the client) so the served HTML carries real `<img>` tags for the
-// LCP candidate. <CardBrowser> only mounts post-hydration: rendering it on the
-// server would trigger the catalog `useSuspenseQuery`, which stages the full
-// 310 KB catalog into the per-request QueryClient — and that QueryClient is
-// dehydrated into the document. We want exactly the opposite.
+// <CardBrowser> only mounts post-hydration: rendering it server-side would
+// trigger the catalog useSuspenseQuery and stage the full 310 KB catalog
+// into the dehydrated per-request QueryClient.
 function CardBrowserShell() {
   const hydrated = useHydrated();
   if (!hydrated) {
@@ -34,11 +31,8 @@ function CardBrowserShell() {
 function CardsPage() {
   const search = Route.useSearch();
   const { catalogVersion } = Route.useLoaderData();
-  // Seed during render, not in an effect: the catalog query fires from
-  // <CardBrowser>'s useSuspenseQuery right after useHydrated's own effect
-  // flips, and an effect here isn't ordered before that. A render-time module
-  // write is safe — seeding is idempotent and consume-once. Server renders
-  // skip it (the token is for the browser's edge fetch only).
+  // Seed during render: the catalog query fires from useSuspenseQuery right
+  // after useHydrated's own effect, before an effect here would run.
   if (globalThis.window !== undefined) {
     seedCatalogVersion(catalogVersion);
   }

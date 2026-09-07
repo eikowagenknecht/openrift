@@ -26,8 +26,6 @@ describe("buildAddRoom", () => {
     expect(room.get(getDeckCardKey(card))).toBe(0);
   });
 
-  // The cap spans main / sideboard / champion, so a copy parked in the
-  // sideboard has to count against the main entry's remaining room.
   it("counts copies of the same card across the capped zones", () => {
     const main = stubDeckBuilderCard({ zone: WellKnown.deckZone.MAIN, quantity: 2 });
     const sideboard = stubDeckBuilderCard({
@@ -68,7 +66,6 @@ describe("buildAddRoom", () => {
     expect(room.get(getDeckCardKey(rune))).toBe(7);
   });
 
-  // At the target a single-domain legend can't swap, so the + button closes.
   it("closes runes at the target when no swap is available", () => {
     const rune = stubDeckBuilderCard({
       zone: WellKnown.deckZone.RUNES,
@@ -99,8 +96,6 @@ describe("expandCopies", () => {
     ]);
   });
 
-  // A single copy has no stack to spell out, so it keeps the badge-less form
-  // the ×N path uses.
   it("leaves a single copy unindexed", () => {
     const card = stubDeckBuilderCard({ quantity: 1 });
     expect(expandCopies([card], true)).toEqual([{ card, copyIndex: null }]);

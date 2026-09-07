@@ -1,14 +1,12 @@
 /**
- * Pure layout and labeling for the variant rail (ADR-042): the branch graph
- * shown below the deck hero. The component only draws what this module
- * computes, so the interesting logic stays unit-testable.
+ * Pure layout and labeling for the variant rail: the branch graph shown below
+ * the deck hero.
  */
 
-/** The slice of a deck summary the rail reads. */
 export interface RailMemberInput {
   id: string;
   name: string;
-  /** ISO timestamp, used to order siblings and to break overflow ties. */
+  /** ISO timestamp. */
   updatedAt: string;
   predecessorDeckId: string | null;
   isDraft: boolean;
@@ -16,20 +14,15 @@ export interface RailMemberInput {
 
 export interface RailNode {
   id: string;
-  /** Short label per the one-naming-rule (family prefix stripped). */
   label: string;
-  /** The stored name, for the popover. */
   fullName: string;
   isCurrent: boolean;
   isDraft: boolean;
-  /** Row, from the top. Lane 0 carries the open deck's own line of descent. */
   lane: number;
-  /** Column, in generations from the family's oldest drawn ancestor. */
   x: number;
 }
 
 export interface RailEdge {
-  /** The older end (the predecessor). */
   fromId: string;
   toId: string;
 }
@@ -37,22 +30,13 @@ export interface RailEdge {
 export interface RailLayout {
   nodes: RailNode[];
   edges: RailEdge[];
-  /** Family members that didn't fit; the rail shows them as "+N more". */
   overflowCount: number;
 }
 
-/** What fits in the rail's label box (`LABEL_WIDTH`) at `text-2xs`. */
 const MAX_LABEL_CHARS = 26;
 
-/**
- * The rail's one naming rule: show the member's name minus what it shares with
- * the family. A name of the form `<base> (<rest>)` collapses to `<rest>`;
- * anything else shows as-is. A parenthesized ISO day is already the app's date
- * form, so it needs no reformatting. Labels are capped at
- * {@link MAX_LABEL_CHARS}.
- *
- * @returns The label to draw at the node.
- */
+// A name of the form `<base> (<rest>)` collapses to `<rest>`; anything else
+// shows as-is.
 export function railLabel(name: string, familyBaseName: string): string {
   let label = name;
   const prefix = `${familyBaseName} (`;
@@ -68,13 +52,7 @@ export function railLabel(name: string, familyBaseName: string): string {
   return label;
 }
 
-/**
- * Walks the open deck's ancestry: current, its predecessor, and so on, for as
- * long as the pointer stays inside the family. Guards against cycles, which
- * the API prevents but a graph walker must never trust.
- *
- * @returns The chain oldest-first, ending with the current deck.
- */
+// The API prevents predecessor cycles, but a graph walker must not trust that.
 function ancestryChain(
   byId: ReadonlyMap<string, RailMemberInput>,
   currentId: string,
@@ -90,14 +68,8 @@ function ancestryChain(
   return chain.toReversed();
 }
 
-/**
- * Which members the rail draws when the family is larger than `maxNodes`. The
- * open deck's ancestry wins the space (newest generations first, since those
- * are the ones a reader is comparing against), and whatever is left goes to the
- * most recently updated of the others.
- *
- * @returns The drawn members plus how many were left out.
- */
+// The open deck's ancestry wins the space first (newest generations first);
+// whatever is left goes to the most recently updated of the others.
 function selectDrawnMembers(
   members: readonly RailMemberInput[],
   chain: readonly RailMemberInput[],
@@ -115,14 +87,8 @@ function selectDrawnMembers(
   };
 }
 
-/**
- * Generation of every drawn member, counting from its oldest drawn ancestor. A
- * pointer at a member that isn't drawn (dropped by the overflow, or in another
- * family) reads as no pointer at all, which is what puts an adopted member at
- * the left edge with no line into it.
- *
- * @returns Each member's column, and the drawn parent it descends from.
- */
+// A pointer to a member that isn't drawn is treated as no pointer: the
+// adopted member draws at the left edge with no line into it.
 function resolveGenerations(drawn: readonly RailMemberInput[]): {
   depths: Map<string, number>;
   parents: Map<string, string | null>;
@@ -143,7 +109,7 @@ function resolveGenerations(drawn: readonly RailMemberInput[]): {
       return known;
     }
     if (walking.has(id)) {
-      // A cycle the API shouldn't allow: cut it here so the family still draws.
+      // Cut a cycle here so the family still draws.
       parents.set(id, null);
       depths.set(id, 0);
       return 0;
@@ -160,23 +126,8 @@ function resolveGenerations(drawn: readonly RailMemberInput[]): {
   return { depths, parents };
 }
 
-/**
- * Lays a variant family out as a branch graph. Every drawn member is placed in
- * the column of its generation, and every predecessor pointer between two drawn
- * members becomes an edge — including pointers that have nothing to do with the
- * open deck, which is what makes the graph read as the family's history rather
- * than as one deck's ancestry.
- *
- * Lane 0 is the open deck's own line: its ancestry runs along it, and each
- * further branch takes the first row that is still free at its column.
- *
- * Members that share no lineage form separate trees, and those run side by side
- * along the same rows rather than stacking — a family of unrelated versions is
- * one line, not a column of one-dot rows. The newest tree sits right-most, which
- * continues the older-to-newer reading that holds inside a tree.
- *
- * @returns The computed layout.
- */
+// Lane 0 is the open deck's own line of descent. Unrelated trees share the
+// same rows, newest tree right-most.
 export function buildRailLayout(
   members: readonly RailMemberInput[],
   currentId: string,
@@ -215,7 +166,6 @@ export function buildRailLayout(
     return right.updatedAt.localeCompare(left.updatedAt);
   };
 
-  /** @returns How many columns the tree under `member` spans. */
   const treeSpan = (member: RailMemberInput): number => {
     let span = (depths.get(member.id) ?? 0) + 1;
     for (const child of children.get(member.id) ?? []) {
@@ -224,7 +174,6 @@ export function buildRailLayout(
     return span;
   };
 
-  /** @returns The most recent `updatedAt` anywhere in the tree under `member`. */
   const treeNewest = (member: RailMemberInput): string => {
     let newest = member.updatedAt;
     for (const child of children.get(member.id) ?? []) {
@@ -236,15 +185,13 @@ export function buildRailLayout(
     return newest;
   };
 
-  /** @returns The id of the tree root `id` descends from. */
   const rootIdOf = (id: string): string => {
     const parentId = parents.get(id) ?? null;
     return parentId === null ? id : rootIdOf(parentId);
   };
   const currentRootId = rootIdOf(currentId);
   roots.sort((left, right) => {
-    // Newest tree right-most. On a tie the open deck's tree goes last, so the
-    // eye lands on it; the id keeps the rest of the order stable.
+    // Newest tree right-most. On a tie the open deck's tree goes last.
     const byNewest = treeNewest(left).localeCompare(treeNewest(right));
     if (byNewest !== 0) {
       return byNewest;
@@ -259,7 +206,6 @@ export function buildRailLayout(
 
   const nodes: RailNode[] = [];
   const laneEnd: number[] = [];
-  /** @returns The row this node can occupy, reusing `preferred` when it is free. */
   const claimLane = (preferred: number | null, x: number): number => {
     if (preferred !== null && (laneEnd[preferred] ?? -1) < x) {
       return preferred;

@@ -238,8 +238,6 @@ describe("parseImportData — RiftMana format", () => {
   it("strips lowercase -p promo suffix and sets isPromo", () => {
     const csv = `${header}\n0,8,Blazing Scorcher,OGN-001-p,Promotional Cards,Fury,Common,0.00,0.24,,NM:4;HP:3;SEAL:1,,English`;
     const result = parseImportData(csv);
-    // The condition encoding splits the 8 foils into NM:4, HP:3, and SEAL:1
-    // (unmapped, so it imports without a condition).
     expect(result.entries).toHaveLength(3);
     expect(result.entries.every((e) => e.sourceCode === "OGN-001")).toBe(true);
     expect(result.entries.every((e) => e.setPrefix === "OGN")).toBe(true);
@@ -248,7 +246,6 @@ describe("parseImportData — RiftMana format", () => {
     expect(byCondition.get("near-mint")).toBe(4);
     expect(byCondition.get("poor")).toBe(3);
     expect(byCondition.get(undefined)).toBe(1);
-    // Each split entry's detail panel shows its own token, not the whole cell.
     const conditionsShown = result.entries.map((e) => e.rawFields["Condition"]);
     expect(conditionsShown).toEqual(["NM", "HP", "SEAL"]);
   });
@@ -295,8 +292,6 @@ describe("parseImportData — RiftMana format", () => {
     expect(raw["Set"]).toBe("Origins");
     expect(raw["Rarity"]).toBe("Common");
     expect(raw["Language"]).toBe("English");
-    // The detail panel shows this entry's own condition token, not the whole
-    // encoded cell (the encoding may span several split entries).
     expect(raw["Condition"]).toBe("NM");
   });
 
@@ -335,10 +330,7 @@ describe("parseImportData — RiftMana format", () => {
     expect(result.source).toBe("riftmana");
     expect(result.errors).toHaveLength(0);
     expect(result.rowCount).toBe(19);
-    // Rows with both normal+foil: Blazing Scorcher, Brazen Buccaneer, Chemtech Enforcer = 3 rows → 6 entries
-    // Rows with only one qty: 16 rows → 16 entries
-    // The promo Blazing Scorcher's NM:4;HP:3;SEAL:1 encoding adds 2 more splits
-    // Total: 24 entries
+    // 3 dual-qty rows (6) + 16 single-qty rows (16) + 2 extra splits from the NM:4;HP:3;SEAL:1 encoding.
     expect(result.entries).toHaveLength(24);
   });
 });
@@ -450,7 +442,6 @@ describe("parseImportData — Piltover Archive variant columns", () => {
     const result = parseImportData(csv);
     const byCode = new Map(result.entries.map((entry) => [entry.sourceCode, entry]));
     expect(byCode.get("OGN-001")?.finish).toBe("foil");
-    // A showcase card is always foil in print, but this row says otherwise and it wins.
     expect(byCode.get("OGN-025")?.finish).toBe("normal");
   });
 
@@ -496,10 +487,7 @@ describe("parseImportData — Piltover Archive variant columns", () => {
 });
 
 describe("parseImportData — a real Piltover Archive export", () => {
-  // Rows copied verbatim from one of their exports, chosen to cover every
-  // variant shape it contains: plain, alt art, the `b` promo, the one Ultimate
-  // (typed Overnumbered and named only in the label), a signed `*`, the
-  // `-Suffix` promo forms, and a set prefix that is not three letters.
+  // Verbatim rows covering every variant shape: plain, alt art, promo, Ultimate, signed, `-Suffix`.
   const CSV = [
     "Variant Number,Card Name,Set,Set Prefix,Rarity,Variant Type,Variant Label,Foil,Quantity,Language,Condition,Grading Company,Grading Value,Grading Label,Notes",
     "OGN-089,Mind Rune,Origins,OGN,Common,Standard,OGN Rune,false,4,English,Near Mint,,,,",
@@ -541,7 +529,6 @@ describe("parseImportData — a real Piltover Archive export", () => {
   });
 
   it("treats `*` as signed, not as an art variant", () => {
-    // Their Variant Type is what says overnumbered; the star only marks signing.
     expect(byCode.get("OGN-300*::")?.isOvernumbered).toBe(true);
     expect(byCode.get("OGN-300*::")?.artVariant).toBe("normal");
     expect(byCode.get("OGN-309::")?.isOvernumbered).toBe(true);
@@ -561,8 +548,6 @@ describe("parseImportData — a real Piltover Archive export", () => {
   });
 
   it("keeps a promo apart from the plain printing it shares a code with", () => {
-    // Both reduce to OGN-263 once the suffix is stripped, and they agree on
-    // finish, language and metadata, so only the suffix keeps them apart.
     const csv = [
       "Variant Number,Card Name,Set,Set Prefix,Rarity,Variant Type,Variant Label,Foil,Quantity,Language,Condition,Grading Company,Grading Value,Grading Label,Notes",
       'OGN-263,"Teemo, Swift Scout",Origins,OGN,Rare,Standard,Standard,true,4,English,Near Mint,,,,',

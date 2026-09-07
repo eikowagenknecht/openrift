@@ -21,9 +21,6 @@ const ERAS: MetaEra[] = [
 ];
 
 const EMPTY: MetaDeckFilterValues = {
-  // The scope every case here narrows from is the opened-up one, so an axis
-  // under test is the only thing holding anything back. An absent era, format
-  // and tier mean the current set, constructed and the competitive tiers.
   scope: { era: ERA_ALL, formats: [], tiers: [] },
   eras: ERAS,
   events: [],
@@ -386,11 +383,10 @@ describe("nextDeckSort", () => {
 });
 
 describe("metaDeckFilterCounts", () => {
-  it("counts every value when nothing is filtered", () => {
+  it("counts every value when nothing is filtered, finish buckets cumulative", () => {
     const counts = metaDeckFilterCounts(decks, EMPTY);
     expect(counts.events.get("rift-open")).toBe(1);
     expect(counts.legends.get("card-jinx")).toBe(1);
-    // Buckets are cumulative: a 1st place is inside Top 4 as well.
     expect(counts.finish.get(1)).toBe(1);
     expect(counts.finish.get(4)).toBe(2);
     expect(counts.finish.get(8)).toBe(3);

@@ -38,9 +38,6 @@ describe("parseCSV", () => {
   });
 
   it("drops a trailing comma at end of input rather than adding an empty field", () => {
-    // The field loop only re-enters after consuming a comma if there is
-    // still input left; a comma as the very last character never gets a
-    // trailing empty field appended.
     expect(parseCSV('"a",')).toEqual([["a"]]);
     expect(parseCSV("a,")).toEqual([["a"]]);
   });

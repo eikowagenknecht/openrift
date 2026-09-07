@@ -87,7 +87,6 @@ describe("filter-sections", () => {
         customTagCategoryCount: 0,
       });
       const keys = applicable.map((unit) => unit.key);
-      // Stats and Owned always apply; Price applies because max > 0.
       expect(keys).toEqual(["stats", "owned", "price"]);
     });
 

@@ -10,15 +10,10 @@ import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
 /**
- * `/meta/submit` — send a decklist without starting from an event page.
- *
- * This is also the only way in for a tournament the archive does not have yet:
- * `/meta/$slug/submit` needs a slug and a proposal has none, so the event
- * fields live behind this route's picker instead (ADR-014's User submissions).
+ * Entry point for a decklist without a slug; `/meta/$slug/submit` requires
+ * one that a submission-only proposal doesn't have.
  */
 export const Route = createFileRoute("/_app/_authenticated/meta_/submit")({
-  // Signed-in, and the catalog it needs is a client payload, so there is
-  // nothing here worth rendering into the initial HTML.
   ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Send a decklist", noIndex: true }),
   loader: async ({ context }) => {

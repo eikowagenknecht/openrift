@@ -58,7 +58,6 @@ describe("rulerPlacement", () => {
     const placement = rulerPlacement(layout);
     expect(placement).not.toBeNull();
     expect(placement?.vertical).toBe(false);
-    // Inside the bottom margin band, clear of the sheet's cut line.
     expect(placement?.y).toBeGreaterThan(layout.marginY + layout.sheetHeight);
     expect(placement?.y).toBeLessThan(layout.pageHeight);
   });
@@ -151,7 +150,6 @@ describe("truncateToWidth", () => {
   });
 
   it("does not leave a dangling space before the ellipsis", () => {
-    // The cut lands mid-space ("Kai trades |here"), so the space is dropped.
     expect(truncateToWidth(measure, "Kai trades here", 12, 2)).toBe("Kai trades…");
   });
 

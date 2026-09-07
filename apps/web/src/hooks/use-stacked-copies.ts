@@ -4,7 +4,6 @@ import { sortCards } from "@openrift/shared";
 import { useCards } from "@/hooks/use-cards";
 import { useCopies } from "@/hooks/use-copies";
 
-/** Copies of the same printing, stacked into one visual entry. */
 export interface StackedEntry {
   printingId: string;
   printing: Printing;
@@ -14,25 +13,14 @@ export interface StackedEntry {
 interface UseStackedCopiesResult {
   stacks: StackedEntry[];
   totalCopies: number;
-  /**
-   * Holding collection per copy id. A stack pools copies that can sit in
-   * different collections, so the "Collection" grouping axis reads this rather
-   * than the stack. Covers every fetched copy, including ones the personal-only
-   * filter kept out of the stacks — callers only look up ids they got from a
-   * stack, and filtering twice would just have to repeat that rule.
-   */
+  /** Covers every fetched copy, including ones excluded from `stacks`. */
   collectionIdByCopyId: ReadonlyMap<string, string>;
   isReady: boolean;
 }
 
 /**
- * Groups copies into per-printing stacks, sorted by card ID. When `collectionId`
- * is undefined (the "All Cards" / all-collections aggregate) the result is the
- * viewer's personal copies only — copies in a friend-group collection belong to
- * the group, not the viewer, so they must not stack into a personal count or
- * surface group-only cards as owned tiles. Scoped to a specific collection,
- * every copy in it counts (a group collection is viewed via its own id).
- * @returns Sorted stacks for the given scope.
+ * When `collectionId` is undefined, excludes copies held in a friend-group
+ * collection; those belong to the group, not the viewer's personal count.
  */
 export function buildStacks(
   copies: readonly CopyResponse[],
@@ -72,12 +60,6 @@ export function buildStacks(
     .filter((stack): stack is StackedEntry => stack !== undefined);
 }
 
-/**
- * Groups copies by printing ID into stacks, sorted by card ID.
- * @returns Sorted stacks, total copy count, the per-copy collection lookup, and
- * a readiness flag that lets callers distinguish "still loading" from "loaded
- * but empty" so the empty state doesn't flash before the first fetch resolves.
- */
 export function useStackedCopies(collectionId?: string): UseStackedCopiesResult {
   const { data: copies, isReady } = useCopies(collectionId);
   const { allPrintings, sets } = useCards();

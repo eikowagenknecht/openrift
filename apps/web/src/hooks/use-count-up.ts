@@ -2,9 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 /**
  * Animates a number from 0 to the target value using an ease-out curve.
- * Returns the current animated value. Restarts when `target` changes.
- *
- * @returns The current display value (integer).
+ * Restarts when `target` changes.
  */
 export function useCountUp(target: number, durationMs = 1200): number {
   const [value, setValue] = useState(0);

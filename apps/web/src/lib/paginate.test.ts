@@ -38,8 +38,6 @@ describe("getPageItems", () => {
   });
 
   it("never repeats the first or last page next to the window", () => {
-    // current=3 in a long range would put a sibling at page 2, adjacent to
-    // page 1, so no leading ellipsis is inserted.
     expect(getPageItems(3, 20)).toEqual([1, 2, 3, 4, "ellipsis", 20]);
   });
 });

@@ -3,11 +3,6 @@ import { useState } from "react";
 import { isAcceptedImageType, scaledDimensions, shouldDownscale } from "@/lib/card-designer";
 import { useCardDesignerStore } from "@/stores/card-designer-store";
 
-/**
- * Reads a file into a data URL via FileReader.
- *
- * @returns The file contents as a data URL.
- */
 export function readFileAsDataUrl(file: Blob): Promise<string> {
   // oxlint-disable-next-line promise/avoid-new -- wrapping the FileReader callback API
   return new Promise<string>((resolve, reject) => {
@@ -23,12 +18,8 @@ export function readFileAsDataUrl(file: Blob): Promise<string> {
 }
 
 /**
- * Decodes a data URL to read its aspect ratio and, if it is larger than the
- * cap, redraw it smaller on a canvas. Best-effort: any failure (no canvas,
- * decode error) yields the input unchanged with an unknown aspect so the upload
- * still succeeds.
- *
- * @returns The (possibly downscaled) data URL and its aspect ratio.
+ * Best-effort: any failure (no canvas, decode error) yields the input
+ * unchanged with an unknown aspect so the upload still succeeds.
  */
 function prepareImage(dataUrl: string): Promise<{ dataUrl: string; aspect: number | null }> {
   // oxlint-disable-next-line promise/avoid-new -- wrapping the HTMLImageElement load callbacks
@@ -68,13 +59,7 @@ interface UseImageUpload {
   error: string | null;
 }
 
-/**
- * Hook that turns a picked file into the designer's background image: validates
- * it is an image, reads it client-side, downscales oversized uploads, and
- * stores the result. Nothing is uploaded to a server.
- *
- * @returns The file handler plus loading and error state.
- */
+/** Nothing is uploaded to a server; the image is read and resized client-side. */
 export function useImageUpload(): UseImageUpload {
   const setImage = useCardDesignerStore((state) => state.setImage);
   const [loading, setLoading] = useState(false);

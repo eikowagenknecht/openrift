@@ -17,9 +17,7 @@ function SharedCollectionRoute() {
   const { data: groupDetail } = useFriendGroupDetail(slug);
   const search = Route.useSearch();
 
-  // Project the friend-group shape onto PublicCollectionDetailResponse so
-  // the shared view component can render it. Timestamps and pagination are
-  // unused on the page so we leave them empty/null.
+  // Timestamps and pagination are unused on the page; left empty/null on purpose.
   const publicShape: PublicCollectionDetailResponse = {
     collection: {
       id: data.collection.id,

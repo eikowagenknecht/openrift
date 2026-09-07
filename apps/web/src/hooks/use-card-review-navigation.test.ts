@@ -13,14 +13,10 @@ const mocks = vi.hoisted(() => ({
   checkAllCards: { mutateAsync: vi.fn(() => Promise.resolve()), isPending: false },
   checkAllPrintings: { mutateAsync: vi.fn(() => Promise.resolve()), isPending: false },
   toastSuccess: vi.fn(),
-  /** Combo -> handler for every currently-enabled hotkey registration. */
   hotkeys: new Map<string, (...args: unknown[]) => void>(),
-  /** The (currentSlug, allowedSlugs) pair the hook passed to useNextUncheckedCard. */
   nextUncheckedArgs: { current: null as [string, Set<string> | null | undefined] | null },
   allCards: [] as { slug: string; setSlugs: string[] }[],
-  /** Rows the (conditionally enabled) admin card list query returns. */
   cardList: [] as { cardSlug: string | null; unlinkedPrintingCount: number }[],
-  /** Whether the hook enabled that query this render. */
   cardListEnabled: { current: false },
 }));
 
@@ -116,7 +112,6 @@ describe("collectReviewCheckTargets", () => {
       [],
     );
 
-    // p2's only source is checked; p3 has no sources at all.
     expect(targets.printingIds).toEqual(["p1"]);
   });
 
@@ -137,7 +132,6 @@ describe("collectReviewCheckTargets", () => {
       ],
     );
 
-    // One entry per group with work left, so each fires its own extraIds call.
     expect(targets.extraCandidateIds).toEqual([["a1"], ["c1"]]);
   });
 
@@ -197,7 +191,6 @@ describe("useCardReviewNavigation", () => {
   it("scopes prev/next and the next-unchecked lookup to the active set filter", () => {
     const { result } = renderNav({ setSlug: "prox" });
 
-    // "ahri" is not in the prox set, so there is no previous card.
     expect(result.current.prevNextCards).toEqual({ prev: null, next: "zed" });
     expect(mocks.nextUncheckedArgs.current?.[0]).toBe("yasuo");
     expect([...(mocks.nextUncheckedArgs.current?.[1] ?? [])]).toEqual(["yasuo", "zed"]);
@@ -226,13 +219,11 @@ describe("useCardReviewNavigation", () => {
       { cardSlug: "ahri", unlinkedPrintingCount: 0 },
       { cardSlug: "yasuo", unlinkedPrintingCount: 2 },
       { cardSlug: "zed", unlinkedPrintingCount: 1 },
-      // An unmatched candidate row has no card page to navigate to.
       { cardSlug: null, unlinkedPrintingCount: 3 },
     ];
     const { result } = renderNav({ listStatus: "new-printings" });
 
     expect(mocks.cardListEnabled.current).toBe(true);
-    // "ahri" has no unlinked candidate printings left, so it drops out.
     expect(result.current.prevNextCards).toEqual({ prev: null, next: "zed" });
   });
 
@@ -247,14 +238,13 @@ describe("useCardReviewNavigation", () => {
     expect(result.current.prevNextCards).toEqual({ prev: "ahri", next: "zed" });
   });
 
-  it("carries the new-printings filter through every navigation", () => {
+  it("carries the new-printings filter through navigation, excluding the price scope", () => {
     const { result } = renderNav({ listStatus: "new-printings", priceScope: "cardmarket" });
 
     act(() => {
       result.current.goToList();
     });
 
-    // The price scope belongs to the other filter, so it stays out of the URL.
     expect(mocks.navigate).toHaveBeenCalledWith({
       to: "/admin/cards",
       search: { status: "new-printings" },
@@ -330,8 +320,6 @@ describe("useCardReviewNavigation", () => {
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
-  // A card row can exist without an accepted card (unmatched sources only);
-  // there is nothing to check off, so the run must not navigate away.
   it("does nothing when the detail carries no accepted card", async () => {
     const { result } = renderNav({ detail: stubDetail({ card: null }) });
 
@@ -356,8 +344,6 @@ describe("useCardReviewNavigation", () => {
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
-  // The hotkeys read the same prevNextCards as the < / > buttons, so they can
-  // never drift from what clicking does.
   it("moves with the same selection as the prev/next buttons on the arrow hotkeys", () => {
     renderNav();
 
@@ -388,8 +374,6 @@ describe("useCardReviewNavigation", () => {
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
-  // Triage is full-admin: a card-review grant holder must not be able to check
-  // a whole card off with the shortcut.
   it("registers the check-all shortcut for admins only", () => {
     renderNav({ isAdmin: false });
     expect(mocks.hotkeys.has("Mod+Shift+Enter")).toBe(false);

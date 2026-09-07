@@ -198,7 +198,6 @@ describe("rehydrate validation", () => {
     );
     await useDeckOverviewViewStore.persist.rehydrate();
     const state = useDeckOverviewViewStore.getState();
-    // The retired key is simply not read; the rest of the blob still loads.
     expect(state.columns).toBeNull();
     expect(state.displayMode).toBe("list");
     expect("thumbSize" in state).toBe(false);

@@ -2,11 +2,6 @@ import type { DeckPlanResponse } from "@openrift/shared";
 
 import type { DeckPlanSaveInput } from "@/hooks/use-deck-plan";
 
-// Pure helpers for the deck-plan editor (ADR-029): the editable draft shape,
-// conversions to/from the wire types, and the soft validation that warns
-// (never blocks) when swaps don't balance or reference cards the deck no
-// longer holds. Kept free of React so it's unit-tested in isolation.
-
 export type SwapDirection = "in" | "out";
 
 export interface PlanSwapDraft {
@@ -15,9 +10,8 @@ export interface PlanSwapDraft {
   quantity: number;
 }
 
-// Stable client-side id for a draft matchup, used as the React key so a
-// matchup's component instance (and its collapse state) follows it across
-// reorders. Never sent to the server.
+// React key so a matchup's component instance (and collapse state) follows
+// it across reorders. Never sent to the server.
 let matchupUidCounter = 0;
 function nextMatchupUid(): string {
   matchupUidCounter += 1;
@@ -25,11 +19,8 @@ function nextMatchupUid(): string {
 }
 
 export interface PlanMatchupDraft {
-  /** Stable client-side id (React key); not persisted. */
   uid: string;
-  /** Optional linked identity card (any type); null for a label-only matchup. */
   opponentCardId: string | null;
-  /** Free-text opponent label (archetype / domain / build name). */
   opponentLabel: string;
   notes: string;
   swaps: PlanSwapDraft[];
@@ -44,19 +35,14 @@ export interface PlanDraft {
   battlefieldGame1CardId: string | null;
   battlefieldFirstCardId: string | null;
   battlefieldSecondCardId: string | null;
-  /** When true, `battlefieldNote` free text replaces the per-scenario picks. */
   battlefieldCustom: boolean;
   battlefieldNote: string;
   matchups: PlanMatchupDraft[];
 }
 
-/** Per-card copy counts in the deck, used to check swaps and battlefields against what the deck holds. */
 export interface DeckPlanContext {
-  /** cardId → copies in the maindeck (`main` zone): the OUT pool. */
   maindeck: Map<string, number>;
-  /** cardId → copies in the `sideboard` zone: the IN pool. */
   sideboard: Map<string, number>;
-  /** cardIds in the deck's `battlefield` zone. */
   battlefieldCardIds: Set<string>;
 }
 
@@ -100,7 +86,6 @@ export function createEmptyPlanDraft(): PlanDraft {
   };
 }
 
-// Seeds the editor draft from a loaded plan.
 export function planResponseToDraft(plan: DeckPlanResponse): PlanDraft {
   return {
     generalStrategy: plan.generalStrategy,
@@ -127,19 +112,13 @@ export function planResponseToDraft(plan: DeckPlanResponse): PlanDraft {
   };
 }
 
-// True once a matchup is identifiable — a linked card, a label, or both; only
-// complete matchups are saved.
 export function isMatchupComplete(matchup: PlanMatchupDraft): boolean {
   return matchup.opponentCardId !== null || matchup.opponentLabel.trim() !== "";
 }
 
 /**
- * Converts the editor draft to the save payload. Drops matchups with no
- * opponent (neither a linked card nor a label) and swaps without a card or
- * non-positive quantity, and trims text, so an in-progress row never reaches
- * the API.
- *
- * @returns The normalized save payload.
+ * Drops matchups with no opponent and swaps without a card or non-positive
+ * quantity, so an in-progress row never reaches the API.
  */
 export function planDraftToSaveInput(draft: PlanDraft): DeckPlanSaveInput {
   return {
@@ -174,14 +153,7 @@ function countSwaps(matchup: PlanMatchupDraft, direction: SwapDirection): number
     .reduce((total, swap) => total + swap.quantity, 0);
 }
 
-/**
- * Computes the soft warnings shown in the editor. Advisory only — the plan
- * still saves. Covers: a matchup with no Legend, unbalanced in/out counts,
- * swaps that exceed the deck's available copies, and a chosen battlefield the
- * deck doesn't run.
- *
- * @returns The list of warnings, empty when the plan is clean.
- */
+/** Advisory only: warnings never block a save. */
 export function computePlanWarnings(draft: PlanDraft, context: DeckPlanContext): PlanWarning[] {
   const warnings: PlanWarning[] = [];
 
@@ -226,10 +198,8 @@ export function computePlanWarnings(draft: PlanDraft, context: DeckPlanContext):
     }
   });
 
-  // Custom mode hides the per-scenario picks (the free-text note replaces
-  // them), so the picks aren't editable and their warnings would be for fields
-  // the user can't see. Skip both battlefield checks entirely rather than
-  // relying on the editor to suppress the output.
+  // Custom mode hides the per-scenario picks, so their warnings would be for
+  // fields the user can't see.
   if (!draft.battlefieldCustom) {
     const scenarios = [
       { scenario: "game1" as const, cardId: draft.battlefieldGame1CardId },
@@ -242,8 +212,6 @@ export function computePlanWarnings(draft: PlanDraft, context: DeckPlanContext):
       }
     }
 
-    // A battlefield used in more than one scenario is almost always a mistake
-    // (you only run one copy). Report each duplicated card once.
     const seenBattlefields = new Set<string>();
     const reportedDuplicates = new Set<string>();
     for (const { cardId } of scenarios) {
@@ -261,7 +229,6 @@ export function computePlanWarnings(draft: PlanDraft, context: DeckPlanContext):
   return warnings;
 }
 
-// True when the draft has no content worth saving (empty deck-level fields and no complete matchups).
 export function isPlanDraftEmpty(draft: PlanDraft): boolean {
   return (
     draft.generalStrategy.trim() === "" &&

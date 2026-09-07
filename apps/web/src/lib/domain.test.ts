@@ -11,10 +11,6 @@ import {
 
 const DOMAIN_OPTIONS = ["fury", "calm", "mind", "body", "chaos", "order", "colorless"] as const;
 
-// ---------------------------------------------------------------------------
-// getDomainGradientStyle
-// ---------------------------------------------------------------------------
-
 describe("getDomainGradientStyle", () => {
   it("returns a solid background color for a single domain", () => {
     const style = getDomainGradientStyle(["fury"]);
@@ -60,10 +56,6 @@ describe("getDomainGradientStyle", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// getDomainTintStyle
-// ---------------------------------------------------------------------------
-
 describe("getDomainTintStyle", () => {
   it("returns a single-color gradient for a single domain", () => {
     const style = getDomainTintStyle(["fury"]);
@@ -85,10 +77,6 @@ describe("getDomainTintStyle", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// formatDomainFilterLabel
-// ---------------------------------------------------------------------------
-
 describe("formatDomainFilterLabel", () => {
   it('returns "None" for Colorless', () => {
     expect(formatDomainFilterLabel("colorless")).toBe("None");
@@ -98,10 +86,6 @@ describe("formatDomainFilterLabel", () => {
     expect(formatDomainFilterLabel("fury")).toBe("fury");
   });
 });
-
-// ---------------------------------------------------------------------------
-// computeDomainDisabled
-// ---------------------------------------------------------------------------
 
 describe("computeDomainDisabled", () => {
   it("disables nothing when no domain is selected, except never colorless either", () => {
@@ -118,7 +102,6 @@ describe("computeDomainDisabled", () => {
     const disabled = computeDomainDisabled(["fury", "mind"], DOMAIN_OPTIONS);
     expect(disabled.has("calm")).toBe(true);
     expect(disabled.has("colorless")).toBe(true);
-    // selected ones remain enabled so they can be removed
     expect(disabled.has("fury")).toBe(false);
     expect(disabled.has("mind")).toBe(false);
   });
@@ -129,10 +112,6 @@ describe("computeDomainDisabled", () => {
     expect(disabled.has("colorless")).toBe(false);
   });
 });
-
-// ---------------------------------------------------------------------------
-// getPipBackgroundStyle
-// ---------------------------------------------------------------------------
 
 describe("getPipBackgroundStyle", () => {
   it("returns a solid color for a single domain", () => {
@@ -151,10 +130,6 @@ describe("getPipBackgroundStyle", () => {
     });
   });
 });
-
-// ---------------------------------------------------------------------------
-// getPipGlyphTint
-// ---------------------------------------------------------------------------
 
 describe("getPipGlyphTint", () => {
   it("picks black for light single-domain backgrounds", () => {

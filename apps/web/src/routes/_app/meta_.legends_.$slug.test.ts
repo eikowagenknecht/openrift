@@ -14,7 +14,6 @@ type LoaderFn = (ctx: {
 const SLUG = "kennen-heart-of-the-tempest";
 const CARD_ID = "card-kennen";
 
-// One released main set, so the default era is a real window the query carries.
 const SETS = {
   sets: [
     {

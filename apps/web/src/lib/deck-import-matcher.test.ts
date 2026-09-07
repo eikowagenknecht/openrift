@@ -80,9 +80,6 @@ describe("matchDeckEntries", () => {
   });
 
   describe("shortCode lookup language independence", () => {
-    // Multiple language printings share a shortCode. The deck-code formats
-    // (Piltover, TTS) only encode card identity, so the matcher must not pin
-    // a specific language printing — display falls back to language preference.
     const enPrinting = stubPrinting({
       id: "printing-en",
       shortCode: "OGN-001",
@@ -93,7 +90,6 @@ describe("matchDeckEntries", () => {
       id: "printing-sc",
       shortCode: "OGN-001",
       language: "SC",
-      // Same cardId so they're treated as the same card.
       cardId: enPrinting.cardId,
       card: { ...enPrinting.card, name: "Test Card" },
     });

@@ -1,29 +1,20 @@
 /**
  * Narrowing for dnd-kit drag and drop payloads.
  *
- * Every surface keeps its own payload vocabulary — a deck drag carries zones, a
- * collection drag carries copy ids, a tier drag carries rows, and there is no
- * useful shape common to all three. What they do share is the check at the
- * boundary: `event.active.data.current` is `unknown`, and dnd-kit will happily
- * hand a handler a payload another context on the page put there.
+ * Every surface keeps its own payload vocabulary (deck zones, collection copy
+ * ids, tier rows); narrowing happens at the `unknown` boundary.
  */
 
 import type { Collision, DroppableContainer } from "@dnd-kit/core";
 
-/** The minimum any of our payloads carries: a discriminator to check it by. */
 interface TypedDragData {
   type: string;
 }
 
 /**
- * Narrows a dnd-kit payload to one of `types`, or nothing.
- *
- * Prefer this to a bare `as` cast. Contexts nest (the collections layout hosts
- * the sidebar's own sortable rows; the deck editor hosts the card browser), so
- * a handler does get payloads that are not its own, and a cast would let one
- * through to be read as a shape it never had.
- *
- * @returns The payload when it is one of `types`, otherwise undefined.
+ * Contexts nest (the collections layout hosts the sidebar's sortable rows;
+ * the deck editor hosts the card browser), so a handler can receive a
+ * payload that isn't its own.
  */
 export function asDragData<T extends TypedDragData>(
   data: unknown,
@@ -36,14 +27,7 @@ export function asDragData<T extends TypedDragData>(
   return types.includes(candidate.type) ? candidate : undefined;
 }
 
-/**
- * Reads the drop payload a collision points at.
- *
- * dnd-kit types `Collision["data"]` as `Record<string, any>`. Every built-in
- * detector puts a `droppableContainer` there.
- *
- * @returns The hovered target's payload, for `asDragData` to narrow.
- */
+/** dnd-kit types `Collision["data"]` as `Record<string, any>`, but every built-in detector puts a `droppableContainer` there. */
 export function collisionDropData(collision: Collision): unknown {
   const { droppableContainer } = (collision.data ?? {}) as {
     droppableContainer?: DroppableContainer;

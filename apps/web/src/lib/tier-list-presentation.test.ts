@@ -131,8 +131,6 @@ describe("revealedRows", () => {
 
   it("keeps cards in board order rather than reveal order", () => {
     const rows = board(["S", "a", "b", "c"]);
-    // A climbing run still reads each row left to right, so revealing two from
-    // this single row must not reorder what is already on the board.
     const queue = tierRowsToQueue(rows, "worst-first");
 
     const revealed = revealedRows(rows, queue, 2);
@@ -143,8 +141,6 @@ describe("revealedRows", () => {
 
 describe("boardRevealCount", () => {
   it("leaves the card in hand off the board during a reveal", () => {
-    // The stage holds the card at the current stop up rather than placing it,
-    // so a mirror that counted it would drop it in a beat early.
     expect(boardRevealCount({ reveal: true, index: 3, total: 10 })).toBe(3);
   });
 

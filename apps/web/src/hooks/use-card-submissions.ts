@@ -17,13 +17,7 @@ const fetchCardSubmissionsFn = createServerFn({ method: "GET" })
     ),
   );
 
-/**
- * Query options for the viewer's own card submissions and their review status
- * (ADR-036). Shared by the hook below and the /contribute/submissions loader.
- * The API scopes to the session user, so the id here only keys the cache.
- * @param userId The viewer, for the cache key.
- * @returns The submissions infinite-query options.
- */
+/** The API scopes to the session user; `userId` here only keys the cache. */
 export function cardSubmissionsQueryOptions(userId: string) {
   return infiniteQueryOptions({
     queryKey: queryKeys.cardSubmissions.all(userId),
@@ -36,10 +30,6 @@ export function cardSubmissionsQueryOptions(userId: string) {
   });
 }
 
-/**
- * The viewer's card submissions, newest first.
- * @returns The submissions infinite query.
- */
 export function useCardSubmissions() {
   const userId = useRequiredUserId();
   return useInfiniteQuery(cardSubmissionsQueryOptions(userId));

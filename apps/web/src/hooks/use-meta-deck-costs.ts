@@ -13,11 +13,7 @@ import {
 import type { MetaDateRange } from "@/lib/meta-scope";
 import { useDisplayStore } from "@/stores/display-store";
 
-/**
- * Undefined while a requested collection is still loading. Reads a live query,
- * so it must sit under `useHydrated`. `range` narrows the card index to the
- * same window of event dates the deck list is scoped to.
- */
+/** Reads a live query, so it must sit under `useHydrated`. */
 export function useMetaDeckCosts(
   includeSideboard: boolean,
   options: { withCollection: boolean; range?: MetaDateRange },

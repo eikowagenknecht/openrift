@@ -8,13 +8,11 @@ import { PAGE_WIDTH } from "./utils";
 
 const SRC_DIR = join(import.meta.dirname, "..");
 
-// A centered column at one of these widths is a page width by another name.
-// Component-level constraints (a `max-w-sm` input, a `max-w-md` dialog, a
-// `max-w-prose` article) are not, so they stay out of the pattern.
+// Excludes component-level widths (max-w-sm/md/prose), which are not page
+// columns.
 const PAGE_COLUMN = /max-w-(?:2xl|3xl|4xl|5xl|6xl|7xl)\b/u;
 
-// Surfaces that are deliberately not one of the two page widths. Each is a
-// component width or a marketing layout, never a route's content column.
+// Component or marketing-layout widths that deliberately aren't a page width.
 const EXEMPT = new Set([
   "components/deck/deck-builder-intro-banner.tsx",
   "components/deck/deck-mobile-dock.tsx",

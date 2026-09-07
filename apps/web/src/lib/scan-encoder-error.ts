@@ -1,48 +1,20 @@
 import { errorText } from "./error-text";
 
-/**
- * Error text of a thrown value, for matching against known ort failures.
- *
- * The ort proxy worker serializes worker-side failures back over postMessage,
- * so the thrown value is not always an Error instance. Unlike the plain
- * `errorText`, a non-Error is stringified rather than dropped: the patterns
- * below have to match on whatever the worker sent back.
- *
- * @returns The message of an Error, or the stringified value.
- */
+// The ort proxy worker serializes worker-side failures over postMessage: the thrown value is not always an Error.
 function matchableText(thrown: unknown): string {
   return errorText(thrown, String(thrown));
 }
 
 const OUT_OF_MEMORY_PATTERN = /out of memory|cannot enlarge memory|\boom\b/iu;
 
-/**
- * Whether a failed `InferenceSession.create` is worth retrying in this page.
- *
- * onnxruntime resolves its wasm backend once per page: when backend init
- * itself fails (out of memory compiling the wasm or spawning the proxy
- * worker), ort marks the backend aborted and every later create fast-fails
- * with "no available backend found" without ever re-running init. Only a
- * create failure past backend init (loading the model into the session) can
- * succeed on a second try.
- *
- * @returns True when the backend is still alive, so a retry can help.
- */
+// onnxruntime resolves its wasm backend once per page; once backend init
+// fails, every later create fast-fails without re-running init.
 export function encoderCreateRetryable(thrown: unknown): boolean {
   return !matchableText(thrown).includes("no available backend found");
 }
 
-/**
- * Human-readable message for a failed encoder start.
- *
- * Out-of-memory failures surface as developer-speak ("no available backend
- * found. ERR: [wasm] ... Out of memory"), and once the backend has aborted
- * the only recovery is a fresh tab (observed on iOS under tab memory
- * pressure). Map those to a message telling the user what to do; other
- * errors keep their own message.
- *
- * @returns A user-facing message for the failure.
- */
+// Out-of-memory failures surface as developer-speak; the only recovery is a
+// fresh tab (observed on iOS under tab memory pressure), so map to that.
 export function encoderStartErrorMessage(thrown: unknown, fallback: string): string {
   if (OUT_OF_MEMORY_PATTERN.test(matchableText(thrown))) {
     return "The browser ran out of memory while starting the scanner. Close unused tabs, then open this page again in a new tab.";

@@ -67,7 +67,7 @@ describe("fetchApi", () => {
     expect(init.body).toBe(JSON.stringify({ name: "A" }));
   });
 
-  it("throws an ApiError with the server message + code on a JSON envelope", async () => {
+  it("throws an ApiError with the server message, code, and status on a JSON envelope", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const fetchMock = vi.fn().mockResolvedValueOnce(
       mockResponse('{"error":"Collection not found","code":"NOT_FOUND"}', {
@@ -87,12 +87,9 @@ describe("fetchApi", () => {
     if (!isApiError(err)) {
       throw new Error("expected an ApiError");
     }
-    expect(err.message).toBe("Collection not found"); // server message wins, not errorTitle
+    expect(err.message).toBe("Collection not found");
     expect(err.code).toBe("NOT_FOUND");
-    // status survives as an own property so callers can branch on it (e.g.
-    // isSessionExpiredError checks for 401) after the server-fn boundary.
     expect(err.status).toBe(404);
-    // diagnostic carries the raw response body (the JSON envelope), for the console.
     expect(err.diagnostic).toMatch(/DELETE .+ → 404 Not Found/u);
     expect(err.diagnostic).toContain('"error":"Collection not found"');
   });

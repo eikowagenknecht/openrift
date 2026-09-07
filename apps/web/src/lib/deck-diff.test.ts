@@ -39,7 +39,6 @@ describe("diffDecks", () => {
   });
 
   it("sums split printings of the same card in the same zone", () => {
-    // The builder holds one card as several rows when printings are pinned.
     const ours = [card("a", 1), card("a", 2)];
     const theirs = [card("a", 3)];
 
@@ -133,7 +132,6 @@ describe("diffDecks", () => {
   });
 
   it("splits a partial overlap into shared, add, and cut copies", () => {
-    // 1 copy shared, 2 to add on `up`, 2 to cut on `down`, plus a clean pair.
     const ours = [card("up", 1), card("down", 3), card("gone", 2)];
     const theirs = [card("up", 3), card("down", 1), card("new", 4)];
 
@@ -184,8 +182,6 @@ describe("deckDiffCardsFrom", () => {
   });
 
   it("keeps one row per printing so split quantities survive", () => {
-    // The builder holds one card as several rows when printings are pinned;
-    // summing them is the diff's job, not this one's.
     const result = deckDiffCardsFrom([deckCard("a", 1), deckCard("a", 2)], catalog({ a: "Ashe" }));
 
     expect(result.map((entry) => entry.quantity)).toEqual([1, 2]);

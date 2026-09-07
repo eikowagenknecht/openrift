@@ -262,7 +262,6 @@ describe("useSelectionStore", () => {
       ];
       useSelectionStore.getState().selectCard(a, items, "card", { zone: "sideboard" });
 
-      // The main-deck copy leaves, shifting both sideboard entries up one.
       useSelectionStore.getState().reconcileSelection([
         { id: "sideboard:p1", printing: a, zone: "sideboard" as const },
         { id: "sideboard:p2", printing: b, zone: "sideboard" as const },

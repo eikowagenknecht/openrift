@@ -25,8 +25,6 @@ describe("useMouseHover", () => {
   });
 
   it("ignores a touch enter", () => {
-    // iOS Safari synthesizes hover on tap. Reacting to it opened the trades
-    // card preview over most of the phone screen, with no leave to close it.
     const { result } = renderHook(() => useMouseHover());
 
     act(() => result.current.hoverProps.onPointerEnter(pointerEvent("touch")));
@@ -41,8 +39,6 @@ describe("useMouseHover", () => {
   });
 
   it("keeps a mouse hover alive when a touch leave arrives", () => {
-    // A hybrid device can interleave the two. Only the pointer that opened the
-    // hover should close it.
     const { result } = renderHook(() => useMouseHover());
 
     act(() => result.current.hoverProps.onPointerEnter(pointerEvent("mouse")));

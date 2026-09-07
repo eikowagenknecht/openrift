@@ -136,10 +136,6 @@ function ImportExportPage() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Export
-// ---------------------------------------------------------------------------
-
 function ExportSection() {
   const userId = useRequiredUserId();
   const { data: collections } = useCollections();
@@ -161,7 +157,6 @@ function ExportSection() {
       printingById.set(printing.id, printing);
     }
 
-    // Build stacks grouped by printingId
     const stackMap = new Map<
       string,
       { printingId: string; printing: Printing; copyIds: string[] }
@@ -183,7 +178,6 @@ function ExportSection() {
       }
     }
 
-    // Sort by card ID
     const stacks = [...stackMap.values()];
     const sortedPrintings = sortCards(
       stacks.map((stack) => stack.printing),
@@ -198,8 +192,8 @@ function ExportSection() {
           stack !== undefined,
       );
 
-    // Per-copy metadata (ADR-038): each printing exports one row per distinct
-    // metadata combination, so conditions and notes survive the round trip.
+    // Each printing exports one row per distinct metadata combination, so
+    // conditions and notes survive the round trip.
     const copiesById = new Map(copies.map((copy) => [copy.id, copy]));
     const csv = CSV_EXPORT_FORMATS[exportFormat].generate(
       sortedStacks,
@@ -300,10 +294,6 @@ function ExportSection() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Step 1: Input
-// ---------------------------------------------------------------------------
-
 function InputStep({
   rawText,
   onTextChange,
@@ -366,10 +356,6 @@ function InputStep({
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Step 2: Preview
-// ---------------------------------------------------------------------------
 
 interface CollectionOption {
   id: string;
@@ -486,22 +472,18 @@ function PreviewStep({
         </SectionHeaderActions>
       </SectionHeader>
 
-      {/* Problematic entries — rendered directly so they're easy to spot */}
       {problematicEntries.length > 0 && (
         <div className="divide-border divide-y rounded-md border">
           {problematicEntries.map((item) => renderRow(item))}
         </div>
       )}
 
-      {/* Parse errors — rows that couldn't be recognized at all */}
       <ImportParseErrorDetails errors={parseErrors} unit="row" />
 
-      {/* Exact matches — folded by default so attention stays on what needs action */}
       <ImportExactMatchesDisclosure count={exactEntries.length}>
         {exactEntries.map((item) => renderRow(item))}
       </ImportExactMatchesDisclosure>
 
-      {/* Summary + target collection + import button */}
       <div className="bg-muted/30 space-y-4 rounded-md border p-4">
         <ImportStatusBadges
           readyCount={readyCount}

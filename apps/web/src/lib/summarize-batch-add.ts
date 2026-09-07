@@ -1,9 +1,4 @@
-/**
- * Build a user-facing summary for a batch of copy adds. A batch can repeat
- * the same printing (Enter held) or mix different printings (several clicks).
- * @returns "Added N× Card Name" when the batch targets a single printing,
- *   "Added N cards" otherwise. Returns null when the batch is empty.
- */
+/** "Added N× Card Name" for a single-printing batch, "Added N cards" otherwise. */
 export function summarizeBatchAdd(
   printingIds: string[],
   nameById: (printingId: string) => string | undefined,

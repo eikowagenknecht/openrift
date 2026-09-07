@@ -90,8 +90,6 @@ describe("useDeckStats", () => {
       ]);
 
       expect(stats.typeBreakdown).toEqual([{ type: "unit", total: 1, fury: 1 }]);
-      // The excluded types are dropped from the chart only — they still count
-      // toward the deck total and the curves.
       expect(stats.totalCards).toBe(4);
       expect(stats.energyCurve).toEqual([{ energy: "2", fury: 4 }]);
     });
@@ -103,7 +101,6 @@ describe("useDeckStats", () => {
         { type: "unit", total: 2, fury: 2 },
         { type: "spell", total: 2, fury: 2 },
       ]);
-      // Type totals intentionally exceed the deck size for multi-type cards.
       expect(stats.totalCards).toBe(2);
     });
 
@@ -173,8 +170,6 @@ describe("useDeckStats", () => {
       const stats = statsFor([card({ domains: ["shadow"] as Domain[] })]);
 
       expect(stats.domainDistribution).toEqual([]);
-      // The unknown domain still forms its own curve stack and is only missing
-      // from the domain-split columns.
       expect(stats.energyCurveStacks).toEqual([{ key: "shadow", domains: ["shadow"] }]);
       expect(stats.typeBreakdown).toEqual([{ type: "unit", total: 1 }]);
     });
@@ -214,7 +209,6 @@ describe("useDeckStats", () => {
 
       expect(stats.energyCurve).toEqual([{ energy: "2", fury: 1 }]);
       expect(stats.averageEnergy).toBe(2);
-      // A card with no energy still counts everywhere else.
       expect(stats.totalCards).toBe(2);
       expect(stats.domainDistribution).toEqual([{ domain: "fury", count: 2 }]);
     });

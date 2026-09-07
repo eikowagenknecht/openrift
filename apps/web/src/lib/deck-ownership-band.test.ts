@@ -10,16 +10,10 @@ import {
 } from "@/lib/deck-ownership-band";
 import { stubDeckBuilderCard } from "@/test/factories";
 
-/** The card the scenarios below build decks from: one standard, one foil printing. */
 const CARD = "card-1";
 const STANDARD = "printing-standard";
 const FOIL = "printing-foil";
 
-/**
- * Sources for a single card whose entries display the printings given per deck
- * card key, with `STANDARD` as the card's default art.
- * @returns Lookups ready for `buildOwnershipBands`.
- */
 function sourcesFor(
   availableByPrinting: Record<string, number>,
   displayedPrintingIdByCardKey: Record<string, string>,
@@ -152,9 +146,6 @@ describe("ownershipBandSegments", () => {
   });
 
   it("covers the shortfall with borrowed copies before locked ones", () => {
-    // Borrowed copies are buildable and locked ones aren't, so the band has to
-    // spend the borrowed pool first — otherwise a card the viewer can actually
-    // sleeve would paint as unavailable.
     expect(ownershipBandSegments(3, 1, 0, 1, 1)).toEqual({
       exact: 1,
       other: 0,
@@ -171,8 +162,6 @@ describe("ownershipBandSegments", () => {
     });
   });
 
-  // Regression: a deck built entirely from a friend's cards used to paint the
-  // whole band amber-missing while the shortfall figures said it was complete.
   it("bands a fully-borrowed entry as borrowed, not missing", () => {
     expect(ownershipBandSegments(2, 0, 0, 2)).toEqual({
       exact: 0,
@@ -196,7 +185,6 @@ describe("ownershipBandSegments", () => {
 
 describe("buildOwnershipBands", () => {
   it("splits a stack across the printings owned", () => {
-    // The reported scenario: 3 copies in one stack, 2 standard + 1 foil owned.
     const stack = stubDeckBuilderCard({ cardId: CARD, quantity: 3 });
     const bands = buildOwnershipBands(
       [stack],
@@ -215,8 +203,6 @@ describe("buildOwnershipBands", () => {
   });
 
   it("bands both halves of the same stack split by printing", () => {
-    // The same three copies, pinned as standard ×2 plus foil ×1: each entry is
-    // judged against its own printing, so both come out fully owned.
     const standard = stubDeckBuilderCard({
       cardId: CARD,
       quantity: 2,
@@ -274,8 +260,6 @@ describe("buildOwnershipBands", () => {
   });
 
   it("gives a later entry its own printing instead of spending it as a substitute", () => {
-    // Without the two-pass split, the unpinned ×3 entry would take the foil as
-    // an "other printing" copy and leave the foil entry with no band at all.
     const unpinned = stubDeckBuilderCard({ cardId: CARD, quantity: 3 });
     const foil = stubDeckBuilderCard({ cardId: CARD, quantity: 1, preferredPrintingId: FOIL });
     const bands = buildOwnershipBands(
@@ -388,7 +372,6 @@ describe("buildOwnershipBands", () => {
     expect(
       buildOwnershipBands([card], sources, ownedPrintings, true).get(`${CARD}|main|${STANDARD}`),
     ).toEqual({ exact: 1, other: 0, borrowed: 0, locked: 0, missing: 0 });
-    // Toggle off, the thumbnail shows the pinned standard art again.
     expect(
       buildOwnershipBands([card], sources, ownedPrintings, false).get(`${CARD}|main|${STANDARD}`),
     ).toEqual({ exact: 0, other: 1, borrowed: 0, locked: 0, missing: 0 });
@@ -444,8 +427,6 @@ describe("buildOwnershipBands", () => {
       false,
     );
 
-    // Main claims both available copies plus the single locked one; the
-    // sideboard entry is left with nothing at all, so it carries no band.
     expect(bands.get(`${CARD}|main|`)).toEqual({
       exact: 2,
       other: 0,
@@ -490,8 +471,6 @@ describe("buildOwnershipBands", () => {
       false,
     );
 
-    // Two of the three borrowed copies cover the main deck; the third is all
-    // the sideboard entry gets, so it bands one borrowed and one missing.
     expect(bands.get(`${CARD}|main|`)).toEqual({
       exact: 0,
       other: 0,
@@ -587,8 +566,6 @@ describe("sameOwnershipBandSources", () => {
     ).toBe(false);
     expect(sameOwnershipBandSources(base, sourcesFor({ [STANDARD]: 2 }, {}))).toBe(false);
     expect(sameOwnershipBandSources(base, { ...base, lockedByCardId: { [CARD]: 1 } })).toBe(false);
-    // A returned or newly-acknowledged loan changes only this lookup, so
-    // skipping it here would freeze the bands until something else moved.
     expect(sameOwnershipBandSources(base, { ...base, borrowedByCardId: { [CARD]: 1 } })).toBe(
       false,
     );
@@ -666,8 +643,6 @@ describe("ownershipBandTitle", () => {
     );
   });
 
-  // An entry needing nothing has borrowed === needed === 0, which must not
-  // fall into the all-borrowed branch.
   it("doesn't claim a borrow for an entry that needs nothing", () => {
     expect(ownershipBandTitle(0, { exact: 0, other: 0, borrowed: 0, locked: 0, missing: 0 })).toBe(
       "You own all 0 in this printing",

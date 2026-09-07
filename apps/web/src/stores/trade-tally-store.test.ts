@@ -16,8 +16,6 @@ describe("useTradeTallyStore", () => {
   });
 
   it("keeps a count of zero, which is a real answer", () => {
-    // "They forgot this one" has to survive as its own state, distinct from a
-    // row nobody has looked at yet.
     useTradeTallyStore.getState().setCount("trade-1", 0);
     expect(useTradeTallyStore.getState().counts).toEqual({ "trade-1": 0 });
   });
@@ -68,8 +66,6 @@ describe("talliedCount", () => {
   });
 
   it("caps a stale tally at what is left of the row", () => {
-    // The other party can settle part of the swap while the tally sits in
-    // localStorage, which shrinks the row under it.
     expect(talliedCount({ "trade-1": 3 }, "trade-1", 2)).toBe(2);
   });
 });

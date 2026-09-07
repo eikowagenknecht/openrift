@@ -3,13 +3,6 @@ import { z } from "zod";
 
 import { metaScopeSearchSchema } from "@/lib/meta-scope";
 
-/**
- * Search-param schema for the meta deck browser (ADR-014): the archive-wide
- * scope every page shares, plus the browser's own axes. Every field is optional
- * and `.catch`es to undefined, so a stale bookmark loses the bad value instead
- * of crashing the route.
- */
-/** The columns the deck browser can be ordered by. */
 const META_DECK_SORTS = ["date", "finish", "value", "cost"] as const;
 
 export type MetaDeckSort = (typeof META_DECK_SORTS)[number];
@@ -20,19 +13,13 @@ export const DEFAULT_DECK_SORT: MetaDeckSort = "date";
 export const DEFAULT_DECK_DIRECTION: MetaDeckSortDirection = "desc";
 
 export const metaDeckSearchSchema = metaScopeSearchSchema.extend({
-  /** Named `by`, not `sort`, for the same reason as the event index's key. */
   by: z.enum(META_DECK_SORTS).optional().catch(undefined),
   dir: z.enum(["asc", "desc"]).optional().catch(undefined),
-  /** Event slugs, matched as a union. */
   events: z.array(z.string()).optional().catch(undefined),
-  /** Legend card ids, matched as a union. */
   legends: z.array(z.string()).optional().catch(undefined),
-  /** The worst finish still shown, as a rank bound (1, 4, 8, 16). */
+  /** Rank bound: 1, 4, 8, or 16. */
   finish: z.number().int().positive().optional().catch(undefined),
-  /**
-   * Opens every archived list. Absent is the curated view — one tile per legend
-   * per event — which is what the browser opens on.
-   */
+  /** Absent means the curated view: one tile per legend per event. */
   all: z.boolean().optional().catch(undefined),
   /** Currency major units. */
   cost: z.number().nonnegative().optional().catch(undefined),
@@ -44,11 +31,6 @@ export const metaDeckSearchSchema = metaScopeSearchSchema.extend({
 
 export type MetaDeckSearch = z.infer<typeof metaDeckSearchSchema>;
 
-/**
- * Search-param schema for the `/meta` front page: the archive-wide scope every
- * page shares, plus the front page's own text search.
- */
 export const metaOverviewSearchSchema = metaScopeSearchSchema.extend({
-  /** Free text matched against event names, organizers and venues. */
   q: z.string().optional().catch(undefined),
 });

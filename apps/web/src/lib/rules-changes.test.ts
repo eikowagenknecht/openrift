@@ -57,8 +57,6 @@ describe("detectMoves", () => {
   });
 
   it("keeps a tombstone source out of displacedSet even though it lost its content", () => {
-    // displacedSet is for rule_numbers that survive holding *different* content.
-    // A tombstone no longer exists, so it can never be displaced.
     const tombstone = rule({
       ruleNumber: "100.1",
       version: PREVIOUS_VERSION,
@@ -77,8 +75,6 @@ describe("detectMoves", () => {
   });
 
   it("marks a rule whose old content went elsewhere as displaced", () => {
-    // 100.1 still exists but now holds fresh content, and its previous content
-    // resurfaced under 300.5. Its stored previousContent is misleading.
     const rules = [
       rule({ ruleNumber: "100.1", changeType: "modified", content: "Brand new wording." }),
       rule({ ruleNumber: "300.5", content: "The old wording." }),
@@ -96,8 +92,6 @@ describe("detectMoves", () => {
   });
 
   it("treats a two-rule content swap as two moves and no displacement", () => {
-    // Both rule_numbers receive content from the other, so neither is left
-    // holding content from outside the tracked diff.
     const rules = [
       rule({ ruleNumber: "100.1", changeType: "modified", content: "Text B." }),
       rule({ ruleNumber: "100.2", changeType: "modified", content: "Text A." }),
@@ -115,8 +109,6 @@ describe("detectMoves", () => {
   });
 
   it("still matches when only the rule cross-references were renumbered", () => {
-    // Section reorganization renumbers every reference in the body. Without
-    // reference normalization this would read as a change, not a move.
     const tombstone = rule({
       ruleNumber: "100.1",
       version: PREVIOUS_VERSION,
@@ -168,8 +160,6 @@ describe("detectMoves", () => {
   });
 
   it("only considers rules that changed in this version as move targets", () => {
-    // An untouched rule that happens to share boilerplate with a tombstone is
-    // not a move target.
     const untouched = rule({
       ruleNumber: "200.1",
       version: PREVIOUS_VERSION,
@@ -214,14 +204,11 @@ describe("detectMoves", () => {
       VERSION,
     );
 
-    // 100.1 claims 200.1; 100.2 finds the same target already taken.
     expect(result.oldToNew.get("100.1")).toBe("200.1");
     expect(result.oldToNew.has("100.2")).toBe(false);
   });
 
   it("does not report a rule as moved onto itself", () => {
-    // Emphasis-only edit: the normalized content is unchanged, but the rule
-    // stayed where it was.
     const rules = [rule({ ruleNumber: "100.1", changeType: "modified", content: "Draw a card." })];
 
     const result = detectMoves(
@@ -566,7 +553,6 @@ describe("computeFoldGroups", () => {
   });
 
   it("does not group a numeric-prefix sibling that is not dot-nested", () => {
-    // 1030 starts with "103" but not with "103.", so it is a sibling.
     const rules = [rule({ ruleNumber: "103" }), rule({ ruleNumber: "1030" })];
 
     expect(computeFoldGroups(rules).size).toBe(0);
@@ -651,7 +637,6 @@ describe("computeSearchResult", () => {
   });
 
   it("matches case-insensitively against the rule content", () => {
-    // Callers pass terms through parseSearchTerms, which lowercases them.
     expect([...computeSearchResult(rules, parseSearchTerms("COMBAT")).matchSet]).toEqual([5]);
   });
 

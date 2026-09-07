@@ -47,13 +47,9 @@ export const Route = createFileRoute("/_app/meta_/players_/$key")({
       ],
     };
   },
-  // The scope is in the URL, so it is a loader dep: a reader who narrows the
-  // page gets the narrowed decks from the server rather than from a refetch.
   loaderDeps: ({ search }) => search,
-  // The flag check lives in the loader, not beforeLoad: a beforeLoad combined
-  // with a head() that reads loaderData collapses the route-context type to
-  // `never` in the current TanStack Router version. Same pattern as
-  // meta_.legends_.$slug.tsx; the redirect still fires before anything renders.
+  // beforeLoad combined with a head() reading loaderData collapses the route
+  // context type to `never` in this TanStack Router version; flag check moves here.
   loader: async ({ context, params, deps }): Promise<MetaPlayerDetailResponse> => {
     const flags = (await context.queryClient.query({
       ...featureFlagsQueryOptions,
@@ -68,8 +64,6 @@ export const Route = createFileRoute("/_app/meta_/players_/$key")({
         context.queryClient.query({ ...publicSetListQueryOptions, staleTime: "static" }),
         context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
       ]);
-      // Uncapped: one player's lists inside an era are a few dozen rows, so the
-      // grid renders from the server and pages itself.
       await context.queryClient.query({
         ...metaDecksQueryOptions({
           ...metaScopeQueryFromScope(deps, deriveSetEras(sets.sets)),

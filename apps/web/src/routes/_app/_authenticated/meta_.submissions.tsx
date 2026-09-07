@@ -7,11 +7,6 @@ import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
-/**
- * `/meta/submissions` — what happened to every decklist this person sent
- * (ADR-014's User submissions). Provider uploads keep no outcome ledger; a
- * person who types in a top-8 list needs one, and this page is what reads it.
- */
 export const Route = createFileRoute("/_app/_authenticated/meta_/submissions")({
   ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Decklists you sent", noIndex: true }),

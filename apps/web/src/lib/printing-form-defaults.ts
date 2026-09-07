@@ -1,6 +1,5 @@
 import type { AdminPrintingResponse } from "@openrift/shared";
 
-/** Values the create-printing form falls back to when nothing is duplicated. */
 export interface PrintingFormFallbacks {
   setSlug: string;
   rarity: string;
@@ -32,17 +31,9 @@ export interface PrintingFormDefaults {
 }
 
 /**
- * Initial field values for the admin create-printing form, either blank or
- * copied from the printing being duplicated.
- *
- * Every field lives here rather than inline at each `useState` so a duplicate
- * carries the whole source printing. `size` in particular is part of the
- * printing identity (`uq_printings_identity`), so a duplicate that silently
- * reset it to the default landed on a different printing than the admin was
- * looking at. The image URL is deliberately not copied: the duplicate gets its
- * own artwork.
- *
- * @returns The form's initial values.
+ * `size` is part of `uq_printings_identity`, so it is copied like every other
+ * field. The image URL is deliberately not copied: the duplicate gets its own
+ * artwork.
  */
 export function printingFormDefaults(
   source: AdminPrintingResponse | null,

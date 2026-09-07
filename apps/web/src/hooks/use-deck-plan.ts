@@ -9,7 +9,7 @@ import { withCookies } from "@/lib/server-fns/middleware";
 import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
-/** The plan payload the editor sends on save. Matchups carry no id (the server assigns them). */
+/** Matchups carry no id; the server assigns them. */
 export type DeckPlanSaveInput = Omit<ContractInput<typeof decksContract, "replacePlan">, "id">;
 
 const fetchDeckPlanFn = createServerFn({ method: "GET" })
@@ -26,7 +26,7 @@ function deckPlanQueryOptions(userId: string, deckId: string) {
   });
 }
 
-// Loads a deck's plan. SSR-safe (plain react-query, no live collection).
+// SSR-safe: plain react-query, no live collection.
 export function useDeckPlan(deckId: string) {
   const userId = useRequiredUserId();
   return useSuspenseQuery(deckPlanQueryOptions(userId, deckId));
@@ -39,7 +39,6 @@ const saveDeckPlanFn = createServerFn({ method: "POST" })
     apiOrpcClient(decksContract, context.cookie).replacePlan({ id: data.deckId, ...data.plan }),
   );
 
-// Persists the whole plan (explicit Save). Updates the plan cache with the server's canonical copy.
 export function useSaveDeckPlan() {
   const userId = useRequiredUserId();
   const queryClient = useQueryClient();

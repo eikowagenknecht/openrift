@@ -1,15 +1,3 @@
-// Deck-builder draft: the user's in-progress edits for a single deck, held
-// as a per-(QueryClient × userId × deckId) LocalOnlyCollection. Writes are
-// applied synchronously to the collection (optimistic), and a 1s-debounced
-// handler ships the full card set to the server via `saveDeckCardsFn`. The
-// save status (dirty / saving / error) is exposed to React via
-// `useDeckSaveStatus`.
-//
-// Drafts are user-scoped: when the active user changes, every draft from
-// the previous user is evicted from the cache and `cleanupWhenIdle` runs
-// cleanup() the moment its subscriberCount transitions to 0 — reactive
-// teardown, no polling, no [Live Query Error] warnings.
-
 import type { DeckDetailResponse } from "@openrift/shared";
 import type { Collection } from "@tanstack/react-db";
 import { createCollection, localOnlyCollectionOptions } from "@tanstack/react-db";
@@ -27,9 +15,6 @@ import { withTimeout } from "@/lib/with-timeout";
 import { useDeckUndoStore } from "@/stores/deck-undo-store";
 import { isLocalDeckId, useLocalDecksStore } from "@/stores/local-decks-store";
 
-// Cache scope for a browser-local draft. Local drafts are keyed under this
-// fixed sentinel (in place of a userId) so they work logged out and survive a
-// logged-in user's brief null-userId window during session load.
 const LOCAL_SCOPE = "local";
 
 const SAVE_DEBOUNCE_MS = 1000;
@@ -47,17 +32,11 @@ interface DraftEntry {
   collection: Collection<DeckBuilderCard, string | number>;
   status: DeckSaveStatus;
   subscribers: Set<() => void>;
-  /** Timer handle for the pending debounced save. */
   saveTimer: ReturnType<typeof setTimeout> | null;
-  /** Controller for the in-flight save; aborted when a newer save starts. */
   saveController: AbortController | null;
-  /** Monotonic id — the latest save issued wins cache updates even out of order. */
   saveSeq: number;
-  /** Seq of the most recently applied successful save, so stale responses are ignored. */
   lastAppliedSeq: number;
-  /** While true, mutation handlers skip scheduling a save (used during hydration). */
   suppressSave: boolean;
-  /** True once server state has been loaded into the draft for this deck. */
   hydrated: boolean;
 }
 
@@ -102,13 +81,8 @@ function collectionCards(entry: DraftEntry): {
   }));
 }
 
-// Persistence sink for a browser-local deck (ADR-035): write the full card set
-// into `local-decks-store` instead of the server. Synchronous, so no abort /
-// sequencing dance is needed — the debounce in `scheduleSave` already coalesces
-// rapid edits.
 function runLocalSave(entry: DraftEntry): void {
   useLocalDecksStore.getState().setCards(entry.deckId, collectionCards(entry));
-  // A fresh edit may have re-armed the timer while we wrote; keep dirty if so.
   setStatus(entry, { isSaving: false, isDirty: entry.saveTimer !== null, error: null });
 }
 
@@ -133,8 +107,6 @@ async function runSave(queryClient: QueryClient, userId: string, entry: DraftEnt
       { label: "Save deck cards", abortController: controller },
     );
 
-    // A newer save has started since we sent this request — don't clobber
-    // the cache or status with stale data.
     if (seq < entry.lastAppliedSeq || controller.signal.aborted) {
       return;
     }
@@ -144,18 +116,12 @@ async function runSave(queryClient: QueryClient, userId: string, entry: DraftEnt
       queryKeys.decks.detail(userId, entry.deckId),
       (old) => (old ? { ...old, cards: result.cards } : old),
     );
-    // Aggregate stats on the deck list (type counts, domain distribution)
-    // need refreshing. Detail cache is already up-to-date; don't refetch it.
     void queryClient.invalidateQueries({ queryKey: queryKeys.decks.all(userId), exact: true });
 
-    // If more edits queued up a fresh save while we were in flight, leave
-    // isDirty true — the next debounced save will clear it on success.
     const stillDirty = entry.saveTimer !== null;
     setStatus(entry, { isSaving: false, isDirty: stillDirty, error: null });
   } catch (error) {
     if (controller.signal.aborted && seq < entry.saveSeq) {
-      // Superseded by a newer save — swallow the abort; the newer save owns
-      // the status.
       return;
     }
     setStatus(entry, {
@@ -197,9 +163,6 @@ function createEntry(queryClient: QueryClient, userId: string, deckId: string): 
     localOnlyCollectionOptions<DeckBuilderCard>({
       id: `deck-draft:${userId}:${deckId}`,
       getKey: getDeckCardKey,
-      // Handler types require a Promise return, but the save is fire-and-
-      // forget (debounced inside scheduleSave). `Promise.resolve()` satisfies
-      // the type without forcing async keyword + the require-await lint rule.
       onInsert: () => {
         scheduleSave(queryClient, userId, entry);
         return Promise.resolve();
@@ -224,9 +187,8 @@ function getDraftsForUser(queryClient: QueryClient, userId: string): Map<string,
     return existing.drafts;
   }
   if (existing) {
-    // User changed: orphan every previous-user draft and schedule reactive
-    // cleanup. Local-only collections don't auto-GC (gcTime: 0), so without
-    // this they would leak indefinitely.
+    // Local-only collections don't auto-GC (gcTime: 0); orphan and clean up
+    // every previous-user draft here or they leak indefinitely.
     for (const [draftDeckId, draft] of existing.drafts) {
       if (draft.saveTimer) {
         clearTimeout(draft.saveTimer);
@@ -267,11 +229,6 @@ function getOrCreateEntry(queryClient: QueryClient, userId: string, deckId: stri
   return entry;
 }
 
-/**
- * Replace a draft's rows with `cards`: drop what's gone, patch what stayed,
- * insert what's new. Says nothing about saving — the caller decides whether
- * the change should be written back.
- */
 function replaceDraftCards(entry: DraftEntry, cards: DeckBuilderCard[]): void {
   const existingKeys = new Set<string | number>();
   for (const key of entry.collection.keys()) {
@@ -305,12 +262,6 @@ function replaceDraftCards(entry: DraftEntry, cards: DeckBuilderCard[]): void {
   }
 }
 
-/**
- * Replace the draft's contents with the authoritative server state. Used on
- * deck load to seed the draft from the loaded deck detail. Cancels any
- * pending/in-flight save since the new state came from the server and
- * doesn't need to be written back.
- */
 export function hydrateDeckDraft(
   queryClient: QueryClient,
   userId: string,
@@ -340,19 +291,9 @@ export function hydrateDeckDraft(
     notify(entry);
   }
 
-  // Server state just replaced the draft (deck load, import-replace), so any
-  // undo history recorded against the previous contents is meaningless.
   useDeckUndoStore.getState().reset(deckId);
 }
 
-/**
- * Whether the draft for `deckId` has been seeded from server state. The editor
- * holds its content back until it has, so a deck never paints empty on the way
- * in. Subscribed rather than mirrored into component state: the hydration
- * happens outside React, in {@link hydrateDeckDraft}.
- *
- * @returns True once the draft carries the loaded deck.
- */
 export function useDeckDraftHydrated(
   queryClient: QueryClient,
   userId: string,
@@ -376,11 +317,6 @@ export function useDeckDraftHydrated(
   );
 }
 
-/**
- * Replace the draft's contents with a snapshot the user is restoring (undo or
- * redo). Unlike {@link hydrateDeckDraft} this is an ordinary edit: saving is
- * not suppressed, so the usual debounced autosave writes it back.
- */
 export function applyDeckSnapshot(
   queryClient: QueryClient,
   userId: string,
@@ -390,14 +326,6 @@ export function applyDeckSnapshot(
   replaceDraftCards(getOrCreateEntry(queryClient, userId, deckId), cards);
 }
 
-/**
- * Hook variant: returns the current user's draft collection for the given
- * deck, or null when no one is signed in. Live-query consumers should
- * include the result in their dependency array so the live query
- * re-subscribes when the user (or deckId) changes.
- *
- * @returns The current user's draft collection for `deckId`, or null when signed out.
- */
 export function useDeckDraftCollection(
   deckId: string,
 ): Collection<DeckBuilderCard, string | number> | null {
@@ -406,14 +334,6 @@ export function useDeckDraftCollection(
   return scope ? getDeckDraftCollection(queryClient, scope, deckId) : null;
 }
 
-/**
- * The cache scope a deck's draft lives under. Gates on the `local:` prefix,
- * not on userId: a local deck always resolves (even logged out), while a
- * server deck needs a real user.
- *
- * @returns The scope to pass to the draft functions, or null when a server
- * deck has no signed-in user.
- */
 export function useDeckDraftScope(deckId: string): string | null {
   const userId = useUserId();
   return isLocalDeckId(deckId) ? LOCAL_SCOPE : userId;

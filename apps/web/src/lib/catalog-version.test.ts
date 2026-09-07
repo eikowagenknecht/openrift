@@ -8,7 +8,6 @@ import {
 
 describe("seedCatalogVersion / consumeSeededCatalogVersion", () => {
   beforeEach(() => {
-    // Drain module-level state so tests stay order-independent.
     consumeSeededCatalogVersion();
   });
 

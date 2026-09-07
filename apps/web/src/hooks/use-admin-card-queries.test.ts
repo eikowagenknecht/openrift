@@ -41,7 +41,6 @@ describe("hasPendingRehost", () => {
   });
 
   it("ignores images that can never be rehosted (no source URL)", () => {
-    // Without this guard the poll would run forever on a sourceless image.
     expect(
       hasPendingRehost({ printingImages: [image({ originalUrl: null, rehostedUrl: null })] }),
     ).toBe(false);

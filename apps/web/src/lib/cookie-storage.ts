@@ -41,11 +41,4 @@ const rawStorage: StateStorage = {
   removeItem: (name) => removeCookie(name),
 };
 
-/**
- * Zustand persist storage backed by cookies instead of localStorage.
- * Allows the server to read preferences during SSR (no FOUC).
- *
- * Wrap with createJSONStorage so Zustand handles JSON
- * serialization/deserialization and the StorageValue envelope.
- */
 export const cookieStorage = createJSONStorage(() => rawStorage);

@@ -19,13 +19,7 @@ interface CardDetailSearch {
   focusFinish?: string;
   focusLanguage?: string;
   set?: string;
-  /**
-   * Carried over from the list page's status filter so prev/next walks the same
-   * subset. "unchecked" is not carried — it already has its own flow via
-   * "Check all & next".
-   */
   status?: "prices-to-assign" | "new-printings";
-  /** Source+language scope for `status=prices-to-assign`, e.g. "cardtrader:FR". */
   priceScope?: string;
 }
 
@@ -65,8 +59,8 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards_/$cardSlu
     return result;
   },
   loader: async ({ context, params }) => {
-    // Already warm from the admin layout beforeLoad. The marketplace section
-    // is admin-only — card-review grant holders cannot reach its endpoint.
+    // The marketplace section is admin-only; card-review grant holders
+    // cannot reach its endpoint.
     const access = await context.queryClient.query({
       ...adminAccessQueryOptions(context.userId),
       staleTime: "static",
@@ -81,9 +75,8 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards_/$cardSlu
       context.queryClient.query({ ...allCardsQueryOptions, staleTime: "static" }),
       context.queryClient.query({ ...adminDistinctArtistsQueryOptions, staleTime: "static" }),
       context.queryClient.query({ ...adminLanguagesQueryOptions, staleTime: "static" }),
-      // Preload the marketplace section so it's warm by the time the page
-      // mounts. The endpoint accepts a slug, so this can run in parallel with
-      // the card detail fetch without waiting for the UUID resolution.
+      // The endpoint accepts a slug, so this can run in parallel with the
+      // card detail fetch without waiting for the UUID resolution.
       ...(access.isAdmin
         ? [
             context.queryClient.query({

@@ -6,17 +6,13 @@ import { randomUuid } from "@/lib/random-uuid";
 type GameStatus = "setup" | "playing" | "finished";
 type GameMode = "ffa" | "teams";
 
-/** Which side a player is on in a 2v2. Only meaningful when mode is "teams". */
 export type TeamId = 0 | 1;
 
-/**
- * Why a point was scored. The three Riftbound routes are their own reasons so
- * the board can record what happened, not just the total; "manual" covers XP
- * and score corrections, which have no route.
- */
+// The three Riftbound scoring routes are their own reasons; "manual" covers
+// XP and score corrections, which have no route.
 export type ScoreReason = "conquer" | "hold" | "ability" | "manual";
 
-/** The reasons that get their own control on the board, in display order. */
+// In display order.
 export const SCORE_REASONS = [
   "conquer",
   "hold",
@@ -30,53 +26,29 @@ export const SCORE_REASON_LABELS: Record<ScoreReason, string> = {
   manual: "Manual",
 };
 
-/**
- * A legend chosen for a seat, denormalized so the board renders straight from
- * local state. The tracker works offline and the catalog is only read while the
- * picker is open, so nothing here may be a live catalog reference.
- */
+// The tracker works offline; the catalog is only read while the legend
+// picker is open, so nothing here may be a live catalog reference.
 export interface TrackedLegend {
   cardId: string;
-  /** Already run through `legendDisplayName`. */
   name: string;
-  /** Drives the panel glow; one or two entries. */
   domains: string[];
-  /** Front-face art for the panel backdrop, or null when the printing has none. */
   thumbnail: string | null;
 }
 
 export interface TrackedPlayer {
   id: string;
   name: string;
-  /**
-   * Score toward winning. Floor 0. In "teams" mode this is the team's shared
-   * total, kept equal across teammates by {@link adjustPoints}.
-   */
   points: number;
-  /** In-game resource, accumulated and spent. Floor 0, no cap. Always per-player. */
   xp: number;
-  /** Team assignment, only used in "teams" mode (a 2v2). */
   team: TeamId;
-  /** Cosmetic only — picks the panel art and glow. Never implies a deck. */
   legend: TrackedLegend | null;
-  /**
-   * Whether this player's XP rail is open. Most decks never use XP, so it
-   * starts closed and shows only a tab. Personal, so opening one seat's rail
-   * leaves the others alone.
-   */
   xpOpen: boolean;
 }
 
-/**
- * One reversible change. `prev` holds the exact values the affected players had
- * beforehand, so undo restores correctly even when the change was clamped at 0,
- * and the status pair restores a game that a point had ended.
- */
 export interface MatchAction {
   playerId: string;
   kind: "points" | "xp";
   reason: ScoreReason;
-  /** Signed change as applied, used to label the undo row. */
   delta: number;
   prev: { id: string; value: number }[];
   prevStatus: GameStatus;
@@ -85,21 +57,13 @@ export interface MatchAction {
 
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 4;
-/** Player count required to form two teams (a 2v2). */
 const TEAM_PLAYER_COUNT = 4;
-/** How many actions stay reversible. Deep enough for a run of mis-taps. */
 const MAX_LOG = 30;
 
-/**
- * Default points target by format: 11 for a 2v2, 8 for everything else (1v1
- * and free-for-all), matching Riftbound's rules.
- * @returns The default points target for the given mode.
- */
 export function defaultPointsTarget(mode: GameMode): number {
   return mode === "teams" ? 11 : 8;
 }
 
-// Default team for the nth seat: first half on team 1, second half on team 2.
 function defaultTeam(index: number): TeamId {
   return index < TEAM_PLAYER_COUNT / 2 ? 0 : 1;
 }
@@ -124,18 +88,10 @@ function buildPlayers(count: number): TrackedPlayer[] {
   return Array.from({ length: count }, (_, index) => makePlayer(index));
 }
 
-/**
- * The ids of everyone on the given team.
- * @returns Teammate ids (empty if no one is on that team).
- */
 export function teammateIds(players: TrackedPlayer[], team: TeamId): string[] {
   return players.filter((player) => player.team === team).map((player) => player.id);
 }
 
-/**
- * Count how many players sit on each team.
- * @returns A [team 1, team 2] tuple of member counts.
- */
 export function teamMemberCounts(players: TrackedPlayer[]): [number, number] {
   let first = 0;
   let second = 0;
@@ -149,7 +105,7 @@ export function teamMemberCounts(players: TrackedPlayer[]): [number, number] {
   return [first, second];
 }
 
-// Force every teammate to share their team's highest score (used after a reload).
+// Used after a reload, to force every teammate back to their team's highest score.
 function syncTeamPoints(players: TrackedPlayer[]): TrackedPlayer[] {
   const teamPoints = new Map<TeamId, number>();
   for (const player of players) {
@@ -161,11 +117,7 @@ function syncTeamPoints(players: TrackedPlayer[]): TrackedPlayer[] {
   }));
 }
 
-/**
- * Describe the action an undo would reverse, for the menu row that names it
- * before you commit ("Undo Kira's Conquer").
- * @returns A label, or null when there is nothing to undo.
- */
+// For the menu row that names the undo before you commit ("Undo Kira's Conquer").
 export function describeAction(
   action: MatchAction | undefined,
   players: TrackedPlayer[],
@@ -183,11 +135,6 @@ export function describeAction(
   return `Undo ${who}'s ${SCORE_REASON_LABELS[action.reason]}`;
 }
 
-/**
- * Whether a player is one point from taking the game. Drives the corner
- * brackets on their panel.
- * @returns True when the player's score is exactly one short of the target.
- */
 export function isMatchPoint(player: TrackedPlayer, pointsTarget: number): boolean {
   return player.points === pointsTarget - 1;
 }
@@ -200,40 +147,30 @@ interface MatchTrackerState {
   players: TrackedPlayer[];
   pointsTarget: number;
   firstPlayerId: string | null;
-  /** The player the "who goes first?" reveal is currently flashing on, if any. Transient; never persisted. */
   spotlightPlayerId: string | null;
   winnerId: string | null;
-  /** Reversible changes, oldest first. Transient — a reload starts a fresh log. */
   log: MatchAction[];
 
-  /** Resize the roster during setup; also resets the target to the default and drops teams below four players. */
+  // Also resets the target to the default and drops teams below four players.
   setPlayerCount: (count: number) => void;
-  /** Switch between free-for-all and 2v2 teams. Teams need four players; ignored otherwise. */
+  // Teams need four players; ignored otherwise.
   setMode: (mode: GameMode) => void;
   renamePlayer: (id: string, name: string) => void;
-  /** Assign a player to a team (setup only, used for 2v2). */
   setPlayerTeam: (id: string, team: TeamId) => void;
-  /** Attach or clear a seat's legend. Cosmetic; survives games like the name does. */
+  // Cosmetic; survives games like the name does.
   setLegend: (id: string, legend: TrackedLegend | null) => void;
   setPointsTarget: (target: number) => void;
-  /** Begin (or restart) a game: zero every counter and switch to play. */
   startGame: () => void;
-  /** Return to the setup screen, keeping names, legends, teams, and target. */
+  // Keeps names, legends, teams, and target.
   backToSetup: () => void;
-  /** Move a player's score, recording why so the change can be described and reversed. */
   adjustPoints: (id: string, delta: number, reason?: ScoreReason) => void;
-  /** Set a score outright, for correcting drift rather than scoring. */
   setScore: (id: string, next: number) => void;
   adjustXp: (id: string, delta: number) => void;
-  /** Open a player's XP rail. The opening tap also counts as the first point of XP. */
   openXp: (id: string) => void;
-  /** Reverse the most recent change. No-op when the log is empty. */
   undoLast: () => void;
-  /** Mark the first player directly; pass null to clear. Ignores ids not in the roster. */
+  // Ignores ids not in the roster.
   setFirstPlayer: (id: string | null) => void;
-  /** Drive the first-player reveal animation; pass null to clear the spotlight. */
   setSpotlightPlayer: (id: string | null) => void;
-  /** Hide the winner banner so the table can keep adjusting after a game ends. */
   dismissWinner: () => void;
 }
 
@@ -490,11 +427,6 @@ export const useMatchTrackerStore = create<MatchTrackerState>()(
   ),
 );
 
-/**
- * Move a player's score to `next`, carrying the whole team in a 2v2, announcing
- * a winner if the change crosses the target, and logging enough to reverse it.
- * @returns The state patch to apply.
- */
 function applyScore(
   state: MatchTrackerState,
   actor: TrackedPlayer,
@@ -535,11 +467,7 @@ function applyScore(
   };
 }
 
-/**
- * Validate a persisted legend blob. Anything missing its identity is dropped
- * rather than half-restored, since the panel would have nothing to draw.
- * @returns The legend, or null when the blob can't be trusted.
- */
+// Missing cardId or name drops the whole entry; other fields degrade to defaults.
 function sanitizeLegend(raw: unknown): TrackedLegend | null {
   if (!raw || typeof raw !== "object") {
     return null;
@@ -559,11 +487,7 @@ function sanitizeLegend(raw: unknown): TrackedLegend | null {
   };
 }
 
-/**
- * Validate a persisted players blob, clamping counters and rejecting rosters
- * outside the allowed size. Returns null when the blob can't be trusted.
- * @returns Sanitized players, or null to fall back to the current state.
- */
+// Rejects rosters outside the allowed size.
 function sanitizePlayers(raw: unknown): TrackedPlayer[] | null {
   if (!Array.isArray(raw)) {
     return null;

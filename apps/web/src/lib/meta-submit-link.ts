@@ -1,14 +1,8 @@
 import type { MetaDeckSubmissionKind } from "@/lib/meta-submission-copy";
 
 /**
- * The standings row an event page opened the submission form from, as its link
- * carries it. `cut` says the finish is a cut bucket rather than an exact
- * placing, matching `rankIsTier` on the row it came from — the archive's `tier`
- * already means an event's own tier, and every route's search schema shares one
- * namespace here.
- *
- * Every field is optional: a source that published no records leaves the three
- * counts out, and the form shows them blank rather than inventing a 0-0-0.
+ * `cut` matches `rankIsTier` on the row this came from: the archive's own
+ * `tier` means an event's tier, and every route's search schema shares this namespace.
  */
 export interface MetaSubmitSearch {
   player?: string;
@@ -17,29 +11,16 @@ export interface MetaSubmitSearch {
   wins?: number;
   losses?: number;
   draws?: number;
-  /**
-   * What the sender is being asked for. Absent means a list the archive has
-   * none of, which is the form's own default and stays off the URL.
-   */
   ask?: Exclude<MetaDeckSubmissionKind, "new_list">;
-  /**
-   * The archived deck to start from, by share token. The form seeds its paste
-   * box with that list, so completing or correcting one means editing what the
-   * archive holds rather than retyping it.
-   */
   deck?: string;
-  /** The legend the archive already has this entry on, named for the sender. */
   legend?: string;
   legendId?: string;
 }
 
-/** Matches the player-name bound the submission form and its contract enforce. */
 const MAX_PLAYER_NAME = 80;
 
-/** Generous, and only a display string: a card name past this is not one. */
 const MAX_LEGEND_NAME = 120;
 
-/** A deck share token is opaque; this only keeps a pasted essay out of the URL. */
 const MAX_DECK_TOKEN = 64;
 
 const MAX_CARD_ID = 64;
@@ -58,17 +39,7 @@ function text(value: unknown, max: number): string | undefined {
   return typeof value === "string" && value.length > 0 && value.length <= max ? value : undefined;
 }
 
-/**
- * What a "+ Add", "Complete" or "Suggest a correction" link hands the submission
- * form, so someone filling a hole in the record types as little as possible.
- *
- * Only fields with values travel: `undefined` drops the param from the URL,
- * which keeps a link off a thin standings row short rather than littered with
- * empties.
- *
- * @param player The standings row the link sits on.
- * @param ask What the link is asking for, when it is not a brand-new list.
- */
+/** Only fields with values travel: `undefined` drops the param from the URL. */
 export function metaSubmitSearchForPlayer(
   player: {
     playerName: string;
@@ -77,9 +48,7 @@ export function metaSubmitSearchForPlayer(
     wins: number | null;
     losses: number | null;
     draws: number | null;
-    /** The archive's own legend for this entry, when it has resolved one. */
     legend?: { name: string; cardId: string } | null;
-    /** The archived list, when the entry has one. */
     shareToken?: string | null;
   },
   ask?: Exclude<MetaDeckSubmissionKind, "new_list">,
@@ -101,10 +70,8 @@ export function metaSubmitSearchForPlayer(
 }
 
 /**
- * The same shape read back off a URL anyone can type. Nothing here is trusted:
- * a value of the wrong type, a fractional or negative count, or a name past the
- * length the form accepts is dropped rather than carried into a field the
- * submitter cannot see is wrong.
+ * Nothing here is trusted: a value of the wrong type, a fractional or negative
+ * count, or a name past the form's length limit is dropped.
  */
 export function parseMetaSubmitSearch(search: Record<string, unknown>): MetaSubmitSearch {
   const ask = typeof search.ask === "string" && ASKS.has(search.ask) ? search.ask : undefined;

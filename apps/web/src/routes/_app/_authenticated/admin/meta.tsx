@@ -26,23 +26,12 @@ import { adminSeoHead } from "@/lib/seo";
  * carries a clean URL and the overview's funnel links stay short.
  */
 export const metaSearchSchema = z.object({
-  // Absent means the overview; every other tab is the opt-in one.
   tab: z.enum(["catalogue", "review", "public"]).optional(),
-  // Which source the Sync and Catalogue tabs are showing. Absent is uvsgames.
   source: z.enum(META_CATALOG_PROVIDERS).optional(),
   page: z.coerce.number().int().positive().optional(),
   q: z.string().optional(),
-  // Absent is the new queue, which is where triage starts. "any" is the reader
-  // asking for no triage filter at all, which no default can stand in for.
   triage: z.union([z.enum(META_CATALOG_TRIAGE), z.literal("any")]).optional(),
-  // Prefixed because a search param name is shared across the whole route tree:
-  // plain `sort` belongs to the card browser's own vocabulary and plain `status`
-  // to the admin cards tab, and a name carrying two value sets fails to compile
-  // wherever a route spreads the previous search.
   eventStatus: z.enum(META_CATALOG_DISPLAY_STATUSES).optional(),
-  // playloltcg reports its own five-step lifecycle rather than the three
-  // display statuses uvsgames publishes, so the two tabs cannot share one
-  // status param without one of them lying about what it filters on.
   plStatus: z.coerce
     .number()
     .int()
@@ -50,8 +39,6 @@ export const metaSearchSchema = z.object({
       PLAYLOLTCG_STATUSES.some((status) => status === value),
     )
     .optional(),
-  // topdeck's second axis is its own format word rather than a lifecycle, and
-  // the vocabulary is the source's, so this is a free string.
   tdFormat: z.string().optional(),
   eventSort: z.enum(META_CATALOG_SORTS).optional(),
   eventDir: z.enum(META_CATALOG_SORT_DIRECTIONS).optional(),
@@ -61,12 +48,7 @@ export const metaSearchSchema = z.object({
   awaitingResults: z.boolean().optional(),
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
-  // The Public tab's own filters. Prefixed for the same reason as `eventStatus`
-  // above: these names live in the same URL as the catalogue's, and the two
-  // tables filter different things.
   liveFormat: z.string().optional(),
-  // Unlike `source` above this one has no default: absent means every source,
-  // manual events included, which is what the live archive shows.
   liveSource: z.enum(META_EVENT_SOURCE_FILTERS).optional(),
   liveSort: z.enum(META_EVENT_SORTS).optional(),
   liveDir: z.enum(META_EVENT_SORT_DIRECTIONS).optional(),
@@ -79,9 +61,6 @@ export type MetaSearch = z.infer<typeof metaSearchSchema>;
 export const Route = createFileRoute("/_app/_authenticated/admin/meta")({
   head: () => adminSeoHead("Meta Archive"),
   validateSearch: metaSearchSchema,
-  // Only the params the Public tab's query key reads. Names shared with the
-  // catalogue (q, the dates) still re-run the loader off that tab, where the
-  // warm resolves to a cache hit.
   loaderDeps: ({ search }) => ({
     tab: search.tab,
     page: search.page,
@@ -97,9 +76,8 @@ export const Route = createFileRoute("/_app/_authenticated/admin/meta")({
   }),
   loader: async ({ context, deps }) => {
     await Promise.all([
-      // Warm the exact key the Public tab will read: its own filtered page on a
-      // deep link, else the default first page the tab opens on. Anything less
-      // exact misses the component's cache lookup and the tab suspends.
+      // Warm the exact key the Public tab will read, or the tab suspends on
+      // a cache miss.
       context.queryClient.query({
         ...adminMetaEventsQueryOptions(
           metaEventsParamsFromSearch(deps.tab === "public" ? deps : {}),

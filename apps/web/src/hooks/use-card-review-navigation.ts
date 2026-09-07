@@ -26,21 +26,14 @@ import { ALL_ASSIGNABLE_SCOPE, buildPriceAssignBucketsBySlug } from "@/lib/marke
 
 /** Everything one "Check all & next" run has to mark as checked. */
 export interface ReviewCheckTargets {
-  /** At least one card-level source is still unchecked. */
   cardSources: boolean;
-  /** Accepted printings that still have an unchecked source. */
   printingIds: string[];
-  /** Unchecked candidate ids, one entry per ambiguous group that has any. */
   extraCandidateIds: string[][];
 }
 
 /**
- * Collect the check-all targets for a review run: the card's own sources, the
- * sources under each accepted printing, and the candidates in each ambiguous
- * group. Groups stay separate from printings because they are checked by id
- * list rather than by printing id.
- *
- * @returns The targets, with empty collections when nothing is unchecked.
+ * Collect the check-all targets for a review run. Groups stay separate from
+ * printings because they are checked by id list, not by printing id.
  */
 export function collectReviewCheckTargets(
   sources: readonly CandidateCardResponse[],
@@ -72,9 +65,8 @@ export function collectReviewCheckTargets(
 }
 
 /**
- * Search params carried through every navigation off the card detail page, so a
- * review run keeps its filters and the list page shows the same view on the way
- * back. Both `/admin/cards` and `/admin/cards/$cardSlug` accept all three.
+ * Search params carried through every navigation off the card detail page, so
+ * a review run keeps its filters and the list page matches on the way back.
  */
 interface CardReviewNavSearch {
   set?: string;
@@ -89,31 +81,18 @@ interface CardReviewNavSearch {
 export type AdminCardListStatus = "prices-to-assign" | "new-printings";
 
 interface UseCardReviewNavigationOptions {
-  /** Card slug from the route, which is also the current review-run position. */
   identifier: string;
-  /** The card detail payload; undefined while it loads. */
   detail?: AdminCardDetailResponse;
-  /** Active set filter carried over from the list page. */
   setSlug?: string;
-  /** The list page's status filter, when the visit started from one. */
   listStatus?: AdminCardListStatus;
-  /** Source+language scope for the price filter; absent means all assignable buckets. */
   priceScope?: string;
-  /** Triage is full-admin, so the run and its hotkey are gated on it. */
   isAdmin: boolean;
-  /** Query keys the check-all mutations invalidate. */
   invalidates: readonly (readonly unknown[])[];
 }
 
 /**
- * Owns the review run on the admin card detail page: which card comes next,
- * the prev/next neighbours, the keyboard shortcuts that drive both, and the
- * check-all-then-advance orchestration.
- *
- * `checkAllCardSources` is returned rather than created again at the call site
- * so the Card Fields section button and a full run share one pending state.
- *
- * @returns Navigation callbacks, the neighbouring slugs, and the run state.
+ * The Card Fields section button and a full run must share the same
+ * `checkAllCardSources` instance to share one pending state.
  */
 export function useCardReviewNavigation({
   identifier,
@@ -129,18 +108,13 @@ export function useCardReviewNavigation({
   const checkAllCardSources = useCheckAllCandidateCards();
   const checkAllCandidatePrintings = useCheckAllCandidatePrintings(invalidates);
 
-  // When a set filter is active, scope prev/next + check-all-and-next to cards
-  // that have at least one accepted printing in that set — matching the list
-  // page's filter so the navigation stays inside the set.
+  // Scoped to match the list page's set filter, so navigation stays inside the set.
   const scopedCards = setSlug ? allCards.filter((c) => c.setSlugs.includes(setSlug)) : allCards;
   const scopedSlugs = setSlug ? new Set(scopedCards.map((c) => c.slug)) : null;
   const { fetchNext } = useNextUncheckedCard(identifier, scopedSlugs);
 
-  // The prices-to-assign filter composes with the set scope: prev/next then
-  // only visits cards that still have unassigned products in the active scope.
-  // The corpus query stays subscribed rather than read once, and the
-  // marketplace section invalidates it after every assignment, so a card drops
-  // out of the run the moment its last staged product is bound.
+  // Stays subscribed (not read once): the marketplace section invalidates this
+  // query after every assignment, dropping a card once its last product is bound.
   const priceFilterActive = listStatus === "prices-to-assign";
   const { data: unifiedMappings } = useUnifiedMappingsWhen(isAdmin && priceFilterActive);
   const activePriceScope = priceFilterActive ? (priceScope ?? ALL_ASSIGNABLE_SCOPE) : null;
@@ -148,9 +122,8 @@ export function useCardReviewNavigation({
     ? buildPriceAssignBucketsBySlug(unifiedMappings.groups)
     : null;
 
-  // Same idea for the new-printings filter, over the list corpus rather than
-  // the marketplace one. The query stays subscribed, so accepting a card's last
-  // candidate printing drops it from the run once the list is invalidated.
+  // Same idea over the list corpus: stays subscribed, so accepting a card's
+  // last candidate printing drops it once the list is invalidated.
   const newPrintingsFilterActive = listStatus === "new-printings";
   const { data: cardList } = useAdminCardListWhen(newPrintingsFilterActive);
   const newPrintingSlugs =
@@ -162,11 +135,8 @@ export function useCardReviewNavigation({
         )
       : null;
 
-  // Position is resolved in the full set-scoped ordering, then the nearest
-  // matching card is found by scanning outward — so the buttons keep working
-  // after this card itself falls out of the filter. Until the corpus data
-  // lands, the filter's slug set is null and this falls back to plain
-  // neighbours instead of flickering the buttons disabled.
+  // Nearest matching card is found by scanning outward from the full ordering,
+  // so the buttons keep working after this card itself falls out of the filter.
   const prevNextCards: PrevNextSlugs = selectAdminCardPrevNext(
     scopedCards.map((c) => c.slug),
     identifier,

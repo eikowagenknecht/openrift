@@ -1,11 +1,4 @@
-/**
- * Reduces a markdown string to a single plain-text teaser: the first
- * paragraph with block prefixes and inline markup stripped. Intentionally
- * regex-based — product descriptions are short, admin-written markdown, not
- * arbitrary documents.
- *
- * @returns The first paragraph as plain text, or "" when there is none.
- */
+/** Intentionally regex-based: product descriptions are short, admin-written markdown, not arbitrary documents. */
 export function markdownTeaser(markdown: string | null): string {
   if (!markdown) {
     return "";

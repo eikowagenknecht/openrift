@@ -5,28 +5,16 @@ import { useCards } from "@/hooks/use-cards";
 import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 
 interface PreferredPrintingHelpers {
-  /**
-   * Pick the single best printing for a card. Resolution order:
-   * 1. `preferredPrintingId` when provided and resolvable
-   * 2. Language-preference canonical (existing behavior)
-   */
   getPreferredPrinting: (
     cardId: string,
     preferredPrintingId?: string | null,
   ) => Printing | undefined;
-  /** Shortcut: get the front-face image of the preferred printing. */
   getPreferredFrontImage: (
     cardId: string,
     preferredPrintingId?: string | null,
   ) => PrintingImage | undefined;
 }
 
-/**
- * Central hook for picking the best printing per card, combining catalog data
- * with the user's language preference. Use this instead of hand-rolling sort
- * logic in components.
- * @returns Helpers to resolve preferred printings by card ID.
- */
 export function usePreferredPrinting(): PreferredPrintingHelpers {
   "use memo";
 

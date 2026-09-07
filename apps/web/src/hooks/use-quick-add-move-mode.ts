@@ -13,14 +13,13 @@ import {
 } from "@/lib/move-sources";
 import type { QuickAddVerb } from "@/stores/command-palette-store";
 
-/** One palette-session move, kept so Shift+Enter / the minus button can send the copy back where it came from. */
+/** Kept so Shift+Enter / the minus button can send the copy back where it came from. */
 interface MoveRecord {
   copyId: string;
   printingId: string;
   fromCollectionId: string;
 }
 
-/** The From/To direction, plus the value pair a second swap click restores. */
 export interface MoveDirection {
   from: string;
   to: string;
@@ -33,33 +32,16 @@ interface SelectOption {
 }
 
 interface MoveModeOptions {
-  /**
-   * The verb the palette was opened with. Chosen in the command palette rather
-   * than toggled here: a mode you pick before entering is visible without being
-   * advertised, which is what the Add/Move tab row used to cost.
-   */
   verb: QuickAddVerb;
-  /** The collection the palette opened on — the initial move target. */
   collectionId: string;
-  /** The viewer's collections. Move mode needs at least two to be useful. */
   collections?: CollectionResponse[];
-  /**
-   * Identifies the printing row the palette has selected. Changing it resets
-   * the active source chip, the same way changing direction does.
-   */
   selectionKey: string;
-  /** Called after a move or an undo-move lands, so the palette can refocus its input. */
   onMoved?: () => void;
 }
 
 /**
- * Computes the next From/To pair for the swap button. A plain value swap can't
- * restore "All collections", so the previous pair is carried in `swapUndo` and
- * a second click replays it. When From is "All collections" there is nothing to
- * put in the target slot, so From anchors to the old target and the destination
- * defaults to the inbox — or, when the inbox IS the old target (i.e. the user
- * is clearing it out), to the first other collection.
- * @returns The next direction, or null when no swap is possible.
+ * A plain value swap can't restore "All collections", so the previous pair is
+ * carried in `swapUndo` and a second click replays it.
  */
 export function resolveSwapDirection(
   current: MoveDirection,
@@ -84,16 +66,8 @@ export function resolveSwapDirection(
 }
 
 /**
- * The palette's Move mode: instead of creating new copies it reassigns
- * existing ones, From (a source collection, or anywhere) → To (defaults to the
- * collection the palette opened on). Both sides are pickable, so the same
- * palette pulls cards into a fresh deckbox or clears the inbox out into one.
- *
- * Owns the direction, the per-session move history that backs undo, and the
- * active source chip. Moves are optimistic against the history: the record is
- * appended before the mutation and dropped again if it rejects, so a failed
- * move doesn't leave an undo entry pointing at a copy that never moved.
- * @returns The move-mode state and actions.
+ * Moves are optimistic against the history: the record is appended before the
+ * mutation and dropped again if it rejects.
  */
 export function useQuickAddMoveMode({
   verb,
@@ -121,7 +95,6 @@ export function useQuickAddMoveMode({
   const inboxId = collections?.find((col) => col.isInbox)?.id;
   const { from: moveFrom, to: moveTo } = direction;
 
-  // A new printing row, direction, or target starts back at the default source.
   const [sourceArmedFor, setSourceArmedFor] = useState({ selectionKey, moveFrom, moveTo });
   if (
     sourceArmedFor.selectionKey !== selectionKey ||
@@ -176,9 +149,7 @@ export function useQuickAddMoveMode({
     setMoveHistory((prev) => [...prev, record]);
     try {
       await moveCopies.mutateAsync({ copyIds: [copyId], toCollectionId: moveTo });
-      // Stable id per printing: a held Enter replaces the toast instead of
-      // stacking one per keypress. Error toasts come from the global
-      // mutation onError in query-client.ts.
+      // Toast id is stable per printing, so a held Enter replaces it.
       toast.success(
         `Moved 1× ${legendDisplayName(printing.card)} to ${collectionDisplayName(moveTo)}`,
         { id: `palette-move-${printing.id}` },
@@ -215,8 +186,6 @@ export function useQuickAddMoveMode({
     }
   };
 
-  // Manually picking either side clears the swap-undo pair: it described a
-  // direction the user has now edited, so replaying it would be surprising.
   const chooseMoveFrom = (from: string) => setDirection({ from, to: moveTo, swapUndo: null });
   const chooseMoveTo = (to: string) => setDirection({ from: moveFrom, to, swapUndo: null });
 

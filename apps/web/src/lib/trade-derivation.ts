@@ -5,18 +5,8 @@ import type {
 } from "@openrift/shared";
 import { cardTradeLivePhaseRank, cardTradeState, isLiveCardTradeStatus } from "@openrift/shared";
 
-/** The three buckets the per-group Trades tab groups trades into. */
 export type TradeSection = "action-needed" | "active" | "history";
 
-/**
- * Buckets a trade for the Trades tab, from the shared lifecycle state so this
- * tab, the hub cards, the trade sheet and the members badge cannot drift apart.
- *
- * A reservation the viewer has already settled files under history rather than
- * staying in flight: their half is final, and only the other party's
- * confirmation is outstanding.
- * @returns The section the trade belongs in.
- */
 export function tradeSection(trade: CardTradeResponse): TradeSection {
   switch (cardTradeState(trade)) {
     case "to-answer":
@@ -38,24 +28,14 @@ function liveTradeKey(counterpartyUserId: string, printingId: string): string {
 }
 
 /**
- * Drops match rows that already have a live (pending or reserved) trade with the
- * same member for the same printing, so a suggestion and its in-progress trade
- * don't both appear on the Trades page. Matched on (counterparty, printing)
- * regardless of direction and regardless of group — pass the viewer's trades
- * across all groups, so a request opened with a member in one shared group also
- * hides the identical suggestion in every other group (reserved trades are
- * already netted out server-side; this covers the pending window). Only
- * `counterpartyUserId` and `printingId` are read from each match, so callers
- * can pass full match rows or minimal stubs.
- * @param matches The match rows to filter.
- * @param trades The viewer's trades, across all groups.
- * @returns The matches with live-trade duplicates removed.
+ * Matches on (counterparty, printing) across all groups. Reserved trades are
+ * already netted server-side; this only covers the pending window.
  */
 export function withoutLiveTradeMatches<
   TMatch extends { counterpartyUserId: string; printingId: string },
 >(matches: readonly TMatch[], trades: readonly CardTradeResponse[]): TMatch[] {
-  // A live trade always has both parties — closing an account cancels the ones
-  // that person was in — so a null counterparty means the trade is history.
+  // Closing an account cancels the trades that account was in, so a live
+  // trade with a null counterparty can't happen; treat it as history.
   const live = new Set<string>();
   for (const trade of trades) {
     const counterpartyUserId = trade.counterparty.userId;
@@ -68,23 +48,12 @@ export function withoutLiveTradeMatches<
   );
 }
 
-/** One counterparty's trades split into the member-detail page's lifecycle buckets. */
 export interface MemberTradeBuckets {
   active: CardTradeResponse[];
   actionNeeded: CardTradeResponse[];
   history: CardTradeResponse[];
 }
 
-/**
- * Filters trades to a single counterparty and buckets them by lifecycle, for the
- * member-detail page's trades block. Unlike the match-suggestion overlay — which
- * only surfaces an in-progress trade while a matching suggestion row exists —
- * this keeps every trade with the member, including reserved ones whose copies
- * no longer appear as a match (ADR-019).
- * @param trades The viewer's trades in the group.
- * @param counterpartyUserId The member whose trades to keep.
- * @returns The member's trades split into active / action-needed / history.
- */
 export function bucketMemberTrades(
   trades: readonly CardTradeResponse[],
   counterpartyUserId: string,
@@ -97,10 +66,8 @@ export function bucketMemberTrades(
   };
 }
 
-/** Whether the card flows to the viewer (`incoming`) or away (`outgoing`). */
 export type MatchDirection = "incoming" | "outgoing";
 
-/** The match-row fields a suggestion is keyed on. */
 export type MatchSuggestionFields = Pick<
   FriendGroupMatchRow,
   | "buyEntryKind"
@@ -111,19 +78,10 @@ export type MatchSuggestionFields = Pick<
   | "printingId"
 >;
 
-/**
- * Key identifying one suggestion tile on the Trades page. A card-level wish
- * collapses every printing one counterparty can fill it with into a single
- * suggestion; a printing-level wish stays one suggestion per
- * (counterparty, list, printing). `groupTradeMatches` in match-row-card.tsx
- * groups by this same key, so anything counting suggestions (e.g. the
- * overview's Trades tile) agrees with what the page renders.
- * @returns The grouping key.
- */
+/** Must match the grouping key `groupTradeMatches` uses in match-row-card.tsx. */
 export function matchSuggestionKey(direction: MatchDirection, row: MatchSuggestionFields): string {
-  // Rule-derived wishes have a null buyEntryId (no list_entries row, ADR-034);
-  // fall back to the wish's own identity (cardId for card wishes) so distinct
-  // rule wishes don't collapse onto one tile.
+  // Rule-derived wishes have a null buyEntryId; fall back to cardId so
+  // distinct rule wishes don't collapse onto one tile.
   const wishKey = row.buyEntryId ?? row.cardId;
   return row.buyEntryKind === "card"
     ? `card\0${direction}\0${row.counterpartyUserId}\0${wishKey}`
@@ -131,16 +89,8 @@ export function matchSuggestionKey(direction: MatchDirection, row: MatchSuggesti
 }
 
 /**
- * The distinct suggestions these match rows amount to, as {@link
- * matchSuggestionKey} keys. The raw match arrays carry one row per physical
- * copy, so their length wildly overstates what the user sees (50 copies of one
- * wanted card is one suggestion, not 50).
- *
- * The key names no group, which is what lets two sets from different groups be
- * compared: the same card reachable through two shared groups is one
- * opportunity, so a set difference tells you what a second group genuinely
- * adds.
- * @returns The suggestion keys across both directions.
+ * No group in the key, so the same card reachable through two shared groups
+ * counts as one suggestion, not two.
  */
 export function tradeSuggestionKeys(
   incoming: readonly MatchSuggestionFields[],
@@ -156,10 +106,6 @@ export function tradeSuggestionKeys(
   return keys;
 }
 
-/**
- * Counts the suggestion tiles the Trades page will show for these match rows.
- * @returns The number of distinct suggestions across both directions.
- */
 export function countTradeSuggestions(
   incoming: readonly MatchSuggestionFields[],
   outgoing: readonly MatchSuggestionFields[],
@@ -167,29 +113,22 @@ export function countTradeSuggestions(
   return tradeSuggestionKeys(incoming, outgoing).size;
 }
 
-/** One group's match panels, tagged with the group they came from. */
 export interface GroupMatchPanels<TMatch> {
   slug: string;
-  /** The group's match rows where the card comes to the viewer. */
   incoming: readonly TMatch[];
-  /** The group's match rows where the card goes to the other member. */
   outgoing: readonly TMatch[];
 }
 
-/** One direction's suggestions for a group card: how many, and the art to show. */
 export interface GroupSuggestionStrip {
   count: number;
-  /** Distinct printings behind the count, for the card's art strip. */
   printingIds: string[];
 }
 
-/** What a group's card on the index shows about possible trades, per direction. */
 export interface GroupSuggestionStrips {
   incoming: GroupSuggestionStrip;
   outgoing: GroupSuggestionStrip;
 }
 
-/** @returns One direction's count and art. */
 function suggestionStrip<TMatch extends MatchSuggestionFields>(
   matches: readonly TMatch[],
   direction: MatchDirection,
@@ -203,20 +142,6 @@ function suggestionStrip<TMatch extends MatchSuggestionFields>(
   };
 }
 
-/**
- * What each group's card shows about possible trades, for a surface listing
- * several groups at once (the groups index). Split by direction so a card can
- * say what the viewer could get apart from what the group would want, the same
- * split each group's own Trades band leads with.
- *
- * Each group is counted on its own terms, so a card two groups can both reach
- * counts in both: the figure sits on a card that leads into one group, whose
- * band states the same number.
- * @param groups Each group's match rows.
- * @param trades The viewer's trades across all groups, so a suggestion a live
- *   trade has already taken over stops counting (see {@link withoutLiveTradeMatches}).
- * @returns The strips per group slug.
- */
 export function groupSuggestionStripsBySlug<TMatch extends MatchSuggestionFields>(
   groups: readonly GroupMatchPanels<TMatch>[],
   trades: readonly CardTradeResponse[],
@@ -232,16 +157,6 @@ export function groupSuggestionStripsBySlug<TMatch extends MatchSuggestionFields
   );
 }
 
-/**
- * A short label naming which of the viewer's own lists produced a match
- * suggestion: their wish list for an incoming card (they want it), their trade
- * list for an outgoing one (they have it). A grouped suggestion can span several
- * of the viewer's lists (e.g. different printings held in different trade
- * lists), so more than one distinct name collapses to a count.
- * @param direction Whether the card flows to the viewer or away.
- * @param listNames The viewer's source-list name per variant (may repeat).
- * @returns The source-list label, or null when no name is known.
- */
 export function describeViewerSource(
   direction: MatchDirection,
   listNames: readonly string[],
@@ -249,20 +164,6 @@ export function describeViewerSource(
   return describeSource("your", direction === "incoming" ? "wishlist" : "tradelist", listNames);
 }
 
-/**
- * The same label for the *other* side's list: the one the counterparty keeps
- * the card on. The noun is the mirror of the viewer's — a card coming to the
- * viewer is on their counterparty's tradelist, one going out is on their
- * wishlist — because a match is always a wish on one side meeting a have on the
- * other.
- *
- * Shown beside {@link describeViewerSource} so a suggestion says both halves of
- * why it exists. Only the viewer's half used to be visible, and the
- * counterparty's list was a hover title nobody found.
- * @param direction Whether the card flows to the viewer or away.
- * @param listNames The counterparty's source-list name per variant (may repeat).
- * @returns The source-list label, or null when no name is known.
- */
 export function describeCounterpartySource(
   direction: MatchDirection,
   listNames: readonly string[],
@@ -270,16 +171,6 @@ export function describeCounterpartySource(
   return describeSource("their", direction === "incoming" ? "tradelist" : "wishlist", listNames);
 }
 
-/**
- * Shared body of the two source-list labels. A grouped suggestion can span
- * several lists on either side (different printings held in different trade
- * lists), so more than one distinct name collapses to a count rather than
- * spilling a list of names into a one-line label.
- * @param owner Whose lists these are, lowercase.
- * @param kind The list noun for this side and direction.
- * @param listNames The source-list name per variant (may repeat).
- * @returns The label, or null when no name is known.
- */
 function describeSource(
   owner: "your" | "their",
   kind: "wishlist" | "tradelist",
@@ -296,7 +187,6 @@ function describeSource(
   return `${distinct.length} of ${owner} ${kind}s`;
 }
 
-/** The per-copy metadata a match row surfaces about an offered copy (ADR-038). */
 export interface MatchCopyDetail {
   condition: string | null;
   grader: string | null;
@@ -304,14 +194,7 @@ export interface MatchCopyDetail {
   notesPublic: string | null;
 }
 
-/**
- * The display label for one offered copy's condition slot: grader + grade when
- * slabbed ("PSA 9"), the condition label otherwise, or null when the copy
- * records neither — mirroring the collection dialog's condition badge.
- * @param copy The copy's metadata.
- * @param labels Slug-to-label maps for conditions and graders.
- * @returns The label, or null when nothing is recorded.
- */
+/** Mirrors the collection dialog's condition badge. */
 export function matchCopyConditionLabel(
   copy: MatchCopyDetail,
   labels: { conditions: Record<string, string>; graders: Record<string, string> },
@@ -325,17 +208,6 @@ export function matchCopyConditionLabel(
   return null;
 }
 
-/**
- * Summarizes the offered copies' recorded metadata for one suggestion tile.
- * Condition/grade labels collapse to per-label counts ("Near Mint ×2 · PSA 9");
- * copies recording neither only surface as "not recorded" next to recorded
- * ones, so an all-unrecorded stack (the common case) produces no summary at
- * all. Notes dedupe to the distinct non-empty public notes across the copies.
- * @param copies The aggregated tile's per-copy metadata.
- * @param labelOf Resolves one copy to its condition/grade display label ("Near
- * Mint", "PSA 9"), or null when the copy records neither.
- * @returns The condition summary (null when no copy records one) and the distinct public notes.
- */
 export function summarizeMatchCopies(
   copies: readonly MatchCopyDetail[],
   labelOf: (copy: MatchCopyDetail) => string | null,
@@ -367,7 +239,6 @@ export function summarizeMatchCopies(
   return { conditions: parts.join(" · "), notes };
 }
 
-/** @returns A short human label for a trade status. */
 export function tradeStatusLabel(status: CardTradeResponse["status"]): string {
   switch (status) {
     case "pending": {
@@ -391,33 +262,11 @@ export function tradeStatusLabel(status: CardTradeResponse["status"]): string {
   }
 }
 
-/**
- * The most copies a single trade can move (and the Request/Offer dialog's default):
- * the amount the wanting side wants, capped by what the having side actually has.
- * You never trade more than is wanted, nor more than is available.
- * @returns The maximum tradeable quantity (0 when nothing is available).
- */
 export function maxTradeQuantity(demandQuantity: number, availableCount: number): number {
   return Math.max(0, Math.min(demandQuantity, availableCount));
 }
 
-/**
- * Indexes the flat live-trade annotations by printing so a card cell can look
- * up its own without scanning. The value is always an array: `uq_card_trades_live`
- * is unique per (group, giver, receiver, printing), so one printing can carry
- * several live trades at once, in different phases.
- *
- * Receiver-side annotations are dropped for any printing that also has a
- * giver-side one. That pair is not a data bug, it is the normal result of
- * accepting a trade: `ownedCountsByPrinting` in
- * `packages/shared/src/list-rule-eval.ts` skips reserved copies when netting a
- * `netOwned` wish rule, so pinning copies away raises the same card's shortfall
- * on a rule-driven wishlist and can open a request for it. Both annotations are
- * correct, but "Reserved" and "Requested" on one card at one moment reads as
- * broken, and the copy the viewer is giving away is the one they care about.
- * @param annotations The viewer's live-trade annotations, in any order.
- * @returns Printing id to its surviving annotations, in input order.
- */
+/** Drops receiver-side annotations when a giver-side one exists for the same printing. */
 export function groupTradeAnnotationsByPrinting(
   annotations: readonly CardTradeLiveAnnotation[],
 ): Map<string, CardTradeLiveAnnotation[]> {
@@ -434,28 +283,14 @@ export function groupTradeAnnotationsByPrinting(
 }
 
 /**
- * Picks the single annotation a surface with room for only one marker should
- * show, most committed phase first. Ties on phase keep the viewer's own copies
- * (`giver`) ahead of a card coming to them, matching the suppression in
- * {@link groupTradeAnnotationsByPrinting}.
- *
- * The counts stay the winning bucket's own. Summing the whole side into them
- * would overstate the commitment, which is the one thing this feature exists to
- * prevent: a printing with one reserved trade and two asked ones is one copy
- * committed, not three, and a chip reading "Reserved 3" would be a lie. A
- * surface that also wants the side total has the full array from
- * {@link groupTradeAnnotationsByPrinting} and can sum it there.
- *
- * The endpoint emits one row per (printing, role, phase), so the winner is
- * already the whole of its bucket.
- * @param annotations One printing's annotations.
- * @returns The most committed annotation, or null when there is nothing to show.
+ * Ties on phase favor giver over receiver. Never sum counts across a side:
+ * one reserved plus two pending trades on a printing is one copy, not three.
  */
 export function collapseTradeAnnotations(
   annotations: readonly CardTradeLiveAnnotation[],
 ): CardTradeLiveAnnotation | null {
-  // Rank giver above receiver at equal phase by adding a half step, which keeps
-  // the whole comparison one number and never crosses into the next phase.
+  // Adding a half step ranks giver above receiver at equal phase without
+  // crossing into the next phase.
   const rank = (entry: CardTradeLiveAnnotation): number =>
     cardTradeLivePhaseRank(entry.phase) + (entry.role === "giver" ? 0.5 : 0);
   return annotations.reduce<CardTradeLiveAnnotation | null>(
@@ -465,36 +300,18 @@ export function collapseTradeAnnotations(
 }
 
 /**
- * A trade's friend group as an identity to compare and bucket by: the group id
- * while it exists, and the name it was deleted under once it does not.
- *
- * Two different deleted groups that happened to share a name collapse into one
- * identity. That is accepted rather than worked around: the snapshot keeps only
- * the name, so after deletion nothing tells them apart, and the visible
- * consequence is one shared label on rows that are pure history. The same rule
- * covers a deleted counterparty in {@link groupTradesByCounterparty}.
- * @param trade The trade to identify the group of.
- * @returns A stable key for the trade's group.
+ * Uses the group id while it exists, else the name it was deleted under. Two
+ * different deleted groups sharing a name collapse into one identity.
  */
 export function tradeGroupKey(trade: Pick<CardTradeResponse, "groupId" | "groupName">): string {
   return trade.groupId ?? `name:${trade.groupName}`;
 }
 
-/** One counterparty's trades, kept together so the Trades tab can show one
- * per-person header (avatar, count, value) above their rows. */
 export interface TradeCounterpartyGroup {
   counterparty: CardTradeResponse["counterparty"];
   trades: CardTradeResponse[];
 }
 
-/**
- * Buckets trades by counterparty so the Trades tab can group a pile of requests
- * to one person under a single header. Trades keep their input order within a
- * group; groups are ordered biggest first (most trades), then by name, so the
- * heaviest pile — the one the grouping most helps — sits at the top.
- * @param trades The trades in one lifecycle bucket.
- * @returns One group per counterparty.
- */
 export function groupTradesByCounterparty(
   trades: readonly CardTradeResponse[],
 ): TradeCounterpartyGroup[] {
@@ -517,10 +334,7 @@ export function groupTradesByCounterparty(
   );
 }
 
-/** A per-person estimated value, split by which way the cards flow. `get` is the
- * value coming to the viewer, `give` the value leaving; the `has*` flags say
- * whether any priced item contributed, so an all-unpriced side stays hidden
- * rather than reading as "≈0". */
+/** hasGet/hasGive distinguish a genuine zero total from an all-unpriced side. */
 export interface TradeValueSplit {
   get: number;
   give: number;
@@ -528,15 +342,6 @@ export interface TradeValueSplit {
   hasGive: boolean;
 }
 
-/**
- * Sums the estimated market value of a set of trades, split by direction. A
- * receiver-role trade brings the card to the viewer (`get`); a giver-role trade
- * sends it away (`give`). Unpriced printings are skipped, exactly as the per-row
- * price does, so the total is a rough estimate over what's priced.
- * @param trades The trades to value.
- * @param unitPrice Per-copy price lookup at the viewer's marketplace, or undefined.
- * @returns The get/give value split.
- */
 export function sumTradeValues(
   trades: readonly CardTradeResponse[],
   unitPrice: (printingId: string) => number | undefined,

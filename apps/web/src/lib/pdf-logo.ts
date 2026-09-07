@@ -5,25 +5,17 @@
  */
 
 const LOGO_RASTER_PX = 512;
-/**
- * Give up on the logo rather than leave a PDF export spinning forever. An image
- * request that is blocked (offline, extension, or a non-loading environment)
- * fires neither `load` nor `error`, so the wait must be bounded. Callers treat a
- * rejection as "skip the logo".
- */
 const LOGO_LOAD_TIMEOUT_MS = 3000;
 
 let cachedLogoDataUrl: string | null = null;
 
-/**
- * Loads the OpenRift logo as a PNG data URL for embedding in PDFs.
- * @returns A data URL string for the logo image.
- */
 export async function loadLogoDataUrl(): Promise<string> {
   if (cachedLogoDataUrl) {
     return cachedLogoDataUrl;
   }
 
+  // A blocked image request (offline, extension) fires neither `load` nor
+  // `error`, so the wait is bounded.
   // oxlint-disable-next-line promise/avoid-new -- wrapping callback-based Image loading API
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();

@@ -1,44 +1,21 @@
 import type { FriendGroupBoxWantRow } from "@openrift/shared";
 
-/**
- * One row of the group box-wants endpoint: a printing sitting in a group-owned
- * "bulk box" that the viewer's wish lists still want, with the quantity the box
- * can actually hand over (already netted against live trades server-side).
- */
+/** The quantity is already netted against live trades server-side. */
 export type BoxWantRow = FriendGroupBoxWantRow;
 
-/** Per-box lookups over the group's box-wants rows. */
 export interface BoxWantsLookup {
   /** Takeable quantity of a printing in one box; 0 when nothing there is wanted. */
   fulfillable: (collectionId: string, printingId: string) => number;
-  /**
-   * Whether a box can hand over any printing of a card. The grid's cards view
-   * collapses a card's variants into one tile whose representative printing is
-   * not necessarily the wanted one, so that view matches on the card instead.
-   */
+  /** A tile's representative printing may not be the wanted one; this matches by card. */
   wantsCard: (collectionId: string, cardId: string) => boolean;
-  /**
-   * Distinct wanted cards in one box, or across every box when no id is given.
-   * A card wanted from two boxes counts once in the total.
-   */
+  /** Across every box when no id is given; a card wanted from two boxes counts once. */
   wantedCardCount: (collectionId?: string) => number;
-  /**
-   * The candidate box holding the most wanted cards, or undefined when none of
-   * them holds any. Ties go to whichever candidate comes first.
-   */
+  /** Ties go to whichever candidate comes first. */
   bestCollection: (collectionIds: readonly string[]) => string | undefined;
 }
 
-/** Separator that cannot occur in a UUID, so the composite key stays unambiguous. */
 const KEY_SEPARATOR = ":";
 
-/**
- * Index the box-wants rows for the two surfaces that read them: the collection
- * grid's "Wanted" filter (per printing, or per card in cards view) and the
- * group overview's tile (distinct cards, plus which box to link to).
- * @param items The rows as returned by the endpoint.
- * @returns The lookups described by {@link BoxWantsLookup}.
- */
 export function buildBoxWantsLookup(items: readonly BoxWantRow[]): BoxWantsLookup {
   const quantityByPrinting = new Map<string, number>();
   const cardsByCollection = new Map<string, Set<string>>();

@@ -19,7 +19,6 @@ export const useSearchScopeStore = create<SearchScopeState>()(
           const next = state.scope.includes(field)
             ? state.scope.filter((f) => f !== field)
             : [...state.scope, field];
-          // Prevent empty scope
           if (next.length === 0) {
             return state;
           }

@@ -68,11 +68,6 @@ function SharedTierListPending() {
   );
 }
 
-/**
- * Shown when the token resolves to nothing — a revoked link, or one that was
- * copied short.
- * @returns The revoked-share-link explanation.
- */
 function SharedTierListNotFound() {
   return (
     <div className={cn(PAGE_PADDING, PAGE_WIDTH.full)}>

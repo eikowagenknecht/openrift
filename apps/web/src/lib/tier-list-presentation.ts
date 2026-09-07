@@ -1,58 +1,25 @@
 import type { TierCardView } from "@/components/tier-lists/tier-card-tile";
 import type { PresentationItem } from "@/lib/presentation-queue";
 
-/**
- * A board resolved against the catalogue, as {@link resolveTierRows} returns it.
- * Named here so the presentation helpers can talk about boards without pulling
- * the board components in.
- */
 export interface ResolvedTierRow {
   label: string;
   cards: TierCardView[];
-  /** The grey "considered and cut" row, always the last one. */
   unranked?: boolean;
 }
 
-/**
- * Which end of the ladder a run starts at.
- *
- * `best-first` reads the board the way it is written, top row down.
- * `worst-first` is how a ranking video is usually paced: start at the bottom and
- * climb, so the card everyone came to argue about lands last.
- */
 export type TierQueueDirection = "best-first" | "worst-first";
 
-/** One stop in a tier-list run, carrying where on the board it belongs. */
 export interface TierQueueStop extends PresentationItem {
-  /** Index of the board row holding this card. */
   rowIndex: number;
-  /** Position within that row, left to right. */
   position: number;
 }
 
-/**
- * The stable key for one slot on the board.
- *
- * Board coordinates rather than the printing id alone: a card can only sit in
- * one tier, but keying on the slot keeps the id unique even if the same art
- * were ever pinned to two entries.
- *
- * @returns The stop id for that slot.
- */
+// Board coordinates, not the printing id alone, keep a stop's id unique even
+// if the same art were ever pinned to two entries.
 function stopId(rowIndex: number, position: number, printingId: string): string {
   return `${rowIndex}:${position}:${printingId}`;
 }
 
-/**
- * Flattens a resolved board into a presentation queue.
- *
- * Cards with no printing to draw are dropped rather than queued as a blank
- * stage, matching what the board itself does with ids that no longer resolve.
- * Each stop carries its tier label as the corner marker's context, and its board
- * coordinates so the board modes can find its slot again.
- *
- * @returns The stops, in the order the run walks them.
- */
 export function tierRowsToQueue(
   rows: readonly ResolvedTierRow[],
   direction: TierQueueDirection = "best-first",
@@ -79,27 +46,17 @@ export function tierRowsToQueue(
   );
 }
 
-/**
- * How much of the board a second screen should have up, given where the stage's
- * own run has got to.
- *
- * The stage and the OBS overlay draw the same board, so the count has to mean
- * the same thing on both. In a reveal the card at the current stop is in hand —
- * up on the stage, not yet in its tier — so the board behind it holds `index`
- * cards. Without a reveal there is no run to follow: the whole ranking is up and
- * the show is a spotlight moving over it, so the mirror shows all of it.
- *
- * @returns How many of the board's cards should be placed.
- */
+// The stage and the OBS overlay draw the same board, so this count has to
+// mean the same thing on both: in a reveal, the card at the current stop is
+// up on the stage, not yet in its tier, so the board behind it holds `index`
+// cards. Without a reveal the whole ranking is up already.
 export function boardRevealCount({
   reveal,
   index,
   total,
 }: {
   reveal: boolean;
-  /** The stage's current stop in the queue. */
   index: number;
-  /** Stops the run has, i.e. cards the board can actually draw. */
   total: number;
 }): number {
   if (!reveal) {
@@ -108,17 +65,9 @@ export function boardRevealCount({
   return Math.min(Math.max(index, 0), Math.max(total, 0));
 }
 
-/**
- * The board as it stands partway through a reveal: every card the run has
- * already placed, each still in its own row and in board order.
- *
- * `count` is how many stops have been placed, so the card at the current index
- * is deliberately *not* included — it is up on the stage waiting to be dropped
- * in, which is the beat the whole reveal exists for. Empty rows stay, because a
- * tier the run hasn't reached yet still has to hold its place on the ladder.
- *
- * @returns The rows, holding only the cards revealed so far.
- */
+// `count` stops are placed; the card at the current index is deliberately not
+// included, since it's up on the stage waiting to be dropped in. Empty rows
+// stay so a tier the run hasn't reached yet still holds its place.
 export function revealedRows(
   rows: readonly ResolvedTierRow[],
   queue: readonly TierQueueStop[],

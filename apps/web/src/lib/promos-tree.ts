@@ -3,13 +3,8 @@ import type { DistributionChannelWithCount, Printing } from "@openrift/shared";
 export interface ChannelNode {
   channel: DistributionChannelWithCount;
   children: ChannelNode[];
-  /** Direct printings on this channel (only leaves carry these). */
   printings: Printing[];
-  /** Distinct printing ids across this node + all descendants. Used so a
-   *  printing linked to multiple channels in the same subtree doesn't inflate
-   *  the parent's count. */
   subtreePrintingIds: Set<string>;
-  /** subtreePrintingIds.size — convenience for rendering. */
   localPrintingCount: number;
 }
 
@@ -19,12 +14,8 @@ interface LanguageAggregate {
 }
 
 /**
- * Build a tree of distribution channels with each leaf's printings attached.
- * Sibling order is sortOrder, then label. Parent counts are computed from the
- * union of descendant printing ids so a printing that links to multiple
- * channels in the same subtree is only counted once.
- *
- * @returns Root nodes of the channel tree.
+ * Parent counts are the union of descendant printing ids, so a printing
+ * linked to multiple channels in the same subtree is only counted once.
  */
 export function buildPromoTree(
   channels: DistributionChannelWithCount[],
@@ -68,13 +59,7 @@ export function buildPromoTree(
   return build(null);
 }
 
-/**
- * Count distinct printings and distinct cards per language, limited to
- * printings that actually link to at least one distribution channel (i.e.
- * printings that will render on the page).
- *
- * @returns Map from language code to aggregate counts.
- */
+/** Limited to printings that link to at least one distribution channel. */
 export function computeLanguageAggregates(printings: Printing[]): Map<string, LanguageAggregate> {
   const printingIdsByLang = new Map<string, Set<string>>();
   const cardIdsByLang = new Map<string, Set<string>>();

@@ -2,28 +2,21 @@ import { WellKnown } from "@openrift/shared";
 
 import { parseDeckImportData } from "./deck-import-parsers";
 
-/** One card line ready to post to the manual deck-check entry endpoint. */
 interface ManualEntryCard {
   name: string;
   quantity: number;
-  /** A `deck_zones` slug; the server maps it back through `mapSectionToZone`. */
   section: string;
 }
 
 export interface ParsedManualDecklist {
   cards: ManualEntryCard[];
-  /** Total physical copies across every line. */
   totalCopies: number;
   warnings: string[];
 }
 
 /**
- * Parses a pasted decklist (the same text format the deck importer accepts,
- * with optional zone headers like "Champion:" / "Sideboard:") into the card
- * lines the manual deck-check entry endpoint expects. Lines without a zone
- * header fall back to the main deck. Identical name+zone lines are merged so a
- * pasted list with repeats becomes one row per card.
- * @returns The parsed card lines, their total copy count, and any warnings.
+ * Parses the same text format the deck importer accepts. Lines without a zone
+ * header fall back to the main deck; identical name+zone lines are merged.
  */
 export function parseManualDecklist(text: string): ParsedManualDecklist {
   const { entries, warnings } = parseDeckImportData(text, "text");

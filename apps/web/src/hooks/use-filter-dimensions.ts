@@ -12,11 +12,6 @@ import {
   visibleFilterDimensions,
 } from "@/lib/filter-dimensions";
 
-/**
- * The surface facts every filter surface already has to hand. The hooks below
- * take them as one bag so a call site reads as "here is my surface" rather
- * than a five-argument list.
- */
 interface FilterSurface {
   availableFilters: AvailableFilters;
   availableLanguages?: string[];
@@ -28,18 +23,8 @@ interface FilterSurface {
 }
 
 /**
- * The filter dimensions that have content on this surface and aren't hidden by
- * it — one predicate for the compact bar's chips, the More menu's rows and the
- * chip sections, replacing the per-dimension `showX` guards each used to spell
- * out. Callers still add their own placement check (`isTop` / `isMore` /
- * `showUnit`) on top.
- *
- * It is a hook rather than a bare call so the registry's `availableFilters`
- * argument stays out of the render-heavy components: React Compiler treats a
- * value passed into a call as maybe-mutated, and this returns a plain set of
- * keys, so nothing downstream inherits that.
- *
- * @returns The applicable dimension keys.
+ * A hook (not a bare call) so `availableFilters` stays out of the render-heavy
+ * caller: React Compiler treats a value passed into a call as maybe-mutated.
  */
 export function useVisibleFilterDimensions({
   availableFilters,
@@ -58,24 +43,15 @@ export function useVisibleFilterDimensions({
   );
 }
 
-/**
- * The compact bar's "More" trigger count: every active selection whose unit
- * lives in the menu (exclude companions and folded presence flags included,
- * ADR-034). Promoted units surface their counts on their own chips instead.
- * @returns The number of active selections inside the More menu.
- */
+/** Promoted units surface their counts on their own chips instead. */
 export function useMoreActiveCount(topLevelUnits: ReadonlySet<string>): number {
   const { filterState } = useFilterValues();
   return countActiveFilterDimensions(filterState, (unit) => !topLevelUnits.has(unit));
 }
 
 /**
- * The name of the single active More entry, when exactly one is active — so
- * the trigger reads "Full Playset" the way the value dropdowns read "Unit",
- * instead of a bare "More (1)". Ranges have no single value, so they surface
- * their dimension name ("Price", "Energy"). Every entry is gated by its unit
- * being demoted, so the list lines up with {@link useMoreActiveCount}.
- * @returns The single entry's label, or undefined when zero or several are active.
+ * Ranges have no single value and surface their dimension name instead ("Price").
+ * Gated by the same demoted-unit set as {@link useMoreActiveCount}.
  */
 export function useSingleActiveFilterLabel({
   availableFilters,
@@ -104,8 +80,7 @@ export function useSingleActiveFilterLabel({
   const ownedLabels = new Map<string, string>(
     OWNED_BUCKETS.map((bucket) => [bucket.value, bucket.label]),
   );
-  // Every resolver falls back to the raw slug: these labels are rendered from
-  // whatever the URL holds, which can name a value the surface no longer offers.
+  // Every resolver falls back to the raw slug when the URL names a value the surface doesn't offer.
   const dimensionLabels: FilterDimensionLabels = {
     language: (code) => languageLabels[code] ?? code,
     set: (code) => setDisplayLabel?.(code) ?? code,

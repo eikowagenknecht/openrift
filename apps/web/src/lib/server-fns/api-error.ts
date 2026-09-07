@@ -1,15 +1,10 @@
 import type { ErrorCode } from "@openrift/shared";
 
 /**
- * Error thrown by {@link fetchApi} on a non-ok API response. Carries the
- * server-provided message (on `.message`), the `code` discriminator, optional
- * `details`, and a `diagnostic` string (method/url/status/raw body) meant for
- * the console — never the toast.
- *
- * `status`/`code`/`details`/`diagnostic` are assigned as OWN properties so they
- * survive the seroval serialization TanStack Start applies when a thrown error
- * crosses a server-function boundary. That serialization drops the prototype,
- * so consumers must duck-type via {@link isApiError}, never `instanceof`.
+ * Thrown by {@link fetchApi} on a non-ok response. Properties are own fields
+ * (not inherited) so they survive the seroval serialization that drops the
+ * prototype when a thrown error crosses a server-function boundary; check via
+ * {@link isApiError}, never `instanceof`.
  */
 export class ApiError extends Error {
   readonly status: number;
@@ -30,12 +25,7 @@ export class ApiError extends Error {
   }
 }
 
-/**
- * Structural shape of an ApiError after it has crossed a server-function
- * boundary (a plain object — prototype dropped — that still carries the own
- * properties). Extends Error so the {@link isApiError} guard narrows cleanly
- * from the `Error` type react-query gives its mutation `onError`.
- */
+/** ApiError's shape after crossing a server-function boundary (prototype dropped). */
 export interface ApiErrorShape extends Error {
   status?: number;
   code?: ErrorCode;
@@ -44,28 +34,15 @@ export interface ApiErrorShape extends Error {
 }
 
 /**
- * Whether `error` is the API's 401 — the session cookie is missing, expired,
- * or revoked. This is an expected lifecycle state (sessions expire while tabs
- * stay open), not a bug: the query layer reacts by refetching the session,
- * which routes the user to /login (see `createQueryClient` and the
- * `_authenticated` layout).
- *
- * Matched structurally on `status === 401`, not via {@link isApiError}, so it
- * covers BOTH error shapes the app produces: the raw-fetch {@link ApiError}
- * (`name: "ApiError"`) and oRPC's `ORPCError` from the migrated endpoints
- * (`name: "Error"`). Both carry `status` as an own property, so it survives the
- * server-function boundary's prototype-dropping serialization.
- * @returns Whether `error` carries HTTP status 401.
+ * Whether `error` is the API's 401 (expired/missing/revoked session). Matched
+ * structurally on `status === 401`, not via {@link isApiError}, so it covers
+ * both the raw-fetch {@link ApiError} and oRPC's `ORPCError` (`name: "Error"`).
  */
 export function isSessionExpiredError(error: unknown): boolean {
   return errorStatus(error) === 401;
 }
 
-/**
- * The HTTP status an error carries, for both the raw-fetch {@link ApiError}
- * and oRPC's `ORPCError`. Undefined when the error never reached the server.
- * @returns The status, or undefined when the error carries none.
- */
+/** The HTTP status an error carries, for both {@link ApiError} and `ORPCError`. */
 export function errorStatus(error: unknown): number | undefined {
   if (typeof error !== "object" || error === null) {
     return undefined;
@@ -74,12 +51,7 @@ export function errorStatus(error: unknown): number | undefined {
   return typeof status === "number" ? status : undefined;
 }
 
-/**
- * Structural (not `instanceof`) check for an {@link ApiError} — required
- * because the prototype is lost when the error round-trips a server-function
- * boundary, leaving a plain object that still carries the own properties.
- * @returns Whether `value` looks like an ApiError.
- */
+/** Structural (not `instanceof`) check: the prototype is lost crossing a server-function boundary. */
 export function isApiError(value: unknown): value is ApiErrorShape {
   return (
     typeof value === "object" &&
@@ -90,24 +62,11 @@ export function isApiError(value: unknown): value is ApiErrorShape {
 }
 
 /**
- * Builds the {@link ApiError} to throw for a non-ok API response. Best-effort
- * parses the standard `{ error, code, details }` envelope: the server's `error`
- * message wins the user-facing toast when present, otherwise `errorTitle` is
- * the fallback (for non-envelope bodies — HTML error pages, better-auth, a
- * network failure). Logs the raw failure to the console (never the toast) and
- * records a `diagnostic` string for the console.
- *
- * Used by the raw-`fetch` callers ({@link import("./fetch-api").fetchApi} and
- * the catalog ETag fetch in `catalog-query.ts`) so they honor the exact same
- * error contract. The caller does the `throw` (`throw await
- * apiErrorFromResponse(...)`) so control flow stays visible at the call site.
- * Errors from the migrated oRPC endpoints surface as `ORPCError` instead and
+ * Builds the {@link ApiError} for a non-ok response. Parses the standard
+ * `{ error, code, details }` envelope when present, falling back to
+ * `errorTitle` for non-envelope bodies (HTML error pages, better-auth, a
+ * network failure). Migrated oRPC endpoints surface `ORPCError` instead and
  * never pass through here.
- *
- * The `res` param is typed structurally so a DOM `Response` satisfies it;
- * `request.method` is optional so a caller that doesn't carry it can label the
- * call by URL alone.
- * @returns The ApiError to throw.
  */
 export async function apiErrorFromResponse(
   res: { status: number; statusText: string; text: () => Promise<string> },
@@ -126,7 +85,7 @@ export async function apiErrorFromResponse(
       details = parsed.details;
     }
   } catch {
-    // Non-JSON body (HTML error page, better-auth, network failure) — keep errorTitle.
+    // fall through with errorTitle
   }
   const label = request.method ? `${request.method} ${request.url}` : request.url;
   const diagnostic = `${label} → ${res.status} ${res.statusText}\n${raw}`;

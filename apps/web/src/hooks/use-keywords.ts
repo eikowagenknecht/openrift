@@ -104,8 +104,6 @@ export function useDeleteKeywordStyle() {
   });
 }
 
-// ── Translation mutations ───────────────────────────────────────────────────
-
 const discoverTranslationsFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(({ context }) =>

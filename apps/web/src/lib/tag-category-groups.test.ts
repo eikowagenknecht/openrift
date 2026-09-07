@@ -52,14 +52,12 @@ describe("groupTagsByCategory", () => {
     expect(groupTagsByCategory([], CATEGORIES, CATEGORY_BY_TAG)).toEqual([]);
   });
 
-  it("ignores map entries pointing at unknown categories", () => {
+  it("routes tags with an unprovided category to Other instead of dropping them", () => {
     const groups = groupTagsByCategory(
       ["Ionia"],
       [{ slug: "champion", label: "Champion" }],
       CATEGORY_BY_TAG,
     );
-    // "Ionia" maps to "region", but no such category is provided — it is NOT
-    // silently dropped; it lands in Other so the tag stays filterable.
     expect(groups).toEqual([
       { slug: UNCLASSIFIED_TAG_GROUP, label: "Other tags", tags: ["Ionia"] },
     ]);

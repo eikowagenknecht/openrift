@@ -28,10 +28,6 @@ const EMPTY_CARDS: DeckBuilderCard[] = [];
 
 type DeckCollection = Collection<DeckBuilderCard, string | number>;
 
-/**
- * Every row currently in a draft collection.
- * @returns The draft's cards, in collection order.
- */
 export function allCards(collection: DeckCollection): DeckBuilderCard[] {
   return [...collection.values()];
 }
@@ -47,11 +43,8 @@ function runeTotalOf(cards: DeckBuilderCard[]): number {
 }
 
 /**
- * Picks the best row matching (cardId, zone) when the caller didn't specify a
- * printing. Prefers the default-art row (preferredPrintingId === null), so that
- * pinned printings stay sticky when users decrement via the card browser.
- *
- * @returns The chosen row or undefined if no match exists.
+ * Prefers the default-art row (preferredPrintingId === null) so pinned
+ * printings stay sticky when users decrement via the card browser.
  */
 function findRowForCardInZone(
   cards: DeckBuilderCard[],
@@ -66,12 +59,8 @@ function findRowForCardInZone(
 }
 
 /**
- * After a rune is added or removed, adjust a rune of the opposite domain so
- * the total stays at RUNE_TARGET. When incrementing and no opposite-domain
- * rune exists in the deck, falls back to the catalog's runesByDomain.
- *
- * Operates directly on the collection — each call issues
- * insert/update/delete on the runes zone.
+ * After a rune is added or removed, adjusts a rune of the opposite domain so
+ * the total stays at RUNE_TARGET, falling back to the catalog's runesByDomain.
  */
 function rebalanceRunes(
   collection: DeckCollection,
@@ -118,8 +107,6 @@ function rebalanceRunes(
     return;
   }
 
-  // Under target — increment an opposite-domain rune already in the deck,
-  // or add a fresh one from the catalog.
   const existingOther = cards.find(
     (card) =>
       card.zone === WellKnown.deckZone.RUNES &&
@@ -160,14 +147,8 @@ function crossZoneTotal(cards: DeckBuilderCard[], cardId: string): number {
 }
 
 /**
- * Returns true when a rune of `card.domains` can be added without leaving the
- * deck above RUNE_TARGET. Below the cap it's always allowed; at the cap an add
- * is only allowed when rebalanceRunes will be able to decrement an
- * opposite-domain rune already in the deck (the legend must be dual-domain,
- * the card mustn't cover both domains, and a rune of the other domain must
- * already exist).
- *
- * @returns Whether incrementing this rune is currently valid.
+ * At the RUNE_TARGET cap, an add is only valid when rebalanceRunes can
+ * decrement an already-present opposite-domain rune of a dual-domain legend.
  */
 export function canAddRune(card: DeckBuilderCard, deckCards: DeckBuilderCard[]): boolean {
   const runeTotal = runeTotalOf(deckCards);
@@ -188,8 +169,6 @@ export function canAddRune(card: DeckBuilderCard, deckCards: DeckBuilderCard[]):
       entry.domains.some((domain) => domain === otherDomain),
   );
 }
-
-// ── Action implementations ──────────────────────────────────────────────────
 
 function incrementOrInsert(
   collection: DeckCollection,
@@ -294,9 +273,7 @@ export function addCardAction(
     return;
   }
 
-  // Main / sideboard / overflow. The per-name copy cap applies to main and
-  // sideboard; overflow is a free parking zone (not in COPY_LIMIT_ZONES) so it
-  // skips it. copyLimitFor resolves the card's override (unlimited = Infinity).
+  // Overflow is a free parking zone, not in COPY_LIMIT_ZONES, so it skips the cap.
   let addQty = count ?? 1;
   if (!freeform && COPY_LIMIT_ZONES.has(zone)) {
     const limit = copyLimitFor(card);
@@ -310,9 +287,8 @@ export function addCardAction(
 }
 
 /**
- * Decrements (or removes) one copy of a card in a zone. When preferredPrintingId
- * is undefined, operates on the default-art row first (or any row if no default
- * exists), so the card browser's minus button leaves pinned printings alone.
+ * When preferredPrintingId is undefined, operates on the default-art row
+ * first, so the card browser's minus button leaves pinned printings alone.
  */
 export function removeCardAction(
   collection: DeckCollection,
@@ -342,9 +318,7 @@ export function removeCardAction(
   }
 }
 
-// Legend and champion zones hold one card. Drop one copy in (deducting from
-// source), replacing any existing occupant. If the slot already holds the
-// exact same card+printing, no-op to avoid silently dropping a copy.
+// If the slot already holds the exact same card+printing, no-op to avoid silently dropping a copy.
 function moveIntoSingleSlot(
   collection: DeckCollection,
   source: DeckBuilderCard,
@@ -472,14 +446,7 @@ export function setQuantityAction(
   });
 }
 
-/**
- * Changes the preferred printing of a specific row, optionally splitting off
- * only some copies. When the target printing already has a row at the same
- * (cardId, zone), quantities merge.
- *
- * @param countToConvert - How many copies to move onto the target printing.
- *   When equal to the source row's full quantity, the source row is removed.
- */
+/** When countToConvert equals the source row's full quantity, the source row is removed. */
 export function changePreferredPrintingAction(
   collection: DeckCollection,
   cardId: string,
@@ -498,7 +465,6 @@ export function changePreferredPrintingAction(
   }
   const take = Math.max(1, Math.min(countToConvert, source.quantity));
 
-  // Adjust or remove the source row
   if (take >= source.quantity) {
     collection.delete(sourceKey);
   } else {
@@ -507,7 +473,6 @@ export function changePreferredPrintingAction(
     });
   }
 
-  // Merge into or create the target row
   const targetKey = deckCardKey(cardId, zone, toPrintingId);
   const target = collection.get(targetKey);
   if (target) {
@@ -532,7 +497,6 @@ export function setLegendAction(
   }
   const cards = allCards(collection);
 
-  // Replace legend slot (across all printings).
   for (const existing of cards) {
     if (existing.zone === WellKnown.deckZone.LEGEND) {
       collection.delete(
@@ -547,8 +511,7 @@ export function setLegendAction(
     preferredPrintingId: card.preferredPrintingId,
   });
 
-  // Drop runes that don't match the new legend's domains. Handles both
-  // direct swaps and remove-then-add.
+  // Drop runes that don't match the new legend's domains.
   const legendDomainSet = new Set(card.domains);
   const runesAfter = allCards(collection).filter(
     (entry) => entry.zone === WellKnown.deckZone.RUNES,
@@ -560,9 +523,8 @@ export function setLegendAction(
     collection.delete(deckCardKey(rune.cardId, WellKnown.deckZone.RUNES, rune.preferredPrintingId));
   }
 
-  // Auto-populate runes if runes zone is now empty and the legend has two
-  // domains. Distribute 6 slots per domain across available rune cards,
-  // grouping by cardId so each unique rune gets a single entry.
+  // Auto-populate: distribute 6 slots per domain, grouping by cardId so each
+  // unique rune gets a single entry.
   const remainingRunes = allCards(collection).filter(
     (entry) => entry.zone === WellKnown.deckZone.RUNES,
   );
@@ -601,8 +563,6 @@ export function setLegendAction(
     collection.insert(rune);
   }
 }
-
-// ── Hooks ───────────────────────────────────────────────────────────────────
 
 interface DeckBuilderActions {
   addCard: (card: DeckBuilderCard, zone?: DeckZone, count?: number) => void;
@@ -643,8 +603,7 @@ export function useDeckBuilderActions(deckId: string): DeckBuilderActions {
   const format = deckDetail.deck.format;
 
   // Mid-sign-out the collection briefly goes null while React commits the
-  // unmount of this route. Make all actions no-ops in that window — by the
-  // next paint the user is on a public route and this hook is gone.
+  // unmount of this route; make all actions no-ops in that window.
   if (!collection) {
     // oxlint-disable-next-line typescript/no-empty-function -- intentional no-op stand-ins while the collection is null
     const noop = (): void => {};
@@ -660,9 +619,8 @@ export function useDeckBuilderActions(deckId: string): DeckBuilderActions {
     return noopActions;
   }
 
-  // Snapshot the deck as it stands *before* each edit, so undo restores the
-  // state the user is about to leave. Every card mutation in the app goes
-  // through one of these methods, which makes this the single capture point.
+  // Snapshot the deck before each edit so undo restores the state the user is
+  // about to leave; every card mutation in the app routes through here.
   const record = () => {
     useDeckUndoStore.getState().record(deckId, allCards(collection));
   };

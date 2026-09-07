@@ -7,9 +7,8 @@ import type { CardHoldingLine } from "@/lib/card-holdings";
 import { cardHoldingLines } from "@/lib/card-holdings";
 
 /**
- * The card detail's loan and live-trade lines for `printingIds`. Both reads are
- * the whole-account queries the loans page and the collection tiles already
- * cache, so a detail usually costs no fetch and never one per card.
+ * Loan and live-trade lines for `printingIds`. Both reads reuse the
+ * whole-account queries cached elsewhere, so a detail costs no per-card fetch.
  */
 export function useCardHoldingLines(printingIds: readonly string[]): CardHoldingLine[] {
   const userId = useUserId();

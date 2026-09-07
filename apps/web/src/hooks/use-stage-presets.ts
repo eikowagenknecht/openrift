@@ -20,10 +20,6 @@ const fetchStagePresetsFn = createServerFn({ method: "GET" })
     apiOrpcClient(stagePresetsContract, context.cookie).list(),
   );
 
-/**
- * The signed-in creator's saved stage dressing.
- * @returns Query options for the preset list.
- */
 function stagePresetsQueryOptions(userId: string) {
   return queryOptions({
     queryKey: queryKeys.stagePresets.all(userId),
@@ -32,15 +28,7 @@ function stagePresetsQueryOptions(userId: string) {
   });
 }
 
-/**
- * Reads the creator's presets, and stays disabled while signed out.
- *
- * Not a suspense query: the surfaces that offer presets (the stage's settings
- * popover, the Stage's OBS output) are already up when the list arrives, and a
- * signed-out visitor has no list to wait for at all.
- *
- * @returns The preset-list query. `data` is undefined while signed out.
- */
+/** Not a suspense query: surfaces offering presets are already up when the list arrives. */
 export function useStagePresets() {
   const userId = useUserId();
   return useQuery({
@@ -56,13 +44,7 @@ const createStagePresetFn = createServerFn({ method: "POST" })
     apiOrpcClient(stagePresetsContract, context.cookie).create(data),
   );
 
-/**
- * Saves the current dressing as a new preset. A duplicate name (and the
- * twenty-preset cap) comes back as a 409 the global mutation toast reports —
- * no `onError` here, which would replace that default.
- *
- * @returns The create mutation.
- */
+/** No `onError` here: a duplicate name or the twenty-preset cap 409s and the global mutation toast reports it. */
 export function useCreateStagePreset() {
   const userId = useUserId() ?? "";
   return useMutationWithInvalidation<StagePreset, CreateStagePreset>({
@@ -80,7 +62,6 @@ const updateStagePresetFn = createServerFn({ method: "POST" })
     apiOrpcClient(stagePresetsContract, context.cookie).update(data),
   );
 
-/** @returns The mutation that renames a preset or rewrites its config. */
 export function useUpdateStagePreset() {
   const userId = useUserId() ?? "";
   return useMutationWithInvalidation<StagePreset, UpdateStagePresetBody>({
@@ -96,7 +77,6 @@ const deleteStagePresetFn = createServerFn({ method: "POST" })
     await apiOrpcClient(stagePresetsContract, context.cookie).remove({ id });
   });
 
-/** @returns The mutation that deletes a preset. */
 export function useDeleteStagePreset() {
   const userId = useUserId() ?? "";
   return useMutationWithInvalidation<unknown, string>({

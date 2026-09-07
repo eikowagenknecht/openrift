@@ -10,12 +10,10 @@ const reset = createStoreResetter(usePresentQueueStore);
 beforeEach(reset);
 afterEach(reset);
 
-/** @returns The store's current ids. */
 function ids(): string[] {
   return usePresentQueueStore.getState().ids;
 }
 
-/** @returns How many times `printingId` is queued. */
 function count(printingId: string): number {
   return usePresentQueueStore.getState().countByPrintingId.get(printingId) ?? 0;
 }

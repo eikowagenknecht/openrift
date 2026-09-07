@@ -25,8 +25,7 @@ vi.mock("@tanstack/react-start", () => ({
 
 vi.mock("@/lib/server-fns/middleware", () => ({ withCookies: () => {} }));
 
-// Mutable so a test can drive a sign-out / sign-in without remounting the hook,
-// which is what the app layout does (it stays mounted across both).
+// Mutable: lets a test drive sign-out/sign-in without remounting the hook.
 const { signedInUser } = vi.hoisted(() => ({
   signedInUser: { id: "test-user-id" as string | null },
 }));
@@ -47,13 +46,8 @@ interface FetchCall {
   body: unknown;
 }
 
-/**
- * Stubs global fetch: GET returns `prefs`, everything else succeeds. oRPC's
- * OpenAPI link sends a body-bearing request as a `Request` object, so the
- * method/body are read from whichever shape the call used.
- * @param prefs The preferences the GET should answer with.
- * @returns The recorded calls plus a setter for later GET responses.
- */
+// oRPC's OpenAPI link sends a body-bearing request as a `Request` object, so the
+// method/body are read from whichever shape the call used.
 function stubFetch(prefs: UserPreferencesResponse) {
   const calls: FetchCall[] = [];
   let current = prefs;
@@ -88,12 +82,9 @@ function wrap() {
   return { client, Wrapper };
 }
 
-// The save is debounced by 1s. Real timers rather than fake ones: waitFor does
-// not drive vitest's fake clock, and the query round trips run on real
-// microtasks anyway.
+// Real timers, not fake: waitFor does not drive vitest's fake clock.
 const SAVE_DEBOUNCE_MS = 1000;
 
-/** Waits out the save debounce and lets any resulting request settle. @returns Nothing. */
 async function flushSaveDebounce() {
   await act(async () => {
     // oxlint-disable-next-line promise/avoid-new -- a real delay is the point: "the debounce elapsed and nothing was sent" has no promise to await.
@@ -103,7 +94,6 @@ async function flushSaveDebounce() {
   });
 }
 
-/** Lets pending microtasks (query resolution, effects) settle. @returns Nothing. */
 async function flushMicrotasks() {
   await act(async () => {
     await Promise.resolve();
@@ -132,9 +122,6 @@ describe("usePreferencesSync", () => {
   });
 
   it("does not PATCH back the values it just hydrated", async () => {
-    // The hydration writes wake the store subscriber. Nothing must come of
-    // that: the stores end up agreeing with the server, so the debounced save
-    // finds nothing to send.
     const { patches } = stubFetch({ showImages: false } as UserPreferencesResponse);
     const { Wrapper } = wrap();
     renderHook(() => usePreferencesSync(true), { wrapper: Wrapper });
@@ -159,8 +146,6 @@ describe("usePreferencesSync", () => {
   });
 
   it("ignores device-local store changes that carry no preference", async () => {
-    // maxColumns, filter expansion and the viewport measurements live in the
-    // same store but are deliberately absent from the synced snapshot.
     const { patches } = stubFetch({} as UserPreferencesResponse);
     const { Wrapper } = wrap();
     renderHook(() => usePreferencesSync(true), { wrapper: Wrapper });
@@ -174,18 +159,12 @@ describe("usePreferencesSync", () => {
   });
 
   it("saves a change made in the same frame a server payload lands", async () => {
-    // Regression: the hydration guard used to be cleared inside a
-    // requestAnimationFrame, and the subscriber returned early without
-    // recording the new value, so a toggle made before that frame elapsed was
-    // dropped from the save path entirely — it reached localStorage and never
-    // reached the server unless some later change happened to wake the save.
     const { patches } = stubFetch({ showImages: true } as UserPreferencesResponse);
     const { client, Wrapper } = wrap();
     renderHook(() => usePreferencesSync(true), { wrapper: Wrapper });
 
     await waitFor(() => expect(useDisplayStore.getState().prefsHydrated).toBe(true));
 
-    // Land a payload, then toggle before the animation frame could have run.
     act(() => {
       client.setQueryData(queryKeys.preferences.all("test-user-id"), {
         showImages: true,
@@ -201,10 +180,6 @@ describe("usePreferencesSync", () => {
   });
 
   it("keeps a pending edit when a refetch resolves with the pre-edit value", async () => {
-    // Regression: the save guard was a one-shot flag set after the PATCH
-    // resolved and cleared by any render with no data, so a payload that was
-    // already in flight could overwrite a just-made edit and the reverted value
-    // would then be what got saved.
     const { patches, setServerPrefs } = stubFetch({ showImages: true } as UserPreferencesResponse);
     const { client, Wrapper } = wrap();
     renderHook(() => usePreferencesSync(true), { wrapper: Wrapper });
@@ -212,7 +187,6 @@ describe("usePreferencesSync", () => {
     await waitFor(() => expect(useDisplayStore.getState().prefsHydrated).toBe(true));
     act(() => useDisplayStore.getState().setShowImages(false));
 
-    // A refetch that started before the toggle now resolves with the old value.
     setServerPrefs({ showImages: true } as UserPreferencesResponse);
     act(() => {
       client.setQueryData(queryKeys.preferences.all("test-user-id"), { showImages: true });
@@ -226,13 +200,6 @@ describe("usePreferencesSync", () => {
   });
 
   it("re-applies the server prefs after a sign-out / sign-in cycle", async () => {
-    // Regression: the snapshot outlived the signed-in user. The layout that
-    // calls this hook stays mounted across sign-out, and sign-out resets the
-    // stores, so the hook was left holding the previous user's snapshot while
-    // the stores held defaults. The hydrate guard read that gap as a pending
-    // local edit and stood down on every payload for the rest of the session:
-    // the next sign-in silently lost its stored theme and languages, and the
-    // reset stores were PATCHed over the server record instead.
     const { patches } = stubFetch({ languages: ["de"], theme: "dark" } as UserPreferencesResponse);
     const { Wrapper } = wrap();
     const { rerender } = renderHook(({ enabled }) => usePreferencesSync(enabled), {
@@ -242,7 +209,6 @@ describe("usePreferencesSync", () => {
 
     await waitFor(() => expect(useThemeStore.getState().preference).toBe("dark"));
 
-    // Sign out: the header resets the stores, then the session goes null.
     act(() => {
       useDisplayStore.getState().reset();
       useThemeStore.getState().reset();
@@ -251,8 +217,6 @@ describe("usePreferencesSync", () => {
     rerender({ enabled: false });
     expect(useThemeStore.getState().preference).toBeNull();
 
-    // Sign back in. The query key is the same as before, so the cached payload
-    // comes back in the very render the identity flips.
     signedInUser.id = "test-user-id";
     rerender({ enabled: true });
     await flushMicrotasks();
@@ -260,14 +224,11 @@ describe("usePreferencesSync", () => {
     expect(useThemeStore.getState().preference).toBe("dark");
     expect(useDisplayStore.getState().overrides.languages).toEqual(["de"]);
 
-    // And the stores the sign-out reset never got pushed over the record.
     await flushSaveDebounce();
     expect(patches()).toHaveLength(0);
   });
 
   it("still releases the hydration signal when it stands down for a pending edit", async () => {
-    // Downstream consumers (the language seed) block until prefsHydrated flips,
-    // so the skip path has to mark it explicitly.
     stubFetch({ showImages: true } as UserPreferencesResponse);
     const { client, Wrapper } = wrap();
     renderHook(() => usePreferencesSync(false), { wrapper: Wrapper });
@@ -308,11 +269,8 @@ describe("usePreferencesSync", () => {
     expect(patches()).toHaveLength(0);
   });
 
-  // Regression: the React Compiler cannot lower `??=` (Todo::lowerExpression)
-  // and bails out of the whole hook when it sees one, so the debounced saver
-  // and its store subscriptions get rebuilt on every render. The compiler
-  // logger in vite.config.ts surfaces the CompileError, but this source-level
-  // guard catches the pattern where the compiler doesn't run (vitest).
+  // React Compiler cannot lower `??=` and bails out of the whole hook; this
+  // source-level check catches it in vitest, where the compiler doesn't run.
   it("does not use `??=` assignments (React Compiler cannot lower them)", () => {
     const source = readFileSync(path.resolve(__dirname, "./use-preferences-sync.ts"), "utf-8");
     expect(source).not.toMatch(/[\w)\]]\s*\?\?=/u);

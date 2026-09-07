@@ -16,8 +16,6 @@ import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-// ── Server functions: queries ───────────────────────────────────────────────
-
 const fetchUserTrades = createServerFn({ method: "GET" })
   .validator((input: { groupId?: string; status?: CardTradeStatus } | undefined) => input ?? {})
   .middleware([withCookies])
@@ -54,8 +52,6 @@ const fetchTradeCopyOptions = createServerFn({ method: "GET" })
     apiOrpcClient(cardTradesContract, context.cookie).copyOptions({ id: tradeId }),
   );
 
-// ── Server functions: mutations ───────────────────────────────────────────────
-
 const createTradeFn = createServerFn({ method: "POST" })
   .validator(
     (input: {
@@ -83,9 +79,8 @@ const tradeActionFn = createServerFn({ method: "POST" })
   .validator((input: { tradeId: string; action: "decline" | "cancel" }) => input)
   .middleware([withCookies])
   .handler(({ context, data }): Promise<CardTradeResponse> =>
-    // decline/cancel share the same { id } → CardTradeResponse shape, so index
-    // the client by the action name. Accept has its own function below because
-    // it carries the giver's copy choice.
+    // decline/cancel share one { id } -> CardTradeResponse shape; accept is separate
+    // because it also carries the giver's copy choice.
     apiOrpcClient(cardTradesContract, context.cookie)[data.action]({ id: data.tradeId }),
   );
 
@@ -128,12 +123,6 @@ const skipTradeSyncFn = createServerFn({ method: "POST" })
     }),
   );
 
-// ── Query hooks ───────────────────────────────────────────────────────────────
-
-/**
- * The viewer's trades in one group (for the per-group Trades tab).
- * @returns The group-trades query.
- */
 export function useGroupTrades(groupId: string) {
   const userId = useRequiredUserId();
   return useQuery(
@@ -144,12 +133,7 @@ export function useGroupTrades(groupId: string) {
   );
 }
 
-/**
- * Polled per-group "needs your action" counts for the group badges (header nav,
- * /groups cards, Trades tab). A plain (non-suspense) query so it can live in the
- * header without an authenticated route boundary.
- * @returns The action-counts query (`{ total, byGroup }`).
- */
+/** A plain (non-suspense) query so it can live in the header without an authenticated route boundary. */
 export function useTradeActionCounts() {
   const userId = useUserId();
   return useQuery({
@@ -161,10 +145,6 @@ export function useTradeActionCounts() {
   });
 }
 
-/**
- * The viewer's recent trades across all groups (bell dropdown + match-row status).
- * @returns The all-trades query.
- */
 export function useUserTrades() {
   const userId = useUserId();
   return useQuery({
@@ -176,11 +156,7 @@ export function useUserTrades() {
   });
 }
 
-/**
- * Shared by the card browsers' trade markers and the deck builder's incoming
- * counts, so the two read one cached response instead of racing two.
- * @returns The live-annotations query options.
- */
+/** Shared by the card browsers' trade markers and the deck builder's incoming counts, so both read one cached response. */
 function liveTradesByPrintingQueryOptions(userId: string) {
   return queryOptions({
     queryKey: queryKeys.trades.liveByPrinting(userId),
@@ -191,15 +167,8 @@ function liveTradesByPrintingQueryOptions(userId: string) {
 }
 
 /**
- * The viewer's live trades across all groups, summed per (printing, role,
- * phase), for the card browsers' per-card trade markers.
- *
- * Deliberately not polled. A card-browser cell mounts this hook once per
- * visible card, and `refetchInterval` is per-observer in query-core, so a poll
- * here would arm one timer per cell instead of one per app. A stale window
- * plus the trade mutations' own invalidation covers everything the user does
- * themselves; a counterparty's accept lands on the next refocus.
- * @returns The live-annotations query.
+ * Deliberately not polled: `refetchInterval` is per-observer, and a card-browser
+ * cell mounts this hook once per visible card, so a poll would arm one timer per cell.
  */
 export function useLiveTradesByPrinting() {
   const userId = useUserId();
@@ -210,15 +179,8 @@ export function useLiveTradesByPrinting() {
 }
 
 /**
- * Per-printing counts of cards on their way to the viewer — the receiver side
- * of a reserved trade the viewer hasn't settled yet (ADR-019).
- *
- * Only the `reserved` phase counts. A pinned copy is `lockedReserved` for the
- * giver and incoming for the receiver, so one pin drives both numbers and they
- * can't disagree. `asked` and `offered` pin nothing, and the same cards can sit
- * in several open offers at once, so counting those would promise stock that
- * may never arrive.
- * @returns Incoming quantities keyed by printingId.
+ * Only the `reserved` phase counts: it is the only phase that pins a copy, so it's
+ * the only one that can't promise stock that never arrives.
  */
 export function aggregateIncomingTradeCounts(
   annotations: readonly CardTradeLiveAnnotation[],
@@ -233,12 +195,7 @@ export function aggregateIncomingTradeCounts(
   return incoming;
 }
 
-/**
- * Per-printing incoming-trade counts for the deck builder. The underlying query
- * already drops a side the viewer has settled, so a card stops counting as
- * incoming at the same moment it becomes a real copy — no double-count window.
- * @returns Incoming counts keyed by printingId, or undefined while loading/disabled.
- */
+/** The underlying query drops a settled side immediately, so there is no window where a card counts as both incoming and a real copy. */
 export function useIncomingTradeCounts(enabled: boolean): {
   data: Record<string, number> | undefined;
 } {
@@ -253,13 +210,6 @@ export function useIncomingTradeCounts(enabled: boolean): {
   return { data: aggregateIncomingTradeCounts(data.annotations) };
 }
 
-/**
- * One counterparty's trade sheet: their profile, every group the two share, and
- * the match suggestions pooled across those groups.
- * @param userId The viewer.
- * @param memberId The counterparty the sheet is about.
- * @returns The trade-sheet query options.
- */
 export function tradeSheetQueryOptions(userId: string, memberId: string) {
   return queryOptions({
     queryKey: queryKeys.trades.sheet(userId, memberId),
@@ -268,12 +218,8 @@ export function tradeSheetQueryOptions(userId: string, memberId: string) {
 }
 
 /**
- * The trade sheet for one counterparty, for the person-level trades page.
- * Deliberately not polled: the live trades the page also renders come from
- * {@link useUserTrades}, which polls, and every trade mutation invalidates this
- * key through the shared `trades` prefix.
- * @param memberId The counterparty the sheet is about.
- * @returns The trade-sheet query.
+ * Deliberately not polled: the live trades this page also renders come from
+ * {@link useUserTrades}, and every trade mutation invalidates this key via the shared `trades` prefix.
  */
 export function useTradeSheet(memberId: string) {
   const userId = useRequiredUserId();
@@ -281,18 +227,8 @@ export function useTradeSheet(memberId: string) {
 }
 
 /**
- * The candidate copies behind one trade, in the server's default order, for the
- * giver's copy pickers — the reservable supply while it is pending (accept), the
- * pinned copies plus the giver's other free copies once it is reserved (settle).
- *
- * Deliberately not a mounted `useQuery`: the route re-reads the giver's supply,
- * which for a member with a dynamic trade list assembles the whole rule
- * catalogue. It must run once per opened picker, never on a render and never on
- * a poll, so the accept flow pulls it through `query()` at the moment the
- * giver presses Accept and nothing subscribes to it. `query()` on a
- * zero-`staleTime` key always goes to the network, so a picker reopened after
- * another accept sees the copies that are still free rather than a cached list.
- * @returns The copy-options query options.
+ * Must be pulled via `query()` at Accept time, not a mounted `useQuery`, so
+ * a reopened picker never sees a stale, already-claimed copy list.
  */
 export function tradeCopyOptionsQueryOptions(userId: string, tradeId: string) {
   return queryOptions({
@@ -301,25 +237,9 @@ export function tradeCopyOptionsQueryOptions(userId: string, tradeId: string) {
   });
 }
 
-// ── Mutation hooks ──────────────────────────────────────────────────────────
-
 /**
- * Trade mutations pin/release copies, which changes the `reserved` flag on the
- * copies feed and on any list that copy belongs to, so every trade mutation
- * also resyncs the client-side copies store and the lists cache (Reserved
- * badges). That takes both copies keys: `copies.all` marks the shared
- * response cache stale, and `copies.syncedStore` makes the react-db
- * collection's own query refetch through it (its queryFn only hits the
- * network when the shared cache is stale). `lists.all` is a prefix match, so
- * it also covers `lists.detail` for the same reason. The server picks which
- * copies get reserved or released, so there is nothing to write
- * optimistically.
- *
- * `trades.all` is a prefix match too, so it already refreshes the card
- * browsers' per-printing annotations (`trades.liveByPrinting`) — that key
- * needs no entry of its own here, and `query-keys.test.ts` locks the nesting
- * that makes it true.
- * @returns The query keys to invalidate.
+ * `copies.syncedStore` only refetches when `copies.all` is also invalidated;
+ * both keys are required. `trades.all`/`lists.all` are prefix matches for their nested keys.
  */
 function tradeInvalidationKeys(userId: string, groupSlug?: string): (readonly unknown[])[] {
   const keys: (readonly unknown[])[] = [
@@ -351,19 +271,10 @@ export function useCreateTrade() {
   });
 }
 
-/**
- * Resizes a pending request to a new total quantity (per-copy claim/release on a
- * member's tradelist). Invalidates the same keys as create so the tradelist
- * markers and the Trades page both refresh.
- * @returns The set-quantity mutation.
- */
 export function useSetTradeQuantity() {
-  // The public `/lists/share/$token` route mounts this hook for anonymous
-  // viewers (the mutation only ever fires in authenticated friend-group
-  // request mode). It therefore must not require a session at render —
-  // `useRequiredUserId` would throw. `userId` is read only to build the
-  // success-time invalidation keys, where the mutation never runs without a
-  // real id, so the `?? ""` fallback is unreachable in practice.
+  // Mounted by the public `/lists/share/$token` route for anonymous viewers, so it
+  // must not require a session at render; `userId` is read only for the success-time
+  // invalidation keys, where the mutation never runs without a real id.
   const userId = useUserId();
   return useMutationWithInvalidation<
     CardTradeResponse,
@@ -375,13 +286,6 @@ export function useSetTradeQuantity() {
   });
 }
 
-/**
- * Accepts a pending trade. When the viewer is the giver they may name the exact
- * copies to promise via `copyIds` (see `tradeCopyOptionsQueryOptions`); omitting
- * it lets the server pin the plainest copies itself, which is what every
- * receiver-side accept does.
- * @returns The accept mutation.
- */
 export function useAcceptTrade() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<
@@ -402,8 +306,7 @@ export function useDeclineTrade() {
 }
 
 export function useCancelTrade() {
-  // Mounted by the public shared-list route too (see useSetTradeQuantity): use
-  // the nullable session id so an anonymous render does not throw.
+  // Mounted by the public shared-list route too (see useSetTradeQuantity).
   const userId = useUserId();
   return useMutationWithInvalidation<CardTradeResponse, { tradeId: string; groupSlug?: string }>({
     mutationFn: (data) => tradeActionFn({ data: { tradeId: data.tradeId, action: "cancel" } }),
@@ -411,17 +314,7 @@ export function useCancelTrade() {
   });
 }
 
-/**
- * Settles the viewer's own half of a swap, with the data change. A receiver
- * passes `targetCollectionId` to file the incoming copies somewhere other than
- * their inbox; a giver passes `copyIds` when the copies that physically left
- * are not the ones the accept pinned. Omitting both takes the defaults.
- *
- * `quantity` settles only part of the row, leaving the rest in flight as a
- * trade of its own — two of the three turned up and the third is coming next
- * time. Omitted, the whole row settles.
- * @returns The apply-sync mutation.
- */
+/** `quantity` settles only part of the row, leaving the rest in flight as a trade of its own; omitted, the whole row settles. */
 export function useApplyTradeSync() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<
@@ -447,12 +340,7 @@ export function useApplyTradeSync() {
   });
 }
 
-/**
- * Settles the viewer's own half without the data change. Takes the same
- * `quantity` as {@link useApplyTradeSync}, which is also how a receiver closes
- * a remainder that never arrived once cancelling is past.
- * @returns The skip-sync mutation.
- */
+/** Takes the same `quantity` semantics as {@link useApplyTradeSync}. */
 export function useSkipTradeSync() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<

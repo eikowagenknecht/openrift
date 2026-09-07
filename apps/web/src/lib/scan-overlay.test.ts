@@ -32,20 +32,10 @@ import {
   unrotatePoint,
 } from "./scan-overlay";
 
-/**
- * Signal set for {@link gradeReticle}, with the quiet frame as the baseline.
- *
- * @returns The signals, with `overrides` applied.
- */
 function signals(overrides: Partial<Parameters<typeof gradeReticle>[0]> = {}) {
   return { hasCandidate: true, bestInliers: 0, refused: false, isWinner: false, ...overrides };
 }
 
-/**
- * A rectangle as a quad, clockwise from the top-left corner.
- *
- * @returns The four corners.
- */
 function rect(x: number, y: number, width: number, height: number): Point[] {
   return [
     { x, y },
@@ -86,8 +76,6 @@ describe("gradeReticle", () => {
   });
 
   it("leaves the band again one inlier past its top", () => {
-    // Above the band the frame is verifying well and simply lost the margin or
-    // the run; that is not a hold-steady instruction.
     expect(gradeReticle(signals({ bestInliers: HOLD_STEADY_MAX_INLIERS + 1 })).state).toBe(
       "seeking",
     );
@@ -130,7 +118,6 @@ describe("stepQuadToward", () => {
     const current = rect(0, 0, 100, 100);
 
     expect(stepQuadToward(current, rect(0, 0, 100, 100), 0.5, 0.5)).toBe(true);
-    // One corner a hair off is still a step to make.
     expect(stepQuadToward(current, rect(0, 0, 100, 140), 0.5, 0.5)).toBe(false);
   });
 
@@ -153,7 +140,6 @@ describe("quadOffsetTo", () => {
     const reference = rect(0, 0, 100, 200);
     const renumbered = [reference[1], reference[2], reference[3], reference[0]];
 
-    // Offset 3 reads the renumbered quad back in the reference's order.
     expect(quadOffsetTo(renumbered, reference)).toBe(3);
   });
 
@@ -178,8 +164,6 @@ describe("smoothQuadToward", () => {
 
     smoothQuadToward(current, [detection[1], detection[2], detection[3], detection[0]], 0.5);
 
-    // A canonicalisation flip renumbers the same four corners; easing them
-    // pairwise would spin the brackets around a card that never moved.
     expect(current).toEqual(rect(0, 0, 100, 200));
   });
 });
@@ -219,8 +203,6 @@ describe("quadDiagonal", () => {
 
 describe("quadMatches", () => {
   it("scales its tolerance to the reference's own size", () => {
-    // The same 10px offset is a near miss on a card filling the frame and a
-    // different card entirely on one held at arm's length.
     expect(quadMatches(rect(10, 0, 300, 400), rect(0, 0, 300, 400), 0.05)).toBe(true);
     expect(quadMatches(rect(10, 0, 30, 40), rect(0, 0, 30, 40), 0.05)).toBe(false);
   });
@@ -243,7 +225,6 @@ describe("bracketSegments", () => {
     const legs = bracketSegments(rect(0, 0, 100, 200), 0.1);
 
     expect(legs).toHaveLength(8);
-    // Top-left corner: one leg along the top edge, one down the left edge.
     expect(legs[0]).toEqual({ ax: 0, ay: 0, bx: 10, by: 0 });
     expect(legs[1]).toEqual({ ax: 0, ay: 0, bx: 0, by: 20 });
   });
@@ -255,7 +236,6 @@ describe("bracketSegments", () => {
   });
 
   it("drops legs on a zero-length edge", () => {
-    // A quad collapsed along its top edge: the two corners there coincide.
     const collapsed: Point[] = [
       { x: 0, y: 0 },
       { x: 0, y: 0 },
@@ -324,7 +304,6 @@ describe("roundedRectPerimeter", () => {
   });
 
   it("trades straight runs for quarter circles", () => {
-    // 2*(100-20) + 2*(50-20) + 2*pi*10
     expect(roundedRectPerimeter(100, 50, 10)).toBeCloseTo(220 + 2 * Math.PI * 10, 6);
   });
 
@@ -375,7 +354,6 @@ describe("shouldDrawLockRing", () => {
   });
 
   it("never draws for a one-frame lock run", () => {
-    // Capture mode locks on a single tap; a ring there would snap full.
     expect(shouldDrawLockRing(1, 1)).toBe(false);
   });
 });
@@ -407,8 +385,6 @@ describe("unrotatePoint", () => {
 
 describe("coverMapping", () => {
   it("centres the crop on the axis the canvas is tighter in", () => {
-    // A 100x200 frame in a 100x100 canvas: cover scales by height, so the
-    // sides are cropped evenly.
     const mapping = coverMapping(100, 200, 0, 100, 100);
 
     expect(mapping.scale).toBe(1);
@@ -435,7 +411,6 @@ describe("mapQuad", () => {
 
     mapQuad(rect(10, 20, 30, 40), coverMapping(100, 100, 0, 200, 200), out);
 
-    // Scale 2, no offset: the frame and the canvas have the same aspect.
     expect(out[0]).toEqual({ x: 20, y: 40 });
     expect(out[2]).toEqual({ x: 80, y: 120 });
   });

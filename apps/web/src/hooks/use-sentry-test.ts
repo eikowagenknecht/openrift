@@ -4,8 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { fetchApi } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
-// Verify admin before throwing so anonymous callers (or any non-admin with a
-// session cookie) hitting this server function directly cannot spam Sentry.
+// Anonymous or non-admin callers hitting this server function directly must not spam Sentry.
 async function assertAdmin(cookie: string): Promise<void> {
   await fetchApi({
     errorTitle: "Unauthorized",
@@ -15,10 +14,7 @@ async function assertAdmin(cookie: string): Promise<void> {
   });
 }
 
-// ── SSR throw ───────────────────────────────────────────────────────────────
-// Throws inside a TanStack Start server function so the Sentry global
-// function-middleware captures it (service=web-ssr on the openrift-ssr project).
-
+// Sentry's global function-middleware captures this (service=web-ssr, openrift-ssr project).
 const throwInSsrFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context }) => {
@@ -30,10 +26,8 @@ export function useThrowInSsr() {
   return useMutation({ mutationFn: () => throwInSsrFn() });
 }
 
-// ── API throw ──────────────────────────────────────────────────────────────
-// Hits an admin endpoint that throws; the API's Hono onError handler sends it
-// to Sentry (openrift-api project). The server function itself does not throw.
-
+// The API's Hono onError handler sends this to Sentry (openrift-api project);
+// the server function itself does not throw.
 const throwInApiFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(({ context }) =>

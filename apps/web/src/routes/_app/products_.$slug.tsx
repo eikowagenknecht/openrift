@@ -25,8 +25,6 @@ export const Route = createFileRoute("/_app/products_/$slug")({
       `Every card in ${product.name}, a fixed-content Riftbound product (${product.cardTotal} cards).`;
     const head = seoHead({ siteUrl, title: product.name, description, path });
 
-    // One ItemList entry per unique card, in the payload's canonical printing
-    // order (the product's natural reading order), matching the set page.
     const seenCardIds = new Set<string>();
     const items: { name: string; url: string }[] = [];
     for (const printing of data.printings) {

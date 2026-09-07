@@ -6,36 +6,17 @@ import { parseDeckImportData } from "@openrift/shared/deck-codecs";
 export type { DeckImportEntry } from "@openrift/shared";
 export { parseDeckImportData } from "@openrift/shared/deck-codecs";
 
-/**
- * The formats the import page offers. Each one's parser lives next to its
- * encoder in `@openrift/shared/deck-codecs`.
- */
 export type DeckImportFormat = DeckCodeFormat;
 
-// ---------------------------------------------------------------------------
-// Format sniffing (auto-detection)
-// ---------------------------------------------------------------------------
-
-/** Result of inspecting a pasted URL for importable deck content. */
 export type DeckImportUrlSniff =
-  /** An OpenRift deck share link — resolve the token via the public share API. */
   | { kind: "share-token"; token: string }
-  /** A URL with an embedded deck code — parse `code` in the piltover format. */
   | { kind: "deck-code"; code: string }
-  /** A URL, but nothing importable was found in it. */
   | { kind: "url-no-deck" };
 
-/** Deck share path on any host: /decks/share/{token}. Tokens are 12-char alphanumeric today; accept a lenient range so rotations of the scheme keep matching. */
 const SHARE_TOKEN_PATH = /\/decks\/share\/(?<token>[A-Za-z0-9]{6,64})\/?$/u;
 
-/** A whole-input token in TTS shape: SET-NNN with an optional art-variant suffix. */
 const TTS_TOKEN = /^[A-Z]+-\d+(?:-\d+)?$/u;
 
-/**
- * Parses input that looks like a URL. Accepts full http(s) URLs as well as
- * protocol-less pastes like "openrift.app/decks/share/abc".
- * @returns The parsed URL, or null when the input isn't URL-shaped.
- */
 function parseUrlCandidate(text: string): URL | null {
   if (/\s/u.test(text)) {
     return null;
@@ -56,12 +37,7 @@ function parseUrlCandidate(text: string): URL | null {
   }
 }
 
-/**
- * Extracts importable deck content from a pasted URL: an OpenRift share token,
- * or a deck code embedded in a path segment, query value, or hash fragment.
- * Works purely on the URL string — no page is ever fetched.
- * @returns The URL sniff result, or null when the input is not a URL.
- */
+/** Works purely on the URL string; no page is ever fetched. */
 export function extractDeckFromUrl(text: string): DeckImportUrlSniff | null {
   const url = parseUrlCandidate(text.trim());
   if (!url) {
@@ -101,12 +77,6 @@ export function extractDeckFromUrl(text: string): DeckImportUrlSniff | null {
   return { kind: "url-no-deck" };
 }
 
-/**
- * Guesses the import format of pasted (non-URL) deck text: a lone token that
- * decodes as a deck code is piltover, input made entirely of short codes is a
- * TTS string, and everything else falls back to the text-list format.
- * @returns The detected format.
- */
 export function sniffDeckImportFormat(text: string): DeckImportFormat {
   const tokens = text.trim().split(/\s+/u);
   if (tokens.length > 0 && tokens[0] !== "" && tokens.every((token) => TTS_TOKEN.test(token))) {
@@ -118,13 +88,6 @@ export function sniffDeckImportFormat(text: string): DeckImportFormat {
   return "text";
 }
 
-/**
- * Sniffs the format of deck text and parses it in one step. Used by the
- * `?code=` deep link on /decks/import, which accepts compact deck codes and
- * URL-encoded text lists alike (e.g. from the Discord bot or the browser
- * extension).
- * @returns The detected format alongside the parsed entries and warnings.
- */
 export function parseDeckImportAuto(
   text: string,
 ): { format: DeckImportFormat } & ReturnType<typeof parseDeckImportData> {
@@ -132,15 +95,6 @@ export function parseDeckImportAuto(
   return { format, ...parseDeckImportData(text, format) };
 }
 
-// ---------------------------------------------------------------------------
-// Shared-deck link import
-// ---------------------------------------------------------------------------
-
-/**
- * Converts the cards of a resolved shared deck (from the public share API)
- * into import entries, preserving each card's zone.
- * @returns Import entries ready for catalog matching.
- */
 export function entriesFromSharedDeck(cards: PublicDeckCardResponse[]): DeckImportEntry[] {
   return cards.map((card) => ({
     shortCode: card.shortCode ?? undefined,

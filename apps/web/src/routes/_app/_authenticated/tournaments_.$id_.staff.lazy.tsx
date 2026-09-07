@@ -15,7 +15,6 @@ export const Route = createLazyFileRoute("/_app/_authenticated/tournaments_/$id_
 function TournamentStaffRoute() {
   const { id } = Route.useParams();
   const { data: detail } = useTournamentDetail(id);
-  // Only the host may add staff.
   const host = isTournamentHost(detail.myRoles);
   return (
     <TournamentSectionFrame

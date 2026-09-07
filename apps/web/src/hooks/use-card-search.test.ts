@@ -67,11 +67,9 @@ describe("useCardSearch", () => {
     expect(result.current).toHaveLength(1);
   });
 
-  it("searches on one character when the minimum is lowered", () => {
+  it("ranks a prefix match above a substring match when the minimum is lowered", () => {
     const { result } = renderHook(() => useCardSearch(cards, "h", undefined, 20, 1));
 
-    // "Howling Abyss" leads on the prefix tier; "Yasuo, the Unforgiven" still
-    // qualifies on the substring tier, below it.
     expect(result.current.map((card) => card.id)).toEqual(["c-3", "c-1"]);
   });
 

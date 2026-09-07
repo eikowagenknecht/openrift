@@ -3,7 +3,6 @@ import type { NavItemConfig } from "@/components/layout/nav-items";
 import type { QuickAddCardResult } from "@/hooks/use-quick-add-search";
 import type { QuickAddVerb } from "@/stores/command-palette-store";
 
-/** Shortest query that earns the help, page-search and rules-search rows. */
 const PALETTE_MIN_QUERY_LENGTH = 2;
 
 const CARD_LIMIT = 6;
@@ -25,11 +24,9 @@ export interface PaletteGroup {
 
 interface BuildPaletteGroupsInput {
   query: string;
-  /** Ranked card hits from the shared matcher, already capped by the caller. */
   cards: QuickAddCardResult[];
   navItems: NavItemConfig[];
   helpArticles: HelpArticle[];
-  /** The current route's quick-add, when it offers one. */
   quickAdd: { label: string; moveLabel: string | null } | null;
 }
 
@@ -37,17 +34,7 @@ function matches(query: string, ...haystack: (string | undefined)[]): boolean {
   return haystack.some((text) => text !== undefined && text.toLowerCase().includes(query));
 }
 
-/**
- * One row per destination.
- *
- * A page may hold an entry in both nav lists, gated so that only one of them
- * renders per platform (Scan is primary on phones and lives under Organize on
- * desktop). The palette has no platform and shows both lists, so without this
- * that page appears twice. The surviving entry takes the richer description,
- * which is usually the one on the More entry.
- *
- * @returns The items with duplicate destinations folded together, in order.
- */
+/** Nav items are platform-gated, so the same destination can appear in both lists here; merge, keeping the richer description. */
 function dedupeByDestination(navItems: NavItemConfig[]): NavItemConfig[] {
   const byDestination = new Map<string, NavItemConfig>();
   for (const item of navItems) {
@@ -63,20 +50,7 @@ function dedupeByDestination(navItems: NavItemConfig[]): NavItemConfig[] {
   return [...byDestination.values()];
 }
 
-/**
- * The palette's rows, grouped and ordered.
- *
- * An empty query is the "what is here" view: the route's quick-add and the
- * whole navigation, no search rows. Typing narrows to cards first, since a card
- * name is what almost every query is.
- *
- * The two search rows hand the query to a real search surface. They sit at the
- * bottom while cards matched, and jump to the top when none did: a query with
- * no card hits is usually a rules question ("might", "showdown"), and burying
- * the way to ask it under an empty card list is how you never find it.
- *
- * @returns Non-empty groups, in display order.
- */
+/** Search rows sit at the bottom while cards matched, and move to the top when no card hit did. */
 export function buildPaletteGroups({
   query,
   cards,
@@ -88,8 +62,6 @@ export function buildPaletteGroups({
   const folded = trimmed.toLowerCase();
   const searchable = trimmed.length >= PALETTE_MIN_QUERY_LENGTH;
 
-  // Add and move are two rows rather than a tab inside one, so both are
-  // visible without entering either and neither needs a shortcut to be found.
   const quickAddRows: PaletteRow[] = (
     quickAdd
       ? [

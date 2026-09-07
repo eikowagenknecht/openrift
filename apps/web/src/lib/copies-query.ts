@@ -10,13 +10,8 @@ export async function fetchCopies(collectionId?: string): Promise<CopyListRespon
   const allItems: CopyResponse[] = [];
   let cursor: string | null = null;
 
-  // Same-origin fetch — cookies flow automatically, no server-function proxy.
-  // Paginate through all pages to ensure we fetch every copy. Both the global
-  // feed (/copies) and the per-collection feed (/collections/:id/copies) are on
-  // oRPC.
   do {
-    // Annotated to break the cursor → query → page → cursor inference cycle the
-    // loop creates (TS otherwise widens these to `any`).
+    // Annotated to break the cursor -> query -> page -> cursor inference cycle (TS otherwise widens to `any`).
     const page: CopyListResponse = collectionId
       ? await browserApiOrpcClient(collectionsContract).copies({
           id: collectionId,
@@ -36,8 +31,6 @@ export function copiesQueryOptions(userId: string, collectionId?: string) {
       : queryKeys.copies.all(userId),
     queryFn: () => fetchCopies(collectionId),
     select: (data: CopyListResponse) => data.items,
-    // Default 0 means every subscriber mount triggers a refetch. 5 min
-    // matches the other user-scoped caches and invalidations still work.
     staleTime: 5 * 60 * 1000,
   });
 }

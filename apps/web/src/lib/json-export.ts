@@ -1,11 +1,6 @@
 /**
- * Triggers a browser download of JSON text that is already serialized.
- *
- * For payloads that arrive as a string from the server, where parsing them
- * back into objects only to re-serialize would cost a full copy of a file that
- * is several megabytes for no gain.
- *
- * @returns void
+ * For JSON that arrives already serialized from the server; avoids parsing
+ * and re-serializing a payload that can be several megabytes.
  */
 export function downloadJSONText(json: string, filename: string): void {
   const blob = new Blob([json], { type: "application/json" });
@@ -17,10 +12,6 @@ export function downloadJSONText(json: string, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-/**
- * Triggers a browser download of the given value serialized as pretty-printed JSON.
- * @returns void
- */
 export function downloadJSON(data: unknown, filename: string): void {
   downloadJSONText(JSON.stringify(data, null, 2), filename);
 }

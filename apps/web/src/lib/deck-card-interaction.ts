@@ -4,15 +4,8 @@ import type { DeckCardDragData } from "@/components/deck/deck-dnd-context";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 
 /**
- * Click and keyboard wiring for a deck card rendered as a `div` — the overview's
- * thumbnails and its stacks-mode strips.
- *
- * Spread as one object rather than as conditional props: the static analyzer
- * needs `role`, `tabIndex` and the handlers to arrive together, or it reports a
- * `jsx-a11y/no-static-element-interactions` false positive on the element.
- *
- * @returns The interactive props, or nothing when the surface has no click
- *   target (read-only views without a detail pane).
+ * `role`, `tabIndex` and the handlers must be spread together as one object
+ * or `jsx-a11y/no-static-element-interactions` false-positives on the element.
  */
 export function cardInteractiveProps(
   card: DeckBuilderCard,
@@ -34,14 +27,7 @@ export function cardInteractiveProps(
   };
 }
 
-/**
- * The drag payload a deck entry carries when picked up off the overview. The
- * ids identify the row it was lifted from (card, zone, printing), which is what
- * `resolveDraggedCard` looks the entry back up by.
- * @param displayName The name shown on the drag ghost — a legend's own name,
- *   not the card's, so it reads the way the thumb does.
- * @returns The payload for `useDraggable`'s `data`.
- */
+/** `resolveDraggedCard` looks the entry back up by the card/zone/printing ids. */
 export function deckCardDragData(
   card: DeckBuilderCard,
   zone: DeckZone,

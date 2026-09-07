@@ -2,11 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { MISS_GRACE_MS, createPlacementTally } from "./scan-placement-counts";
 
-/**
- * A clock reading far enough past `at` that the grace window has elapsed.
- *
- * @returns The clock reading.
- */
 function pastGrace(at: number): number {
   return at + MISS_GRACE_MS + 1;
 }

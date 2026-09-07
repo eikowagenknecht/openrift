@@ -40,8 +40,6 @@ function SharedDeckPage() {
       data={data}
       isLoggedIn={isLoggedIn}
       returnPath={`/decks/share/${token}`}
-      // The hero is the page header here: "by …" next to the deck name, the
-      // copy CTA under the status chips.
       heroByline={<>by {data.owner.displayName}</>}
       heroActions={
         <>

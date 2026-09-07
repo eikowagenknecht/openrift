@@ -28,16 +28,10 @@ interface AdminEnumHooksConfig<
 }
 
 /**
- * Builds the query-options object and the list/create/update/reorder/delete
- * hooks shared by the admin enum editors, which all read one collection and
- * invalidate the same keys after every mutation.
- *
- * The `createServerFn` calls stay at module level in the calling hook file and
- * are passed in here as plain functions: the TanStack Start compiler assigns
- * one RPC id per syntactic call site, so a nested declaration would make every
+ * `createServerFn` calls stay at module level in the calling hook file and are
+ * passed in here as plain functions: the TanStack Start compiler assigns one
+ * RPC id per syntactic call site, so a nested declaration would make every
  * enum share a single server function.
- * @returns The query options plus the five hooks, to re-export under the
- * caller's own names.
  */
 export function createAdminEnumHooks<
   TList,

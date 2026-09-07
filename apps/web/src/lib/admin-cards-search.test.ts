@@ -71,20 +71,16 @@ describe("filterCardsBySet", () => {
   });
 
   it("keeps only rows whose setSlugs include the active set", () => {
-    // Regression: /admin/cards?set=unleashed must actually narrow the list.
     const filtered = filterCardsBySet(rows, "unleashed");
     expect(filtered.map((r) => r.id)).toEqual(["jinx", "annie"]);
   });
 
   it("keeps reprint rows that appear in multiple sets", () => {
-    // Jinx is in both OGN and Unleashed; filtering by OGN must still find her.
     const filtered = filterCardsBySet(rows, "ogn");
     expect(filtered.map((r) => r.id)).toEqual(["jinx", "viktor"]);
   });
 
   it("narrows candidates by their pending set slugs", () => {
-    // Regression: a new-set candidate (no accepted printing, cardSlug null) still
-    // carries setSlugs from its candidate printings and must survive the filter.
     const candidates = [
       { cardSlug: null, setSlugs: ["ven"] },
       { cardSlug: null, setSlugs: ["ogn"] },

@@ -1,12 +1,6 @@
 import type { Printing } from "@openrift/shared";
 
-/**
- * Restricts a `printingsByCardId` map to the given languages. An empty language
- * list means "show all" — the same convention as the rest of the filter
- * pipeline.
- * @returns A filtered map; cards with no printing in any listed language are
- * dropped, and the surviving printings keep their original order.
- */
+/** An empty language list means "show all", matching the rest of the filter pipeline. */
 export function filterPrintingsByLanguages(
   source: ReadonlyMap<string, Printing[]>,
   languages: readonly string[],

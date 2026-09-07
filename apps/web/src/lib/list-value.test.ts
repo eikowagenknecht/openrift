@@ -104,7 +104,6 @@ describe("computeListValue", () => {
       entries: [printingEntry(p1, 2), printingEntry(p2, 5)],
       prices: stubPriceLookup({
         [p1.id]: { cardtrader: 1.5 },
-        // p2 has no entry at all
       }),
       marketplace: "cardtrader",
       printingsByCardId: new Map(),
@@ -200,7 +199,6 @@ describe("computeListValue", () => {
       prices: stubPriceLookup({
         [cardP.id]: { cardtrader: 0.5 },
         [printing.id]: { cardtrader: 2 },
-        // copy unpriced
       }),
       marketplace: "cardtrader",
       printingsByCardId: new Map([[cardId, [cardP]]]),

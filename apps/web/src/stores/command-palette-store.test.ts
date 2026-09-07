@@ -60,8 +60,6 @@ describe("useCommandPaletteStore", () => {
     });
 
     it("opens the global palette when the quick-add does not claim the chord", () => {
-      // The catalog: the page is already a card search, so Ctrl+K is spent on
-      // the palette and quick add is one row inside it.
       store().registerQuickAdd({
         key: "catalog:inbox",
         label: "Add to Inbox",

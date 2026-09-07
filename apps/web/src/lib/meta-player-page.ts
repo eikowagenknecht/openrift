@@ -10,21 +10,12 @@ type MetaPlayerLegend = NonNullable<MetaPlayerFinish["legend"]>;
 const TOP_CUT = 8;
 
 export interface MetaPlayerCounts {
-  /**
-   * Events won, not rank-1 rows: a shared first place files two rows at one
-   * event, and counting rows would report the player winning it twice.
-   */
   eventWins: number;
   topEights: number;
   finishes: number;
   decklists: number;
 }
 
-/**
- * `decklists` counts the share tokens the record carries, which is the set
- * {@link metaPlayerDecks} resolves against the archive. Reading it off the
- * finishes lets the hero render without the deck payload.
- */
 export function metaPlayerCounts(finishes: readonly MetaPlayerFinish[]): MetaPlayerCounts {
   const wonEvents = new Set(
     finishes.filter((finish) => finish.rank === 1).map((finish) => finish.event.slug),
@@ -40,10 +31,6 @@ export function metaPlayerCounts(finishes: readonly MetaPlayerFinish[]): MetaPla
   };
 }
 
-/**
- * The finishes inside the scope bar's selection. The player endpoint answers
- * with the whole record, so this page narrows it itself.
- */
 export function filterPlayerFinishes(
   finishes: readonly MetaPlayerFinish[],
   filter: MetaLegendScope,
@@ -51,15 +38,6 @@ export function filterPlayerFinishes(
   return finishes.filter((finish) => scopeMatches(finish.event, filter.scope, filter.eras));
 }
 
-/**
- * The finishes in the order a view shows them.
- *
- * `best` is the record's high-water marks: best placing first, and the most
- * recent of an equal placing ahead of older ones, so a reader sees what the
- * player has done lately rather than a five-year-old top 8 pinned to the top.
- * `all` is the record as it happened, newest first, with the better placing
- * first inside one day.
- */
 export function sortPlayerFinishes(
   finishes: readonly MetaPlayerFinish[],
   view: MetaFinishesView,
@@ -83,7 +61,6 @@ export function sortPlayerFinishes(
 export interface MetaPlayerLegendEntry {
   legend: MetaPlayerLegend;
   finishes: number;
-  /** Events won with it, not rank-1 rows. */
   wins: number;
   bestRank: number;
 }
@@ -100,10 +77,7 @@ interface LegendTally {
   bestRank: number;
 }
 
-/**
- * Grouped by card id, not name: two legend cards can share a champion. Ties
- * fall to the better placing, then the name, so equal counts keep a stable order.
- */
+/** Grouped by card id, not name: two legend cards can share a champion. */
 export function metaPlayerLegends(finishes: readonly MetaPlayerFinish[]): MetaPlayerLegendsResult {
   const tallies = new Map<string, LegendTally>();
   let withoutLegend = 0;
@@ -165,10 +139,7 @@ export interface MetaPlayerFacts {
   topLegend: MetaPlayerLegend | null;
 }
 
-/**
- * The country is where most of the record was played, not a nationality. A tie
- * falls to the alphabetically first code so the line does not flip between renders.
- */
+/** The country is where most of the record was played, not a nationality. Ties break to the alphabetically first code. */
 export function metaPlayerFacts(finishes: readonly MetaPlayerFinish[]): MetaPlayerFacts {
   const byCountry = new Map<string, number>();
   let firstDate: string | null = null;
@@ -200,10 +171,6 @@ export function metaPlayerFacts(finishes: readonly MetaPlayerFinish[]): MetaPlay
   };
 }
 
-/**
- * Read off the whole record rather than the scoped slice, so picking a country
- * never removes the others from the control that picked it.
- */
 export function metaPlayerCountries(finishes: readonly MetaPlayerFinish[]): string[] {
   return metaLegendCountries(finishes);
 }

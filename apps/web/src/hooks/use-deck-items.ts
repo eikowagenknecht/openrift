@@ -8,11 +8,7 @@ import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { sortOverviewCards } from "@/lib/deck-card-sort";
 
-/**
- * Display order of zones in the deck overview. Mirrors the visual stacking in
- * `DeckOverview` so prev/next in the detail pane walks the deck the way the
- * user sees it.
- */
+/** Mirrors the visual stacking in `DeckOverview` so prev/next in the detail pane matches it. */
 const ZONE_ORDER: DeckZone[] = [
   WellKnown.deckZone.LEGEND,
   WellKnown.deckZone.CHAMPION,
@@ -29,24 +25,8 @@ interface UseDeckItemsResult {
 }
 
 /**
- * Resolves a deck's cards into a `CardViewerItem` list (for the selection
- * store's prev/next navigation) plus a `printingsByCardId` map (for the detail
- * pane's variant picker). Items follow the visual order of the overview:
- * legend → champion → runes → battlefield → main → sideboard → overflow, with
- * grouped zones (main/sideboard/overflow) sorted by type then curve.
- *
- * Each zone appearance gets its own item: a card in both main and sideboard
- * produces two entries so highlight and arrow-nav anchor at the instance the
- * user clicked. Items carry a `zone` tag and use a composite `${zone}:${printingId}`
- * id so cells stay distinct within the list. Cards whose printing can't be
- * resolved (e.g. share-page during catalog hydration) are skipped.
- *
- * The deck's tokens follow the zones, matching where the overview renders them.
- * They carry no zone — a token is never a deck entry — so their ids are
- * `token:${printingId}` and the selection store's zone-scoped thumb highlight
- * stays off the deck's own cards while a token is open.
- *
- * @returns The deck's printings as CardViewerItems plus the catalog map.
+ * Each zone appearance gets its own item, keyed `${zone}:${printingId}`, so a
+ * card in both main and sideboard anchors nav at the instance clicked; tokens carry no zone.
  */
 export function useDeckItems(cards: DeckBuilderCard[]): UseDeckItemsResult {
   "use memo";

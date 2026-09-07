@@ -52,7 +52,6 @@ export const Route = createLazyFileRoute("/_app/_authenticated/collections")({
 const DRAG_ACTIVATION = { distance: 8 };
 const MODIFIERS = [snapCenterToCursor];
 
-/** Where a collections drag can land: another collection, or a sidebar list. */
 type CollectionDropData = { type: "collection"; collectionId: string } | SidebarListDropData;
 
 const COLLECTION_DROP_TYPES = [
@@ -65,10 +64,8 @@ function CollectionLayout() {
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
   const topBarHeight = useMeasuredHeight(topBarSlot);
   const [activeDrag, setActiveDrag] = useState<AnyDragData | null>(null);
-  // null → one copy (default), "all" → Shift held, number → digit key 2-9 held
-  // during the drag. Applies to both drop targets (another collection, or a
-  // sidebar list). Only meaningful for `collection-card` drags — list-entry
-  // drags always carry the whole entry (no per-key trimming).
+  // null → one copy, "all" → Shift held, number → digit key 2-9 held. Only
+  // meaningful for `collection-card` drags; list-entry drags carry the whole entry.
   const [moveModifier, setMoveModifier] = useState<"all" | number | null>(null);
   // Read by the key listener below, which is mounted once and can't see
   // `activeDrag` without re-subscribing on every drag.
@@ -79,15 +76,8 @@ function CollectionLayout() {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: DRAG_ACTIVATION }));
 
-  // Track Shift and digit keys 2-9 for the whole collections layout, not just
-  // while a drag is active — otherwise pressing Shift before grabbing a card
-  // would be missed (the keydown fires before listeners attach). Editable
-  // targets are ignored so typing a "3" in a search field doesn't update state.
-  //
-  // Digits are the exception: they only arm the drag quantity while a drag is
-  // already in flight. Outside a drag the same keys add copies of the focused
-  // card (useGridKeyboardNav), so accepting them here too would make
-  // "press 3, then grab" add three copies *and* move three.
+  // Tracked for the whole layout so Shift held before grabbing a card isn't missed.
+  // Digits only arm the modifier while dragActiveRef is set: unarmed, the same keys add copies (useGridKeyboardNav).
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (isTypingTarget(event.target)) {
@@ -129,8 +119,6 @@ function CollectionLayout() {
     dragActiveRef.current = true;
     const data = asDragData<AnyDragData>(event.active.data.current, COLLECTION_DRAG_TYPES);
     if (data?.type === "collection-card") {
-      // Resolve the live multi-selection at grab time so the overlay fans and
-      // counts the whole selection, not just the grabbed tile's copies.
       setActiveDrag(resolveSelectionDrag(data));
       return;
     }
@@ -170,7 +158,6 @@ function CollectionLayout() {
     modifier: "all" | number | null,
   ) {
     if (dropData.type === "collection") {
-      // Same-collection drop is a no-op.
       if (dragData.sourceCollectionId === dropData.collectionId) {
         return;
       }
@@ -181,8 +168,6 @@ function CollectionLayout() {
         {
           onSuccess: () => {
             toast.success(`Moved ${count} card${count > 1 ? "s" : ""}`);
-            // The dragged copies left this collection; drop the selection that
-            // pointed at them, matching the floating action bar's move.
             if (dragData.fromSelection) {
               useGridSelectionStore.getState().clearSelection();
             }
@@ -192,19 +177,15 @@ function CollectionLayout() {
       return;
     }
 
-    // Copies you only have group access to aren't yours to trade away or wish
-    // for. The sidebar already won't highlight such a drop, but a drop still
-    // fires here, so refuse it with a clear note rather than a silent no-op
-    // (the server would skip every copy and report nothing added).
+    // Group-shared copies can't go on trade/wish lists; the server would
+    // silently skip every one and report nothing added.
     if (dropData.listIntent !== "organize" && dragData.sourceAllGroupCopies) {
       toast.info("Cards from a shared group collection can't go on trade or wish lists");
       return;
     }
 
-    // Same stack-trim rule as a collection drop: one copy by default, `n` with
-    // a digit key held, the whole stack with Shift. The server derives the
-    // right entry shape (card / printing / copy) from the list's kind and
-    // dedupes, so the trim only shows up on copy-kind lists.
+    // The trim (one/n/whole stack) only shows up on copy-kind lists; the server
+    // derives the entry shape from the list's kind and dedupes.
     bulkAddCopiesToList.mutate(
       { listId: dropData.listId, copyIds: resolveDropCopyIds(dragData, modifier) },
       {
@@ -213,8 +194,6 @@ function CollectionLayout() {
           toast[result.added + result.updated === 0 ? "info" : "success"](
             describeListAdd(result, listName),
           );
-          // Mirror the "add to list" dialog, which clears the selection once
-          // the cards are added.
           if (dragData.fromSelection) {
             useGridSelectionStore.getState().clearSelection();
           }
@@ -224,9 +203,7 @@ function CollectionLayout() {
   }
 
   function handleListEntryDrop(dragData: ListEntryDragData, dropData: SidebarListDropData) {
-    // Defense-in-depth: the sidebar already refuses to highlight incompatible
-    // targets and the server re-checks. Keeping the gate here too avoids
-    // firing a pointless mutation on a no-op same-list drop.
+    // Defense-in-depth against a same-list drop; the sidebar and server also check this.
     if (
       dropData.listId === dragData.sourceListId ||
       dropData.listKind !== dragData.sourceKind ||
@@ -300,13 +277,8 @@ function CollectionContent({
 }) {
   return (
     <div className="pr-safe flex min-w-0 flex-1 flex-col pb-3 pl-3">
-      {/* Page top bar lives in the content column (not full-width above the sidebar)
-          so the sidebar can rise to the header. The column already clears the iOS
-          safe areas (ml-safe sidebar left, pr-safe right), so no px-safe here — it
-          would double-inset the bar's content on notched phones in landscape. Left:
-          -ml-3/pl-3 full-bleed the blur across the interior gap and re-align with
-          the column content. Right: mr-safe-neg/pr-safe bleed to the viewport edge
-          and re-inset past the safe area. */}
+      {/* No px-safe here: the column already clears iOS safe areas, and px-safe
+          would double-inset the bar on notched phones in landscape. */}
       <div
         ref={setTopBarSlot}
         className={cn(PAGE_TOP_BAR_STICKY_BASE, "mr-safe-neg pr-safe -ml-3 pl-3")}
@@ -330,33 +302,22 @@ function ListEntryDragPreview({ drag }: { drag: ListEntryDragData }) {
 }
 
 function DragPreview({ drag, modifier }: { drag: CardDragData; modifier: "all" | number | null }) {
-  // A select-mode drag publishes its fan; a lone drag has none, and shows the
-  // printing it was grabbed from.
   const printings = drag.previewPrintings.length > 0 ? drag.previewPrintings : [drag.printing];
-  // The selected-tile count + noun are published by the grid as the selection
-  // changes (frozen for the duration of a drag, since selection can't change
-  // mid-drag).
   const selectionCount = useDragPreviewStore((s) => s.selectionCount);
   const selectionNoun = useDragPreviewStore((s) => s.selectionNoun);
 
   let count: number;
   let label: string;
   if (drag.fromSelection && selectionCount >= 1) {
-    // Multi-selection drag: label the selected tiles ("3 printings"), not the
-    // underlying copies, and never trim (the whole selection moves). A single
-    // selected tile shows its card name, like any lone drag.
     count = selectionCount;
     const plural = selectionNoun === "copy" ? "copies" : `${selectionNoun}s`;
     label =
       selectionCount === 1 ? legendDisplayName(drag.printing.card) : `${selectionCount} ${plural}`;
   } else {
-    // Lone stack/copy drag: the modifier may trim a stack down, and a single
-    // card shows its name. Counted through the same helper the drop uses, so
-    // the badge can't promise a number the drop won't deliver.
+    // Counted through the same helper the drop uses, so the badge can't
+    // promise a number the drop won't deliver.
     count = resolveDropCopyIds(drag, modifier).length;
     label = count === 1 ? legendDisplayName(drag.printing.card) : `${count} copies`;
   }
-  // The ghost fans the first few itself; the drag can carry more, which is what
-  // the count says.
   return <CardDragGhost printings={printings} label={label} count={count} />;
 }

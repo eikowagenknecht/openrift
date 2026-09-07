@@ -12,20 +12,17 @@ export type BinderSheetPaper = "a4" | "letter";
 export type BinderSheetStyle = "light" | "dark";
 
 export interface BinderSheetSpec {
-  /** Control label, e.g. "3×3 binder page". */
   label: string;
-  /** Physical size plus copies per page, e.g. "189 × 264 mm, 1 per page". */
   hint: string;
-  /** Sheet width in mm (cards across × card width). */
+  /** mm */
   width: number;
-  /** Sheet height in mm (cards down × card height). */
+  /** mm */
   height: number;
-  /** Copies printed per page. */
   cols: number;
   rows: number;
 }
 
-/** Standard card dimensions in mm, matching the proxy printer. */
+/** mm; matches the proxy printer. */
 export const CARD_WIDTH_MM = 63;
 const CARD_HEIGHT_MM = 88;
 

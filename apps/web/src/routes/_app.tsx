@@ -12,9 +12,8 @@ import { useSelectionStore } from "@/stores/selection-store";
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: async ({ context }) => {
-    // Preload session so the Header can render auth-dependent UI during SSR
-    // (profile icon, gated menu entries). Non-critical: if it fails, the
-    // client-side useQuery will retry.
+    // Preload session so the Header can render auth-dependent UI during SSR.
+    // Non-critical: if it fails, the client-side useQuery will retry.
     await context.queryClient
       .query({ ...sessionQueryOptions(), staleTime: "static" })
       .catch(() => null);
@@ -28,10 +27,8 @@ function AppLayout() {
   const matches = useMatches();
   const hideFooter = matches.some((match) => match.staticData?.hideFooter);
 
-  // The selection store is a singleton — without this, a printing selected on
-  // one card-browser surface (e.g. /collections) re-appears in the next
-  // surface's detail pane (e.g. /lists/<id>). Close it on every pathname
-  // change so the detail belongs to the current page.
+  // The selection store is a singleton, so without this a printing selected
+  // on one surface re-appears in the next surface's detail pane.
   const pathname = useLocation({ select: (loc) => loc.pathname });
   useScopeEffect(pathname, () => {
     useSelectionStore.getState().closeDetail();

@@ -58,8 +58,7 @@ function ProfilePage() {
   const languages = useLanguageList();
   const user = session?.user;
   const gravatarHash = useGravatarHash(user?.email);
-  // Admin access resolves client-side (the query is not prefetched here), so the
-  // section and its nav entry appear after hydration rather than during SSR.
+  // isAdmin query is not prefetched, so the admin section is absent during SSR.
   const { data: isAdmin = false } = useIsAdmin();
 
   if (!user) {
@@ -90,9 +89,7 @@ function ProfilePage() {
 
         <SettingsGroup id="sharing" title="Public sharing">
           <PublicSharingSection />
-          {/* Both cards in this group answer "what of mine is public": the
-              bundle link, and whether the meta archive prints your name. The
-              credit card renders nothing while the archive is unlaunched. */}
+          {/* Renders nothing while the meta archive is unlaunched. */}
           <MetaCreditSection />
         </SettingsGroup>
 

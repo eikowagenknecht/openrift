@@ -29,14 +29,11 @@ describe("resolveVariantPopoverPrintings", () => {
   it("uses the catalog projection when the card is present there", () => {
     const catalog = mapOf([enNormal, enFoil]);
     const languageScoped = mapOf([enNormal, enFoil, enOtherSet]);
-    // Catalog wins even though the language-scoped map holds an extra variant.
     const result = resolveVariantPopoverPrintings(catalog, languageScoped, { cardId: CARD_ID });
     expect(result).toEqual([enNormal, enFoil]);
   });
 
   it("falls back to the language-scoped list when the catalog projection dropped the card", () => {
-    // The group bulk box shows a card the viewer owns only in a filtered-out
-    // language, so the owned-bucket catalog projection has no entry for it.
     const catalog = new Map<string, Printing[]>();
     const languageScoped = mapOf([enNormal, enFoil]);
     const result = resolveVariantPopoverPrintings(catalog, languageScoped, { cardId: CARD_ID });

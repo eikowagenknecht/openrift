@@ -6,10 +6,8 @@ import { catalogQueryOptions } from "@/lib/catalog-query";
 
 export type GetStandardArtFallback = (printing: Printing) => StandardArtFallback | null;
 
-// findStandardArtFallback filters + sorts the card's sibling printings — pure
-// in its inputs, but re-run for every visible cell on every grid render.
-// Cache per candidates-array identity (stable per catalog fetch; a new
-// catalog produces new arrays, so entries age out with their key).
+// Cached per candidates-array identity: stable per catalog fetch, so entries
+// age out with their key when a new catalog produces new arrays.
 const fallbackCache = new WeakMap<readonly Printing[], Map<string, StandardArtFallback | null>>();
 
 function cachedFallback(printing: Printing, candidates: Printing[]): StandardArtFallback | null {
@@ -29,20 +27,7 @@ function cachedFallback(printing: Printing, candidates: Printing[]): StandardArt
   return result;
 }
 
-/**
- * Resolves substitute artwork for imageless printings (same-language standard
- * printing, else the EN one) from the client-cached catalog.
- *
- * Reads the catalog from the query cache only (`enabled: false`): surfaces
- * that already load it (card browser, collections, decks, /promos) get
- * fallbacks for free, while surfaces that don't (e.g. /sets/$setSlug) degrade
- * to the drawn placeholder instead of pulling the ~310 KB catalog just for
- * this. The catalog is never dehydrated into SSR payloads, so the cache is
- * empty during SSR and the first client render alike — no hydration mismatch.
- *
- * @returns A resolver from a printing to its fallback art, or null when the
- * catalog isn't cached or no standard printing with an image exists.
- */
+/** `enabled: false`: reads the catalog only if another surface already fetched it. */
 export function useStandardArtFallback(): GetStandardArtFallback {
   "use memo";
   const { data } = useQuery({ ...catalogQueryOptions, enabled: false });

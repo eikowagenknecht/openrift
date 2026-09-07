@@ -47,16 +47,7 @@ describe("useSearchUrlSync", () => {
     expect(result.current[0]).toBe("");
   });
 
-  it("does not clobber in-progress typing when the navigate settles (regression)", () => {
-    // Simulates the real router: onCommit schedules a URL update that lands
-    // on the next rerender. During fast typing, the input should not be
-    // overwritten by the stale-then-catching-up URL value.
-    //
-    // Real-world bug trigger: `useFilterActions` returns a fresh `setSearch`
-    // closure each render, so the effect re-runs on every typing-triggered
-    // rerender (not only when urlValue/debounced change). We simulate that
-    // here by passing a fresh `onCommit` each render, which forces the effect
-    // to observe the stale urlValue mid-flight.
+  it("does not clobber in-progress typing while a fresh onCommit closure lands each render", () => {
     const commits: string[] = [];
     const makeOnCommit = () => (value: string) => {
       commits.push(value);
@@ -76,14 +67,11 @@ describe("useSearchUrlSync", () => {
     });
     expect(commits.at(-1)).toBe("Thi");
 
-    // User keeps typing BEFORE the URL has caught up. Rerender with a fresh
-    // onCommit (mimicking the real hook) while urlValue is still stale.
     act(() => result.current[1]("This is not"));
     rerender({ urlValue: "", onCommit: makeOnCommit() });
 
     expect(result.current[0]).toBe("This is not");
 
-    // URL finally catches up.
     rerender({ urlValue: "Thi", onCommit: makeOnCommit() });
     expect(result.current[0]).toBe("This is not");
 
@@ -111,7 +99,6 @@ describe("useSearchUrlSync", () => {
     rerender({ urlValue: pendingUrlValue, onCommit });
     expect(result.current[0]).toBe("foo");
 
-    // External "clear all": URL becomes "" via another code path.
     rerender({ urlValue: "", onCommit });
     expect(result.current[0]).toBe("");
   });

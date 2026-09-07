@@ -41,7 +41,6 @@ const deleteContactMethodFn = createServerFn({ method: "POST" })
     apiOrpcClient(contactMethodsContract, context.cookie).remove(data),
   );
 
-/** @returns The signed-in user's account-level contact methods (empty until loaded). */
 export function useContactMethods(): { contactMethods: ContactMethod[]; isLoading: boolean } {
   const userId = useUserId();
   const hydrated = useHydrated();

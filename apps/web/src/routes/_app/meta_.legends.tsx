@@ -52,7 +52,6 @@ export const Route = createFileRoute("/_app/meta_/legends")({
     await Promise.all([
       context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
       context.queryClient.query({ ...metaLegendsQueryOptions, staleTime: "static" }),
-      // The rows join their records against the events payload client-side.
       context.queryClient.query({ ...metaEventsQueryOptions(range), staleTime: "static" }),
     ]);
   },

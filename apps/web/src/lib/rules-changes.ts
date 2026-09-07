@@ -29,40 +29,20 @@ export const CHANGE_KIND_BADGE: Record<ChangeKind, { label: string; className: s
 };
 
 export interface RuleMoves {
-  /** Map from a source rule_number (removed or modified) to its new home. */
   oldToNew: Map<string, string>;
-  /** Map from a target rule_number (added or modified) back to the source. */
   newToOld: Map<string, string>;
-  /** Source rule_numbers that were tombstones — used to suppress those rows. */
   fromRemovedSet: Set<string>;
-  /** Target rule_numbers that are brand-new adds (vs. modified). */
   toAddedSet: Set<string>;
-  /**
-   * Modified rule_numbers whose previous content went elsewhere AND that did
-   * not themselves receive content from another tracked rule. These rows are
-   * "replaced": the rule_number now holds different content, but the old
-   * content lives at a new rule_number. Their stored `previousContent` is
-   * misleading (it's now at the new home), so the diff is suppressed.
-   */
   displacedSet: Set<string>;
 }
 
-// Fresh instance of the rule-reference regex, used by the move-detection
-// normalizer. Derived from `RULE_REFERENCE_REGEX.source` so the two stay in
-// sync, but with its own `lastIndex` state to avoid clobbering the markdown
-// pipeline's iteration.
+// Must keep its own lastIndex state, separate from RULE_REFERENCE_REGEX,
+// or it corrupts the markdown pipeline's iteration over that regex.
 const RULE_REFERENCE_NORMALIZE_REGEX = new RegExp(RULE_REFERENCE_REGEX.source, "gu");
 
 /**
- * Canonicalizes rule content for move detection: strips emphasis/code
- * markers, collapses whitespace, and replaces rule cross-references
- * (`rule 173`, `CR 540`, bare `540.4.b`) with a placeholder. This way a
- * rule whose only change is renumbered cross-refs (an inevitable consequence
- * of section reorganization) still matches its previous-version twin.
- * Brackets, parens, and other punctuation stay — they carry semantic content
- * (e.g. `[Warning]` penalty labels).
- *
- * @returns The canonical form for content equality comparison.
+ * Strips emphasis/code markers and rule cross-references so a rule whose only
+ * change is renumbered cross-refs still matches its previous-version twin.
  */
 function normalizeForMoveDetection(text: string): string {
   return text
@@ -73,19 +53,8 @@ function normalizeForMoveDetection(text: string): string {
 }
 
 /**
- * Detects "moves" — content that ended up under a different rule_number than
- * it had in the previous version. Two flavors:
- *
- * - **removed → added/modified**: a tombstone's content matches a target row's
- *   current content (classic renumber).
- * - **modified → modified**: a modified rule's *previous* content matches
- *   another rule's current content (renumber-shift, where both rule_numbers
- *   exist in both versions but the content swapped/shifted).
- *
- * Both are surfaced as a single "Moved" entry on the target, with the source
- * rule_number in a tooltip.
- *
- * @returns Move maps and per-source/target kind sets for summary accounting.
+ * Detects a tombstone's content reappearing under a new rule_number, or a modified
+ * rule's previous content matching another rule's current content (renumber-shift).
  */
 export function detectMoves(
   rules: readonly RuleResponse[],
@@ -94,10 +63,8 @@ export function detectMoves(
 ): RuleMoves {
   const addedSet = new Set(changes.added);
 
-  // Index: target rule's current content (normalized) → its rule_number,
-  // considering only rules that changed in this version (added or modified).
-  // First-write-wins for duplicates, so generic boilerplate doesn't generate
-  // spurious moves.
+  // First-write-wins for duplicate content, so generic boilerplate doesn't
+  // generate spurious moves.
   const targetByContent = new Map<string, string>();
   for (const rule of rules) {
     const isAdded = addedSet.has(rule.ruleNumber);
@@ -144,19 +111,15 @@ export function detectMoves(
     }
   }
 
-  // Pass 1: tombstone sources (removed-then-added/modified).
   for (const tombstone of changes.removed) {
     tryRecordMove(tombstone.ruleNumber, tombstone.content, true);
   }
-  // Pass 2: modified-rule sources (renumber-shifts where both old + new
-  // rule_numbers exist in both versions).
   for (const [oldRuleNumber, prevContent] of Object.entries(changes.modifiedPrev)) {
     tryRecordMove(oldRuleNumber, prevContent, false);
   }
 
-  // A modified rule is "displaced" iff its old content moved elsewhere but
-  // it didn't itself receive content from another tracked rule (i.e. the
-  // new content is fresh / from outside the tracked diff).
+  // Displaced: old content moved elsewhere, but this rule_number didn't itself
+  // receive content from another tracked rule.
   const displacedSet = new Set<string>();
   for (const oldRuleNumber of oldToNew.keys()) {
     if (fromRemovedSet.has(oldRuleNumber)) {
@@ -172,14 +135,8 @@ export function detectMoves(
 }
 
 /**
- * Rules the source marks as modified whose rendered output is identical to the
- * previous version's — the edit only touched whitespace, emphasis, or link
- * markup, all of which the inline diff renders silently. Badging these as
- * "Changed" opens an empty diff, so they're treated as unchanged instead.
- * Rules whose content moved or was replaced are excluded: those carry their
- * own badge and are accounted for separately.
- *
- * @returns The set of rule_numbers whose diff would show no marks.
+ * Rules marked modified whose rendered diff shows no marks (whitespace, emphasis, or
+ * link-only edits). Moved or displaced rules are excluded; they carry their own badge.
  */
 export function detectSilentChanges(
   rules: readonly RuleResponse[],
@@ -204,15 +161,6 @@ export function detectSilentChanges(
   return silent;
 }
 
-/**
- * Builds a map from rule_number → ChangeKind for the given version's diff.
- * A rule whose new content matches some other rule's previous content is
- * tagged "moved" — whether it's brand-new or just modified. Tombstones whose
- * content moved to a new rule_number (per `movedTombstones`) are skipped, and
- * so are rules in `silentSet` (see `detectSilentChanges`).
- *
- * @returns Map of rule_number to its change kind in this version.
- */
 export function buildChangeKindMap(
   rules: readonly RuleResponse[],
   changes: RuleChangesResponse,
@@ -247,15 +195,8 @@ export function buildChangeKindMap(
 }
 
 /**
- * Interleaves tombstones into the rules list at their natural rule-number
- * position. Skips tombstones whose content moved to a new rule_number — those
- * are surfaced as "Moved" badges on the new rule instead.
- *
- * `sort_order` is per-version and collides across versions, so we sort on
- * `rule_number` (natural order) when in diff mode to keep new + tombstone
- * rows in their canonical document position.
- *
- * @returns The merged list ordered by rule_number.
+ * sort_order is per-version and collides across versions, so tombstones are merged
+ * in by rule_number (natural order) to land in their canonical document position.
  */
 export function mergeTombstones(
   rules: readonly RuleResponse[],
@@ -268,19 +209,6 @@ export function mergeTombstones(
   );
 }
 
-/**
- * Computes, for each foldable rule, the half-open `[start, end)` range of
- * sibling indices that collapse with it. Three grouping rules apply:
- *
- * - A `title` groups every rule until the next `title` (or the end of list).
- * - A `subtitle` groups every rule until the next `subtitle` or `title`.
- * - A `text` rule groups any directly dot-nested descendants
- *   (e.g. `103` groups `103.1`, `103.1.a`, etc.).
- *
- * Only rules that actually have at least one child get an entry.
- *
- * @returns Map of rule number to the index range of its children.
- */
 export function computeFoldGroups(rules: RuleResponse[]): Map<string, [number, number]> {
   const groups = new Map<string, [number, number]>();
   for (let index = 0; index < rules.length; index++) {
@@ -311,14 +239,6 @@ export function computeFoldGroups(rules: RuleResponse[]): Map<string, [number, n
   return groups;
 }
 
-/**
- * Inverts `computeFoldGroups` to map each rule number to the rule numbers
- * whose folding would hide it. A rule is hidden iff at least one of its
- * ancestors is in the folded set. Pre-computing this lets each row check
- * its visibility from the fold store without scanning the full fold map.
- *
- * @returns Map of rule number to the rule numbers that own a fold group covering it.
- */
 export function computeAncestorsByRule(
   rules: RuleResponse[],
   groups: Map<string, [number, number]>,
@@ -338,8 +258,7 @@ export function computeAncestorsByRule(
   return ancestorsByRule;
 }
 
-// Stable empty-array reference for rows with no ancestors — keeps the prop
-// Object.is-equal across renders so the compiler can cache the .map() result.
+// Must stay Object.is-equal across renders for the compiler to cache the .map() result.
 export const EMPTY_ANCESTORS: readonly string[] = [];
 
 // Stable empty Set/Map references used when no moves are present.
@@ -358,13 +277,6 @@ function ruleMatches(rule: RuleResponse, terms: string[]): boolean {
   return terms.every((term) => content.includes(term));
 }
 
-/**
- * Collects the indices that should be shown alongside a match: the most
- * recent enclosing title, the most recent enclosing subtitle, and every
- * dot-nested parent rule (e.g. `103.1.a` pulls in `103.1` and `103`).
- *
- * @returns Indices of ancestor rules within the original list.
- */
 function findAncestorIndices(
   rules: RuleResponse[],
   matchIndex: number,

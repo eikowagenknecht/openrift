@@ -23,8 +23,6 @@ export const Route = createFileRoute("/_app/meta_/decks_/$token")({
       return seoHead({ siteUrl, title: "Archived deck", path, unlisted: true });
     }
     const finish = formatRank(data.meta.rank, data.meta.rankIsTier);
-    // Every archived deck name is generated as "Legend (Player)", which the page
-    // itself no longer prints.
     const legend = archivedDeckIdentity(data.cards)?.name ?? null;
     const named = legend ?? data.meta.playerName;
     const title = `${named}, ${finish} at ${data.meta.event.name}`;

@@ -36,15 +36,12 @@ describe("sortCombos", () => {
   });
 
   it("sorts singles before multi-domain at same average position", () => {
-    // Fury is at index 0, Calm is at index 1, fury+calm average = 0.5
-    // So Fury (0) comes before fury+calm (0.5) which comes before Calm (1)
     const combos = sortCombos(new Set(["calm", "fury", "fury+calm"]), DOMAIN_ORDER);
     expect(combos.map((combo) => combo.key)).toEqual(["fury", "fury+calm", "calm"]);
   });
 
   it("interleaves combos by average domain position", () => {
     const combos = sortCombos(new Set(["chaos", "fury", "fury+mind"]), DOMAIN_ORDER);
-    // Fury = 0, Fury+Mind avg = (0+2)/2 = 1, Chaos = 4
     expect(combos.map((combo) => combo.key)).toEqual(["fury", "fury+mind", "chaos"]);
   });
 });

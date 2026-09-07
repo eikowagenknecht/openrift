@@ -46,13 +46,7 @@ function renderSync(props: Partial<SyncProps> = {}) {
   });
 }
 
-/**
- * Lets the sender's queue move on. Only the first call of a run goes out
- * synchronously; anything sent while one is in flight waits for it, which is
- * the whole point of the queue.
- *
- * @returns A promise for the drained queue.
- */
+/** Only the first call of a run goes out synchronously; this drains the rest. */
 async function settle() {
   await Promise.resolve();
   await Promise.resolve();
@@ -70,7 +64,6 @@ describe("useOverlayBoardSync while switched off", () => {
   });
 
   it("does not clear a channel it never touched", () => {
-    // Opening a stage must not take down a board someone put up from elsewhere.
     renderSync({ revealCount: 2 });
     expect(mockClear).not.toHaveBeenCalled();
   });
@@ -97,8 +90,6 @@ describe("useOverlayBoardSync switched on", () => {
   });
 
   it("pushes the whole board again when the direction flips", async () => {
-    // The walk order is baked into the pushed board, so a step alone would
-    // leave the overlay revealing from the wrong end.
     const { rerender } = renderSync({ enabled: true, revealCount: 1 });
     mockPushBoard.mockClear();
 
@@ -132,8 +123,6 @@ describe("useOverlayBoardSync switched on", () => {
   });
 
   it("leaves the board up when the stage closes", () => {
-    // A ranking segment often outlives the tab it was run from, and the OBS
-    // tab's own Clear button is there for when it doesn't.
     const { unmount } = renderSync({ enabled: true });
 
     unmount();

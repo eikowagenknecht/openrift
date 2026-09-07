@@ -1,8 +1,3 @@
-/**
- * Parses a CSV string into rows of string arrays.
- * Handles quoted fields (with commas and escaped double-quotes inside).
- * @returns Array of rows, each row being an array of field values.
- */
 export function parseCSV(text: string): string[][] {
   const rows: string[][] = [];
   const length = text.length;
@@ -13,17 +8,15 @@ export function parseCSV(text: string): string[][] {
 
     while (position < length) {
       if (text[position] === '"') {
-        // Quoted field
-        position++; // skip opening quote
+        position++;
         let field = "";
         while (position < length) {
           if (text[position] === '"') {
             if (position + 1 < length && text[position + 1] === '"') {
-              // Escaped double-quote
               field += '"';
               position += 2;
             } else {
-              position++; // skip closing quote
+              position++;
               break;
             }
           } else {
@@ -33,7 +26,6 @@ export function parseCSV(text: string): string[][] {
         }
         row.push(field);
       } else {
-        // Unquoted field
         const start = position;
         while (
           position < length &&
@@ -47,13 +39,12 @@ export function parseCSV(text: string): string[][] {
       }
 
       if (position < length && text[position] === ",") {
-        position++; // skip comma, continue to next field
+        position++;
       } else {
-        break; // end of row
+        break;
       }
     }
 
-    // Skip line endings
     if (position < length && text[position] === "\r") {
       position++;
     }
@@ -61,7 +52,6 @@ export function parseCSV(text: string): string[][] {
       position++;
     }
 
-    // Skip empty rows (single empty string)
     if (row.length > 1 || (row.length === 1 && row[0] !== "")) {
       rows.push(row);
     }
@@ -70,10 +60,6 @@ export function parseCSV(text: string): string[][] {
   return rows;
 }
 
-/**
- * Parses CSV into an array of objects using the first row as headers.
- * @returns Array of records keyed by header name.
- */
 export function parseCSVWithHeaders(text: string): Record<string, string>[] {
   const rows = parseCSV(text);
   if (rows.length === 0) {

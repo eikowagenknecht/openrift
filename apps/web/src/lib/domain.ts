@@ -38,13 +38,7 @@ export function getDomainColor(
   return resolve(colors, domain);
 }
 
-/**
- * Background for the power-pip stack: a solid domain color, or a hard 50/50
- * split of the two domain colors for a dual-domain card (not the soft blend the
- * rest of the card uses), so the dual identity reads clearly at pip size.
- *
- * @returns The CSS background for the pip container.
- */
+/** Hard 50/50 split, not the soft blend used elsewhere, so the dual identity reads at pip size. */
 export function getPipBackgroundStyle(
   domains: string[],
   colors: Record<string, string> = DEFAULT_DOMAIN_COLORS,
@@ -57,13 +51,7 @@ export function getPipBackgroundStyle(
   return { background: `linear-gradient(90deg, ${c1} 50%, ${c2} 50%)` };
 }
 
-/**
- * Picks the flat tint ("white" or "black") for the domain rune drawn in the
- * power-pip stack, so it stays legible against its domain background. A
- * two-domain pip straddles a split background, so it always reads white.
- *
- * @returns "black" on light single-domain backgrounds, "white" otherwise.
- */
+/** A two-domain pip straddles a split background, so it always reads white. */
 export function getPipGlyphTint(
   domains: string[],
   colors: Record<string, string> = DEFAULT_DOMAIN_COLORS,
@@ -78,17 +66,8 @@ export function formatDomainFilterLabel(value: string, labels?: Record<string, s
   return value === WellKnown.domain.COLORLESS ? "None" : (labels?.[value] ?? value);
 }
 
-/** A card can carry at most this many domains. */
 const MAX_DOMAINS = 2;
 
-/**
- * Given the currently-selected domains, returns the set of options that should
- * be disabled in a multi-select: colorless is mutually exclusive with every
- * other domain, and otherwise no more than `MAX_DOMAINS` may be picked.
- * Already-selected options are never disabled (so they can be removed).
- *
- * @returns The set of domain slugs to disable.
- */
 export function computeDomainDisabled(
   selected: string[],
   options: readonly string[],
@@ -115,14 +94,6 @@ export function computeDomainDisabled(
   return disabled;
 }
 
-/**
- * Ambient background glow built from a legend's domain colors — one radial per
- * domain, anchored to opposite top corners so a dual-domain identity reads as a
- * blend. An empty domain list gets a neutral wash. Shared by the deck hero, the
- * editor sidebar's identity header, and the match board's player panels, so all
- * three glow the same way.
- * @returns An inline style with the layered gradients.
- */
 export function deckGlowStyle(
   domains: readonly string[],
   colors: Record<string, string> = DEFAULT_DOMAIN_COLORS,

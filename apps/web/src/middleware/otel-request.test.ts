@@ -120,7 +120,6 @@ describe("otelRequestMiddleware (web)", () => {
     expect(seenDuringRequest).toBe("203.0.113.7");
     const span = exporter.getFinishedSpans()[0];
     expect(span?.attributes["client.address"]).toBe("203.0.113.7");
-    // Must not leak outside the request scope.
     expect(activeClientIp()).toBeUndefined();
   });
 

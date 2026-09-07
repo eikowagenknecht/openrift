@@ -4,38 +4,29 @@ import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 
 /**
  * Edits landing within this window of the previous record collapse into one
- * undo step. Holding a +/- button or shift-clicking a stack fires a burst of
- * mutations; the snapshot taken before the first of them already captures the
- * pre-burst deck, so the rest add nothing but noise to the stack.
+ * undo step, since the snapshot before the first of a burst already captures
+ * the pre-burst deck.
  */
 const BURST_MS = 500;
 
-/** Depth of the undo stack; older steps fall off the bottom. */
 const MAX_DEPTH = 100;
 
 /**
  * Snapshots are handed out to callers who feed them straight into the draft
  * collection, so every entry is copied on the way in and on the way out.
- * @returns A row-wise copy of the snapshot.
  */
 function copySnapshot(cards: readonly DeckBuilderCard[]): DeckBuilderCard[] {
   return cards.map((card) => ({ ...card }));
 }
 
 interface DeckUndoState {
-  /** The deck the stacks belong to; switching decks clears them. */
   deckId: string | null;
   past: DeckBuilderCard[][];
   future: DeckBuilderCard[][];
-  /** Timestamp of the last accepted record, for burst coalescing. */
   lastRecordAt: number;
-  /** Snapshot the deck as it looked *before* the edit about to be applied. */
   record: (deckId: string, snapshot: readonly DeckBuilderCard[]) => void;
-  /** @returns The deck state to restore, or null when there's nothing to undo. */
   undo: (deckId: string, currentCards: readonly DeckBuilderCard[]) => DeckBuilderCard[] | null;
-  /** @returns The deck state to restore, or null when there's nothing to redo. */
   redo: (deckId: string, currentCards: readonly DeckBuilderCard[]) => DeckBuilderCard[] | null;
-  /** Drops both stacks, e.g. when server state replaces the draft. */
   reset: (deckId?: string) => void;
 }
 

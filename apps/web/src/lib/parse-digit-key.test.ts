@@ -29,8 +29,6 @@ describe("parseDigitKey", () => {
     expect(parseDigitKey("")).toBeNull();
   });
 
-  // Regression: synthetic keyup events from autofill
-  // extensions arrive without a `key`, which used to crash on `.length`.
   it("returns null when key is undefined", () => {
     expect(parseDigitKey(undefined)).toBeNull();
   });

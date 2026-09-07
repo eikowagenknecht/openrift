@@ -22,18 +22,10 @@ export interface WishMembership {
    * printing of the card; a printing-kind wish matches the exact printing.
    */
   entriesForPrinting: (cardId: string, printingId: string) => WishEntryFlat[];
-  /** Whether the given printing matches any wish entry. */
   matches: (cardId: string, printingId: string) => boolean;
-  /** Total quantity wished across the entries matching the given printing (0 = none). */
   wishedQuantity: (cardId: string, printingId: string) => number;
 }
 
-/**
- * Flatten wish-list details into per-card and per-printing lookups. Pure so the
- * matching rule can be unit-tested without rendering the query hooks.
- *
- * @returns A {@link WishMembership} bound to the supplied list details.
- */
 export function buildWishMembership(details: readonly ListDetailResponse[]): WishMembership {
   const byCardId = new Map<string, WishEntryFlat[]>();
   const byPrintingId = new Map<string, WishEntryFlat[]>();
@@ -47,9 +39,8 @@ export function buildWishMembership(details: readonly ListDetailResponse[]): Wis
   };
   for (const detail of details) {
     for (const entry of detail.entries) {
-      // Rule-derived entries (ADR-034) have no list_entries row, so they aren't
-      // individually removable; the wishlist-heart / take-followup flows only
-      // operate on manual entries. Rule-driven wishes are managed in the rule editor.
+      // Rule-derived entries have no list_entries row, so they aren't
+      // individually removable; only manual entries are.
       if (entry.id === null) {
         continue;
       }
@@ -87,16 +78,7 @@ export function buildWishMembership(details: readonly ListDetailResponse[]): Wis
   };
 }
 
-/**
- * The viewer's wish-list membership, for highlighting wanted cards in a group
- * "bulk box" or on a member's tradelist, and offering a post-take wishlist
- * cleanup. Pass `enabled=false` on surfaces that don't need it (e.g. personal
- * collections) to skip every fetch. Safe to call on surfaces that also render
- * for logged-out visitors (e.g. the public shared-list browser): with no signed-in
- * user it stays empty and fetches nothing.
- *
- * @returns A {@link WishMembership}; empty until the wish lists have loaded.
- */
+/** Safe on surfaces that render for logged-out visitors: with no signed-in user it stays empty and fetches nothing. */
 export function useWishEntries(enabled: boolean): WishMembership {
   const userId = useUserId();
   const active = enabled && userId !== null;

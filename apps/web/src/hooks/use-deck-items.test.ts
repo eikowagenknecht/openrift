@@ -16,14 +16,12 @@ vi.mock("@/hooks/use-cards", () => ({
         return acc;
       }, new Map()),
     ),
-    // The tokens appended after the zones are looked up here, by card id.
     cardsById: Object.fromEntries(
       [...printings.values()].map((printing) => [printing.cardId, printing.card]),
     ),
   }),
 }));
 
-// The tokens appended after the zones resolve their own printing, by language.
 vi.mock("@/hooks/use-effective-language-order", () => ({
   useEffectiveLanguageOrder: () => ["EN"],
 }));

@@ -15,12 +15,8 @@ import { groupItemsByYear } from "@/lib/group-by-year";
 // import it without cycling back through this dispatcher.
 export type { CardGroup } from "@/components/cards/card-grid-types";
 
-/**
- * Groups items by set: main sets first, then supplemental ones (matching the
- * filter sidebar order), preserving the source order within each group. Sets
- * with no items are dropped.
- * @returns One CardGroup per non-empty set, main sets before supplemental.
- */
+// Main sets first, then supplemental ones (matching the filter sidebar
+// order); sets with no items are dropped.
 export function groupItemsBySet(items: CardViewerItem[], setOrder: GroupInfo[]): CardGroup[] {
   const bySet = Map.groupBy(items, (item) => item.printing.setId);
   // Stable sort keeps the source (release) order within each set type.
@@ -31,13 +27,6 @@ export function groupItemsBySet(items: CardViewerItem[], setOrder: GroupInfo[]):
   });
 }
 
-/**
- * Groups items for a card viewer by the chosen axis (set / field / card /
- * channel / year / marker / collection), applying the group direction. Shared
- * by the grid and table viewers (each then lays the groups out into its own
- * virtual rows) and by /promos, which adapts the result to its own sections.
- * @returns The ordered card groups, or a single "_all" group when ungrouped.
- */
 export function buildGroups(
   items: CardViewerItem[],
   groupBy: GroupByField,
@@ -57,10 +46,8 @@ export function buildGroups(
     return groupItemsByChannel(items, groupDir);
   }
   if (groupBy === "collection") {
-    // Only /collections' copies view supplies a collection order. Anywhere else
-    // (a deep-linked `?groupBy=collection` on a surface whose items are
-    // printings) this axis has nothing to bucket by, so fall through to the
-    // ungrouped single section rather than one bucket per missing id.
+    // A deep-linked `?groupBy=collection` on a surface whose items are
+    // printings has nothing to bucket by; fall back to the ungrouped section.
     if (!collectionOrder) {
       return [{ group: { id: "_all", slug: "", name: "" }, items }];
     }
@@ -77,9 +64,7 @@ export function buildGroups(
   if (isFieldGrouping(groupBy)) {
     groups = groupItemsByField(items, groupBy, orders, labels);
   } else {
-    // "set" — and, defensively, any axis this surface doesn't group by (an
-    // unknown value deep-linked in the URL). Fall back to the default set
-    // grouping instead of crashing the grid.
+    // Also covers an unknown axis deep-linked in the URL.
     groups = setOrder
       ? groupItemsBySet(items, setOrder)
       : [{ group: { id: "_all", slug: "", name: "" }, items }];

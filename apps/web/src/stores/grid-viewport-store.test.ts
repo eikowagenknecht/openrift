@@ -35,9 +35,8 @@ describe("useGridViewportStore", () => {
   });
 
   it("does not notify subscribers when the measurement is unchanged", () => {
-    // A ResizeObserver fires on scrollbar-width changes and on every layout
-    // pass that touches the grid, so an identical re-publish is the common
-    // case. Waking the toolbar controls for it would re-render them on scroll.
+    // ResizeObserver fires on scrollbar-width changes too, so an identical
+    // re-publish is common; the toolbar controls shouldn't re-render for it.
     const measurement = { physicalMax: 6, physicalMin: 2, autoColumns: 4 };
     useGridViewportStore.getState().setMeasurements(measurement);
 

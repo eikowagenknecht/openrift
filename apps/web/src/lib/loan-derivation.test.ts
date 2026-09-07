@@ -114,8 +114,6 @@ describe("borrowedReasonText", () => {
     );
   });
 
-  // The loans feed loads separately from the ownership counts, so the glyph can
-  // render a beat before any name is known.
   it("falls back to an unnamed friend when no lender is known yet", () => {
     expect(borrowedReasonText(1, [])).toBe("1 copy is borrowed from a friend");
     expect(borrowedReasonText(2, [])).toBe("2 copies are borrowed from a friend");

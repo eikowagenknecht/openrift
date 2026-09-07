@@ -31,7 +31,6 @@ describe("useServerSeededState", () => {
   });
 
   it("keeps the edit across repeated refetches that report the same server value", () => {
-    // A poll that returns unchanged data must not look like a new seed.
     const { result, rerender } = renderHook(({ value }) => useServerSeededState(value), {
       initialProps: { value: "Summoner Skirmish" },
     });
@@ -50,18 +49,13 @@ describe("useServerSeededState", () => {
 
     act(() => result.current[1]("Half-typed nam"));
     rerender({ value: "Rift Rumble" });
-    // Typing the (now current) server value back in re-aligns the field, so the
-    // next server change is adopted again.
     act(() => result.current[1]("Rift Rumble"));
     rerender({ value: "Piltover Open" });
 
     expect(result.current[0]).toBe("Piltover Open");
   });
 
-  it("treats an edit back to the previously seeded value as untouched", () => {
-    // Type something, undo it, then let the server move on: the field was left
-    // exactly as seeded, so it should follow the server rather than pin the old
-    // value.
+  it("resumes tracking the server after an edit is undone back to the previously seeded value", () => {
     const { result, rerender } = renderHook(({ value }) => useServerSeededState(value), {
       initialProps: { value: "Summoner Skirmish" },
     });

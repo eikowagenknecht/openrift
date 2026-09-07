@@ -44,10 +44,7 @@ describe("queueCardsSearchSchema", () => {
 });
 
 describe("startPresentingSearch", () => {
-  // Regression: leaving a show writes `edit: true` into the URL, and the old
-  // inline spread carried it into the start navigation — the presentation
-  // branch requires `edit !== true`, so "Start presenting" did nothing.
-  it("clears the builder's edit flag", () => {
+  it("clears the builder's edit flag so Start presenting isn't a no-op", () => {
     const next = startPresentingSearch({ edit: true, cards: ["old"] }, ["a", "b"]);
 
     expect(next.edit).toBeUndefined();

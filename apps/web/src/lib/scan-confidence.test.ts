@@ -20,7 +20,6 @@ describe("ghostConfidence", () => {
     const full = ghostConfidence(FLOOR, NO_RUN);
     expect(half).toBeGreaterThan(0);
     expect(full).toBeGreaterThan(half);
-    // Inliers alone cannot fill the bar; the run has to finish it.
     expect(full).toBeLessThan(1);
   });
 

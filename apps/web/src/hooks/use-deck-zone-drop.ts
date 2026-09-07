@@ -7,13 +7,6 @@ import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { isCardAllowedInZone, isDeckZoneFullForDrag } from "@/lib/deck-builder-card";
 import { asDragData } from "@/lib/dnd-data";
 
-/**
- * Whether a zone must reject the card currently being dragged: an incompatible
- * type, or a zone already full for this drag (copy limit, battlefield dedupe,
- * the 12-rune cap). Nothing being dragged, or a drag whose card can't be
- * resolved against the deck, is never a rejection.
- * @returns True when a drop on this zone has to be a no-op.
- */
 export function isZoneDropRejected(args: {
   dragData: AnyDragData | undefined;
   zone: DeckZone;
@@ -35,28 +28,13 @@ export function isZoneDropRejected(args: {
   return !isCardAllowedInZone(draggedCard, zone) || isZoneFull;
 }
 
-/**
- * Registers a deck zone as a drop target, shared by the sidebar's zone sections
- * and the overview's zone tiles so the two reject the same drags.
- *
- * The zone stays registered even when it rejects the dragged card: a disabled
- * droppable leaves collision detection, and a release over it would then read
- * as "dropped outside a zone", which REMOVES a copy (see handleDragEnd). The
- * rejection travels in `dropData.disabled` instead, and callers gate their own
- * highlight on the returned `dropDisabled`.
- *
- * `disabled` is the separate, real thing: a read-only surface takes no drops at
- * all.
- *
- * @returns The droppable ref, whether a drag is over it, and the rejection.
- */
+/** Never disables the droppable for a rejected drag: that drops out of collision
+ * detection, so a release over it removes the card as a drop outside any zone. */
 export function useDeckZoneDrop(args: {
-  /** Droppable id — unique per surface, since both mount the same zones. */
   id: string;
   zone: DeckZone;
   allCards: DeckBuilderCard[];
   format: DeckFormat;
-  /** Read-only surfaces register nothing. */
   disabled?: boolean;
 }): {
   dropRef: (element: HTMLElement | null) => void;

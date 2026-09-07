@@ -10,9 +10,7 @@ import { PERSISTENT_ERROR_TOAST } from "./toast";
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 vi.mock("./report-error", () => ({ captureHandledError: vi.fn() }));
 
-// What a 401 ApiError looks like after the server-fn (seroval) boundary: a
-// PLAIN object carrying the own properties, prototype gone. instanceof would
-// fail here, which is why the 401 detection must stay structural.
+// Post-seroval-boundary ApiError: a plain object, prototype gone. instanceof fails here.
 const unauthorized = {
   name: "ApiError",
   message: "Unauthorized",
@@ -20,17 +18,12 @@ const unauthorized = {
   diagnostic: "GET /api/v1/decks/1 → 401 Unauthorized\nUnauthorized",
 } as unknown as Error;
 
-// A stale client bundle calling a server function ID the deployed server's
-// manifest no longer has — what getServerFnById throws, as it reaches the
-// client after the server-fn boundary (prototype dropped, message preserved).
+// What getServerFnById throws when a manifest entry isn't on the deployed server.
 const staleServerFn = {
   name: "Error",
   message: "Server function info not found for deadbeefcafef00d",
 } as unknown as Error;
 
-// Stub location.reload so the stale-bundle reload path can be asserted without
-// tearing down the jsdom env, and reset the once-per-session loop guard so a
-// reload in one test doesn't suppress the next.
 const reloadSpy = vi.fn();
 beforeEach(() => {
   reloadSpy.mockReset();
@@ -57,8 +50,6 @@ describe("createQueryClient mutation onError", () => {
 
   it("toasts the server message and logs the diagnostic for an ApiError-shaped object", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    // A PLAIN object with no prototype — what an ApiError becomes after it
-    // crosses the server-function (seroval) boundary. instanceof would fail here.
     const serialized = {
       name: "ApiError",
       message: "Collection not found",
@@ -68,8 +59,6 @@ describe("createQueryClient mutation onError", () => {
 
     getOnError()(serialized, undefined, undefined);
 
-    // Persistent + dismissible: a failed action the user must acknowledge,
-    // not an auto-dismissing toast that's easy to miss.
     expect(toast.error).toHaveBeenCalledWith("Collection not found", PERSISTENT_ERROR_TOAST);
     expect(errorSpy).toHaveBeenCalledWith(
       expect.stringContaining("Collection not found"),
@@ -94,7 +83,6 @@ describe("createQueryClient mutation onError", () => {
 
     getOnError()(staleServerFn, undefined, undefined);
 
-    // The user sees a reload, not a framework-internal error message.
     expect(reloadSpy).toHaveBeenCalledTimes(1);
     expect(toast.error).not.toHaveBeenCalled();
     errorSpy.mockRestore();
@@ -205,13 +193,8 @@ describe("createQueryClient session-expiry handling", () => {
       error: unknown,
     ) => boolean;
 
-    // Retrying can't fix an invalid session cookie — fail fast so the session
-    // refetch → /login redirect isn't delayed by retry backoff.
     expect(retry(0, unauthorized)).toBe(false);
-    // Nor can it fix a missing manifest entry — three more failing SSR calls
-    // before the reload is pure noise.
     expect(retry(0, staleServerFn)).toBe(false);
-    // jsdom has a window, so this exercises the browser branch.
     expect(retry(0, new Error("boom"))).toBe(true);
     expect(retry(2, new Error("boom"))).toBe(true);
     expect(retry(3, new Error("boom"))).toBe(false);

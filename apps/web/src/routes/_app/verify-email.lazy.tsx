@@ -41,10 +41,8 @@ function VerifyEmailPage() {
       setError(otpErrorMessage(result.error));
       return;
     }
-    // Refetch the session: better-auth set the cookie, but our React Query
-    // cache for ["session"] still holds null from the pre-verify state.
-    // User-scoped queries are keyed by the new userId, so once the session
-    // lands every consumer attaches automatically.
+    // better-auth set the cookie, but the ["session"] query cache still holds
+    // null from before verification.
     await queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
     void navigate({ to: (redirectTo as "/collections") ?? "/collections" });
   }

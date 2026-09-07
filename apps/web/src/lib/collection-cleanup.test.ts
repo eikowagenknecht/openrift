@@ -36,7 +36,6 @@ describe("cleanupWhenIdle", () => {
     const cleanupSpy = vi.spyOn(collection, "cleanup");
     cleanupWhenIdle(collection);
 
-    // Synchronous: still attached, so cleanup hasn't run.
     expect(cleanupSpy).not.toHaveBeenCalled();
 
     subscription.unsubscribe();

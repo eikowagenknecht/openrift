@@ -62,7 +62,6 @@ describe("lastChange", () => {
     const previous = [card("a", 1), card("b", 4)];
     const current = [card("a", 2), card("b", 1)];
 
-    // a is +1, b is -3, so b is the headline.
     expect(lastChange(previous, current)).toEqual({ cardName: "b", delta: -3 });
   });
 
@@ -71,7 +70,6 @@ describe("lastChange", () => {
     const current = [card("zeta", 2, "main", "Zeta"), card("alpha", 2, "main", "Alpha")];
 
     expect(lastChange(previous, current)).toEqual({ cardName: "Alpha", delta: 1 });
-    // Order of the inputs must not change the answer.
     expect(lastChange([...previous].toReversed(), [...current].toReversed())).toEqual({
       cardName: "Alpha",
       delta: 1,
@@ -82,7 +80,6 @@ describe("lastChange", () => {
     const previous = [card("old-legend", 1, "legend", "Old Legend")];
     const current = [card("new-legend", 1, "legend", "New Legend")];
 
-    // Both swings are size 1, so the name decides: "New Legend" < "Old Legend".
     expect(lastChange(previous, current)).toEqual({ cardName: "New Legend", delta: 1 });
   });
 

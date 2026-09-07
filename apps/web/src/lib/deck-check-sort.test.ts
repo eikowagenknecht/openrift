@@ -85,8 +85,6 @@ describe("sortDeckCheckCards", () => {
   });
 
   it("sorts by set order before card number for the 'id' sort", () => {
-    // The promo's code sorts alphabetically ahead of "OGN", but its set comes
-    // later in the catalog, so the Origins card leads.
     const withPromo: Record<string, DeckCheckCardIdentity> = {
       ...catalogue,
       "p-promo": {
@@ -149,8 +147,6 @@ describe("sortDeckCheckCards", () => {
   });
 
   it("sorts by domain order first, then name, for the 'domain' sort", () => {
-    // Fury (Ahri) → Fury/Mind dual (Jinx) → Mind (Zed); mono before dual on
-    // the same first domain, name as the within-domain tiebreaker.
     expect(names(sortDeckCheckCards(cards, "domain", "asc", identify, DOMAIN_ORDER))).toEqual([
       "Ahri",
       "Jinx",
@@ -249,7 +245,6 @@ describe("sortDeckCheckCards", () => {
   });
 
   it("sorts by energy, then power, then name for the 'energy' sort", () => {
-    // Ahri (3) → Zed (4) → Jinx (5) by energy cost.
     expect(names(sortDeckCheckCards(cards, "energy", "asc", identify))).toEqual([
       "Ahri",
       "Zed",
@@ -296,7 +291,6 @@ describe("sortDeckCheckCards", () => {
       { sortOrder: 1, rawName: "Lux", resolvedPrintingId: "p-low" },
       { sortOrder: 2, rawName: "Ekko", resolvedPrintingId: "p-tie" },
     ];
-    // Equal energy: lower power first, then name breaks the power tie.
     expect(names(sortDeckCheckCards(sameEnergyCards, "energy", "asc", sameEnergyIdentify))).toEqual(
       ["Ekko", "Lux", "Vi"],
     );

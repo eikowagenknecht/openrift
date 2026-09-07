@@ -12,14 +12,8 @@ interface Options {
 }
 
 /**
- * When the URL carries `?printingId=X`, select that printing and strip the
- * param from the URL. Runs at most once per mount.
- *
- * `resetScroll: false` is critical: TanStack Router's scroll-restoration
- * handler fires `window.scrollTo(0, 0)` for fresh location keys, which would
- * wipe out the CardGrid's scroll-to-selected-card behavior.
- *
- * @returns Nothing.
+ * `resetScroll: false`: TanStack Router's scroll-restoration otherwise fires
+ * `window.scrollTo(0, 0)` and wipes out CardGrid's scroll-to-selected-card.
  */
 export function useCardDeepLink({ linkedPrintingId, printingsById, items }: Options) {
   const navigate = useNavigate();

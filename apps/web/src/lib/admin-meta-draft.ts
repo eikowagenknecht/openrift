@@ -10,17 +10,11 @@ import { RESERVED_META_EVENT_SLUGS } from "@openrift/shared/contracts/admin/meta
 
 import type { ImportedDeckCard } from "@/lib/deck-import-cards";
 
-// Draft shapes and validation for the /admin/meta curation forms (ADR-014).
-// Every field is held as a string while it is being edited, so the bounds below
-// mirror the ones `packages/shared/src/contracts/admin/meta.ts` enforces — the
-// point is to name the problem in the form instead of surfacing a 400.
-
 const EVENT_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{2,49}$/u;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
 const WHOLE_NUMBER_PATTERN = /^\d+$/u;
 const COUNTRY_PATTERN = /^[A-Za-z]{2}$/u;
 
-/** The event form's fields, as edited. */
 export interface MetaEventDraft {
   slug: string;
   name: string;
@@ -29,13 +23,11 @@ export interface MetaEventDraft {
   tier: MetaEventTier;
   playerCount: string;
   organizer: string;
-  /** Two ISO letters, or blank for unknown. */
   country: string;
   location: string;
   notes: string;
 }
 
-/** A blank event form. */
 export const EMPTY_META_EVENT_DRAFT: MetaEventDraft = {
   slug: "",
   name: "",
@@ -49,12 +41,6 @@ export const EMPTY_META_EVENT_DRAFT: MetaEventDraft = {
   notes: "",
 };
 
-/**
- * Checks an event draft against the contract's bounds.
- *
- * @param draft - The event form's current values.
- * @returns The first problem found, or null when the draft is valid.
- */
 export function validateMetaEventDraft(draft: MetaEventDraft): string | null {
   const slug = draft.slug.trim();
   if (!EVENT_SLUG_PATTERN.test(slug)) {
@@ -93,7 +79,6 @@ export function validateMetaEventDraft(draft: MetaEventDraft): string | null {
   return null;
 }
 
-/** The event body both `createEvent` and `updateEvent` accept. */
 export interface MetaEventBody {
   slug: string;
   name: string;
@@ -107,14 +92,7 @@ export interface MetaEventBody {
   notes: string | null;
 }
 
-/**
- * Converts a validated draft into a request body. Blank optional fields go out
- * as null rather than being omitted, so clearing one in the edit form actually
- * clears the stored value.
- *
- * @param draft - The event form's current values.
- * @returns The request body for the create or update endpoint.
- */
+/** Blank optional fields go out as null, not omitted, so clearing one actually clears it. */
 export function metaEventDraftToBody(draft: MetaEventDraft): MetaEventBody {
   const players = draft.playerCount.trim();
   return {
@@ -131,14 +109,11 @@ export function metaEventDraftToBody(draft: MetaEventDraft): MetaEventBody {
   };
 }
 
-/** One field the admin's correction claims, as the overlay endpoint takes it. */
 export interface MetaEventOverlayEdit {
   field: MetaEventOverlayField;
-  /** Null clears the field, which the overlay's mask makes expressible. */
   value: string | null;
 }
 
-/** The event body's fields in the order the overlay endpoint's enum lists them. */
 const OVERLAY_EDIT_VALUES: Record<
   MetaEventOverlayField,
   (event: Pick<MetaEventBody, MetaEventOverlayField>) => string | null
@@ -154,18 +129,7 @@ const OVERLAY_EDIT_VALUES: Record<
   location: (event) => event.location,
 };
 
-/**
- * The fields an edit changed, as overlay claims.
- *
- * Only what actually moved is sent: an overlay claiming every field is
- * indistinguishable from turning the event's sources off, and the slug is not
- * here at all because no source publishes one — it is renamed through
- * `updateEvent` instead.
- *
- * @param event - The event as it stands.
- * @param body - The values the form is saving.
- * @returns One entry per changed field, empty when only the slug moved.
- */
+/** Only fields that changed are sent. The slug isn't here: it's renamed via `updateEvent`. */
 export function metaEventOverlayEdits(
   event: AdminMetaEvent,
   body: MetaEventBody,
@@ -180,12 +144,6 @@ export function metaEventOverlayEdits(
   return edits;
 }
 
-/**
- * Loads a stored event back into the form.
- *
- * @param event - The event row to edit.
- * @returns The draft the edit dialog starts from.
- */
 export function metaEventToDraft(event: AdminMetaEvent): MetaEventDraft {
   return {
     slug: event.slug,
@@ -201,43 +159,22 @@ export function metaEventToDraft(event: AdminMetaEvent): MetaEventDraft {
   };
 }
 
-/**
- * The standings-row form's fields, as edited. The unit of curation is the player,
- * so the decklist fields only come into play once `listStatus` says there is
- * one — most of a real event's field is standings and a legend.
- */
 export interface MetaPlayerDraft {
   playerName: string;
-  /** Where the player finished, as a positive whole number. */
   rank: string;
-  /** True when the source published a cut bucket, so `rank` prints as "T8". */
   rankIsTier: boolean;
   wins: string;
   losses: string;
   draws: string;
-  /**
-   * The legend the player played. Set for nearly every entry whether or not a
-   * list was published, and what the archive names a deckless row by. A pasted
-   * list overrides it from its own legend zone.
-   */
   legendCardId: string | null;
   championCardId: string | null;
-  /** `"none"` files a standings-only row; the other two carry a decklist. */
   listStatus: MetaListStatus;
-  /** Only in play while `listStatus` is not `"none"`. */
   deckName: string;
   deckFormat: string;
 }
 
-/** Ranks offered as one-click choices; any positive value can be typed. */
 export const RANK_PRESETS = [1, 2, 3, 4, 8, 16, 32, 64];
 
-/**
- * Reads the rank field.
- *
- * @param value - The raw field text.
- * @returns The rank, or null when it is not a positive whole number.
- */
 export function metaPlayerRank(value: string): number | null {
   const trimmed = value.trim();
   if (!WHOLE_NUMBER_PATTERN.test(trimmed)) {
@@ -250,24 +187,16 @@ export function metaPlayerRank(value: string): number | null {
   return rank;
 }
 
-/** @returns The box's number, or null when it was left blank. */
 export function metaPlayerRecordPart(value: string): number | null {
   const trimmed = value.trim();
   return trimmed === "" ? null : Number(trimmed);
 }
 
-/** @returns True when a record box is blank or holds a whole number. */
 function isRecordPart(value: string): boolean {
   const trimmed = value.trim();
   return trimmed === "" || WHOLE_NUMBER_PATTERN.test(trimmed);
 }
 
-/**
- * Checks a standings-row draft against the contract's bounds.
- *
- * @param draft - The form's current values.
- * @returns The first problem found, or null when the draft is valid.
- */
 export function validateMetaPlayerDraft(draft: MetaPlayerDraft): string | null {
   const player = draft.playerName.trim();
   if (player.length === 0 || player.length > 80) {
@@ -279,8 +208,6 @@ export function validateMetaPlayerDraft(draft: MetaPlayerDraft): string | null {
   if (!isRecordPart(draft.wins) || !isRecordPart(draft.losses) || !isRecordPart(draft.draws)) {
     return "Wins, losses, and draws must be whole numbers";
   }
-  // The archive derives "5-1" from the two, so one without the other would
-  // display as nothing and quietly lose what was typed.
   if ((draft.wins.trim() === "") !== (draft.losses.trim() === "")) {
     return "Enter both wins and losses, or neither";
   }
@@ -297,15 +224,7 @@ export function validateMetaPlayerDraft(draft: MetaPlayerDraft): string | null {
   return null;
 }
 
-/**
- * Loads a stored standings row back into the form. The card list starts empty
- * even for a row that has one: the stored cards are only replaced when something
- * new is pasted.
- *
- * @param player - The standings row to edit.
- * @param eventFormat - The event's format, for a row whose deck has none yet.
- * @returns The draft the edit dialog starts from.
- */
+/** The card list starts empty even for a row that has one: it's only replaced by a new paste. */
 export function metaPlayerToDraft(player: AdminMetaPlayer, eventFormat: string): MetaPlayerDraft {
   return {
     playerName: player.playerName,
@@ -323,12 +242,8 @@ export function metaPlayerToDraft(player: AdminMetaPlayer, eventFormat: string):
 }
 
 /**
- * The scalar half of a standings correction. Every key is optional because a
- * present one is claimed and an absent one says nothing, so an edit that moved
- * two fields must not hand the archive the other eleven.
- *
- * The tiebreaker columns and `entryStatus` are absent by design: the dialog
- * does not edit them, so it can never claim them either.
+ * Every key is optional: present means claimed, absent means unchanged.
+ * Tiebreakers and `entryStatus` are omitted on purpose; the dialog never edits them.
  */
 export interface MetaPlayerOverlayFields {
   playerName?: string;
@@ -341,17 +256,7 @@ export interface MetaPlayerOverlayFields {
   championCardId?: string | null;
 }
 
-/**
- * The scalars an edit changed, as overlay claims.
- *
- * `rank` is skipped when the field does not read as a positive whole number:
- * the form refuses that draft before it gets here, so an unparseable one is
- * never a value worth claiming.
- *
- * @param player - The standings row as it stands.
- * @param draft - The form's current values.
- * @returns One key per changed scalar, empty when only the list moved.
- */
+/** `rank` is skipped when unparseable: the form refuses that draft before this runs. */
 export function metaPlayerOverlayFields(
   player: AdminMetaPlayer,
   draft: MetaPlayerDraft,
@@ -389,19 +294,7 @@ export function metaPlayerOverlayFields(
   return fields;
 }
 
-/**
- * The list an edit claims: absent leaves the deck alone, an object claims these
- * cards, and null claims that there is no list at all.
- *
- * A rename needs the cards with it, since the endpoint takes no name on its
- * own, which is why the form only offers the deck-name field alongside a
- * pasted list.
- *
- * @param player - The standings row as it stands.
- * @param draft - The form's current values.
- * @param cards - The rows a paste produced, empty when nothing was pasted.
- * @returns The `list` half of the write, or undefined to say nothing about it.
- */
+/** Absent leaves the deck alone, an object claims those cards, null claims there is no list. */
 export function metaPlayerOverlayList(
   player: AdminMetaPlayer,
   draft: MetaPlayerDraft,
@@ -420,19 +313,7 @@ export function metaPlayerOverlayList(
   };
 }
 
-/**
- * The deck rename an edit needs on its own, or null when it needs none.
- *
- * A rename is a direct durable write rather than a claim, because promotion
- * preserves deck names: claiming the field would take the whole list out of
- * the sources' hands to change a label. A pasted list carries its own name
- * through the overlay write, so that case is not a rename to send twice.
- *
- * @param player - The standings row as it stands.
- * @param draft - The form's current values.
- * @param cards - The rows a paste produced, empty when nothing was pasted.
- * @returns The new deck name, or null when nothing needs renaming.
- */
+/** A direct durable write: an overlay claim on the field would drop the name on promotion. */
 export function metaPlayerDeckRename(
   player: AdminMetaPlayer,
   draft: MetaPlayerDraft,
@@ -448,19 +329,12 @@ export function metaPlayerDeckRename(
   return name;
 }
 
-/** The list an overlay claims. No `format`: an archived deck's is the event's. */
 export interface MetaPlayerOverlayListInput {
   name: string;
   cards: ImportedDeckCard[];
   listStatus: Exclude<MetaListStatus, "none">;
 }
 
-/**
- * Counts a parsed card list for the form's "42 copies across 18 rows" note.
- *
- * @param cards - The deduped rows the save would send.
- * @returns The number of rows and the total number of copies.
- */
 export function summarizeDeckCards(cards: ImportedDeckCard[]): { rows: number; copies: number } {
   return {
     rows: cards.length,

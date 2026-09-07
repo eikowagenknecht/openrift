@@ -1,16 +1,7 @@
 /**
- * The page's side of the scan worker.
- *
- * Turns the message protocol into promises, and keeps the one invariant the
- * protocol needs: frames are answered in the order they were sent, so a reply
- * belongs to the oldest outstanding request of its kind. Nothing here knows
- * about the camera or React.
- *
- * Frame buffers are transferred, not copied. That is the whole reason this is
- * affordable: a processing-size frame is around 1.6 MB, and copying one per
- * frame would hand back a good part of what moving the work off the main
- * thread just bought. Transferring detaches the buffer on this side, so the
- * caller must not read the frame after handing it over.
+ * Frames are answered in the order they were sent, so a reply belongs to the
+ * oldest outstanding request of its kind. Frame buffers are transferred, not
+ * copied, so the caller must not read a frame after handing it over.
  */
 import { ORT_WASM_PATHS } from "@/lib/scan-ort-assets";
 import type { ScanSessionPlan } from "@/lib/scan-session";
@@ -28,19 +19,15 @@ interface ScanWorkerReady {
 }
 
 export interface ScanWorkerClient {
-  /** Load the engine inside the worker. Resolves when it can take frames. */
+  /** Resolves when the worker can take frames. */
   init: (urls: {
     opencvUrl: string;
     encoderUrl: string;
     bankUrl: string;
     labelsUrl: string;
   }) => Promise<ScanWorkerReady>;
-  /** Replace both sessions. */
+  /** Replaces both sessions. */
   create: (live: ScanSessionPlan, catchUp: ScanSessionPlan) => void;
-  /**
-   * Run one frame. The frame's buffer is transferred and must not be touched
-   * afterwards.
-   */
   processFrame: (
     kind: SessionKind,
     frame: { data: Uint8ClampedArray; width: number; height: number },
@@ -48,17 +35,12 @@ export interface ScanWorkerClient {
     seconds: number,
   ) => Promise<ScanWorkerOutcome>;
   rearm: () => void;
-  /** Drop the sessions and tear the worker down. */
   terminate: () => void;
 }
 
 /**
- * Start the scan worker.
- *
  * Throws synchronously when the browser will not create the worker at all, so
  * the caller can fall back to running the pipeline in the page.
- *
- * @returns The client.
  */
 export function createScanWorkerClient(
   onProgress?: (asset: "opencv" | "encoder", loaded: number, total: number) => void,
@@ -99,8 +81,7 @@ export function createScanWorkerClient(
     }
     const error = new Error(message.message);
     if (message.id === undefined) {
-      // An error with no frame attached happened during init or session
-      // setup; it belongs to whoever is waiting for readiness.
+      // No frame id means the error happened during init or session setup.
       readyReject?.(error);
       readyReject = null;
       readyResolve = null;
@@ -110,8 +91,6 @@ export function createScanWorkerClient(
     pending.delete(message.id);
   });
 
-  // A worker that dies (an OOM inside the wasm heap, most likely) must not
-  // leave the page waiting forever on frames that will never be answered.
   worker.addEventListener("error", (event) => {
     const error = new Error(event.message || "the scan worker stopped");
     readyReject?.(error);
@@ -141,9 +120,8 @@ export function createScanWorkerClient(
     },
     processFrame(kind, frame, index, seconds) {
       const id = nextId++;
-      // A view into a larger buffer cannot be transferred piecemeal, and the
-      // canvas hands back exactly-sized buffers, so this is normally the whole
-      // thing. The slice is the safety net for a view, at the cost of a copy.
+      // A view into a larger buffer can't be transferred piecemeal; slice
+      // copies it as a fallback for that case.
       const buffer =
         frame.data.byteOffset === 0 && frame.data.byteLength === frame.data.buffer.byteLength
           ? (frame.data.buffer as ArrayBuffer)

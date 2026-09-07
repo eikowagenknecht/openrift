@@ -28,8 +28,7 @@ describe("percentChange", () => {
     expect(percentChange([5])).toBe(0);
   });
 
-  // A free first snapshot would make every later price an infinite rise.
-  it("returns zero when the series starts at zero", () => {
+  it("returns zero rather than an infinite rise when the series starts at zero", () => {
     expect(percentChange([0, 5])).toBe(0);
   });
 });

@@ -3,18 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useScanLayout } from "./use-scan-layout";
 
-/** One fake media query list whose `matches` a test can flip at will. */
 interface FakeQuery {
   matches: boolean;
   listeners: Set<() => void>;
 }
 
-/**
- * Install a `matchMedia` stub backed by the given per-query match state.
- *
- * @returns The fake query lists, keyed by the query string, so a test can flip
- *   `matches` and fire the change listeners.
- */
 function stubMatchMedia(initial: Record<string, boolean>): Map<string, FakeQuery> {
   const queries = new Map<string, FakeQuery>();
   vi.stubGlobal("matchMedia", (query: string) => {
@@ -36,7 +29,6 @@ function stubMatchMedia(initial: Record<string, boolean>): Map<string, FakeQuery
   return queries;
 }
 
-/** Flip a stubbed query and notify its subscribers, as a real browser would. */
 function setMatches(queries: Map<string, FakeQuery>, query: string, matches: boolean): void {
   const entry = queries.get(query);
   if (!entry) {

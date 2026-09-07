@@ -48,7 +48,6 @@ describe("useListEntriesStore", () => {
     useListEntriesStore.getState().setEntries(byItem, byKey);
     const first = useListEntriesStore.getState().entryByItemId.get("item-1");
 
-    // Re-feed with new Map instances but the same entry refs inside.
     useListEntriesStore
       .getState()
       .setEntries(new Map([["item-1", entry]]), new Map([["card-1", entry]]));

@@ -1,10 +1,6 @@
-// Logged-out deck storage (ADR-035). Decks built without an account live here,
-// in `localStorage`, keyed by a synthetic `local:` id — never on the server.
-// This mirrors the fully-local match tracker (`match-tracker-store.ts`); the
-// deck code is the only cross-device bridge. A logged-in user's decks always
-// live on the server; this store only ever holds work done while logged out (or
-// imported from a code while logged out), which the merged `/decks` list
-// surfaces and offers to claim into the account.
+// Logged-out deck storage. Decks built without an account live in
+// `localStorage`, keyed by a synthetic `local:` id, never on the server. The
+// merged `/decks` list offers to claim them into the account once signed in.
 
 import type { DeckFormat, DeckFormatConfig, DeckLink, DeckZone } from "@openrift/shared";
 import { isAllowedLinkUrl, WellKnown } from "@openrift/shared";
@@ -15,22 +11,14 @@ import { createJSONStorage, persist } from "zustand/middleware";
 
 import { randomUuid } from "@/lib/random-uuid";
 
-/** Prefix that marks a deck id as browser-local (no server row). */
 export const LOCAL_DECK_PREFIX = "local:";
 
-/**
- * Whether a deck id refers to a browser-local deck. Gate the local builder /
- * persistence / list chrome on THIS, never on the absence of a `userId`: a
- * logged-in user's `userId` is briefly null during session load, so gating on
- * "no user" would misroute a real deck. A `local:` id is unambiguous.
- *
- * @returns True when the id is a browser-local deck id.
- */
+// Never gate this on the absence of `userId`: it is briefly null during
+// session load for a logged-in user too, and would misroute a real deck.
 export function isLocalDeckId(id: string): boolean {
   return id.startsWith(LOCAL_DECK_PREFIX);
 }
 
-/** A single card row in a local deck — same shape the server stores per card. */
 export interface LocalDeckCard {
   zone: DeckZone;
   cardId: string;
@@ -38,8 +26,6 @@ export interface LocalDeckCard {
   preferredPrintingId: string | null;
 }
 
-/** A browser-local deck. Mirrors the server deck-detail shape so claiming it
- *  into an account is a mechanical, lossless copy of everything v1 stores. */
 export interface LocalDeck {
   id: string;
   name: string;
@@ -47,17 +33,14 @@ export interface LocalDeck {
   format: DeckFormat;
   formatConfig: DeckFormatConfig | null;
   cards: LocalDeckCard[];
-  /** Custom cover art (see the server's decks.cover_* columns). Null = legend. */
   coverCardId: string | null;
   coverPrintingId: string | null;
   coverPosition: number | null;
-  /** Outbound links (see the server's decks.links column). */
   links: DeckLink[];
   createdAt: string;
   updatedAt: string;
 }
 
-/** Editable metadata fields of a local deck. A null `description` clears it. */
 interface LocalDeckPatch {
   name?: string;
   description?: string | null;
@@ -70,19 +53,12 @@ interface LocalDeckPatch {
 }
 
 interface LocalDecksState {
-  /** All local decks, keyed by their `local:` id. */
   decks: Record<string, LocalDeck>;
-  /** Create a new empty local deck and return its id. */
   createDeck: (format: DeckFormat, name?: string) => string;
-  /** Patch a deck's metadata (name / description / format / formatConfig). */
   updateDeck: (id: string, patch: LocalDeckPatch) => void;
-  /** Replace a deck's full card set (the bulk write the draft autosave calls). */
   setCards: (id: string, cards: LocalDeckCard[]) => void;
-  /** Delete a deck. */
   deleteDeck: (id: string) => void;
-  /** Copy a deck (cards included) under a new id; returns it, or null if absent. */
   duplicateDeck: (id: string) => string | null;
-  /** Remove decks that were claimed into the account. */
   clearImported: (ids: string[]) => void;
 }
 
@@ -98,14 +74,6 @@ function isQuotaExceeded(error: unknown): boolean {
   );
 }
 
-/**
- * Write to a storage, turning a quota-exceeded failure into a user-facing toast
- * instead of a silent throw that would abort the whole `setState`. Other errors
- * still propagate. Exported so the quota path is unit-testable without driving
- * Zustand's async persist timing.
- *
- * @returns True when the value was written, false when storage was full.
- */
 export function writeLocalDecksItem(
   storage: Pick<Storage, "setItem">,
   name: string,
@@ -123,8 +91,7 @@ export function writeLocalDecksItem(
   }
 }
 
-// A localStorage-backed StateStorage whose writes degrade gracefully when the
-// browser quota is hit. SSR has no localStorage, so fall back to a no-op store.
+// SSR has no localStorage; fall back to a no-op store there.
 const quotaAwareStorage: StateStorage = {
   getItem: (name) => (typeof localStorage === "undefined" ? null : localStorage.getItem(name)),
   setItem: (name, value) => {
@@ -140,8 +107,6 @@ const quotaAwareStorage: StateStorage = {
 };
 
 function nowIso(): string {
-  // Stamped inside actions (never at module scope) so persisted timestamps
-  // reflect when the edit happened, not when the bundle loaded.
   return new Date().toISOString();
 }
 
@@ -178,14 +143,9 @@ function sanitizeCards(raw: unknown): LocalDeckCard[] {
   return cards;
 }
 
-/**
- * Read a deck's outbound links out of a persisted entry, dropping anything
- * that no longer passes the host allowlist. Blobs written before links existed
- * carry a single `videoUrl` string instead, which becomes the first entry —
- * this is the only migration path, since the store deliberately has no persist
- * `version` (a stale bundle must never discard a newer blob).
- * @returns The deck's valid links, newest shape or old, else an empty list.
- */
+// Blobs written before links existed carry a single `videoUrl` string
+// instead; that becomes the first entry, since the store has no persist
+// `version` to migrate through.
 function sanitizeLinks(candidate: Record<string, unknown>): DeckLink[] {
   if (Array.isArray(candidate.links)) {
     const links: DeckLink[] = [];
@@ -210,15 +170,8 @@ function sanitizeLinks(candidate: Record<string, unknown>): DeckLink[] {
   return [];
 }
 
-/**
- * Validate a persisted decks blob, keeping every salvageable deck and dropping
- * only what can't be trusted. These are anonymous users' ONLY copy of their
- * decks (ADR-035): a malformed entry (cross-version write from another tab,
- * hand edit, partial corruption that still parses as JSON) must degrade to the
- * valid subset instead of crashing /decks on rehydrate. Cosmetic fields
- * fall back to defaults; only entries without a usable identity are dropped.
- * @returns The valid decks keyed by their `local:` id; an untrusted blob yields {}.
- */
+// A malformed entry degrades to the valid subset; it does not crash /decks
+// on rehydrate.
 export function sanitizeDecks(raw: unknown): Record<string, LocalDeck> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return {};
@@ -393,10 +346,8 @@ export const useLocalDecksStore = create<LocalDecksState>()(
       name: "openrift-local-decks",
       storage: createJSONStorage(() => quotaAwareStorage),
       partialize: (state) => ({ decks: state.decks }),
-      // No `version`: an explicit version would make an older cached bundle
-      // (implicit version 0, no migrate) DISCARD the whole blob on mismatch —
-      // the exact data loss this store must never cause. The sanitizing merge
-      // below handles every shape drift instead.
+      // No `version`: bumping it would discard a newer blob on mismatch.
+      // `sanitizeDecks` handles shape drift instead.
       merge: (persisted, current) => {
         if (!persisted || typeof persisted !== "object") {
           return current;

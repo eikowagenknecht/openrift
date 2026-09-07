@@ -1,4 +1,3 @@
-/** One field-level change line derived from an audit event's payloads. */
 export interface AuditChange {
   field: string;
   from: string | null;
@@ -12,13 +11,7 @@ function formatValue(value: unknown): string {
   return JSON.stringify(value) ?? "";
 }
 
-/**
- * Flattens an audit event's old/new jsonb payloads into per-field change
- * lines over the union of both key sets. A key present on only one side
- * renders with `null` on the other (created / removed value).
- *
- * @returns One entry per field, in first-seen key order.
- */
+/** A key present on only one side renders with `null` on the other. */
 export function formatAuditChanges(
   oldValues: Record<string, unknown> | null,
   newValues: Record<string, unknown> | null,

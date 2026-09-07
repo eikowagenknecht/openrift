@@ -1,6 +1,5 @@
 import type { Marketplace, PriceLookup } from "@openrift/shared";
 
-/** Card id to copies, per zone. */
 export interface MetaDeckCards {
   main: ReadonlyMap<string, number>;
   side: ReadonlyMap<string, number>;
@@ -10,11 +9,8 @@ export type MetaDeckCardsByDeck = ReadonlyMap<string, MetaDeckCards>;
 
 export interface MetaDeckCost {
   needed: number;
-  /** Undefined when no collection is loaded. */
   owned: number | undefined;
-  /** Undefined when any card has no price. */
   value: number | undefined;
-  /** Undefined without a collection, or when a missing card has no price. */
   toComplete: number | undefined;
 }
 
@@ -45,11 +41,7 @@ export function decodeMetaDeckCardIndex(index: {
   return byDeck;
 }
 
-/**
- * Owned copies per card, summed over every printing of it. A reader who owns a
- * card in one printing owns it for a decklist's purposes — the archive records
- * which card was played, not which printing.
- */
+/** Summed over every printing: the archive records which card was played, not which printing. */
 export function ownedCountsByCardId(
   ownedByPrinting: Readonly<Record<string, number>>,
   printingsByCardId: ReadonlyMap<string, readonly { id: string }[]>,
@@ -67,10 +59,7 @@ export function ownedCountsByCardId(
   return owned;
 }
 
-/**
- * Currency major units. Printings in the reader's languages win; any other
- * language is a fallback. A card with no priced printing has no entry.
- */
+/** Currency major units. A card with no priced printing has no entry. */
 export function cheapestPriceByCardId(
   printingsByCardId: ReadonlyMap<string, readonly { id: string; language: string }[]>,
   prices: PriceLookup,
@@ -110,7 +99,6 @@ function scopedQuantities(cards: MetaDeckCards, includeSideboard: boolean): Map<
   return quantities;
 }
 
-/** Owned copies are capped per card at what the list plays. */
 export function metaDeckCosts(
   decks: MetaDeckCardsByDeck,
   options: {

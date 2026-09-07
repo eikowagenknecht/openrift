@@ -8,33 +8,20 @@ export interface MinimalCard {
 }
 
 export interface BulkImportPlan {
-  /** Card ids resolved to a unique catalog card. Safe to send to the API. */
   cardIds: string[];
-  /** Catalog-side matches for display (sorted by input order, deduped). */
   matched: { cardId: string; name: string }[];
-  /** Input names with no catalogue hit. */
   unmatched: string[];
-  /** Input names that hit multiple distinct cards — surfaced, not silently picked. */
   ambiguous: { name: string; matches: { cardId: string; name: string }[] }[];
-  /** Warnings from the underlying decklist parser (e.g. unparseable lines). */
   warnings: string[];
 }
 
 /**
- * Parses a decklist-style block (`<n> <card name>` per line) and resolves
- * each line to a catalogue card id. Reuses the deck importer's text parser
- * and the same `normalizeNameForIdentity` helper deck-import matching uses,
- * so a card resolvable in the deck importer also resolves here.
- *
- * @param text     Raw input from the textarea.
- * @param allCards Flat card catalogue used to build the name index.
- * @returns A plan: the card ids to send, plus per-line reporting for the UI.
+ * Reuses the deck importer's text parser and `normalizeNameForIdentity`
+ * helper, so a card resolvable in the deck importer also resolves here.
  */
 export function planCustomTagBulkImport(text: string, allCards: MinimalCard[]): BulkImportPlan {
   const { entries, warnings } = parseDeckImportData(text, "text");
 
-  // Build normalizedName → cards. Use array (not single) so colliding names
-  // surface as ambiguous instead of last-write-wins silently picking one.
   const byNormalizedName = new Map<string, MinimalCard[]>();
   for (const card of allCards) {
     const key = normalizeNameForIdentity(card.name);

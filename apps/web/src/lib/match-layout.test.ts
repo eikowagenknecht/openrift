@@ -8,10 +8,6 @@ import {
   xpSizeTier,
 } from "./match-layout";
 
-/**
- * Flatten a layout into "id▲" tokens (▲ marks a rotated seat), row by row.
- * @returns The rows as arrays of compact id/rotation tokens.
- */
 function tokens(rows: { id: string; rotated: boolean }[][]): string[][] {
   return rows.map((row) => row.map((seat) => `${seat.id}${seat.rotated ? "▲" : ""}`));
 }
@@ -55,7 +51,6 @@ describe("planSeats", () => {
 
   it("handles an empty roster without throwing", () => {
     expect(planSeats([], false)).toEqual([]);
-    // The near row is always present in landscape, even when empty.
     expect(planSeats([], true)).toEqual([[]]);
   });
 });
@@ -67,11 +62,8 @@ describe("perRowHeight", () => {
   });
 
   it("splits the board across its rows, accounting for the inter-row gaps", () => {
-    // One row gets the whole board.
     expect(perRowHeight(300, 1)).toBe(300);
-    // Two rows lose one 8px gap: (308 - 8) / 2 = 150.
     expect(perRowHeight(308, 2)).toBe(150);
-    // Four rows lose three gaps: (524 - 24) / 4 = 125.
     expect(perRowHeight(524, 4)).toBe(125);
   });
 });
@@ -100,13 +92,9 @@ describe("scoreSizeClass", () => {
 
 describe("xpSizeTier", () => {
   it("grows the XP cluster with the panel height", () => {
-    // Cramped phone cards (portrait/landscape 4p ~122px).
     expect(xpSizeTier(122)).toBe("sm");
-    // Three players / a short desktop window (~165-175px).
     expect(xpSizeTier(170)).toBe("md");
-    // Two-player board (~252px) gets the big, ~double-size cluster.
     expect(xpSizeTier(252)).toBe("lg");
-    // A maximized desktop window.
     expect(xpSizeTier(385)).toBe("xl");
   });
 
@@ -126,11 +114,8 @@ describe("xpSizeTier", () => {
 
 describe("medallionSizeTier", () => {
   it("grows the scoring medallions with the panel height", () => {
-    // Four-player board: the small tier, which also drops the labels.
     expect(medallionSizeTier(122)).toBe("sm");
-    // Three players or a short window.
     expect(medallionSizeTier(220)).toBe("md");
-    // Two-player board and up.
     expect(medallionSizeTier(340)).toBe("lg");
   });
 

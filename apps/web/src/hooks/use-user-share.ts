@@ -20,8 +20,6 @@ import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
-// ── Authenticated: read + manage your own bundle token ──────────────────────
-
 const fetchUserShareStateFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }): Promise<UserShareStateResponse> =>
@@ -35,13 +33,7 @@ function userShareStateQueryOptions(userId: string) {
   });
 }
 
-/**
- * Non-suspense read of the signed-in user's bundle share state. Used by the
- * share dialog and profile section — both render inline UI rather than a
- * route boundary, so we don't want them to suspend the surrounding tree.
- *
- * @returns The query result; `data` is undefined until the first fetch lands.
- */
+/** Non-suspense: used by inline UI (share dialog, profile section), not a route boundary. */
 export function useUserShareState() {
   const userId = useRequiredUserId();
   return useQuery(userShareStateQueryOptions(userId));
@@ -101,17 +93,13 @@ export function useRotateUserShare() {
   });
 }
 
-// ── Public reads via the bundle token ───────────────────────────────────────
-// These fetches forward the viewer's session cookie so the API can apply the
-// friend-group visibility bypass. Anonymous viewers (no cookie) still resolve
-// the response, just restricted to lists with their own public share token.
-
+// Forwards the viewer's session cookie so the API can apply the friend-group
+// visibility bypass; anonymous viewers still resolve, restricted to lists
+// with their own public share token.
 const fetchPublicUserBundleFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .validator((input: string) => input)
   .handler(async ({ context, data: token }): Promise<PublicUserBundleResponse> => {
-    // Unknown / non-public token is a typed NOT_FOUND — map to the sentinel
-    // the route boundary expects without logging it as a failure.
     const { error, data } = await safe(
       apiOrpcClient(publicUserShareContract, context.cookie).bundle({ token }),
     );
@@ -139,9 +127,6 @@ const fetchPublicUserBundleListFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .validator((input: { token: string; listId: string }) => input)
   .handler(async ({ context, data }): Promise<PublicListDetailResponse> => {
-    // Unknown token/list is a typed NOT_FOUND — map to the sentinel the route
-    // boundary expects. A malformed listId (400) still surfaces as an error,
-    // matching the previous hc behavior.
     const { error, data: result } = await safe(
       apiOrpcClient(publicUserShareContract, context.cookie).bundleList({
         token: data.token,

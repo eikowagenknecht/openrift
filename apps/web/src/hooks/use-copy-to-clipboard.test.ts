@@ -52,9 +52,8 @@ describe("useCopyToClipboard", () => {
   });
 
   it("clears the copied flag after the reset delay", async () => {
-    // Do not add `shouldAdvanceTime` here. It ticks the fake clock from real
-    // time on top of what the test advances, so the 1ms left below elapses on
-    // its own under load and the timer fires a step early.
+    // No `shouldAdvanceTime`: it ticks the clock from real time on top of what the
+    // test advances, so the 1ms left below could elapse on its own under load.
     vi.useFakeTimers();
     const { result } = renderHook(() => useCopyToClipboard());
 
@@ -173,10 +172,8 @@ describe("useCopyToClipboard", () => {
   });
 
   it("does not update state after unmount", async () => {
-    // The only test here that keeps `shouldAdvanceTime`: `waitFor` polls on a
-    // real interval and never settles under a clock that only the test moves.
-    // Safe because this test asserts no timing boundary, just that nothing
-    // logged after the window elapsed.
+    // waitFor polls on a real interval, so it never settles under a clock
+    // that only the test moves.
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const errors: unknown[] = [];
     const spy = vi.spyOn(console, "error").mockImplementation((...args) => errors.push(args));

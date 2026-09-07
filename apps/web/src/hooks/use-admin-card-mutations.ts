@@ -18,9 +18,6 @@ import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-// Request bodies derived from the route schemas (api-types). Re-exported for the
-// admin field-editor callers. The single-field accept mutations take the
-// contract's own `field` unions, so no call site casts a dynamic key any more.
 export type {
   AcceptNewCardBody,
   AcceptPrintingBody,
@@ -28,8 +25,6 @@ export type {
   CreatePrintingBody,
   PatchCandidatePrintingBody,
 } from "@/lib/server-fns/api-types";
-
-// ── Server functions ─────────────────────────────────────────────────────────
 
 const checkCandidateCardFn = createServerFn({ method: "POST" })
   .validator((input: { candidateCardId: string }) => input)
@@ -255,12 +250,8 @@ const deleteProviderFn = createServerFn({ method: "POST" })
     }),
   );
 
-// ── Hook exports ─────────────────────────────────────────────────────────────
-//
-// Hooks that operate on a candidate/printing/image ID don't know the owning
-// card slug at mutation time. Callers on card-detail pages pass a narrower
-// `invalidates` list (e.g. [detail(slug), list]); callers without context get
-// the coarse default.
+// Hooks operating on a candidate/printing/image ID don't know the owning card
+// slug; card-detail callers pass a narrower `invalidates` list.
 
 type Scope = readonly (readonly unknown[])[];
 const defaultScope: Scope = [queryKeys.admin.cards.all];
@@ -553,11 +544,7 @@ const relinkCandidatePrintingsFn = createServerFn({ method: "POST" })
     apiOrpcClient(adminCardMutationsContract, context.cookie).relinkCandidatePrintings(),
   );
 
-/**
- * Re-runs ingest key resolution for all unlinked candidate printings, linking
- * any that match a printing accepted after their provider's last upload.
- * @returns Mutation with `{ examined, linked }` result.
- */
+/** Links unlinked candidate printings accepted after their provider's last upload. */
 export function useRelinkCandidatePrintings() {
   return useMutationWithInvalidation({
     mutationFn: () => relinkCandidatePrintingsFn(),
@@ -595,8 +582,6 @@ export function useDeleteProvider() {
   });
 }
 
-// ── Marketplace mappings (card-detail scoped) ────────────────────────────────
-
 const unmapMarketplacePrintingFn = createServerFn({ method: "POST" })
   .validator(
     (input: {
@@ -609,7 +594,6 @@ const unmapMarketplacePrintingFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    // fully query-addressed (detailed input); omit language when null (CM/TCG).
     await apiOrpcClient(adminUnifiedMappingsContract, context.cookie).unmap({
       query: {
         marketplace: data.marketplace,

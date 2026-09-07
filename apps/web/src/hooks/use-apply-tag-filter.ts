@@ -4,14 +4,8 @@ import { useContext } from "react";
 import { FilterSearchProvider } from "@/lib/search-schemas";
 
 /**
- * Structured-filter handler for the card-detail tag chips. On surfaces that
- * carry the filter search params (inside a `FilterSearchProvider`), clicking a
- * tag adds it to the `tags` filter, an exact match, instead of running a `t:`
- * substring search. Surfaces without the provider get `null` and should fall
- * back to a quoted `t:"…"` search.
- *
- * @returns A handler that adds the tag to the URL's `tags` filter, or null
- * when the surface has no filter search params.
+ * Returns null outside a `FilterSearchProvider`; callers must then fall back
+ * to a quoted `t:"…"` search.
  */
 export function useApplyTagFilter(): ((tag: string) => void) | null {
   const filterSearch = useContext(FilterSearchProvider);

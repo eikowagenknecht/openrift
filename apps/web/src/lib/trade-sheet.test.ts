@@ -36,7 +36,6 @@ function stubTrade(overrides: Partial<CardTradeResponse> = {}): CardTradeRespons
   };
 }
 
-/** @returns A trade with a different counterparty, for scoping assertions. */
 function someoneElses(overrides: Partial<CardTradeResponse> = {}): CardTradeResponse {
   return stubTrade({
     counterparty: {
@@ -50,7 +49,6 @@ function someoneElses(overrides: Partial<CardTradeResponse> = {}): CardTradeResp
   });
 }
 
-/** @returns The trade ids of a ledger list, for order assertions. */
 function ids(trades: CardTradeResponse[]): string[] {
   return trades.map((trade) => trade.id);
 }
@@ -141,7 +139,6 @@ describe("splitTradeLedger", () => {
       "user-2",
     );
 
-    // Direction beats recency: the more recently touched row is the outgoing one.
     expect(ids(ledger.readyToSwap)).toEqual(["receive", "hand-over"]);
     expect(ledger.yourMove).toEqual([]);
   });
@@ -176,8 +173,6 @@ describe("splitTradeLedger", () => {
   });
 
   it("keeps your-move on expiry and history on recency, whatever the direction", () => {
-    // Neither section is a pile to work through: a request runs out on its own,
-    // and history is a log.
     const ledger = splitTradeLedger(
       [
         stubTrade({
@@ -277,9 +272,6 @@ describe("splitTradeLedger", () => {
   });
 
   it("puts a legacy completed trade still awaiting a settle in ready-to-swap, not history", () => {
-    // Action-based on purpose: the row is a pile in front of the viewer, and
-    // filing it under history would make the sheet disagree with the group
-    // surfaces' people-first counts.
     const ledger = splitTradeLedger(
       [stubTrade({ id: "legacy", status: "completed", actionNeeded: "settle" })],
       "user-2",
@@ -290,8 +282,6 @@ describe("splitTradeLedger", () => {
   });
 
   it("folds a reserved swap the viewer has settled into history, not waiting", () => {
-    // Their half is final, so there is nothing left for them to chase; only the
-    // other party's confirmation is outstanding.
     const ledger = splitTradeLedger(
       [
         stubTrade({
@@ -322,10 +312,6 @@ describe("splitTradeLedger", () => {
   });
 });
 
-// The two surfaces disagreed in production: the hub's card said "16 waiting on
-// them" about a person whose sheet showed the same 16 rows as history, because
-// each derived its own answer from the raw status. Both now read the shared
-// lifecycle state, and this pins them together.
 describe("the sheet and the hub card agree on what waits on the other side", () => {
   const cases: { name: string; trade: CardTradeResponse }[] = [
     { name: "a request the viewer sent", trade: stubTrade({ id: "sent", actionNeeded: "cancel" }) },

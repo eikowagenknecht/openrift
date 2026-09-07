@@ -102,9 +102,6 @@ describe("WALK_ACTIONS", () => {
     ]);
   });
 
-  // The four the editor keeps. Adding one of these to WALK_ACTIONS would leave
-  // a creator ranking on camera with no way to see the keys, get back to the
-  // show, leave the stage, or take the stale board off the stream.
   it.each(["toggleHelp", "toggleEdit", "toggleHidden", "exit"] as const)(
     "keeps %s alive while editing",
     (action) => {

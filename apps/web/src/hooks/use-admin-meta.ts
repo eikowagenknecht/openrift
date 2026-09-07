@@ -19,19 +19,10 @@ import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-// Curation endpoints for the Meta Archive (ADR-014), full-admin only. The unit
-// of curation is a standings row and a decklist is an optional attachment to it,
-// so the writes here create and edit players. Reads are suspense queries the
-// routes warm in their loaders; writes invalidate the event list as well as the
-// touched event's standings, because every write moves the event row's counts.
-
-/** A column the live event list can be ordered by. */
 export type AdminMetaEventSort = (typeof META_EVENT_SORTS)[number];
 
-/** Which way that column runs. */
 export type AdminMetaEventSortDirection = (typeof META_EVENT_SORT_DIRECTIONS)[number];
 
-/** One card row in a decklist write. Built by the admin form's import parse. */
 interface MetaDeckCardInput {
   cardId: string;
   zone: DeckZone;
@@ -39,30 +30,18 @@ interface MetaDeckCardInput {
   preferredPrintingId?: string | null;
 }
 
-/**
- * The decklist attached to a standings row. Present creates or replaces the
- * archived deck; `null` on an update detaches and deletes it.
- */
 export interface MetaPlayerListInput {
   name: string;
   format: string;
   formatConfig?: Record<string, unknown> | null;
   cards: MetaDeckCardInput[];
-  /** `"none"` is not one of these: a list that exists is at least partial. */
   listStatus?: Exclude<MetaListStatus, "none">;
 }
 
-/** The body the create and update event endpoints share. */
 export type MetaEventInput = ContractInput<typeof adminMetaContract, "createEvent">;
 
-// ---------------------------------------------------------------------------
-// Events
-// ---------------------------------------------------------------------------
-
-/** Rows per page on the live event table. */
 export const ADMIN_META_EVENT_PAGE_SIZE = 50;
 
-/** The filters and 1-based page that select one page of the live archive. */
 export interface AdminMetaEventQueryParams {
   page: number;
   search?: string;
@@ -70,24 +49,20 @@ export interface AdminMetaEventQueryParams {
   source?: MetaEventSourceFilter;
   dateFrom?: string;
   dateTo?: string;
-  /** Only ever true or absent — see the note in the fetcher. */
   incompleteStandings?: boolean;
-  /** Only ever true or absent — see the note in the fetcher. */
   noDecks?: boolean;
   sort?: AdminMetaEventSort;
   direction?: AdminMetaEventSortDirection;
 }
 
-/** The order the Public tab falls back to when the URL names none. */
 export const META_EVENT_SORT_FALLBACK = {
   sort: "eventDate",
   direction: "desc",
 } as const satisfies { sort: AdminMetaEventSort; direction: AdminMetaEventSortDirection };
 
 /**
- * Resolves the /admin/meta search into the events-list query input. The route
- * loader and the Public tab must build the identical key, or a warmed page
- * misses the component's cache lookup and the tab suspends on first paint.
+ * Must build the identical key the route loader builds, or a warmed page
+ * misses the cache and suspends on first paint.
  */
 export function metaEventsParamsFromSearch(search: {
   page?: number;
@@ -129,37 +104,21 @@ const fetchMetaEvents = createServerFn({ method: "GET" })
       dateTo: data.dateTo,
       sort: data.sort,
       direction: data.direction,
-      // The flag filters are coerced from query strings on the way in, and
-      // "false" coerces to true, so an off toggle has to be absent rather than
-      // false.
+      // Query strings coerce "false" to true; an off toggle must be absent, never false.
       incompleteStandings: data.incompleteStandings === true ? true : undefined,
       noDecks: data.noDecks === true ? true : undefined,
     }),
   );
 
-/**
- * Query options for one filtered page of the live archive.
- *
- * @param params - The page and its filters.
- * @returns The query options.
- */
 export function adminMetaEventsQueryOptions(params: AdminMetaEventQueryParams) {
   return queryOptions({
     queryKey: queryKeys.admin.meta.eventList(params),
     queryFn: () => fetchMetaEvents({ data: params }),
-    // Paging and filtering keep the previous rows on screen, so the table never
-    // blinks back to empty between pages.
     placeholderData: keepPreviousData,
     staleTime: 5 * 60 * 1000,
   });
 }
 
-/**
- * One filtered page of archived events with their standings and deck counts.
- *
- * @param params - The page and its filters.
- * @returns The suspense query holding the page.
- */
 export function useAdminMetaEvents(params: AdminMetaEventQueryParams) {
   return useSuspenseQuery(adminMetaEventsQueryOptions(params));
 }
@@ -176,7 +135,6 @@ const searchMetaEvents = createServerFn({ method: "GET" })
     }),
   );
 
-/** Free-text search over the whole archive. Empty returns the most recent events. */
 export function useMetaEventSearch(search: string) {
   return useQuery({
     queryKey: queryKeys.admin.meta.eventSearch(search),
@@ -192,12 +150,6 @@ const fetchMetaEvent = createServerFn({ method: "GET" })
     apiOrpcClient(adminMetaContract, context.cookie).getEvent({ id: data }),
   );
 
-/**
- * Query options for one archived event.
- *
- * @param eventId - The event's id.
- * @returns The query options.
- */
 export function adminMetaEventQueryOptions(eventId: string) {
   return queryOptions({
     queryKey: queryKeys.admin.meta.event(eventId),
@@ -205,25 +157,10 @@ export function adminMetaEventQueryOptions(eventId: string) {
   });
 }
 
-/**
- * One archived event on its own. The list is paged, so a page about a single
- * event reads it here rather than looking for it in whatever page is cached.
- *
- * @param eventId - The event's id.
- * @returns The suspense query holding the event.
- */
 export function useAdminMetaEvent(eventId: string) {
   return useSuspenseQuery(adminMetaEventQueryOptions(eventId));
 }
 
-/**
- * The live event a candidate is linked to, or undefined while it is unlinked.
- * A plain query rather than a suspense one, since the id only exists once the
- * candidate has been reviewed.
- *
- * @param eventId - The linked event's id, or null while the candidate is loose.
- * @returns The query holding the event.
- */
 export function useAdminMetaLinkedEvent(eventId: string | null) {
   return useQuery({ ...adminMetaEventQueryOptions(eventId ?? ""), enabled: eventId !== null });
 }
@@ -235,11 +172,6 @@ const createMetaEventFn = createServerFn({ method: "POST" })
     apiOrpcClient(adminMetaContract, context.cookie).createEvent(data),
   );
 
-/**
- * Creates an event.
- *
- * @returns The mutation; resolves with the created event row.
- */
 export function useCreateMetaEvent() {
   return useMutationWithInvalidation({
     mutationFn: (vars: MetaEventInput) => createMetaEventFn({ data: vars }),
@@ -254,13 +186,7 @@ const updateMetaEventFn = createServerFn({ method: "POST" })
     await apiOrpcClient(adminMetaContract, context.cookie).updateEvent(data);
   });
 
-/**
- * Renames an event's slug, which is the only field this endpoint takes: the
- * archive's own facts are corrected as overlays instead, so a re-promote can
- * never silently revert an admin's edit.
- *
- * @returns The mutation.
- */
+/** Only renames the slug; other event facts are corrected as overlays. */
 export function useUpdateMetaEvent() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { id: string; slug: string }) => updateMetaEventFn({ data: vars }),
@@ -275,11 +201,6 @@ const deleteMetaEventFn = createServerFn({ method: "POST" })
     await apiOrpcClient(adminMetaContract, context.cookie).deleteEvent({ id: data.id });
   });
 
-/**
- * Deletes an event, its standings, and the decks archived under them.
- *
- * @returns The mutation.
- */
 export function useDeleteMetaEvent() {
   return useMutationWithInvalidation({
     mutationFn: (id: string) => deleteMetaEventFn({ data: { id } }),
@@ -291,10 +212,6 @@ export function useDeleteMetaEvent() {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Standings rows
-// ---------------------------------------------------------------------------
-
 const fetchMetaEventPlayers = createServerFn({ method: "GET" })
   .validator((input: { id: string }) => input)
   .middleware([withCookies])
@@ -302,12 +219,6 @@ const fetchMetaEventPlayers = createServerFn({ method: "GET" })
     apiOrpcClient(adminMetaContract, context.cookie).eventPlayers({ id: data.id }),
   );
 
-/**
- * Query options for one event's standings, best finish first.
- *
- * @param eventId - The event whose standings to load.
- * @returns The query options.
- */
 export function adminMetaEventPlayersQueryOptions(eventId: string) {
   return queryOptions({
     queryKey: queryKeys.admin.meta.eventPlayers(eventId),
@@ -316,17 +227,11 @@ export function adminMetaEventPlayersQueryOptions(eventId: string) {
   });
 }
 
-/**
- * One event's standings, decks and deckless entries alike.
- *
- * @param eventId - The event whose standings to load.
- * @returns The suspense query holding the standings.
- */
 export function useAdminMetaEventPlayers(eventId: string) {
   return useSuspenseQuery(adminMetaEventPlayersQueryOptions(eventId));
 }
 
-/** Everything `createPlayer` needs. `list` absent leaves the row standings-only. */
+/** `list` absent creates a standings-only row. */
 export interface CreateMetaPlayerInput {
   eventId: string;
   playerName: string;
@@ -347,12 +252,6 @@ const createMetaPlayerFn = createServerFn({ method: "POST" })
     apiOrpcClient(adminMetaContract, context.cookie).createPlayer(data),
   );
 
-/**
- * Adds a standings row to an event, with a decklist when one is known.
- *
- * @returns The mutation; resolves with the row's id and, when a list came with
- *   it, the new deck's id and share token.
- */
 export function useCreateMetaPlayer() {
   return useMutationWithInvalidation({
     mutationFn: (vars: CreateMetaPlayerInput) => createMetaPlayerFn({ data: vars }),
@@ -374,15 +273,7 @@ const renamePlayerDeckFn = createServerFn({ method: "POST" })
     });
   });
 
-/**
- * Renames the deck on one standings row.
- *
- * Deliberately not an overlay: promotion preserves deck names, so a rename
- * survives a re-promote on its own and claiming the field would take the whole
- * list out of the sources' hands to change a label.
- *
- * @returns The mutation.
- */
+/** Not an overlay: promotion preserves deck names, so this survives a re-promote. */
 export function useRenamePlayerDeck() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { id: string; eventId: string; name: string }) =>
@@ -402,11 +293,6 @@ const deleteMetaPlayerFn = createServerFn({ method: "POST" })
     await apiOrpcClient(adminMetaContract, context.cookie).deletePlayer({ id: data.id });
   });
 
-/**
- * Removes a standings row, and the deck hanging off it when it has one.
- *
- * @returns The mutation.
- */
 export function useDeleteMetaPlayer() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { id: string; eventId: string }) =>
@@ -419,10 +305,6 @@ export function useDeleteMetaPlayer() {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Source citations
-// ---------------------------------------------------------------------------
-
 const fetchMetaEventSources = createServerFn({ method: "GET" })
   .validator((input: { id: string }) => input)
   .middleware([withCookies])
@@ -430,12 +312,6 @@ const fetchMetaEventSources = createServerFn({ method: "GET" })
     apiOrpcClient(adminMetaContract, context.cookie).eventSources({ id: data.id }),
   );
 
-/**
- * Query options for one event's citation list.
- *
- * @param eventId - The event whose citations to load.
- * @returns The query options.
- */
 function adminMetaEventSourcesQueryOptions(eventId: string) {
   return queryOptions({
     queryKey: queryKeys.admin.meta.eventSources(eventId),
@@ -444,15 +320,7 @@ function adminMetaEventSourcesQueryOptions(eventId: string) {
   });
 }
 
-/**
- * One event's citations. A plain query, not a suspense one: the editor opens
- * inside a dialog, so no route loader warms it and there is no boundary to
- * suspend against.
- *
- * @param eventId - The event whose citations to load, or null while the dialog
- *   is creating an event that does not exist yet.
- * @returns The query holding the citation list.
- */
+/** Plain, not suspense: opens inside a dialog with no loader to warm it. */
 export function useAdminMetaEventSources(eventId: string | null) {
   return useQuery({
     ...adminMetaEventSourcesQueryOptions(eventId ?? ""),
@@ -460,7 +328,7 @@ export function useAdminMetaEventSources(eventId: string | null) {
   });
 }
 
-/** A hand-entered citation. Provider citations are written by linking, never here. */
+/** Provider citations are written by linking, never through this input. */
 export type CreateMetaEventSourceInput = Omit<
   ContractInput<typeof adminMetaContract, "createEventSource">,
   "id"
@@ -479,11 +347,6 @@ const createMetaEventSourceFn = createServerFn({ method: "POST" })
     }),
   );
 
-/**
- * Adds a hand-entered citation to an event.
- *
- * @returns The mutation; resolves with the created citation row.
- */
 export function useCreateMetaEventSource() {
   return useMutationWithInvalidation<AdminMetaEventSource, CreateMetaEventSourceInput>({
     mutationFn: (vars) => createMetaEventSourceFn({ data: vars }),
@@ -501,12 +364,7 @@ const deleteMetaEventSourceFn = createServerFn({ method: "POST" })
     });
   });
 
-/**
- * Removes a citation. The API refuses a provider row — that one belongs to its
- * candidate's link, and unlinking is what takes it away.
- *
- * @returns The mutation.
- */
+/** The API refuses a provider row; unlinking its candidate removes it instead. */
 export function useDeleteMetaEventSource() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { eventId: string; sourceId: string }) =>

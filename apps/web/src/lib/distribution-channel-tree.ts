@@ -1,11 +1,5 @@
 import type { DistributionChannelResponse } from "@openrift/shared";
 
-/**
- * Minimal channel shape the tree builder needs. Both the admin
- * `DistributionChannelResponse` and the public `DistributionChannel` (from the
- * catalog registry, which has no `sortOrder`) satisfy it, so the breadcrumb
- * logic is shared instead of duplicated per surface.
- */
 export interface ChannelLike {
   id: string;
   slug: string;
@@ -17,24 +11,13 @@ export interface ChannelLike {
 export interface ChannelTreeNode<T extends ChannelLike = DistributionChannelResponse> {
   channel: T;
   depth: number;
-  /** Ordered ids from root → this node (inclusive). */
   ancestorIds: string[];
-  /** Labels along the breadcrumb path, joined with " › ". */
   breadcrumb: string;
-  /** Whether this channel has at least one child. */
   hasChildren: boolean;
 }
 
-const SEP = " \u203A ";
+const SEP = " › ";
 
-/**
- * Sort channels into tree-traversal order (root, then each subtree DFS),
- * decorating each row with depth, ancestor ids, and breadcrumb label.
- *
- * Sibling order within each parent group is sortOrder, then label.
- *
- * @returns Channels in DFS order with tree metadata attached.
- */
 export function buildChannelTree<T extends ChannelLike>(channels: T[]): ChannelTreeNode<T>[] {
   const byParent = new Map<string | null, T[]>();
   for (const ch of channels) {
@@ -73,12 +56,6 @@ export function buildChannelTree<T extends ChannelLike>(channels: T[]): ChannelT
   return out;
 }
 
-/**
- * Whether `candidateParentId` would be a valid new parent for `channel`. Rejects
- * self, descendants of self (cycles), and parents whose kind disagrees.
- *
- * @returns True when reparenting under `candidateParentId` is allowed.
- */
 export function canReparent(
   channel: DistributionChannelResponse,
   candidateParentId: string | null,
@@ -100,11 +77,7 @@ export function canReparent(
   return !candidate.ancestorIds.includes(channel.id);
 }
 
-/**
- * Channels with no children. Printings can only link to leaves.
- *
- * @returns Subset of `tree` containing only leaf nodes.
- */
+/** Printings can only link to leaves. */
 export function leafChannels<T extends ChannelLike>(
   tree: ChannelTreeNode<T>[],
 ): ChannelTreeNode<T>[] {

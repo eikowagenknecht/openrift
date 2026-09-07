@@ -11,23 +11,13 @@ import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { conditionShortCode } from "@/lib/condition-codes";
 import { languageNameForCode } from "@/lib/language-names";
 
-/**
- * The display labels the writers put in text cells, so an export names a set,
- * rarity, condition or grader exactly as the app does. Sets come from the
- * catalog; the rest are the admin-managed enum tables.
- */
 export interface CsvExportLabels {
-  /** Set slug to display name, e.g. `OGN` to `Origins`. */
   sets: Record<string, string>;
   rarities: Record<string, string>;
   conditions: Record<string, string>;
   graders: Record<string, string>;
 }
 
-/**
- * Assembles the writers' labels from the catalog's sets and the enum tables.
- * @returns The label lookups a CSV writer needs.
- */
 export function csvExportLabels(
   sets: readonly { slug: string; name: string }[],
   labels: {
@@ -91,19 +81,11 @@ function escapeField(value: string): string {
   return value;
 }
 
-/** One export row's worth of copies sharing identical metadata (ADR-038). */
 interface MetadataGroup {
   quantity: number;
-  /** A representative copy row, or undefined when no metadata is available. */
   copy: CopyResponse | undefined;
 }
 
-/**
- * Splits a stack's copies into groups with identical metadata so each group
- * exports as its own row. Without a `copiesById` lookup the whole stack is one
- * metadata-less group (legacy call shape).
- * @returns The metadata groups, insertion-ordered.
- */
 function groupStackByMetadata(
   copyIds: readonly string[],
   copiesById?: ReadonlyMap<string, CopyResponse>,
@@ -136,10 +118,8 @@ function groupStackByMetadata(
 }
 
 /**
- * Encodes a copy's links as a single CSV cell: `url|label` entries joined by
- * `; `. Pipes and semicolons are stripped from labels so the encoding stays
- * parseable on import.
- * @returns The encoded cell value.
+ * Encodes as `url|label` entries joined by `; `, stripping pipes and
+ * semicolons from labels so the encoding stays parseable on import.
  */
 function encodeLinks(copy: CopyResponse | undefined): string {
   if (!copy || copy.links.length === 0) {
@@ -152,12 +132,6 @@ function encodeLinks(copy: CopyResponse | undefined): string {
     .join("; ");
 }
 
-/**
- * Generates a CSV string from stacked copy entries. With a `copiesById`
- * lookup, a printing exports one row per distinct metadata combination
- * (condition, grading, notes, links — ADR-038) instead of one summed row.
- * @returns CSV text with headers and one row per printing+metadata group.
- */
 export function generateExportCSV(
   stacks: StackedEntry[],
   copiesById?: ReadonlyMap<string, CopyResponse>,
@@ -195,15 +169,8 @@ export function generateExportCSV(
   return lines.join("\n");
 }
 
-/** The marker slug Piltover treats as its own Variant Type rather than an art variant. */
 const PROMO_MARKER = "promo";
 
-/**
- * Piltover's Variant Type. Overnumbered wins over a promo marker (their
- * `OGN-309` is a promo of ours yet types as Overnumbered) and a promo marker
- * wins over the art variant (their `OGN-089b` is alt art yet types as Promo).
- * @returns One of Piltover's Variant Type values.
- */
 function piltoverVariantType(printing: Printing): string {
   if (printing.isOvernumbered) {
     return "Overnumbered";
@@ -221,12 +188,9 @@ function piltoverVariantType(printing: Printing): string {
 }
 
 /**
- * Piltover's Variant Label is editorial text of theirs ("OGN Rune", "OGN Foil",
- * "Arcane Box Promo") that mixes set prefix, card type, finish and promo
- * channel under no single rule, so it cannot be reconstructed. This writes the
- * closest thing our own data supports: the variant type, named by the promo's
- * markers where it has them, with signed copies marked as they mark them.
- * @returns The Variant Label cell.
+ * Piltover's Variant Label is editorial text that mixes several attributes
+ * under no single rule, so it can't be reconstructed; this writes the closest
+ * equivalent our data supports.
  */
 function piltoverVariantLabel(printing: Printing, variantType: string): string {
   const markerLabels = printing.markers.map((marker) => marker.label).join(" ");
@@ -235,20 +199,8 @@ function piltoverVariantLabel(printing: Printing, variantType: string): string {
 }
 
 /**
- * Generates a CSV string in Piltover Archive's format from stacked copy
- * entries. Their Variant Number is our short code verbatim, including the
- * alt-art letter and the `*` that marks a signed printing, so nothing is
- * encoded into it: finish rides in the `Foil` column and promos in the Variant
- * Type, exactly as their own export writes them.
- *
- * Every text cell is the stored display label, so an admin rename follows the
- * export. `Grading Label` is left to them — it is their rendering of company
+ * `Grading Label` is left blank: it is Piltover's own rendering of company
  * plus value ("PSA 9 MINT"), and no grade-name table of ours would stay right.
- *
- * With a `copiesById` lookup a printing exports one row per distinct copy
- * metadata (ADR-038), so a graded copy stays its own row instead of merging
- * into the raw ones.
- * @returns CSV text with Piltover Archive headers, one row per printing+metadata.
  */
 export function generatePiltoverArchiveCSV(
   stacks: StackedEntry[],
@@ -313,11 +265,8 @@ const RIFTMANA_HEADERS = [
 ] as const;
 
 /**
- * Encodes per-condition counts as a RiftMana condition cell (e.g. "NM:2;LP:1").
- * Copies without a recorded condition (including graded ones) are left out —
- * the importer pools any quantity the encoding doesn't cover into a
- * condition-less entry, so totals still match.
- * @returns The encoded cell, or "" when no copy has a condition.
+ * Copies without a recorded condition are left out of the cell; the importer
+ * pools any quantity the encoding doesn't cover into a condition-less entry.
  */
 function encodeRiftManaConditions(groups: readonly MetadataGroup[]): string {
   const byCode = new Map<string, number>();
@@ -333,11 +282,8 @@ function encodeRiftManaConditions(groups: readonly MetadataGroup[]): string {
 }
 
 /**
- * True when a printing's quantity belongs in the format's foil column. Cards
- * whose rarity is always foil (rare/epic/showcase) go in the normal/standard
- * column — that's where RiftMana and RiftCore track them, and both importers
- * infer foil from the rarity, so the round trip is preserved.
- * @returns Whether to count the printing in the foil quantity column.
+ * Always-foil rarities (rare/epic/showcase) go in the normal/standard column;
+ * both RiftMana and RiftCore infer foil from rarity, so the round trip holds.
  */
 function belongsInFoilColumn(printing: StackedEntry["printing"]): boolean {
   return printing.finish === WellKnown.finish.FOIL && !isAlwaysFoilRarity(printing.rarity);
@@ -357,17 +303,8 @@ interface RiftManaRow {
 }
 
 /**
- * Generates a CSV string in RiftMana's format from stacked copy entries. The
- * output round-trips through {@link parseImportData}: normal and foil copies
- * of the same printing merge into one row with separate quantity columns, art
- * variants stay encoded in the Card ID's modifier, and promo printings get
- * RiftMana's `-p` suffix (the specific promo type is lost — the format only
- * knows "promo").
- *
- * With a `copiesById` lookup, recorded conditions are encoded in the
- * per-finish condition columns (e.g. "NM:2;LP:1" — ADR-038). The price and
- * notes columns are always left empty.
- * @returns CSV text with RiftMana headers and one row per card+language.
+ * Promo printings get RiftMana's `-p` suffix; the specific promo type is
+ * lost, since the format only knows "promo".
  */
 export function generateRiftManaCSV(
   stacks: StackedEntry[],
@@ -447,11 +384,8 @@ const RIFTCORE_HEADERS = [
 ] as const;
 
 /**
- * Converts our short code to RiftCore's Card ID spelling: uppercase art
- * modifier ("OGN-030a" → "OGN-030A") and "S" for our "*" ("OGN-123*" →
- * "OGN-123S"). Short codes that don't match the standard grammar (e.g. the
- * bare set prefix of token printings) pass through unchanged.
- * @returns The RiftCore Card ID.
+ * RiftCore's Card ID spelling: uppercase art modifier ("OGN-030a" →
+ * "OGN-030A") and "S" for our "*" ("OGN-123*" → "OGN-123S").
  */
 function riftCoreCardId(shortCode: string): string {
   const match = /^(?<set>[A-Z]{3})-(?<code>[A-Z0-9]{3})(?<modifier>[a-z*]?)$/u.exec(shortCode);
@@ -475,16 +409,8 @@ interface RiftCoreRow {
 }
 
 /**
- * Generates a CSV string in RiftCore's format from stacked copy entries. The
- * output round-trips through {@link parseImportData}: the file leads with the
- * `RIFTCORE COLLECTION EXPORT` marker line the importer detects, then the
- * header row, then one row per card with separate Standard/Foil quantity
- * columns (Proving Grounds Qty is always 0).
- *
- * The format carries no language, condition, or promo information, so those
- * are dropped: printings of the same card in different languages merge into
- * one row.
- * @returns CSV text with the RiftCore preamble, headers, and one row per card.
+ * The format carries no language, condition, or promo information, so
+ * printings of the same card in different languages merge into one row.
  */
 export function generateRiftCoreCSV(stacks: StackedEntry[], labels: CsvExportLabels): string {
   const rows = new Map<string, RiftCoreRow>();
@@ -537,10 +463,8 @@ export function generateRiftCoreCSV(stacks: StackedEntry[], labels: CsvExportLab
   return lines.join("\n");
 }
 
-/** A CSV format the app can export collections and lists to. */
 export type CsvExportFormat = "openrift" | "piltover" | "riftmana" | "riftcore";
 
-/** Display label, filename prefix, and writer for each export format. */
 export const CSV_EXPORT_FORMATS: Record<
   CsvExportFormat,
   {
@@ -571,11 +495,6 @@ export const CSV_EXPORT_FORMATS: Record<
   },
 };
 
-/**
- * Builds the download filename for an export: `<format>-<name>-<date>.csv`
- * with the name kebab-cased.
- * @returns The filename.
- */
 export function csvExportFilename(format: CsvExportFormat, name: string): string {
   const slug =
     name
@@ -586,9 +505,6 @@ export function csvExportFilename(format: CsvExportFormat, name: string): string
   return `${CSV_EXPORT_FORMATS[format].filenamePrefix}-${slug}-${date}.csv`;
 }
 
-/**
- * Triggers a browser download of the given text content as a CSV file.
- */
 export function downloadCSV(csv: string, filename: string): void {
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);

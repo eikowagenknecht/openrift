@@ -4,8 +4,7 @@ import { cleanup } from "@testing-library/react";
 import { afterEach } from "vitest";
 
 // jsdom doesn't implement ResizeObserver; components that observe layout
-// (CardBrowserLayout, page-top-bar, etc.) rely on it. A no-op stub is enough
-// for unit tests that don't actually measure layout.
+// rely on it. A no-op stub is enough for tests that don't measure layout.
 globalThis.ResizeObserver ??= class {
   observe(_target: Element): void {
     void _target;
@@ -18,16 +17,16 @@ globalThis.ResizeObserver ??= class {
   }
 };
 
-// jsdom doesn't implement Element.scrollIntoView — the rules anchor handler
-// calls it after revealing a hidden rule.
+// jsdom doesn't implement Element.scrollIntoView, which the rules anchor
+// handler calls after revealing a hidden rule.
 if (globalThis.Element && !globalThis.Element.prototype.scrollIntoView) {
   globalThis.Element.prototype.scrollIntoView = () => {
     // no-op
   };
 }
 
-// jsdom doesn't implement Element.getAnimations — BaseUI's ScrollArea viewport
-// polls it on a teardown timer and throws as an uncaught exception otherwise.
+// jsdom doesn't implement Element.getAnimations; BaseUI's ScrollArea polls
+// it on a teardown timer and throws otherwise.
 if (
   globalThis.Element &&
   (globalThis.Element.prototype as { getAnimations?: () => unknown[] }).getAnimations === undefined
@@ -35,8 +34,8 @@ if (
   (globalThis.Element.prototype as { getAnimations?: () => unknown[] }).getAnimations = () => [];
 }
 
-// jsdom doesn't implement Document.elementFromPoint — input-otp (the six-digit
-// code field) polls it on a timer and throws as an uncaught exception otherwise.
+// jsdom doesn't implement Document.elementFromPoint; input-otp polls it on
+// a timer and throws otherwise.
 interface PartialElementFromPoint {
   elementFromPoint?: (x: number, y: number) => Element | null;
 }

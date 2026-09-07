@@ -8,7 +8,6 @@ describe("randomUuid", () => {
   const originalRandomUUID = crypto.randomUUID;
 
   afterEach(() => {
-    // Restore the native method spied/removed in individual tests.
     Object.defineProperty(crypto, "randomUUID", {
       configurable: true,
       writable: true,
@@ -26,7 +25,6 @@ describe("randomUuid", () => {
 
   describe("when crypto.randomUUID is unavailable (insecure context / old Safari)", () => {
     beforeEach(() => {
-      // Simulate a non-secure context where randomUUID is not a function.
       Object.defineProperty(crypto, "randomUUID", {
         configurable: true,
         writable: true,

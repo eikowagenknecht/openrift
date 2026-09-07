@@ -1,24 +1,11 @@
 import { taggedProcedure } from "./orpc-procedure-tag";
 
 /**
- * `beforeSend` filter for the SSR Sentry client (see instrument.server.mjs):
- * drops expected 4xx outcomes from a server function. A server function calls
- * the API through the oRPC client, which rethrows whatever the API answered, so
- * a routine "tournament not found" (404) or "host or staff only" (403) crosses
- * the server-fn boundary as an unhandled throw and TanStack Start's
- * auto-instrumentation reports it. None of those are server bugs: the route
- * loader catches them and renders a not-found / redirects to /login, and the
- * API decided the outcome deliberately.
- *
- * This mirrors `isServerFault` in apps/api/src/orpc/error-reporting-interceptor.ts,
- * which already keeps the same 4xx out of the API's own Sentry project. Keying
- * off `status` (not the error class or its message) covers BOTH error shapes the
- * app produces — the raw-fetch ApiError (`name: "ApiError"`) and oRPC's
- * ORPCError (which keeps `name: "Error"` and a human message like "Entry not
- * found", so no `ignoreErrors` pattern can catch it) — and it needs no upkeep as
- * endpoints gain new messages. Genuine faults (5xx, output-validation failures,
- * parse errors, anything without a 4xx status) still report.
- * @returns The event, or null to drop it.
+ * `beforeSend` filter for the SSR Sentry client: drops route-handled 4xx
+ * outcomes rethrown by a server function. Mirrors `isServerFault` in
+ * apps/api/src/orpc/error-reporting-interceptor.ts. Keys off `status`, not
+ * error class or message, to catch both the raw-fetch ApiError and oRPC's
+ * ORPCError (which keeps `name: "Error"`).
  */
 export function dropExpectedClientErrors<EventT>(
   event: EventT,
@@ -36,11 +23,8 @@ export function dropExpectedClientErrors<EventT>(
 }
 
 /**
- * Splits the API's faults by the procedure that produced them. Without this
- * every 5xx the API answers reaches Sentry as `Error: Internal server error`
- * with oRPC's own two-frame stack, so hundreds of unrelated endpoints share a
- * single issue that can never be triaged or resolved.
- * @returns The event, fingerprinted when the failing procedure is known.
+ * Fingerprints an API fault by its originating procedure; without this every
+ * 5xx shares oRPC's own two-frame stack and groups into one Sentry issue.
  */
 export function fingerprintApiFaults<EventT extends { fingerprint?: string[] }>(
   event: EventT,

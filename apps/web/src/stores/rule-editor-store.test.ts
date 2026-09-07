@@ -7,7 +7,6 @@ import { createStoreResetter } from "@/test/store-helpers";
 import type { DraftRule } from "./rule-editor-store";
 import { serializeRules, useRuleEditorStore } from "./rule-editor-store";
 
-/** @returns A draft rule with default math and an overridable filter. */
 function draft(overrides: Partial<DraftRule> = {}): DraftRule {
   return {
     filter: EMPTY_CARD_FILTERS,
@@ -74,9 +73,6 @@ describe("useRuleEditorStore", () => {
     expect(useRuleEditorStore.getState().rules[1]?.filter).toEqual(EMPTY_CARD_FILTERS);
   });
 
-  // ADR-034 amendment 4: the rule shape follows the list's kind, so a printing
-  // list serializes the demand shape exactly like a card list does, and an
-  // organize list of either kind gets the same shape as a wish list.
   it("builds the demand shape for printing lists too", () => {
     const store = useRuleEditorStore.getState();
     store.addRule();
@@ -153,12 +149,10 @@ describe("useRuleEditorStore", () => {
       keepPer: "printing",
     });
 
-    // A saved rule without the field (pre-feature) loads as per card.
     const { keepPer: _keepPer, ...legacy } = rule;
     useRuleEditorStore.getState().load([legacy as ListRule]);
     expect(useRuleEditorStore.getState().rules[0]?.keepPer).toBe("card");
 
-    // setKeepPer patches only the targeted rule.
     useRuleEditorStore.getState().addRule();
     useRuleEditorStore.getState().setKeepPer(1, "printing");
     const rules = useRuleEditorStore.getState().rules;
@@ -167,8 +161,6 @@ describe("useRuleEditorStore", () => {
   });
 
   it("toggleExcludeCopyId removes and re-adds a single copy on the targeted rule", () => {
-    // Copy exclusions only enter a draft via `load` (the saved rule); the dialog
-    // then removes them one chip at a time via toggleExcludeCopyId.
     const tradeRule = (excludeCopyIds: string[]): ListRule => ({
       kind: "trade",
       filter: EMPTY_CARD_FILTERS,
@@ -178,13 +170,11 @@ describe("useRuleEditorStore", () => {
     });
     useRuleEditorStore.getState().load([tradeRule(["copy-1", "copy-2"]), tradeRule(["copy-9"])]);
 
-    // Removes just the targeted copy, leaving its siblings and the other rule intact.
     useRuleEditorStore.getState().toggleExcludeCopyId(0, "copy-1");
     let rules = useRuleEditorStore.getState().rules;
     expect(rules[0]?.excludeCopyIds).toEqual(["copy-2"]);
     expect(rules[1]?.excludeCopyIds).toEqual(["copy-9"]);
 
-    // Toggling an absent copy re-adds it (mirrors toggleExcludeId).
     useRuleEditorStore.getState().toggleExcludeCopyId(0, "copy-1");
     rules = useRuleEditorStore.getState().rules;
     expect(rules[0]?.excludeCopyIds).toEqual(["copy-2", "copy-1"]);
@@ -317,9 +307,6 @@ describe("useRuleEditorStore", () => {
   });
 
   it("serializeRules reflects the passed rules without touching the store", () => {
-    // The live preview serializes from its reactive `rules` value rather than
-    // the store's `buildRules` (which reads `get()`), so editing a filter is
-    // picked up immediately. This guards that the pure helper stays pure.
     const rules = [draft({ filter: { ...EMPTY_CARD_FILTERS, rarities: ["common"] } })];
     expect(serializeRules(rules, "card")).toEqual([
       {
@@ -331,7 +318,6 @@ describe("useRuleEditorStore", () => {
         countSpecialVersions: false,
       },
     ]);
-    // The store stays empty — serializeRules read only its argument.
     expect(useRuleEditorStore.getState().rules).toEqual([]);
   });
 
@@ -367,9 +353,6 @@ describe("useRuleEditorStore", () => {
   });
 
   it("serializeRules emits priceMarketplace only while a price bound is set", () => {
-    // With a bound, the marketplace travels with the rule (the numbers are in
-    // its currency); without one, an inert leftover marketplace is dropped so
-    // the saved rule stays schema-clean.
     const bounded = draft({
       filter: { ...EMPTY_CARD_FILTERS, price: { min: null, max: 5 } },
       priceMarketplace: "cardmarket",

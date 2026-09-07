@@ -73,9 +73,6 @@ function group(
   printings: UnifiedMappingPrintingResponse[],
   overrides: GroupOverrides = {},
 ): UnifiedMappingGroupResponse {
-  // Derive assignments AND assignedProducts from the per-printing externalId
-  // fields so the entries-side also reflects the intended fixture state. Real
-  // API responses populate `assignments` and `assignedProducts` independently.
   const tcgAssignments = printings
     .filter((p) => p.tcgExternalId !== null)
     .map((p) => ({
@@ -188,10 +185,6 @@ describe("computeCardCoverage", () => {
   });
 
   it("counts per printing — EN-only mapping on a EN+SC card is partial on the language-carrying marketplaces", () => {
-    // Post per-SKU refactor: every printing has its own explicit variant (or
-    // not), so a SC printing that isn't mapped shows as a gap regardless of
-    // the EN sibling's mapping. TCGplayer is the exception — it stocks English
-    // only, so the SC printing isn't a gap there and the card reads full.
     const result = computeCardCoverage(
       group([
         printing({ printingId: "p-en", language: "EN", tcgExternalId: 100 }),
@@ -205,8 +198,6 @@ describe("computeCardCoverage", () => {
   });
 
   it("SC-only card shows full on the marketplace that maps it, and na on TCGplayer", () => {
-    // No English printing exists, so TCGplayer has nothing it could carry —
-    // that's "not applicable", not an unmapped gap.
     const result = computeCardCoverage(
       group([printing({ printingId: "p-sc", language: "SC", cmExternalId: 200 })]),
     );

@@ -23,9 +23,6 @@ describe("liveTradeStatus", () => {
     expect(tones).toEqual(["soft", "committed", "committed"]);
   });
 
-  // The words are shared, so the icon is the only thing left telling a card on
-  // its way out from one on its way in. It must depend on the role and nothing
-  // else, or a phase would quietly point the wrong way.
   it.each(ROLES)("takes the direction and its arrow from the %s role alone", (role) => {
     const expected =
       role === "giver"
@@ -38,8 +35,6 @@ describe("liveTradeStatus", () => {
     }
   });
 
-  // Offered already consumes the giver's supply, so it must never read as the
-  // weaker sibling of Reserved. Same weight, and now the same arrow too.
   it.each(ROLES)("gives offered and reserved the same icon and tone on the %s side", (role) => {
     const offered = liveTradeStatus({ role, phase: "offered" });
     const reserved = liveTradeStatus({ role, phase: "reserved" });
@@ -47,9 +42,6 @@ describe("liveTradeStatus", () => {
     expect(offered.tone).toBe(reserved.tone);
   });
 
-  // One vocabulary for both sides: a phase is named the same whichever end of
-  // the trade the viewer is on, and the four names stay distinct so the word
-  // always pins the phase down.
   it("uses one word per phase across the two sides", () => {
     for (const phase of PHASES) {
       expect(liveTradeStatus({ role: "giver", phase }).label).toBe(
@@ -60,7 +52,6 @@ describe("liveTradeStatus", () => {
     expect(new Set(labels).size).toBe(labels.length);
   });
 
-  // The two sides differ only in direction, never in wording.
   it("points the two sides in opposite directions", () => {
     expect(liveTradeStatus({ role: "giver", phase: "reserved" }).direction).toBe("outgoing");
     expect(liveTradeStatus({ role: "receiver", phase: "reserved" }).direction).toBe("incoming");
@@ -79,8 +70,6 @@ describe("tradeStatusTitle", () => {
     expect(tradeStatusTitle({ label: "Reserved" })).toBe("Reserved");
   });
 
-  // The arrow is aria-hidden, so the tooltip is where the direction is spelled
-  // out for anyone who can't see which way it points.
   it("spells out the direction when one is given", () => {
     expect(tradeStatusTitle({ label: "Reserved", direction: "incoming" })).toBe(
       "Reserved (incoming)",

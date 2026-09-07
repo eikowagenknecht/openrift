@@ -118,8 +118,6 @@ describe("aggregateActivityEvents", () => {
 });
 
 describe("groupActivityRowsByDay", () => {
-  // Timestamps built through the local-time Date constructor, so the expected
-  // local-calendar-day grouping holds in any test-runner timezone.
   const atLocal = (day: number, hour: number): string =>
     new Date(2026, 6, day, hour, 0, 0).toISOString();
 

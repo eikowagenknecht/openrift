@@ -20,7 +20,6 @@ describe("groupItemsByCard", () => {
     const sections = groupItemsByCard([garen, ahri], "asc");
 
     expect(sections.map((section) => section.group.id)).toEqual(["ahri", "garen"]);
-    // slug is blank so the header shows only the name, not "ahri Ahri"
     expect(sections.map((section) => section.group.slug)).toEqual(["", ""]);
     expect(sections.map((section) => section.group.name)).toEqual(["Ahri", "Garen"]);
   });

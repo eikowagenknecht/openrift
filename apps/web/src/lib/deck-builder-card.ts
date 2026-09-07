@@ -14,21 +14,15 @@ import { WellKnown, copyLimitFor, formatHasSideboard, isBaseBanFormat } from "@o
 const EMPTY_ARRAY: string[] = [];
 
 /**
- * Whether a catalog card is banned in a way that invalidates a deck. Only the
- * base banlist counts — mode-scoped bans (e.g. 2v2) stay a display-only
- * ribbon, since a deck carries no play-mode identity.
- * @returns True when the card is on the base banlist.
+ * Only the base banlist invalidates a deck; mode-scoped bans (e.g. 2v2) stay
+ * a display-only ribbon since a deck carries no play-mode identity.
  */
 export function isCardBanned(card: Pick<Card, "bans">): boolean {
   return card.bans.some((ban) => isBaseBanFormat(ban.formatId));
 }
 
-/** A complete deck holds this many runes; rune adds stop once the total reaches it. */
 export const RUNE_TARGET = 12;
 
-// Zones whose copies share the 3-copy cap. Overflow is intentionally excluded:
-// it is a free "park here" holding area, so its copies neither count toward the
-// cap nor are capped themselves.
 export const COPY_LIMIT_ZONES: ReadonlySet<DeckZone> = new Set([
   WellKnown.deckZone.MAIN,
   WellKnown.deckZone.SIDEBOARD,
@@ -39,20 +33,15 @@ export interface DeckBuilderCard {
   cardId: string;
   zone: DeckZone;
   quantity: number;
-  /** Printing pinned for display, or null for "default art". */
   preferredPrintingId: string | null;
   cardName: string;
-  /** Primary type (`cardTypes[0]`); used for display/sort bucketing only. */
   cardType: CardType;
-  /** Full ordered type set (ADR-037); zone gating checks membership here. */
   cardTypes: CardType[];
   superTypes: SuperType[];
   domains: Domain[];
   tags: string[];
   keywords: string[];
-  /** Per-card deck copy-limit override (`Card.maxCopiesOverride`); null = normal 3-copy rule. */
   maxCopiesOverride: number | null;
-  /** True when the card is on the base banlist; drives the `CARD_BANNED` rule violation. */
   banned: boolean;
   energy: number | null;
   might: number | null;
@@ -67,7 +56,7 @@ export function deckCardKey(
   return `${cardId}|${zone}|${preferredPrintingId ?? ""}`;
 }
 
-/** The public payload already denormalizes every field, so this needs no catalog lookup and stays SSR-safe. */
+/** Every field is already denormalized in the public payload; no catalog lookup needed. */
 export function toBuilderCardFromPublic(card: PublicDeckCardResponse): DeckBuilderCard {
   return {
     cardId: card.cardId,
@@ -89,14 +78,6 @@ export function toBuilderCardFromPublic(card: PublicDeckCardResponse): DeckBuild
   };
 }
 
-/**
- * Projects a builder card into the rule-engine's `DeckCard` shape, stitching
- * in the catalog-side custom-tag slugs for tag-locked formats. Centralises
- * the field-by-field copy that `DeckOverview` and `useDeckViolations` both
- * need so adding a new rule-engine field stays a one-line change.
- *
- * @returns The `DeckCard` to feed into `validateDeck`.
- */
 export function toRuleEngineCard(
   card: DeckBuilderCard,
   customTagAssignments: Record<string, readonly string[]>,
@@ -126,8 +107,6 @@ export function getDeckCardKey(card: {
   return deckCardKey(card.cardId, card.zone, card.preferredPrintingId);
 }
 
-// Display order for the "Move to" context menu — mirrors the sidebar zone
-// order (legend → champion → runes → battlefield → main → sideboard → overflow).
 const MOVE_TARGET_ORDER: readonly DeckZone[] = [
   WellKnown.deckZone.LEGEND,
   WellKnown.deckZone.CHAMPION,
@@ -139,12 +118,8 @@ const MOVE_TARGET_ORDER: readonly DeckZone[] = [
 ];
 
 /**
- * Lists zones a card can be moved into via the context menu — every zone where
- * its type is allowed, minus its current zone, in display order. Formats
- * without a sideboard drop it as a target; it stays a valid source so stray
- * sideboard cards can still be moved out.
- *
- * @returns Allowed target zones for the move-to menu.
+ * Formats without a sideboard drop it as a target; it stays a valid source
+ * so stray sideboard cards can still be moved out.
  */
 export function getAllowedMoveTargets(
   card: {
@@ -164,18 +139,13 @@ export function getAllowedMoveTargets(
 
 export interface DeckMoveRow {
   zone: DeckZone;
-  /** True when the row moves a single copy instead of the whole stack. */
   splitOne: boolean;
 }
 
 /**
- * The rows the "Move to" menu shows for one deck row. Pointer devices split a
- * stack with shift-click, so one row per zone is enough. Touch has no modifier
- * key, so a stack of several copies gets a second, explicit "move 1" row per
- * zone — otherwise splitting a copy off is impossible on a phone, where drag
- * is disabled too.
- *
- * @returns The move rows in zone order, each flagged whole-stack or single-copy.
+ * Touch has no shift-click modifier, so a stack of several copies also gets
+ * an explicit single-copy row per zone; otherwise splitting one off is
+ * impossible where drag is also disabled.
  */
 export function buildMoveRows(
   targets: readonly DeckZone[],
@@ -191,18 +161,12 @@ export function buildMoveRows(
   ]);
 }
 
-/**
- * Checks whether a card is allowed in a given zone based on its type/supertypes.
- *
- * @returns true if the card's type is valid for the zone
- */
 export function isCardAllowedInZone(
   card: { cardTypes: CardType[]; superTypes: SuperType[] },
   zone: DeckZone,
 ): boolean {
-  // Tokens are created by effects during play (rule 133.7.c), never registered
-  // in a deck — so no zone takes one, overflow included. This is the gate the
-  // add strips, drag-and-drop, and the "move to" menu all read.
+  // Tokens (rule 133.7.c) are never registered in a deck, so no zone takes
+  // one, overflow included.
   if (card.superTypes.includes(WellKnown.superType.TOKEN)) {
     return false;
   }
@@ -223,10 +187,8 @@ export function isCardAllowedInZone(
       return card.cardTypes.includes(WellKnown.cardType.BATTLEFIELD);
     }
     case WellKnown.deckZone.OVERFLOW: {
-      // Overflow is a free "park here" holding area: any card type is welcome,
-      // including Legends, Runes, and Battlefields. The rule engine ignores
-      // overflow contents entirely (see deck-rules.ts), so this never affects
-      // deck legality.
+      // Any card type is welcome; the rule engine ignores overflow contents
+      // entirely, so this never affects deck legality.
       return true;
     }
     case WellKnown.deckZone.MAIN:
@@ -244,22 +206,13 @@ export function isCardAllowedInZone(
 }
 
 /**
- * Determines whether dropping the currently dragged card into `zone` would
- * exceed a zone's capacity (3-copy cap, 12-rune cap, battlefield uniqueness).
- *
  * Moves between two copy-limit zones (main/sideboard/champion) preserve the
- * cross-zone copy total, so the 3-copy cap doesn't apply there — including
- * for drops back into the source zone, which would otherwise force the user
- * to discard the card. Drops from a non-copy-limit source (overflow, or the
- * card browser) still count toward the cap, since overflow copies don't
- * count toward the total and nothing else caps the add.
- *
- * @returns true if the zone should reject the drop.
+ * cross-zone copy total, so the 3-copy cap doesn't apply there, including for
+ * drops back into the source zone.
  */
 export function isDeckZoneFullForDrag(args: {
   zone: DeckZone;
   draggedCard: { cardId: string; maxCopiesOverride: number | null };
-  /** Source zone of the dragged card, or null when the drag started in the card browser. */
   fromZone: DeckZone | null;
   allCards: readonly { cardId: string; zone: DeckZone; quantity: number }[];
   format: DeckFormat;
@@ -287,9 +240,8 @@ export function isDeckZoneFullForDrag(args: {
     }
   }
   if (zone === WellKnown.deckZone.BATTLEFIELD) {
-    // Custom-region allows exactly one battlefield: the zone is full as soon
-    // as any battlefield sits there. Moves within the zone stay allowed so a
-    // reorder-drop doesn't get rejected.
+    // Custom-region allows exactly one battlefield; moves within the zone
+    // stay allowed so a reorder-drop doesn't get rejected.
     if (
       format === WellKnown.deckFormat.CUSTOM_REGION &&
       fromZone !== WellKnown.deckZone.BATTLEFIELD &&
@@ -311,14 +263,9 @@ export function isDeckZoneFullForDrag(args: {
 }
 
 /**
- * In the deck builder's printings view, decides which `preferredPrintingId` a
- * given printing cell's add/remove should target. Cards view always operates on
- * the default-art (null) row. In printings view the card's canonical printing
- * cell also targets the null-art row — matching how the deck list and the
- * "change printing" menu treat default art — while every other printing pins to
+ * In printings view, the card's canonical printing cell targets the null-art
+ * row like the default-art row does elsewhere; every other printing pins to
  * its own id.
- *
- * @returns The `preferredPrintingId` to add/remove against (null = default art).
  */
 export function cellPreferredPrintingId(
   view: "cards" | "printings",
@@ -332,12 +279,8 @@ export function cellPreferredPrintingId(
 }
 
 /**
- * Sums deck quantities onto the printing cell each row belongs to. A pinned row
- * counts on its printing's cell; a default-art (null) row counts on the card's
- * canonical printing cell. This keeps per-cell counts summing to the per-card
- * total and consistent with the printing the deck list renders for null art.
- *
- * @returns A map of printing id → total in-deck quantity for that cell.
+ * A pinned row counts on its printing's cell; a default-art (null) row
+ * counts on the card's canonical printing cell.
  */
 export function buildDeckQuantityByCell(
   deckCards: readonly { cardId: string; quantity: number; preferredPrintingId: string | null }[],
@@ -375,11 +318,6 @@ export function catalogCardToDeckBuilderCard(cardId: string, card: Card): DeckBu
   };
 }
 
-/**
- * Converts an API DeckCardResponse to a DeckBuilderCard by resolving card
- * metadata from the catalog.
- * @returns A DeckBuilderCard with full card data, or null if card not found.
- */
 export function toDeckBuilderCard(
   deckCard: DeckCardResponse,
   cardsById: Record<string, Card>,

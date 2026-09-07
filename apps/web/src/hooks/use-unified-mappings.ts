@@ -39,11 +39,8 @@ export function useUnifiedMappings() {
 }
 
 /**
- * Gated variant for pages card-review grant holders share with full admins:
- * the marketplace endpoint 403s for them, so the query only runs when the
- * caller is a full admin and `data` stays undefined otherwise.
- *
- * @returns The unified-mappings query, disabled unless `enabled`.
+ * The marketplace endpoint 403s for card-review grant holders, so the query
+ * only runs when `enabled` (full admin).
  */
 export function useUnifiedMappingsWhen(enabled: boolean) {
   return useQuery({ ...unifiedMappingsQueryOptions(), enabled });
@@ -63,10 +60,6 @@ export function unifiedMappingsForCardQueryOptions(cardId: string) {
   });
 }
 
-/**
- * Mutations invalidate both the unified query and the per-marketplace queries.
- * @returns A mutation hook that invalidates relevant queries on success.
- */
 function useUnifiedMutation<TInput, TResult>(
   marketplace: Marketplace,
   mutationFn: (input: TInput) => Promise<TResult>,
@@ -87,7 +80,6 @@ function useUnifiedMutation<TInput, TResult>(
 
 type SaveMappingsBody = ContractInput<typeof adminUnifiedMappingsContract, "save">["body"];
 
-/** The batch result: how many rows landed, and which SKUs the API refused. */
 type SaveMappingsResult = Awaited<
   ReturnType<ReturnType<typeof apiOrpcClient<typeof adminUnifiedMappingsContract>>["save"]>
 >;
@@ -141,10 +133,7 @@ const ignoreProductsFn = createServerFn({ method: "POST" })
     });
   });
 
-/**
- * Level-3 ignore: deny a specific SKU (finish × language) of an upstream product.
- * @returns A mutation hook that posts a batch of variant-level ignores.
- */
+/** Level-3 ignore: deny a specific SKU (finish × language) of an upstream product. */
 export function useUnifiedIgnoreVariants(marketplace: Marketplace) {
   return useUnifiedMutation(
     marketplace,
@@ -154,10 +143,7 @@ export function useUnifiedIgnoreVariants(marketplace: Marketplace) {
   );
 }
 
-/**
- * Level-2 ignore: deny an entire upstream product regardless of finish/language.
- * @returns A mutation hook that posts a batch of product-level ignores.
- */
+/** Level-2 ignore: deny an entire upstream product regardless of finish/language. */
 export function useUnifiedIgnoreProducts(marketplace: Marketplace) {
   return useUnifiedMutation(marketplace, async (products: { externalId: number }[]) => {
     await ignoreProductsFn({ data: { marketplace, products } });
@@ -204,7 +190,6 @@ const unassignFromCardFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    // query-addressed (detailed input); omit language when null (no SKU language axis).
     await apiOrpcClient(adminStagingCardOverridesContract, context.cookie).remove({
       query: {
         marketplace: data.marketplace,

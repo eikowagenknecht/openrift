@@ -2,10 +2,6 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { cookieStorage } from "./cookie-storage";
 
-// cookieStorage wraps a raw cookie StateStorage with zustand's
-// createJSONStorage, so getItem/setItem operate on the parsed
-// StorageValue object, not the raw cookie string.
-
 function clearCookies() {
   for (const row of document.cookie.split("; ")) {
     const name = row.split("=")[0];

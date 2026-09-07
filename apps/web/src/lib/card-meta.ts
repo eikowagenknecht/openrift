@@ -14,15 +14,8 @@ export interface CardMarketplaceOffer {
   offerCount: number;
 }
 
-/**
- * One compact price sentence for the card page's meta description, e.g.
- * `Prices from 3,10 € (CardTrader).` — searchers who queried "<card> price"
- * see a concrete number in the snippet. Uses the first offer in the loader's
- * marketplace order (CardTrader first, mirroring ALL_MARKETPLACES), since
- * cross-currency minimums aren't comparable.
- *
- * @returns The sentence, or null when the card has no marketplace offers.
- */
+// Uses the first offer in the loader's marketplace order, since
+// cross-currency minimums aren't comparable.
 export function buildCardPriceLine(offers: readonly CardMarketplaceOffer[]): string | null {
   const offer = offers[0];
   if (!offer) {
@@ -33,18 +26,8 @@ export function buildCardPriceLine(offers: readonly CardMarketplaceOffer[]): str
   return `Prices from ${formatted} (${offer.seller}).`;
 }
 
-/**
- * Picks the printing whose metadata (rules text, front art) should drive
- * the page's SSR meta tags. Mirrors the page component's own
- * `preferredPrinting(printings, languageOrder)` call, so the og:image /
- * og:description a crawler or social-unfurl bot sees matches what a fresh
- * visitor lands on.
- *
- * @param languageOrder Effective language order — either the user's
- *   preference or, for logged-out crawlers, the DB's `languages.sort_order`
- *   fetched alongside the card via `initQueryOptions`.
- * @returns The preferred printing, or `undefined` when there are none.
- */
+// Mirrors the page component's own preferredPrinting call, so the SSR
+// og:image/description matches what a fresh visitor lands on.
 export function pickCardMetaPrinting<T extends CatalogPrintingResponse>(
   printings: readonly T[],
   languageOrder: readonly string[],
@@ -52,33 +35,16 @@ export function pickCardMetaPrinting<T extends CatalogPrintingResponse>(
   if (printings.length === 0) {
     return undefined;
   }
-  // preferredPrinting only reads fields that exist on CatalogPrintingResponse
-  // (language, canonicalRank) — never the Printing-only `setSlug` / `card`
-  // fields — so this structural cast is safe, and the result is one of the
-  // input elements, so casting back to T is too.
+  // preferredPrinting only reads fields CatalogPrintingResponse has (never
+  // the Printing-only setSlug/card), so this structural cast is safe.
   return (
     (preferredPrinting(printings as unknown as Printing[], languageOrder) as T | undefined) ??
     printings[0]
   );
 }
 
-/**
- * Resolves which printing a card-detail page shows — both the SSR meta tags
- * and the live page derive their selection from it, so the URL is the single
- * source of truth and the two can't disagree. When the URL pins a specific
- * printing (`?printingId=`) and it exists on the card, that variant wins so
- * shared-link unfurls show the matching art and rules text; otherwise it
- * falls back to the language-preferred printing a fresh visitor would land
- * on. A pinned id from a different card (e.g. left over after navigating to
- * a related card) misses the `find` and falls back the same way.
- *
- * @param printingId The `?printingId=` search value, or `undefined` when the
- *   URL carries no variant.
- * @param languageOrder Effective language order passed through to
- *   `pickCardMetaPrinting` for the fallback.
- * @returns The pinned printing when `printingId` matches one, otherwise the
- *   preferred printing, or `undefined` when there are none.
- */
+// A `?printingId=` that exists on the card wins; otherwise (or if it
+// belongs to a different card) falls back to the language-preferred printing.
 export function resolveCardMetaPrinting<T extends CatalogPrintingResponse>(
   printings: readonly T[],
   printingId: string | undefined,
@@ -88,15 +54,8 @@ export function resolveCardMetaPrinting<T extends CatalogPrintingResponse>(
   return linked ?? pickCardMetaPrinting(printings, languageOrder);
 }
 
-/**
- * Builds a meta-description string for a card-detail SSR head.
- * Strips rules-text markup so emoji shortcodes (`:rb_energy_2:`) and
- * `[keyword:foo]` macros don't leak into WhatsApp / Telegram / Twitter
- * unfurls. Truncates with an ellipsis when over the standard ~155-char
- * description budget.
- *
- * @returns A clean, truncated description suitable for `og:description`.
- */
+// Strips rules-text markup so emoji shortcodes (`:rb_energy_2:`) and
+// `[keyword:foo]` macros don't leak into unfurls.
 export function buildCardMetaDescription(
   card: CardDetailResponse["card"],
   printing: CatalogPrintingResponse | undefined,
@@ -138,25 +97,12 @@ export function buildCardMetaDescription(
   return parts.join(" ");
 }
 
-/**
- * The printing's front-face image id — the lookup behind nearly every card
- * thumbnail. Structurally typed so it takes any printing response shape that
- * carries images.
- *
- * @returns The front image id, or null when the printing is missing or has no
- *   front image.
- */
 export function frontImageId(
   printing: { images: readonly { face: string; imageId: string }[] } | undefined,
 ): string | null {
   return printing?.images.find((image) => image.face === "front")?.imageId ?? null;
 }
 
-/**
- * Picks the front-face image URL for the given printing — meant for og:image.
- *
- * @returns The full-size front image URL, or undefined when the printing has none.
- */
 export function getCardFrontImageFullUrl(
   printing: CatalogPrintingResponse | undefined,
 ): string | undefined {

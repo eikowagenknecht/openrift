@@ -3,10 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { BinderSheetOptions } from "./binder-sheet-pdf";
 import { buildBinderSheetDoc } from "./binder-sheet-pdf";
 
-// The logo raster needs a real browser: jsdom neither fetches the SVG nor
-// decodes it into a canvas, and an unresolved image would hang the export. Fail
-// it immediately so these exercise the no-logo path, which is also what a
-// browser with a blocked image request produces.
+// jsdom neither fetches nor decodes the logo SVG, and an unresolved image
+// would hang the export; fail it immediately to exercise the no-logo path.
 class UnloadableImage {
   src = "";
   addEventListener(event: string, callback: () => void) {
@@ -79,7 +77,6 @@ describe("buildBinderSheetDoc", () => {
       cutMarks: true,
       ruler: true,
     });
-    // Both marks draw extra content, so the opted-in page is strictly larger.
     expect(plain.output("arraybuffer").byteLength).toBeLessThan(
       marked.output("arraybuffer").byteLength,
     );

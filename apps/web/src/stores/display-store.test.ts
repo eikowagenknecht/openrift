@@ -191,7 +191,7 @@ describe("useDisplayStore", () => {
       store.setLanguages(["DE"]);
       store.setMaxColumns(4);
       store.setFiltersExpanded(true);
-      store.toggleCardsShowCounts(); // true → false
+      store.toggleCardsShowCounts();
       store.setMetaDeckView("grid");
 
       useDisplayStore.getState().reset();
@@ -230,7 +230,6 @@ describe("useDisplayStore", () => {
       useDisplayStore.getState().hydrateOverrides({ topLevelFilters: ["sets", "markers"] });
       expect(useDisplayStore.getState().topLevelFilters).toEqual(["sets", "markers"]);
 
-      // A later hydrate that omits the field must not clobber the stored value.
       useDisplayStore.getState().hydrateOverrides({ showImages: false });
       expect(useDisplayStore.getState().topLevelFilters).toEqual(["sets", "markers"]);
     });

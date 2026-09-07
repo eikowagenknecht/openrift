@@ -64,7 +64,6 @@ describe("view-prefs stores", () => {
     });
 
     it("clamp a value the surface does not offer", () => {
-      // "none" is a catalog axis /promos leaves out, so it must not stick there.
       useCookieViewPrefsStore.getState().setGroupBy("promos", "none");
       expect(useCookieViewPrefsStore.getState().promos.groupBy).toBe("channel");
       useCookieViewPrefsStore.getState().setGroupBy("cards", "none");
@@ -114,10 +113,6 @@ describe("view-prefs stores", () => {
   });
 
   describe("deck-list migration", () => {
-    /**
-     * Runs the local store's merge the way rehydration would.
-     * @returns The merged state, or undefined when persist is unavailable.
-     */
     function mergePersisted(persisted: unknown) {
       const store = useLocalViewPrefsStore;
       return store.persist?.getOptions()?.merge?.(persisted, store.getState());

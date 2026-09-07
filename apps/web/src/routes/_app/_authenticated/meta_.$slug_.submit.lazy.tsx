@@ -13,8 +13,6 @@ function MetaEventSubmitRoute() {
   const { slug } = Route.useParams();
   const search = Route.useSearch();
   const token = search.deck;
-  // The loader already put this in cache, so the form's first render sees the
-  // archived list rather than an empty box that fills in a beat later.
   const { data: archived } = useQuery({
     ...metaDeckQueryOptions(token ?? ""),
     enabled: token !== undefined,

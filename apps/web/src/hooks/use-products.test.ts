@@ -4,10 +4,8 @@ import { createElement } from "react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock createServerFn to execute the handler directly instead of making RPC
-// calls. There is no TanStack Start server in the vitest/jsdom environment.
-// The handler is invoked with a synthetic context so `context.cookie` reads
-// work without the withCookies middleware.
+// No TanStack Start server in vitest/jsdom; run the handler directly with a
+// synthetic context so `context.cookie` reads work without withCookies.
 vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => {
     const chain = {
@@ -28,8 +26,6 @@ vi.mock("@tanstack/react-start", () => ({
   },
 }));
 
-// Real staleTime semantics matter here: the bug was a fresh-looking server
-// cache serving a stale list right after a mutation.
 vi.mock("@/lib/server-cache", async () => {
   const { QueryClient: QC } = await import("@tanstack/react-query");
   return {
@@ -64,8 +60,6 @@ const PRODUCT = {
   cardTotal: 16,
 };
 
-// queryFn is typed to receive a QueryFunctionContext; the products queryFn
-// ignores it, so the test calls it bare through this cast.
 const runListQuery = () => (productsListQueryOptions.queryFn as () => Promise<unknown>)();
 
 function createWrapper() {
@@ -98,7 +92,6 @@ describe("products server cache invalidation", () => {
     list.mockResolvedValueOnce({ products: [] }).mockResolvedValue({ products: [PRODUCT] });
     create.mockResolvedValue({ product: PRODUCT });
 
-    // Prime the server cache with the pre-create (empty) list.
     await expect(runListQuery()).resolves.toEqual({ products: [] });
 
     const { result } = renderHook(() => useCreateProduct(), { wrapper: createWrapper() });
@@ -111,7 +104,6 @@ describe("products server cache invalidation", () => {
       });
     });
 
-    // Without the invalidation this still returns the cached empty list.
     await expect(runListQuery()).resolves.toEqual({ products: [PRODUCT] });
     expect(list).toHaveBeenCalledTimes(2);
   });

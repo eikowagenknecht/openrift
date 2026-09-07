@@ -3,10 +3,6 @@ import { describe, expect, it } from "vitest";
 
 import { aggregatePersonalCollectionValue } from "./collection-value";
 
-/**
- * Minimal CollectionResponse builder — only the fields this helper reads matter.
- * @returns A complete CollectionResponse with overrides applied.
- */
 function col(overrides: Partial<CollectionResponse> = {}): CollectionResponse {
   return {
     id: "c1",
@@ -54,7 +50,6 @@ describe("aggregatePersonalCollectionValue", () => {
   });
 
   it("reports zero when the only remaining value is in group collections (cleared personal cards)", () => {
-    // Regression: an emptied personal collection must not show group worth.
     const result = aggregatePersonalCollectionValue([
       col({ totalValueCents: 0, unpricedCopyCount: 0 }),
       col({ groupId: "g1", totalValueCents: 54_772, unpricedCopyCount: 3 }),

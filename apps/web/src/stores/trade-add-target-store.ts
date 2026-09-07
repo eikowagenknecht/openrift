@@ -19,12 +19,7 @@ function parseTarget(value: unknown): TradeAddTarget | null {
 }
 
 interface TradeAddTargetState {
-  /**
-   * Where the Trades page's one-press add files incoming copies, remembered
-   * across visits. `null` means the inbox, which is where every viewer starts.
-   * The name rides along so the button can label itself on first paint, before
-   * the collections query has resolved.
-   */
+  /** `null` means the inbox. Name rides along so the button can label itself before the query resolves. */
   target: TradeAddTarget | null;
   setTarget: (value: TradeAddTarget | null) => void;
 }

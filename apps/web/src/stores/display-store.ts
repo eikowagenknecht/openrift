@@ -18,39 +18,21 @@ import {
   sanitizeTierTileStep,
 } from "@/lib/sanitize-preferences";
 
-/** Whether the card browser renders a grid of cards or a table of rows. */
 export type DisplayMode = "grid" | "table";
 
-/** Whether the archived-deck browser renders rows or tiles. */
 export type MetaDeckView = "list" | "grid";
 
-/**
- * Tile widths the tier board steps through, in pixels. A ladder rather than a
- * free number: the board's rows size themselves off the tile, so arbitrary
- * widths would let a creator land on a row height that reads as a mistake.
- */
+/** Tile widths the tier board steps through. The board's rows size off the tile, so a free width could land on a mistaken row height. */
 export const TIER_TILE_WIDTHS = [40, 48, 56, 72, 88, 112] as const;
 
-/** Step the board starts on — the size the ladder was designed around. */
 const DEFAULT_TIER_TILE_STEP = 2;
 
-// ── Override types (nullable — null means "use default") ────────────────────
-
-/** The store's name for the shape, which lives with the preferences it mirrors. */
 export type DisplayOverrides = DisplayPreferenceOverrides;
 
 export const NULL_OVERRIDES: DisplayOverrides = Object.fromEntries(
   DISPLAY_PREFERENCE_KEYS.map((key) => [key, null]),
 ) as DisplayOverrides;
 
-// ── Resolve helpers ─────────────────────────────────────────────────────────
-
-/**
- * Fills every unset override from {@link PREFERENCE_DEFAULTS}. Array and object
- * defaults are copied, so a resolved value is never the shared default instance.
- *
- * @returns Every display preference, concrete.
- */
 function resolveAll(overrides: DisplayOverrides): DisplayPreferences {
   const resolved: Record<string, unknown> = {};
   for (const key of DISPLAY_PREFERENCE_KEYS) {
@@ -65,20 +47,12 @@ function resolveAll(overrides: DisplayOverrides): DisplayPreferences {
   return resolved as DisplayPreferences;
 }
 
-// ── Store ───────────────────────────────────────────────────────────────────
-
 interface DisplayState extends DisplayPreferences {
-  // Resolved values (from DisplayPreferences) are always concrete, read by
-  // components. Nullable overrides are persisted to localStorage and synced to DB.
   overrides: DisplayOverrides;
 
-  // True once server prefs have been merged (or we know none exist). Consumers
-  // that depend on authoritative prefs (e.g. seeding URL filters on mount) can
-  // wait on this rather than reading potentially-stale localStorage values.
   prefsHydrated: boolean;
   markPrefsHydrated: () => void;
 
-  // Setters (explicitly set a preference)
   setShowImages: (value: DisplayPreferences["showImages"]) => void;
   setFancyFan: (value: DisplayPreferences["fancyFan"]) => void;
   setFoilEffect: (value: DisplayPreferences["foilEffect"]) => void;
@@ -90,18 +64,13 @@ interface DisplayState extends DisplayPreferences {
   setDefaultCurrency: (value: DisplayPreferences["defaultCurrency"]) => void;
   setTopLevelFilters: (value: DisplayPreferences["topLevelFilters"]) => void;
 
-  // Reset a top-level preference to its default
   resetPreference: (key: DisplayPreferenceKey) => void;
 
-  // Clear all account-scoped overrides (used on sign-out so the next visitor
-  // sees the unauthenticated defaults). Device-local state (maxColumns,
-  // filtersExpanded, cardsShowCounts, displayMode) is preserved.
+  // Clears account-scoped overrides only; device-local state is preserved.
   reset: () => void;
 
-  // Hydrate overrides from server data (used by sync hook)
   hydrateOverrides: (incoming: Partial<DisplayOverrides>) => void;
 
-  // Device-local — not synced
   maxColumns: number | null;
   setMaxColumns: (value: number | null | ((prev: number | null) => number | null)) => void;
   filtersExpanded: boolean;
@@ -112,27 +81,13 @@ interface DisplayState extends DisplayPreferences {
   setDisplayMode: (value: "grid" | "table") => void;
   metaDeckView: MetaDeckView;
   setMetaDeckView: (value: MetaDeckView) => void;
-  /**
-   * Whether the card detail pane stays docked beside the grid. Off by default:
-   * a card click then opens the detail modal instead, so clicking never
-   * reflows the grid under the pointer. Device-local, shared by every
-   * card-browser surface.
-   */
   paneDocked: boolean;
   setPaneDocked: (value: boolean) => void;
-  /**
-   * Frosted (blurred) backgrounds on the bars that pin above scrolling content.
-   * Off by default and device-local rather than account-synced: whether the
-   * effect is affordable depends on the device in hand, not on who is signed
-   * in — see `lib/sticky-surface.ts` for the measured cost.
-   */
+  // Device-local, not account-synced: affordability depends on the device.
+  // See lib/sticky-surface.ts for the measured cost.
   frostedBars: boolean;
   setFrostedBars: (value: boolean) => void;
-  /**
-   * Index into {@link TIER_TILE_WIDTHS} for the tier board's card tiles.
-   * Device-local: how large the ladder should read depends on the screen the
-   * creator is recording from, not on their account.
-   */
+  // Index into TIER_TILE_WIDTHS; device-local since it depends on the recording screen.
   tierTileStep: number;
   setTierTileStep: (value: number) => void;
 }
@@ -140,7 +95,6 @@ interface DisplayState extends DisplayPreferences {
 export const useDisplayStore = create<DisplayState>()(
   persist(
     (set) => ({
-      // Start with all defaults (overrides all null)
       ...resolveAll(NULL_OVERRIDES),
       overrides: { ...NULL_OVERRIDES },
       prefsHydrated: false,
@@ -211,8 +165,6 @@ export const useDisplayStore = create<DisplayState>()(
 
       hydrateOverrides: (incoming) =>
         set((state) => {
-          // Merge: only overwrite fields the server explicitly provided.
-          // Undefined fields keep the existing localStorage value.
           const merged = { ...state.overrides };
           for (const key of DISPLAY_PREFERENCE_KEYS) {
             const value = incoming[key];
@@ -283,10 +235,8 @@ export const useDisplayStore = create<DisplayState>()(
   ),
 );
 
-// Applied as a document attribute rather than a React prop: the app hydrates the
-// whole document, so rendering a preference-derived attribute on <html> would
-// mismatch the server (which cannot know a localStorage value) and trip React
-// #418. The CSS variants in lib/sticky-surface.ts key off it.
+// A React prop here would mismatch server-rendered HTML (React #418) since the
+// server can't know a localStorage value; lib/sticky-surface.ts keys off this attribute.
 function applyFrostedBars(on: boolean) {
   if (on) {
     document.documentElement.dataset.frosted = "";

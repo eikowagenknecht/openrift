@@ -96,8 +96,6 @@ describe("buildRailLayout", () => {
   });
 
   it("draws lineage between members the open deck doesn't descend from", () => {
-    // Viewing "solo": the other two are a parent and its child, and that line
-    // has to show even though neither is an ancestor of the open deck.
     const members = [
       member({ id: "solo" }),
       member({ id: "parent" }),
@@ -106,8 +104,6 @@ describe("buildRailLayout", () => {
     const layout = buildRailLayout(members, "solo");
     expect(layout.edges).toEqual([{ fromId: "parent", toId: "child" }]);
     expect(layout.nodes.find((node) => node.id === "child")?.x).toBe(1);
-    // The lone deck follows that pair on the same row rather than dropping to
-    // one of its own.
     expect(layout.nodes.find((node) => node.id === "solo")).toMatchObject({ lane: 0, x: 2 });
   });
 
@@ -187,17 +183,13 @@ describe("buildRailLayout", () => {
     ];
     const layout = buildRailLayout(members, "live", 4);
     const ids = layout.nodes.map((node) => node.id);
-    // The chain keeps its newest four... which is the whole chain here, so no
-    // sibling fits and both overflow.
     expect(ids).toEqual(["c0", "c1", "c2", "live"]);
     expect(layout.overflowCount).toBe(2);
 
     const tighter = buildRailLayout(members, "live", 3);
-    // Chain truncated to its newest three; c0's edge to c1 disappears with it.
     expect(tighter.nodes.map((node) => node.id)).toEqual(["c1", "c2", "live"]);
     expect(tighter.overflowCount).toBe(3);
     expect(tighter.edges).not.toContainEqual({ fromId: "c0", toId: "c1" });
-    // c1 lost its parent with the truncation, so it starts the graph again.
     expect(tighter.nodes.find((node) => node.id === "c1")?.x).toBe(0);
   });
 });

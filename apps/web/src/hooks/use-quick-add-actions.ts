@@ -13,10 +13,8 @@ import type { VariantPopoverIntent } from "@/stores/add-mode-store";
 import type { CardRowClickModifiers } from "@/stores/card-row-actions-store";
 
 /**
- * A minus-button removal that landed on a copy with recorded details
- * (ADR-038) and now waits for the user's confirmation. `sessionUndo` marks
- * the session-undo path, whose add-mode bookkeeping must only run when the
- * dispose actually happens.
+ * `sessionUndo` marks the session-undo path: add-mode bookkeeping runs only
+ * when the dispose actually happens.
  */
 export interface PendingAnnotatedDispose {
   copy: CopyResponse;
@@ -25,33 +23,14 @@ export interface PendingAnnotatedDispose {
 }
 
 /**
- * Shared add/undo logic for collection add mode. Optimistic count changes
- * flow through the copies collection (via TanStack DB writes), so this hook
- * no longer maintains a parallel optimistic counter. The add-mode-store
- * keeps its session history for undo (tracking which real copy ids were
- * added, so undo removes the most recent rather than an arbitrary copy).
- *
- * `addTarget` is where new copies are inserted (specific collection id, or
- * the inbox id on All Cards). `viewCollectionId` scopes the minus button:
- * when set, minus only removes copies from that collection. When undefined
- * (All Cards view), minus looks across all of the user's collections and
- * reports "ambiguous" when the copies span multiple collections so the caller
- * can escalate to the variant×collection popover.
- *
- * `onDisposed` fires once a removal actually lands — after the ADR-038
- * confirmation when there was one, never when the removal is merely parked.
- * Surfaces that cover the grid (the quick-add palette) use it to report the
- * removal; the grid itself leaves it undefined and lets its count speak.
- * @returns Quick-add actions, or undefined handlers when disabled.
+ * `viewCollectionId` scopes the minus button when set; undefined (All Cards)
+ * looks across all collections and reports "ambiguous" on a multi-collection spread.
  */
 export function useQuickAddActions(
   addTarget?: string,
   viewCollectionId?: string,
   onDisposed?: (printing: Printing) => void,
 ) {
-  // Remember printings added this session so onBatchSuccess can look up names
-  // for the toast summary without the caller threading them through. Entries
-  // are cleared when their batch resolves.
   const pendingPrintingsRef = useRef<Map<string, Printing>>(new Map());
   const batchedAdd = useBatchedAddCopies({
     onBatchSuccess: (printingIds) => {
@@ -75,9 +54,8 @@ export function useQuickAddActions(
   const disposeCopies = useDisposeCopies();
   const copiesCollection = useCopiesCollection();
 
-  // A minus press that would destroy recorded details (ADR-038) parks here
-  // instead of disposing; the consumer renders AnnotatedDisposeDialog against
-  // this state and calls confirm/cancel.
+  // A minus press that would destroy recorded details parks here without disposing;
+  // the consumer renders AnnotatedDisposeDialog against this state.
   const [pendingAnnotatedDispose, setPendingAnnotatedDispose] =
     useState<PendingAnnotatedDispose | null>(null);
 
@@ -96,8 +74,7 @@ export function useQuickAddActions(
         onDisposed(printing);
       }
     } catch {
-      // Expected failures (e.g. trade-reserved) toast via the global mutation
-      // onError handler; restore the session entry so a later undo still works.
+      // Global onError already toasts; restore the session entry so a later undo still works.
       if (sessionUndo) {
         useAddModeStore.getState().recordAdd(printing, copy.id);
       }
@@ -106,9 +83,6 @@ export function useQuickAddActions(
 
   const cancelAnnotatedDispose = () => setPendingAnnotatedDispose(null);
 
-  // Add one copy of `printing` to a specific collection, with optimistic
-  // session tracking for undo. Both the default-target quick-add and the
-  // variant×collection popover's per-collection `+` funnel through here.
   const addToCollection = async (printing: Printing, collectionId: string) => {
     pendingPrintingsRef.current.set(printing.id, printing);
     useAddModeStore.getState().incrementPending(printing);
@@ -117,17 +91,12 @@ export function useQuickAddActions(
       const real = await result;
       useAddModeStore.getState().recordAdd(printing, real.id);
     } catch {
-      // Error toast is fired by the global mutation onError handler;
-      // swallow the rejection here so it doesn't surface as an uncaught
-      // promise in the console.
+      // Global onError toasts; swallow so it doesn't surface as an uncaught promise.
     }
     useAddModeStore.getState().decrementPending(printing.id);
   };
 
-  // Default-target quick-add (current collection, or the inbox on All Cards).
-  // `quantity` above 1 comes from the grid's digit-key shortcut; the adds go
-  // out individually because `useBatchedAddCopies` coalesces them into one
-  // request (and one "3× Card" summary toast) anyway.
+  // Adds are issued individually; useBatchedAddCopies coalesces them into one request.
   const handleQuickAdd = addTarget
     ? async (printing: Printing, _modifiers?: CardRowClickModifiers, quantity = 1) => {
         await Promise.all(
@@ -136,22 +105,18 @@ export function useQuickAddActions(
       }
     : undefined;
 
-  // Add to an explicitly chosen collection (the popover's per-collection `+`
-  // and its "add to another collection" picker).
   const handleAddToCollection = (printing: Printing, collectionId: string) =>
     addToCollection(printing, collectionId);
 
-  // Silent half of undo-add: session undo + single-collection dispose only.
-  // Returns "ambiguous" when copies span multiple collections so the caller
-  // can escalate to the variant×collection popover (where the user picks the
-  // exact row to remove). Returns "done" when no further action needed.
+  // Returns "ambiguous" when copies span multiple collections, so the caller
+  // can escalate to the variant×collection popover.
   const tryUndoAdd = addTarget
     ? async (printing: Printing): Promise<"done" | "ambiguous"> => {
         const entry = useAddModeStore.getState().addedItems.get(printing.id);
         const sessionCopyId = entry?.copyIds.at(-1);
         if (sessionCopyId) {
-          // Even a copy added this session may have been annotated since
-          // (ADR-038) — destroying those details still needs a confirmation.
+          // Even a copy added this session may have been annotated since;
+          // destroying those details still needs a confirmation.
           const sessionCopy = copiesCollection?.toArray.find((c) => c.id === sessionCopyId);
           if (sessionCopy && copyHasMetadata(sessionCopy)) {
             setPendingAnnotatedDispose({ copy: sessionCopy, printing, sessionUndo: true });
@@ -189,11 +154,7 @@ export function useQuickAddActions(
               onDisposed(printing);
             }
           } catch {
-            // The remove can fail for an expected reason (e.g. the copy is
-            // reserved in an active trade). The error toast is fired by the
-            // global mutation onError handler; swallow the rejection here so it
-            // doesn't surface as an uncaught promise. The caller (the
-            // fire-and-forget onDecrement IIFE) does not catch.
+            // Global onError toasts. Caller (fire-and-forget onDecrement) doesn't catch.
           }
           return "done";
         }
@@ -201,10 +162,6 @@ export function useQuickAddActions(
       }
     : undefined;
 
-  // Remove the newest bare copy of `printing` from a specific collection. The
-  // variant×collection popover's per-collection `-` calls this directly (the
-  // collection is already chosen, so no disambiguation is needed). When only
-  // annotated copies remain, park the removal for confirmation (ADR-038).
   const handleDisposeFromCollection = async (printing: Printing, fromCollectionId: string) => {
     if (!copiesCollection) {
       return;
@@ -227,21 +184,12 @@ export function useQuickAddActions(
         onDisposed(printing);
       }
     } catch {
-      // The remove can fail for an expected reason (e.g. the copy is reserved
-      // in an active trade). The error toast is fired by the global mutation
-      // onError handler; swallow the rejection here so it doesn't surface as
-      // an uncaught promise (this handler is wired straight into the popover's
-      // onRemoveFromCollection click prop, which does not catch).
+      // Global onError toasts; onRemoveFromCollection is wired straight into
+      // this handler and doesn't catch.
     }
   };
 
-  // Track the card whose popover was just closed, and when. Clicking a pill to
-  // close it fires two things in one gesture: the press closes the popover (via
-  // BaseUI, whatever the reason — outside-press, or a focus-out as focus leaves
-  // the list), then the click re-fires handleOpenVariants. Without this guard
-  // that click-through immediately reopens. We can't key on the close reason
-  // (it varies) or the anchor node, so we suppress a reopen of the same card
-  // within a short window of its close.
+  // Closing a pill click-throughs into a reopen call: suppress reopen within a short window of the close.
   const justClosedRef = useRef<{ cardId: string; at: number } | null>(null);
   const REOPEN_SUPPRESS_MS = 350;
 
@@ -257,13 +205,11 @@ export function useQuickAddActions(
         const recentlyClosed =
           jc?.cardId === printing.cardId && performance.now() - jc.at < REOPEN_SUPPRESS_MS;
         if (recentlyClosed) {
-          // Click-through from closing this same pill — stay closed.
           justClosedRef.current = null;
           return;
         }
         const current = useAddModeStore.getState().variantPopover;
         if (current?.cardId === printing.cardId) {
-          // Popover was still open at click time — toggle it closed.
           justClosedRef.current = { cardId: printing.cardId, at: performance.now() };
           useAddModeStore.getState().closeVariants();
           return;
@@ -280,17 +226,11 @@ export function useQuickAddActions(
       }
     : undefined;
 
-  /**
-   * Kept for API compatibility with callers that want a helper; counts now
-   * come straight from the copies collection via useOwnedCount, so no
-   * adjustment is needed.
-   * @returns The owned count as-is.
-   */
+  // Kept for API compatibility; counts now come from useOwnedCount directly.
   const adjustedCount = (_printingId: string, baseCount: number) => baseCount;
 
-  // Record the close so a click-through on the same pill (see handleOpenVariants)
-  // doesn't immediately reopen it. `pressTarget` is unused now but kept so the
-  // popover host can pass BaseUI's close details without caring how we suppress.
+  // pressTarget is unused; kept so the popover host can pass BaseUI's close
+  // details without caring how we suppress reopening.
   const closeVariants = (_pressTarget?: EventTarget | null) => {
     const current = useAddModeStore.getState().variantPopover;
     if (current) {
@@ -307,8 +247,6 @@ export function useQuickAddActions(
     handleDisposeFromCollection,
     closeVariants,
     adjustedCount,
-    // Annotated-copy removal confirmation (ADR-038): consumers render
-    // AnnotatedDisposeDialog against this state.
     pendingAnnotatedDispose,
     confirmAnnotatedDispose,
     cancelAnnotatedDispose,

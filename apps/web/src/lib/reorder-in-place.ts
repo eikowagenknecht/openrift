@@ -1,17 +1,5 @@
-/**
- * Returns a copy of `items` where every entry whose id appears in
- * `orderedIds` is replaced into the same set of slots in the new order, and
- * every other entry stays at its original position.
- *
- * Used by sidebar reorder so dragging non-inbox collections doesn't displace
- * the inbox or group-owned rows, and dragging lists in one intent doesn't
- * displace lists from other intents — the slots are the indexes the
- * reorderable rows already occupied.
- *
- * @returns A new array (or the original if nothing would change) with the
- *   reordered ids slotted in place; references to non-reordered entries are
- *   unchanged.
- */
+// Reorders only the entries whose id is in `orderedIds`, keeping them within
+// the set of slots those entries already occupied; other entries don't move.
 export function reorderInPlace<T extends { id: string }>(
   items: readonly T[],
   orderedIds: readonly string[],

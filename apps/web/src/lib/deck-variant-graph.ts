@@ -1,51 +1,32 @@
 /**
- * Pure layout for the variant lineage graph (ADR-042): a family drawn the way a
- * commit graph is, one row per version with a version above the ones that came
- * from it. Rows never indent — a fork gets its own lane in a gutter to the left
- * — so versions that share no lineage read as a plain column of dots rather
- * than a staircase.
- *
- * The rail (lib/deck-variant-rail) lays the same family out sideways for the
- * deck page; this is the vertical, editable list.
+ * Layout for the variant lineage graph: one row per version, drawn like a
+ * commit graph. Rows never indent; a fork gets its own lane in a gutter to
+ * the left instead. lib/deck-variant-rail lays the same family out sideways.
  */
 
-/** The slice of a deck summary the graph reads. */
 export interface VariantGraphMember {
   id: string;
-  /** ISO timestamp, used to order siblings and unrelated trees. */
+  /** ISO timestamp. */
   updatedAt: string;
   predecessorDeckId: string | null;
 }
 
 export interface VariantGraphRow {
   id: string;
-  /** Column of this row's dot, counted from the left edge of the gutter. */
   lane: number;
-  /** Whether a line runs into the dot from above, i.e. something came before. */
   hasParentAbove: boolean;
-  /** Whether the line continues below the dot, on the same lane. */
   continuesBelow: boolean;
-  /** Lanes a fork leaves this dot for; each is drawn as an elbow out of it. */
   branchLanes: number[];
-  /** Lanes whose line passes straight through this row without touching it. */
   throughLanes: number[];
 }
 
 export interface VariantGraph {
-  /** Rows top to bottom: every version above the ones that came from it. */
   rows: VariantGraphRow[];
-  /** How many lanes the gutter has to be wide enough for. */
   laneCount: number;
 }
 
-/**
- * Each member's predecessor, resolved to another member of the same list. A
- * pointer at something outside the list (or at itself) reads as no pointer at
- * all, and a cycle is cut where it closes — the API prevents one, but a graph
- * walker must never trust that.
- *
- * @returns The parent of every member, by id.
- */
+// The API prevents cycles in predecessorDeckId, but a graph walker must not
+// trust that; a cycle is cut where it closes.
 function resolveParents(members: readonly VariantGraphMember[]): Map<string, string | null> {
   const ids = new Set(members.map((member) => member.id));
   const parents = new Map<string, string | null>(
@@ -73,12 +54,6 @@ function resolveParents(members: readonly VariantGraphMember[]): Map<string, str
   return parents;
 }
 
-/**
- * The open deck and everything it descends from. Those stay on one straight
- * lane, so the version being looked at reads as the trunk.
- *
- * @returns The ids on the open deck's own line of descent.
- */
 function ancestryIds(parents: ReadonlyMap<string, string | null>, currentId: string): Set<string> {
   const chain = new Set<string>();
   let cursor: string | null = currentId;
@@ -89,21 +64,12 @@ function ancestryIds(parents: ReadonlyMap<string, string | null>, currentId: str
   return chain;
 }
 
-/** A lane is claimed over a row span; another line may only reuse it outside. */
+// A lane is claimed over a row span; another line may only reuse it outside that span.
 interface LaneSpan {
   start: number;
   end: number;
 }
 
-/**
- * Lays a variant family out as a vertical branch graph. A version sits directly
- * under the one it came from, on the same lane when it continues that line and
- * on the left-most free lane when it forks off one. Versions that came from
- * nothing start their own line, so a family with no links at all is a single
- * column of dots.
- *
- * @returns The computed rows and how many lanes they use.
- */
 export function buildVariantGraph(
   members: readonly VariantGraphMember[],
   currentId: string,
@@ -126,9 +92,8 @@ export function buildVariantGraph(
     childrenOf.set(parentId, [...(childrenOf.get(parentId) ?? []), member]);
   }
 
-  // At a fork the version the open deck descends from goes first, so it keeps
-  // its parent's lane; the rest follow oldest-first, the same older-above-newer
-  // reading the rows themselves have.
+  // At a fork, the version the open deck descends from goes first so it keeps
+  // its parent's lane; the rest follow oldest-first.
   const byDescent = (left: VariantGraphMember, right: VariantGraphMember): number => {
     const leftOnChain = chain.has(left.id) ? 0 : 1;
     const rightOnChain = chain.has(right.id) ? 0 : 1;
@@ -140,7 +105,6 @@ export function buildVariantGraph(
   };
 
   const ordered = new Map<string, VariantGraphMember[]>();
-  /** @returns This member's children, in the order they are drawn. */
   const children = (id: string): VariantGraphMember[] => {
     const known = ordered.get(id);
     if (known) {
@@ -151,7 +115,6 @@ export function buildVariantGraph(
     return sorted;
   };
 
-  /** @returns The most recent `updatedAt` anywhere in the tree under `member`. */
   const treeNewest = (member: VariantGraphMember): string => {
     let newest = member.updatedAt;
     for (const child of children(member.id)) {
@@ -171,8 +134,7 @@ export function buildVariantGraph(
   }
 
   roots.sort((left, right) => {
-    // Newest tree last, so the eye ends on the freshest work. On a tie the open
-    // deck's tree goes last, and the id keeps the rest of the order stable.
+    // Newest tree last. On a tie the open deck's tree goes last.
     const byNewest = treeNewest(left).localeCompare(treeNewest(right));
     if (byNewest !== 0) {
       return byNewest;
@@ -185,8 +147,7 @@ export function buildVariantGraph(
     return left.id.localeCompare(right.id);
   });
 
-  // Depth-first, first child straight after its parent: that is what lets a
-  // continued line be a single straight segment between two neighbouring rows.
+  // Depth-first, first child right after its parent.
   const order: VariantGraphMember[] = [];
   const visit = (member: VariantGraphMember): void => {
     order.push(member);
@@ -199,13 +160,8 @@ export function buildVariantGraph(
   }
   const rowOf = new Map(order.map((member, index) => [member.id, index]));
 
-  /**
-   * The last row a lane stays busy once `member` is on it: its line of first
-   * children, which is what keeps the lane. A fork leaves the lane at the row
-   * it branches from, so it does not extend the run.
-   *
-   * @returns The row index the lane frees up after.
-   */
+  // The last row a lane stays busy: the end of member's line of first children.
+  // A fork leaves the lane at the row it branches from.
   const laneRunEnd = (member: VariantGraphMember): number => {
     let cursor = member;
     let next = children(cursor.id)[0];
@@ -218,7 +174,6 @@ export function buildVariantGraph(
 
   const laneSpans: LaneSpan[][] = [];
   const laneOf = new Map<string, number>();
-  /** @returns The left-most lane free across the whole span. */
   const claimLane = (span: LaneSpan): number => {
     let lane = 0;
     while (
@@ -239,14 +194,12 @@ export function buildVariantGraph(
       laneOf.set(member.id, laneOf.get(parentId) ?? 0);
       continue;
     }
-    // A fork's line leaves its parent's dot, so its lane is busy from that row
-    // on, not just from its own.
+    // A fork's lane is busy starting at its parent's row, not just its own.
     const start = parentId === null ? row : (rowOf.get(parentId) ?? row);
     laneOf.set(member.id, claimLane({ start, end: laneRunEnd(member) }));
   }
 
-  // A fork runs down its own lane from the row it branched at, so every row in
-  // between has that lane passing through it.
+  // A fork's lane passes through every row between its branch point and its own row.
   const through = new Map<number, Set<number>>();
   for (const member of order) {
     const parentId = parents.get(member.id) ?? null;

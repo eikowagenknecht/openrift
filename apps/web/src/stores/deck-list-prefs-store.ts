@@ -18,11 +18,6 @@ export type DeckListGroupBy = "none" | "format" | "domains" | "legend" | "validi
 
 const DENSITY_OPTIONS: ReadonlySet<DeckListDensity> = new Set(["grid", "list"]);
 
-/**
- * How the user likes to read their deck list. The filters used to live here
- * too; they moved into the URL (`useDeckListFilters`) so a filtered list is
- * linkable, which left this store holding display preferences alone.
- */
 interface DeckListPrefsState {
   density: DeckListDensity;
   setDensity: (value: DeckListDensity) => void;
@@ -55,13 +50,8 @@ export const useDeckListPrefsStore = create<DeckListPrefsState>()(
 );
 
 /**
- * The deck list's sort/group choice, typed to this surface's vocabulary.
- *
- * The values themselves live in the shared per-surface view-prefs store (which
- * validates them against the surface's allowed sets), so this hook is just the
- * typed window onto the "decks" entry.
- *
- * @returns The deck list's sort/group values and their setters.
+ * The values live in the shared per-surface view-prefs store; this hook is
+ * just the typed window onto its "decks" entry.
  */
 export function useDeckListViewPrefs() {
   const sortField = useLocalViewPrefsStore((state) => state.decks.sort) as DeckListSortField;

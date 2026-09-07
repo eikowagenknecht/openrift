@@ -23,22 +23,15 @@ beforeEach(() => {
   printingsByCardId.clear();
 });
 
-/**
- * A printing with front art, so the art preference can pick it.
- *
- * @returns The printing.
- */
 function illustrated(cardId: string, language = "EN"): Printing {
   return stubPrinting({ cardId, language, images: [{ face: "front", imageId: `${cardId}-art` }] });
 }
 
-/** Register a token card in the catalog, with the printings it has on file. */
 function registerToken(cardId: string, name: string, printings?: Printing[]): void {
   cardsById[cardId] = stubCard({ name, superTypes: ["token"] });
   printingsByCardId.set(cardId, printings ?? [illustrated(cardId)]);
 }
 
-/** Register an ordinary card that calls for the given tokens. */
 function registerSource(cardId: string, name: string, tokenCardIds: string[]): void {
   cardsById[cardId] = stubCard({ name, tokenCardIds });
   printingsByCardId.set(cardId, [illustrated(cardId)]);

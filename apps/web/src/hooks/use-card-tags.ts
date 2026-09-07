@@ -16,8 +16,6 @@ interface AdminTagCategoriesResponse {
   categories: TagCategoryResponse[];
 }
 
-// ── List distinct printed tags with their classification (admin) ────────────
-
 const fetchCardTags = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }): Promise<AdminCardTagsResponse> =>
@@ -34,8 +32,6 @@ export function useCardTags() {
   return useSuspenseQuery(adminCardTagsQueryOptions);
 }
 
-// ── List tag categories (admin) ─────────────────────────────────────────────
-
 const fetchTagCategories = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }): Promise<AdminTagCategoriesResponse> =>
@@ -51,8 +47,6 @@ export const adminTagCategoriesQueryOptions = queryOptions({
 export function useTagCategoryList() {
   return useSuspenseQuery(adminTagCategoriesQueryOptions);
 }
-
-// ── Create / update / delete categories ─────────────────────────────────────
 
 const createTagCategoryFn = createServerFn({ method: "POST" })
   .validator((input: { slug: string; label: string; description?: string | null }) => input)
@@ -104,8 +98,6 @@ export function useDeleteTagCategory() {
   });
 }
 
-// ── Classify one tag ─────────────────────────────────────────────────────────
-
 const setTagCategoryFn = createServerFn({ method: "POST" })
   .validator((input: { tag: string; categoryId: string | null }) => input)
   .middleware([withCookies])
@@ -122,8 +114,6 @@ export function useSetTagCategory() {
     invalidates: [queryKeys.admin.cardTags, queryKeys.admin.tagCategories, queryKeys.init.all],
   });
 }
-
-// ── Detect legend tags from Legend cards ─────────────────────────────────────
 
 interface DetectLegendTagsResponse {
   found: number;

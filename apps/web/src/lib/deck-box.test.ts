@@ -22,11 +22,6 @@ beforeEach(() => {
   resetIdCounter();
 });
 
-/**
- * Builds a plan input around one card with a given set of copies, so each test
- * only spells out what it is actually about.
- * @returns The input for {@link computeDeckBoxPlan}.
- */
 function inputFor({
   printings,
   copies,
@@ -78,7 +73,6 @@ describe("computeDeckBoxPlan", () => {
     expect(plan.neededTotal).toBe(1);
     expect(plan.inBoxTotal).toBe(1);
     expect(plan.slots.map((slot) => slot.state)).toEqual(["in-box"]);
-    // The copy comes along so the row can be taken back out again.
     expect(plan.slots[0]?.copy?.copyId).toBe(copy.id);
     expect(plan.missingCount).toBe(0);
   });
@@ -125,7 +119,6 @@ describe("computeDeckBoxPlan", () => {
       "OGS-005",
       "OGS-001",
     ]);
-    // Both copies of a card belong to the same deck row, one slot each.
     expect(plan.slots[0]?.cardKey).toBe(plan.slots[1]?.cardKey);
     expect(new Set(plan.slots.map((slot) => slot.key)).size).toBe(3);
   });
@@ -141,8 +134,6 @@ describe("computeDeckBoxPlan", () => {
       copies: [stubCopy({ printingId: printing.id, collectionId: BOX })],
     });
     expect(plan.neededTotal).toBe(3);
-    // The copy in the box fills the first row that asks for it; the rest of
-    // that row and the sideboard's are still short.
     expect(plan.slots.map((slot) => slot.state)).toEqual(["in-box", "missing", "missing"]);
     expect(new Set(plan.slots.map((slot) => slot.cardKey)).size).toBe(2);
   });
@@ -163,8 +154,6 @@ describe("computeDeckBoxPlan", () => {
       }),
     );
     expect(plan.slots[0]?.copy?.printingId).toBe(pinned.id);
-    // The alternatives keep the same ranking, so the swap list leads with the
-    // copy that would have been picked next.
     expect(plan.slots[0]?.alternatives[0]?.copy.printingId).toBe(english.id);
   });
 
@@ -183,7 +172,6 @@ describe("computeDeckBoxPlan", () => {
     const picked = plan.slots[0]?.copy;
     expect(picked?.condition).toBe("played");
     expect(picked?.grade).toBeNull();
-    // Graded copies sink to the bottom of the swap list rather than vanishing.
     expect(plan.slots[0]?.alternatives.at(-1)?.copy.grade).toBe(9);
   });
 
@@ -208,7 +196,6 @@ describe("computeDeckBoxPlan", () => {
     expect(plan.slots).toHaveLength(1);
     expect(plan.slots[0]?.state).toBe("blocked");
     expect(plan.slots[0]?.reason).toBe("loan");
-    // The row names the copy that is out, not just the reason.
     expect(plan.slots[0]?.copy?.copyId).toBe(copy.id);
     expect(plan.missingCount).toBe(0);
   });
@@ -258,7 +245,6 @@ describe("computeDeckBoxPlan", () => {
     const plan = computeDeckBoxPlan(inputFor({ quantity: 3, printings: [printing], copies: [] }));
     expect(plan.missingCount).toBe(3);
     expect(plan.neededTotal).toBe(3);
-    // One row per copy, so a partly-owned card shows what is still open.
     expect(plan.slots.map((slot) => slot.state)).toEqual(["missing", "missing", "missing"]);
   });
 
@@ -319,8 +305,6 @@ describe("computeDeckBoxPlan", () => {
     );
     expect(plan.inBoxTotal).toBe(1);
     expect(plan.slots.map((slot) => slot.state)).toEqual(["in-box", "available", "available"]);
-    // The spare copy stays where it is, but it is the same choice as the two
-    // already picked, so no row offers it as a swap.
     expect(plan.slots[1]?.alternatives).toEqual([]);
   });
 
@@ -334,10 +318,8 @@ describe("computeDeckBoxPlan", () => {
     ];
     const plan = computeDeckBoxPlan(inputFor({ printings: [printing], copies: [worn, ...shelf] }));
     expect(plan.slots[0]?.copy?.copyId).toBe(worn.id);
-    // Three copies that read alike are one row, not three.
     expect(plan.slots[0]?.alternatives).toHaveLength(1);
     expect(plan.slots[0]?.alternatives[0]?.count).toBe(3);
-    // Picking it takes the best-ranked copy of the group.
     expect(plan.slots[0]?.alternatives[0]?.copy.copyId).toBe(shelf[0]?.id);
   });
 
@@ -349,11 +331,8 @@ describe("computeDeckBoxPlan", () => {
         printings: [printing, other],
         copies: [
           stubCopy({ printingId: printing.id, collectionId: BINDER, condition: "played" }),
-          // Same printing and shelf as the pick, but a different condition.
           stubCopy({ printingId: printing.id, collectionId: BINDER, condition: "good" }),
-          // Same everything but the shelf it sits on.
           stubCopy({ printingId: printing.id, collectionId: SHOEBOX, condition: "good" }),
-          // Same shelf and condition, but a different printing.
           stubCopy({ printingId: other.id, collectionId: BINDER, condition: "good" }),
         ],
       }),
@@ -385,7 +364,6 @@ describe("computeDeckBoxPlan", () => {
       inputFor({ quantity: 2, printings: [printing], copies: [worn, good] }),
     );
     expect(plan.slots.map((slot) => slot.copy?.copyId)).toEqual([worn.id, good.id]);
-    // Both copies are spoken for, so neither row has anything left to swap to.
     expect(plan.slots.flatMap((slot) => slot.alternatives)).toEqual([]);
   });
 
@@ -402,8 +380,6 @@ describe("computeDeckBoxPlan", () => {
         pinnedCopyIds: new Set([mint.id]),
       }),
     );
-    // The pick displaces the copy the ranking would have taken second, and the
-    // two that come are still listed worn-first.
     expect(plan.slots.map((slot) => slot.copy?.copyId)).toEqual([worn.id, mint.id]);
   });
 
@@ -502,8 +478,6 @@ describe("computeDeckBoxPlan finish", () => {
     expect(plan.slots[0]?.alternatives[0]?.copy.printingId).toBe(metal.id);
   });
 
-  // The deck's own printing pick outranks the finish rule: asking for the foil
-  // printing by name is a decision, not an accident.
   it("still honours the deck's pinned printing when it is the premium one", () => {
     const plain = stubPrinting({ cardId: "card-1", finish: "normal" });
     const foil = stubPrinting({ cardId: "card-1", finish: "foil" });
@@ -592,7 +566,6 @@ describe("computeDeckBoxPlan extras", () => {
     expect(plan.extraCount).toBe(1);
     expect(plan.extras).toEqual([
       {
-        // The card comes from the catalog: the deck has no row to describe it.
         card: expect.objectContaining({ cardId: "card-2", name: "Ice Golem" }),
         copies: [expect.objectContaining({ copyId: stray.id })],
       },
@@ -604,7 +577,6 @@ describe("computeDeckBoxPlan extras", () => {
     const worn = stubCopy({ printingId: printing.id, collectionId: BOX, condition: "played" });
     const mint = stubCopy({ printingId: printing.id, collectionId: BOX, condition: "mint" });
     const plan = computeDeckBoxPlan(inputFor({ printings: [printing], copies: [worn, mint] }));
-    // The deck keeps the beater; the mint copy is what the sweep offers.
     expect(plan.slots[0]?.copy?.copyId).toBe(worn.id);
     expect(plan.extras[0]?.copies.map((copy) => copy.copyId)).toEqual([mint.id]);
   });
@@ -645,11 +617,6 @@ describe("computeDeckBoxPlan extras", () => {
 describe("computeDeckBoxPlan sibling printings", () => {
   const VARIANT_LABELS = { artVariants: {}, finishes: { foil: "Foil" }, cardSizes: {} };
 
-  /**
-   * What the variant-label rule makes of a card's first slot, which is what the
-   * box row prints.
-   * @returns The label parts for that slot's copy.
-   */
   function labelFor(plan: DeckBoxPlan, cardId: string) {
     const copy = plan.slots.find((slot) => slot.cardId === cardId)?.copy;
     const siblings = plan.siblingPrintingsByCardId.get(cardId) ?? [];
@@ -669,7 +636,6 @@ describe("computeDeckBoxPlan sibling printings", () => {
       }),
     );
     expect(plan.siblingPrintingsByCardId.get("card-1")).toEqual([printing]);
-    // Nothing on screen contradicts English, so the row says nothing at all.
     expect(labelFor(plan, "card-1")).toEqual({ language: null, rest: [] });
   });
 

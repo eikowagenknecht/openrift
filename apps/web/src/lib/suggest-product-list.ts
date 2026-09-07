@@ -12,13 +12,9 @@ interface SuggestibleProduct {
 }
 
 /**
- * Finds the printing list that most likely backs `product`, so the re-sync
- * dialog can pre-select it. A product created from a list shares that list's
- * name (its slug is `slugifyName(name)`), so we match on the derived slug first
- * and fall back to a case-insensitive name match when an admin has since edited
- * the slug.
- *
- * @returns The matching list id, or null when no printing list looks like the product.
+ * Finds the printing list that most likely backs `product`, for the re-sync
+ * dialog to pre-select. Matches the derived slug first, falling back to a
+ * case-insensitive name match for a since-edited slug.
  */
 export function suggestListIdForProduct(
   lists: readonly SuggestibleList[],

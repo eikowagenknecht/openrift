@@ -31,7 +31,6 @@ describe("useFirstPlayerSpotlight", () => {
       result.current.roll();
     });
 
-    // During the reveal: rolling, prior pick cleared, spotlight active.
     expect(result.current.isRolling).toBe(true);
     expect(useMatchTrackerStore.getState().firstPlayerId).toBeNull();
     expect(useMatchTrackerStore.getState().spotlightPlayerId).not.toBeNull();
@@ -40,7 +39,6 @@ describe("useFirstPlayerSpotlight", () => {
       vi.runAllTimers();
     });
 
-    // After the reveal: settled on a real player, spotlight cleared.
     expect(result.current.isRolling).toBe(false);
     expect(useMatchTrackerStore.getState().spotlightPlayerId).toBeNull();
     const { firstPlayerId, players } = useMatchTrackerStore.getState();
@@ -57,7 +55,6 @@ describe("useFirstPlayerSpotlight", () => {
     act(() => {
       result.current.roll();
     });
-    // The second call is a no-op: still the same single in-flight reveal.
     expect(result.current.isRolling).toBe(true);
     expect(useMatchTrackerStore.getState().spotlightPlayerId).toBe(spotlightDuringRoll);
 
@@ -77,7 +74,6 @@ describe("useFirstPlayerSpotlight", () => {
 
     unmount();
     expect(useMatchTrackerStore.getState().spotlightPlayerId).toBeNull();
-    // No pick was committed because the animation never landed.
     expect(useMatchTrackerStore.getState().firstPlayerId).toBeNull();
   });
 });

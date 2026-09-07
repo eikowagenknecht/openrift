@@ -20,10 +20,8 @@ function SharedListRoute() {
   const search = Route.useSearch();
   const { fromUser } = search;
 
-  // The per-card exchange only makes sense on another member's list: "Want" on
-  // their tradelist (match your wishlist against their copies), "Offer" on their
-  // wishlist (give them a card they want from copies you own). The owner's own
-  // list and organize lists get neither.
+  // "Want"/"Offer" only apply on another member's trade/wish list, never
+  // your own list or an organize list.
   const isOtherMembersList = data.list.ownerUserId !== viewerId;
   const exchange: ListExchangeContext | undefined =
     isOtherMembersList && (data.list.intent === "trade" || data.list.intent === "wish")
@@ -36,10 +34,8 @@ function SharedListRoute() {
         }
       : undefined;
 
-  // The friend-group endpoint omits createdAt/updatedAt on the list and nests
-  // the owner inside `list`; the shared browser expects the public-share
-  // shape, so we project here. Timestamps aren't surfaced by the browser, so
-  // the empty strings are unused.
+  // The friend-group endpoint omits createdAt/updatedAt and nests the owner
+  // inside `list`; projected here into the shape SharedListContent expects.
   const publicShape: PublicListDetailResponse = {
     list: {
       id: data.list.id,

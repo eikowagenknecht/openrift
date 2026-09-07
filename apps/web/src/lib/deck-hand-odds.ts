@@ -2,21 +2,17 @@ import { chanceToDraw } from "@/lib/deck-draw-odds";
 import type { GroupCard, OddsGroupDef } from "@/lib/deck-odds-groups";
 import { cardMatchesOddsGroup } from "@/lib/deck-odds-groups";
 
-/** A group as the hand panels read it: its definition and its main-deck copies. */
 export interface HandOddsGroup {
   def: OddsGroupDef;
   copies: number;
 }
 
-/** Card data for every main-deck card, keyed by id. */
 export type HandCardLookup = ReadonlyMap<string, GroupCard>;
 
 export interface LibraryHitChance {
   key: string;
   label: string;
-  /** Group members left in the library. */
   copies: number;
-  /** Chance of at least one of them among the next cards drawn. */
   chance: number;
 }
 
@@ -31,20 +27,11 @@ function countMatches(
   }).length;
 }
 
-/**
- * A preset's parenthetical gloss ("Combat trick (Action/Reaction spell)")
- * explains the group in the picker, where there is room for it. Inline next to
- * a hand it only crowds the number.
- * @returns The label without its trailing parenthetical.
- */
+/** Strips a group label's trailing parenthetical, e.g. "Combat trick (Action/Reaction spell)" → "Combat trick". */
 export function shortGroupLabel(label: string): string {
   return label.replace(/\s*\([^()]*\)$/u, "");
 }
 
-/**
- * How many cards of each group the hand holds, keyed by group.
- * @returns The counts; a group with nothing in hand is absent.
- */
 export function buildInHandGroupCounts(options: {
   hand: readonly string[];
   cards: HandCardLookup;
@@ -60,12 +47,7 @@ export function buildInHandGroupCounts(options: {
   return counts;
 }
 
-/**
- * Chance of hitting each group in the next `draws` cards, counted off the live
- * library rather than the deck list: the cards already in hand are gone, so
- * these odds move as the game does.
- * @returns One row per group, in the given order.
- */
+/** Counts off the live library, not the full deck list, so cards already drawn into hand don't count. */
 export function buildLibraryHitChances(options: {
   library: readonly string[];
   cards: HandCardLookup;
@@ -83,11 +65,6 @@ export function buildLibraryHitChances(options: {
   });
 }
 
-/**
- * What mulliganing the selected cards could find: the groups the kept cards
- * miss, with the chance the replacements cover them.
- * @returns One row per missed group; empty when the kept cards cover them all.
- */
 export function buildMulliganPreview(options: {
   kept: readonly string[];
   library: readonly string[];

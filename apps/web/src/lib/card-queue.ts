@@ -1,9 +1,4 @@
-/**
- * Moves one entry within the queue, clamped at both ends so the last card's
- * "down" button is a no-op rather than dropping it off the list.
- *
- * @returns A new array with the entry moved.
- */
+/** Clamped at both ends, so the last card's "down" button is a no-op. */
 export function moveQueueEntry(ids: readonly string[], from: number, delta: number): string[] {
   const to = from + delta;
   if (from < 0 || from >= ids.length || to < 0 || to >= ids.length) {

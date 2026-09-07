@@ -45,11 +45,6 @@ function wrap(client: QueryClient) {
 
 describe("useAcceptPrintingGroup", () => {
   it("invalidates the keys passed via `invalidates`, not keys derived from the payload cardId", async () => {
-    // Regression: the page loads card data keyed by URL slug ("ahri-alluring"),
-    // but the mutation payload carries the internal UUID as `cardId`. Previously
-    // the hook hardcoded `queryKeys.admin.cards.detail(cardId)` using that UUID,
-    // so the invalidate call targeted the wrong key and the detail query never
-    // refetched — the UI only updated on page refresh.
     const { client, invalidateSpy } = makeClient();
     const slugScopedKey = ["admin", "cards", "detail", "ahri-alluring"] as const;
 
@@ -75,10 +70,6 @@ describe("useAcceptPrintingGroup", () => {
 
 describe("useAcceptCardField", () => {
   it("invalidates the keys passed via `invalidates`, not keys derived from the payload cardId", async () => {
-    // Regression: accepting a card field (e.g. reordered tags) sent the mutation
-    // but the detail query stayed stale until F5. The page is keyed by URL slug
-    // while the payload carries the UUID — the hook was invalidating the
-    // UUID-scoped key instead of the slug-scoped one the page actually reads.
     const { client, invalidateSpy } = makeClient();
     const slugScopedKey = ["admin", "cards", "detail", "allay-eager-admirer"] as const;
 

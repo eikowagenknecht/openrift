@@ -18,8 +18,6 @@ describe("aggregateScopedCount", () => {
     const copies = [
       copy("garen", "personal-1", null),
       copy("garen", "personal-1", null),
-      // Three copies sitting in a group collection — they belong to the group,
-      // not the viewer, so they must not count toward the viewer's owned total.
       copy("garen", "bulkbox", "group-1"),
       copy("garen", "bulkbox", "group-1"),
       copy("garen", "bulkbox", "group-1"),
@@ -35,15 +33,10 @@ describe("aggregateScopedCount", () => {
       copy("garen", "bulkbox", "group-1"),
     ];
 
-    // Viewing the group collection itself: the in-collection count is the
-    // group's two copies; the global total is the viewer's single personal copy.
     expect(aggregateScopedCount(copies, "bulkbox")).toEqual({ count: 2, totalCount: 1 });
   });
 
   it("reports zero owned for a card the viewer holds only inside a group collection", () => {
-    // The crux for the shared-collection owned filter: a card you "have" only
-    // because it lives in a group collection reads as None in your personal
-    // totals, so it surfaces under "less than a playset".
     const copies = [copy("garen", "bulkbox", "group-1")];
 
     expect(aggregateScopedCount(copies)).toEqual({ count: 0, totalCount: 0 });
@@ -56,7 +49,6 @@ describe("aggregateScopedTotals", () => {
       copy("garen", "personal-1", null),
       copy("garen", "personal-1", null),
       copy("garen", "bulkbox", "group-1"),
-      // Lux exists for the viewer only inside the group collection.
       copy("lux", "bulkbox", "group-1"),
     ];
 
@@ -64,7 +56,6 @@ describe("aggregateScopedTotals", () => {
 
     expect(result.allTotals).toEqual({ garen: 2 });
     expect(result.allTotal).toBe(2);
-    // No collectionId → scoped totals mirror the personal-only global map.
     expect(result.totals).toEqual(result.allTotals);
   });
 
@@ -131,8 +122,6 @@ describe("aggregateDeckBuildingCounts", () => {
   });
 
   it("still locks loaned and reserved copies from the exempt collection", () => {
-    // The home collection overrides the deck-building exclusion, not physical
-    // absence: a lent-out or trade-reserved copy isn't in the box.
     const copies = [
       stubCopy({ printingId: "garen", collectionId: "red-box", groupId: null, onLoan: true }),
       stubCopy({ printingId: "garen", collectionId: "red-box", groupId: null, reserved: true }),
@@ -157,8 +146,6 @@ describe("aggregateDeckBuildingCounts", () => {
   });
 
   it("counts a group collection's copies when it is the deck's home box", () => {
-    // A group collection the viewer hasn't opted into is normally neither
-    // available nor locked; naming it as the deck's box makes it buildable.
     const groupAvailability = new Map([["shared-box", false]]);
     const copies = [copy("garen", "shared-box", "group-1")];
 

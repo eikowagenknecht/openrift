@@ -75,7 +75,7 @@ describe("planDraftToSaveInput", () => {
       ...createEmptyPlanDraft(),
       generalStrategy: "  win  ",
       matchups: [
-        createEmptyMatchup(), // no card and no label → dropped
+        createEmptyMatchup(),
         {
           ...createEmptyMatchup(),
           opponentCardId: OPPONENT,
@@ -234,7 +234,6 @@ describe("computePlanWarnings", () => {
     const draft: PlanDraft = {
       ...createEmptyPlanDraft(),
       battlefieldCustom: true,
-      // Both an out-of-deck pick and a duplicate that would warn in pick mode.
       battlefieldGame1CardId: "99999999-9999-9999-9999-999999999999",
       battlefieldFirstCardId: "99999999-9999-9999-9999-999999999999",
     };

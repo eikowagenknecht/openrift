@@ -11,30 +11,29 @@ export interface DesignerCard {
   might: number | null;
   power: number | null;
   mightBonus: number | null;
-  type: string; // card-type slug, "" when unset
+  type: string;
   superTypes: string[];
   tags: string[];
   rulesText: string;
   effectText: string;
   flavorText: string;
   rarity: Rarity | null;
-  publicCode: string; // footer "code" line
-  artist: string; // raw text; openrift.app is appended at render time
+  publicCode: string;
+  artist: string;
 }
 
 /** The chosen background image, held client-side only as a data URL. */
 interface BackgroundImage {
   dataUrl: string | null;
-  aspect: number | null; // natural width / height, for cover + pan math
-  scale: number; // >= 1, cover baseline
-  offsetX: number; // fraction of card width, clamped so the image always covers
-  offsetY: number; // fraction of card height
+  aspect: number | null;
+  scale: number;
+  offsetX: number;
+  offsetY: number;
 }
 
 interface CardDesignerState {
   card: DesignerCard;
   background: BackgroundImage;
-  /** Whether `openrift.app` is appended to the artist line. */
   showAttribution: boolean;
 
   setCardField: <K extends keyof DesignerCard>(key: K, value: DesignerCard[K]) => void;
@@ -65,8 +64,6 @@ const emptyCard: DesignerCard = {
   artist: "",
 };
 
-// A complete, obviously-made-up card so the designer looks alive the moment you
-// open it (and shows off the layout). Edit or clear it to make your own.
 const funExampleCard: DesignerCard = {
   name: "Sir Pounce, Lord of Naps",
   domains: ["chaos", "calm"],

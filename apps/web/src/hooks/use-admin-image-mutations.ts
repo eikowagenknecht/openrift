@@ -9,11 +9,7 @@ import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-// Request body derived from the route (api-types); response is the shared API
-// type. Re-exported for the candidate-upload page.
 export type { UploadCandidatesBody } from "@/lib/server-fns/api-types";
-
-// ── Server functions ─────────────────────────────────────────────────────────
 
 const deletePrintingImageFn = createServerFn({ method: "POST" })
   .validator((input: { imageId: string }) => input)
@@ -145,12 +141,6 @@ const uploadCandidatesFn = createServerFn({ method: "POST" })
     apiOrpcClient(adminCardMutationsContract, context.cookie).upload(data),
   );
 
-// ── Hook exports ─────────────────────────────────────────────────────────────
-//
-// Image mutations operate on an imageId or printingId; the owning card slug
-// isn't in the arguments. Callers on a card-detail page pass a narrower
-// `invalidates` list; callers without context get the coarse default.
-
 type Scope = readonly (readonly unknown[])[];
 const defaultScope: Scope = [queryKeys.admin.cards.all];
 
@@ -257,10 +247,8 @@ const uploadPrintingImageFn = createServerFn({ method: "POST" })
   });
 
 /**
- * Base64-encodes a file for the server-fn boundary, which carries JSON rather
- * than the `File` itself. Chunked because `String.fromCodePoint` is applied to
- * the byte array as arguments, and a whole image at once overflows the stack.
- * @returns The file's bytes as a base64 string.
+ * Chunked because `String.fromCodePoint` spreads the byte array as arguments,
+ * and a whole image at once overflows the call stack.
  */
 async function toBase64(file: File): Promise<string> {
   const bytes = new Uint8Array(await file.arrayBuffer());
@@ -311,11 +299,7 @@ export function useSetCandidatePrintingImage(invalidates: Scope = defaultScope) 
   });
 }
 
-/**
- * Set a printing's substitute-art override: derive it (`auto`), pin an image
- * file the catalogue already holds (`pinned`), or suppress it (`none`).
- * @returns The mutation object.
- */
+/** Set a printing's substitute-art override: derive it, pin a held image, or suppress it. */
 export function useSetFallbackArt(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async (input: {
@@ -329,10 +313,6 @@ export function useSetFallbackArt(invalidates: Scope = defaultScope) {
   });
 }
 
-/**
- * Pin substitute art from an external URL, ingesting the image first.
- * @returns The mutation object.
- */
 export function useAddFallbackArtUrl(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async (input: { printingId: string; url: string }) => {
@@ -342,10 +322,6 @@ export function useAddFallbackArtUrl(invalidates: Scope = defaultScope) {
   });
 }
 
-/**
- * Pin substitute art from a local file upload.
- * @returns The mutation object.
- */
 export function useUploadFallbackArt(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async ({ printingId, file }: { printingId: string; file: File }) =>

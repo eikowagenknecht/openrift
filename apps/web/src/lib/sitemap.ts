@@ -4,13 +4,8 @@ import { helpArticleList } from "@/components/help/articles";
 import type { MetaEra } from "@/lib/meta-scope";
 import { VALID_RULE_KINDS } from "@/lib/rules-kinds";
 
-/**
- * Well under the protocol's 50,000 URLs per file, so a section can grow for a
- * while before it splits again.
- */
 export const SITEMAP_FILE_LIMIT = 40_000;
 
-/** The sitemap index sits at this path; every section file is named from it. */
 export const SITEMAP_INDEX_PATH = "/sitemap.xml";
 
 const SECTION_PATH = /^\/sitemap-(?<section>[a-z-]+?)(?:-(?<index>\d+))?\.xml$/u;
@@ -19,9 +14,6 @@ interface StaticPage {
   path: string;
   priority: string;
   changefreq: string;
-  // Only listed while this feature flag is enabled — the route redirects away
-  // when the flag is off, and crawlers shouldn't see URLs that depend on flag
-  // state (same rationale as the help articles below).
   featureFlag?: string;
 }
 
@@ -30,8 +22,6 @@ const STATIC_PAGES: StaticPage[] = [
   { path: "/cards", priority: "0.8", changefreq: "weekly" },
   { path: "/sets", priority: "0.7", changefreq: "weekly" },
   { path: "/products", priority: "0.7", changefreq: "weekly" },
-  // /promos always 302s to the EN page, so list the redirect target — sitemaps
-  // should carry the final canonical URL (same rationale as the rules kinds).
   { path: "/promos/EN", priority: "0.6", changefreq: "weekly" },
   { path: "/meta", priority: "0.6", changefreq: "weekly", featureFlag: "meta" },
   { path: "/meta/events", priority: "0.6", changefreq: "weekly", featureFlag: "meta" },
@@ -48,7 +38,6 @@ const STATIC_PAGES: StaticPage[] = [
 
 export interface SitemapUrl {
   path: string;
-  /** Date-only. */
   lastmod: string;
   changefreq: string;
   priority: string;
@@ -56,11 +45,9 @@ export interface SitemapUrl {
 
 export interface SitemapInput {
   siteUrl: string;
-  /** Date-only; the lastmod of everything shipped with the bundle. */
   deployDate: string;
   data: SitemapDataResponse;
   flags: Record<string, boolean>;
-  /** Newest first, as `deriveSetEras` returns them. */
   eras: readonly MetaEra[];
 }
 
@@ -80,9 +67,6 @@ function siteUrls({ deployDate, data, flags }: SitemapInput): SitemapUrl[] {
     }
     urls.push({ ...page, lastmod: deployDate });
   }
-  // Help articles are static content shipped with the bundle, so the deploy
-  // date is the closest "lastmod" we have. Skip feature-flagged articles —
-  // crawlers shouldn't see URLs that may 404 depending on flag state.
   for (const article of helpArticleList) {
     if (article.featureFlag) {
       continue;
@@ -94,8 +78,6 @@ function siteUrls({ deployDate, data, flags }: SitemapInput): SitemapUrl[] {
       priority: "0.3",
     });
   }
-  // Per-kind rules pages (core, tournament). Each 302s to its latest version,
-  // but the kind URL is the stable, version-independent entry worth indexing.
   for (const kind of VALID_RULE_KINDS) {
     urls.push({
       path: `/rules/${kind}`,
@@ -131,15 +113,11 @@ function siteUrls({ deployDate, data, flags }: SitemapInput): SitemapUrl[] {
   return urls;
 }
 
-// The meta archive ships behind its flag (ADR-014), so its URLs stay out of
-// the sitemap until it is on — same reason flagged static pages and help
-// articles are skipped above.
 function metaEventUrls({ data, flags, eras, deployDate }: SitemapInput): SitemapUrl[] {
   if (flags.meta !== true) {
     return [];
   }
-  // The index opens on the current era; the older eras are only reachable by
-  // their own URLs, so those are listed alongside the events themselves.
+  // Older eras are reachable only via ?era=; the current era is the index default.
   const eraIndexes: SitemapUrl[] = eras.slice(1).map((era) => ({
     path: `/meta/events?era=${era.id}`,
     lastmod: deployDate,
@@ -201,7 +179,6 @@ const SECTION_URLS: Record<SitemapSection, (input: SitemapInput) => SitemapUrl[]
   "meta-players": metaPlayerUrls,
 };
 
-/** The section's URLs split into files of at most {@link SITEMAP_FILE_LIMIT}. */
 export function sitemapSectionFiles(section: SitemapSection, input: SitemapInput): SitemapUrl[][] {
   const urls = SECTION_URLS[section](input);
   const files: SitemapUrl[][] = [];
@@ -211,19 +188,11 @@ export function sitemapSectionFiles(section: SitemapSection, input: SitemapInput
   return files;
 }
 
-/**
- * The path of one section file. A section that fits one file keeps a bare
- * name, so the common case never changes address when a split arrives.
- */
+/** A section that fits one file keeps a bare name, so it never changes address if it later splits. */
 export function sitemapFilePath(section: SitemapSection, index: number, count: number): string {
   return count > 1 ? `/sitemap-${section}-${index + 1}.xml` : `/sitemap-${section}.xml`;
 }
 
-/**
- * Which section file a request is for.
- *
- * @returns The section and zero-based file index, or null for any other path.
- */
 export function parseSitemapPath(
   pathname: string,
 ): { section: SitemapSection; index: number } | null {
@@ -239,7 +208,6 @@ export function parseSitemapPath(
   return { section, index: number - 1 };
 }
 
-/** The index every crawler starts from: one entry per section file that holds anything. */
 export function renderSitemapIndex(input: SitemapInput): string {
   const entries: string[] = [];
   for (const section of SECTIONS) {
@@ -262,11 +230,6 @@ export function renderSitemapIndex(input: SitemapInput): string {
   ].join("\n");
 }
 
-/**
- * One section file.
- *
- * @returns The urlset, or null when the section has no file at that index.
- */
 export function renderSitemapFile(
   section: SitemapSection,
   index: number,

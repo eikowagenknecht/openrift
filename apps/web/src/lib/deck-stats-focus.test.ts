@@ -97,7 +97,6 @@ describe("statsFocusOpeningChance", () => {
     const cards = [
       main({ energy: 2, quantity: 3 }),
       main({ energy: 4, quantity: 4 }),
-      // Champion matches the focus but starts outside the drawn deck.
       stubDeckBuilderCard({ zone: WellKnown.deckZone.CHAMPION, energy: 2, quantity: 1 }),
     ];
     expect(statsFocusOpeningChance(cards, { kind: "energy", value: 2 })).toBeCloseTo(

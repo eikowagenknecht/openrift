@@ -3,13 +3,8 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { useHeaderHeight } from "./use-header-height";
 
-// jsdom always defines `window`, so the genuine SSR path (where React renders
-// on the server and rehydrates on the client) is not reproducible here. These
-// tests cover the seed→measure behaviour the hook relies on to dodge the
-// hydration mismatch: the first client render must equal the 57px SSR fallback,
-// and the live measurement (which folds in the iOS safe-area inset) lands a
-// frame later via the layout effect. The SSR quirk itself is noted in the
-// commit message.
+// jsdom always defines `window`, so the genuine SSR path (server render,
+// client rehydrate) is not reproducible here.
 
 function stubHeader(height: number): void {
   const header = document.createElement("header");
@@ -40,9 +35,7 @@ describe("useHeaderHeight", () => {
 
     const heights = renderHeights();
 
-    // First render must match the server markup so hydration succeeds.
     expect(heights[0]).toBe(57);
-    // The layout effect then upgrades to the measured safe-area height.
     expect(heights.at(-1)).toBe(116);
   });
 

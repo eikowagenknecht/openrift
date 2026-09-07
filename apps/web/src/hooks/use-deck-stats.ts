@@ -33,28 +33,19 @@ interface DeckStats {
   totalCards: number;
 }
 
-// Stats cover only main deck cards (champion counts toward main)
 const MAIN_ZONES = new Set<DeckZone>([WellKnown.deckZone.MAIN, WellKnown.deckZone.CHAMPION]);
 
-// Types with dedicated zones are excluded from the type breakdown chart
 const EXCLUDED_CARD_TYPES = new Set<string>([
   WellKnown.cardType.LEGEND,
   WellKnown.cardType.RUNE,
   WellKnown.cardType.BATTLEFIELD,
 ]);
 
-/**
- * Computes deck statistics from the given deck-builder cards.
- * Covers main deck cards only (includes champion zone).
- * Excludes overflow, sideboard, legend, runes, and battlefield zones.
- * @returns The deck statistics.
- */
 export function useDeckStats(cards: DeckBuilderCard[]): DeckStats {
   const { orders } = useEnumOrders();
 
   const mainCards = cards.filter((card) => MAIN_ZONES.has(card.zone));
 
-  // Domain distribution — a card with 2 domains counts for both
   const domainCounts = new Map<string, number>();
   for (const card of mainCards) {
     for (const domain of card.domains) {
@@ -68,7 +59,6 @@ export function useDeckStats(cards: DeckBuilderCard[]): DeckStats {
       count: domainCounts.get(domain) ?? 0,
     }));
 
-  // Energy curve — group by energy cost and domain combo, stacked
   const energyByCombo = new Map<number, Map<string, number>>();
   const energyComboSet = new Set<string>();
   for (const card of mainCards) {
@@ -100,7 +90,6 @@ export function useDeckStats(cards: DeckBuilderCard[]): DeckStats {
     }
   }
 
-  // Average energy cost (weighted by quantity)
   let energySum = 0;
   let energyCount = 0;
   for (const card of mainCards) {
@@ -111,7 +100,6 @@ export function useDeckStats(cards: DeckBuilderCard[]): DeckStats {
   }
   const averageEnergy = energyCount > 0 ? energySum / energyCount : null;
 
-  // Power curve — group by power and domain combo, stacked
   const powerByCombo = new Map<number, Map<string, number>>();
   const powerComboSet = new Set<string>();
   for (const card of mainCards) {
@@ -127,7 +115,6 @@ export function useDeckStats(cards: DeckBuilderCard[]): DeckStats {
   }
   const powerCurveStacks = sortCombos(powerComboSet, orders.domains);
 
-  // Average power (weighted by quantity, treating null power as 0)
   let powerSum = 0;
   let powerCount = 0;
   for (const card of mainCards) {
@@ -151,9 +138,7 @@ export function useDeckStats(cards: DeckBuilderCard[]): DeckStats {
     }
   }
 
-  // Type breakdown — exclude types with dedicated zones, stacked by domain
-  // color. Multi-type cards count under each of their types (like the domain
-  // breakdown), so totals can exceed the deck size (ADR-037).
+  // Multi-type cards count under each of their types, so totals can exceed the deck size.
   const typeByDomain = new Map<string, Map<Domain, number>>();
   const typeTotal = new Map<string, number>();
   for (const card of mainCards) {

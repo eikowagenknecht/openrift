@@ -27,41 +27,13 @@ const CARDS_DESCRIPTION =
 export const Route = createFileRoute("/_app/cards")({
   validateSearch: cardsSearchSchema,
   beforeLoad: ({ search, location }) => {
-    // Strip unknown / malformed search params from the URL so bookmarks and
-    // share links land on a clean canonical URL.
     const cleaned = cleanedSearchForRedirect(cardsSearchSchema, search, location.searchStr);
     if (cleaned) {
       throw redirect({ to: "/cards", search: cleaned, replace: true });
     }
   },
-  // SSR-only payload — slim views over the same server-cached catalog so the
-  // shell can render the live grid's chrome (filters, search, toolbar) and
-  // first-row LCP candidate before hydration:
-  //  - `firstRow`: front-face image URLs for the first row, real `<img>`s for
-  //    the preload scanner.
-  //  - `facets` + `availableLanguages` + `setLabels`: shape the filter chrome.
-  //  - `totalCards` / `filteredCount`: SearchBar's "X of Y" without flashing.
-  // The init query is also primed into the per-request QueryClient so chrome
-  // components calling `useSuspenseQuery(initQueryOptions)` resolve sync.
-  // On client-side navigation we don't need the SSR shell payload (the live
-  // CardBrowser will render directly), but we DO want the catalog warmed —
-  // so a route preload (`router.preloadRoute({ to: "/cards" })`) on idle from
-  // the homepage primes the client QueryClient and the eventual click renders
-  // the full grid with no Suspense fallback.
-  // Return a stable (empty) deps object so the match ID — which is hashed from
-  // `loaderDeps` (see `router-core/router.js`: `matchId = route.id +
-  // interpolatedPath + loaderDepsHash`) — stays constant across filter/search/
-  // sort URL changes. Otherwise every navigation creates a fresh match starting
-  // in `status: "pending"`, which throws `loadPromise` to the route's Suspense
-  // boundary, renders `pendingComponent` (CardsPending), unmounts the entire
-  // route subtree (including the focused <input> in <SearchBar>), and remounts
-  // it once the loader resolves — losing focus mid-typing. The deps object must
-  // be the same shape on SSR and client to avoid a hydration mismatch (mismatched
-  // matchId on hydration causes the client to render `pendingComponent` where
-  // the server rendered `FirstRowPreview`). The SSR loader still gets the URL
-  // search via `location.search` below, so it can compute counts / first-row.
-  // The client loader doesn't need search anyway — the warm-cache path returns
-  // an `empty` payload regardless.
+  // Must stay a stable empty object: loaderDeps feeds the match ID, and a
+  // changing ID remounts the route, losing focus in <SearchBar>'s input.
   loaderDeps: () => ({}),
   loader: ({
     context,
@@ -102,12 +74,8 @@ export const Route = createFileRoute("/_app/cards")({
         context.queryClient.getQueryData(catalogQueryOptions.queryKey) !== undefined &&
         context.queryClient.getQueryData(pricesQueryOptions.queryKey) !== undefined &&
         context.queryClient.getQueryData(initQueryOptions.queryKey) !== undefined;
-      // On a warm client cache, return synchronously (non-Promise) so the route's
-      // first mount doesn't enter a router transition. The stable client `loaderDeps`
-      // above already prevents this loader from re-running on filter/search changes,
-      // so this path matters only on the very first /cards entry. Cold entry returns
-      // a Promise so the route shows `pendingComponent` instead of flashing an empty
-      // Suspense fallback while the catalog is in flight.
+      // Warm cache returns synchronously so first mount skips the router's
+      // pending transition; cold entry returns a Promise for pendingComponent.
       if (warm) {
         return empty;
       }
@@ -123,11 +91,8 @@ export const Route = createFileRoute("/_app/cards")({
     const ssrSearch = location.search;
     return (async () => {
       await context.queryClient.query({ ...initQueryOptions, staleTime: "static" });
-      // `catalogVersion` (the catalog's ETag) rides along so the hydrated
-      // client can fetch the catalog as `?v=<token>` — guaranteeing the edge
-      // serves a catalog at least as fresh as this SSR shell. Read directly
-      // (not via a server fn): this branch already runs on the server, and the
-      // serverCache entry is warm from the fetches below.
+      // catalogVersion (the catalog's ETag) rides along so the hydrated
+      // client fetches `?v=<token>`, at least as fresh as this SSR shell.
       const [firstRow, facetsPayload, counts, filterCounts, catalogVersion] = await Promise.all([
         fetchFirstRowCards({ data: ssrSearch }),
         fetchCardFacets(),
@@ -135,13 +100,8 @@ export const Route = createFileRoute("/_app/cards")({
         fetchCardFilterCounts({ data: ssrSearch }),
         readCatalogVersionFromServerCache(),
       ]);
-      // The head's catalog preload must byte-match the hydrated client's fetch
-      // (see catalogFetchUrl). The client fetches the URL's languages when the
-      // filter is set, otherwise its persisted preference — which the server
-      // can't see, so the store default (EN) is the best guess for a clean URL.
-      // A mismatch only wastes the preload; the real fetch still works.
-      // `location.search` is untyped in the loader; re-validate to read the
-      // languages filter (the schema already ran once for the route match).
+      // location.search is untyped in the loader; re-validate to read the
+      // languages filter.
       const ssrLanguages = cardsSearchSchema.parse(ssrSearch).languages ?? [];
       const catalogPreloadLangs = normalizeCatalogLangs(
         ssrLanguages.length > 0 ? ssrLanguages : ["EN"],
@@ -166,18 +126,8 @@ export const Route = createFileRoute("/_app/cards")({
       description: CARDS_DESCRIPTION,
       path: "/cards",
     });
-    // Start the catalog download from the HTML rather than from hydration. It
-    // is the grid's blocking input (~500KB brotli), and without this the
-    // browser only learns about it once the bundle has parsed, hydrated, and
-    // React Query has fired the request — several hundred ms of a cold load
-    // spent with the network idle. The preload scanner sees this link in the
-    // first bytes and fetches it alongside the JS.
-    //
-    // The href has to match `fetchCatalogFromEdge`'s URL exactly or the browser
-    // downloads the catalog twice, so it is built by the same `catalogFetchUrl`
-    // from the same `?v=` token the loader seeds into `seedCatalogVersion`
-    // (see lib/catalog-version.ts) and the same language split the client will
-    // request (`catalogPreloadLangs`, resolved in the SSR loader).
+    // href must byte-match fetchCatalogFromEdge's URL or the browser
+    // downloads the catalog twice.
     const catalogVersion = loaderData?.catalogVersion ?? null;
     const preloadLangs = loaderData?.catalogPreloadLangs ?? [];
     const catalogHref = catalogFetchUrl(
@@ -185,17 +135,12 @@ export const Route = createFileRoute("/_app/cards")({
       catalogVersion,
       preloadLangs.length > 0 ? { langs: preloadLangs } : undefined,
     );
-    // CollectionPage only — the visible items depend on URL filters and the
-    // full catalog is too large to inline as an ItemList. The Product JSON-LD
-    // on each card detail page is the indexable signal for individual cards.
     return {
       ...head,
       links: [
         ...(head.links ?? []),
-        // crossOrigin must be set (and "anonymous", which maps to same-origin
-        // credentials) for the preload to match `fetch(url)`'s cors +
-        // same-origin-credentials request — without it Chrome discards the
-        // preload with a credentials-mode warning and re-downloads.
+        // crossOrigin: "anonymous" must match fetch(url)'s cors request, or
+        // Chrome discards the preload with a credentials-mode warning.
         { rel: "preload", as: "fetch", href: catalogHref, crossOrigin: "anonymous" },
       ],
       scripts: [
@@ -212,10 +157,6 @@ export const Route = createFileRoute("/_app/cards")({
   errorComponent: RouteErrorFallback,
 });
 
-// Skeleton UI for the cards page while the lazy chunk loads. Renders through
-// the same `CardBrowserLayout` shell the SSR preview and hydrated CardBrowser
-// use, so the pending → SSR → hydrated transition stays dimensionally
-// consistent (no jump in toolbar height, left-pane width, or grid position).
 function CardsPending() {
   return (
     <div className={cn("flex flex-1 flex-col", PAGE_PADDING_NO_TOP)}>

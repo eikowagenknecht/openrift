@@ -19,7 +19,6 @@ const rune = (cardId: string, quantity: number, domains: string[]): DeckBuilderC
     domains: domains as Domain[],
   });
 
-/** A 12-rune deck split evenly between two domains. */
 const sixSix = [rune("calm-rune", 6, ["calm"]), rune("fury-rune", 6, ["fury"])];
 
 const rowFor = (rows: ReturnType<typeof buildRuneOddsRows>, domain: string, threshold: number) =>
@@ -52,14 +51,11 @@ describe("chanceAtLeast", () => {
   });
 
   it("matches the hand-computed 6-of-12 case", () => {
-    // 1 - C(6,2)/C(12,2) = 1 - 15/66 ≈ 0.7727
     expect(chanceAtLeast(1, 6, 12, 2)).toBeCloseTo(1 - 15 / 66, 10);
-    // C(6,2)/C(12,2) = 15/66 ≈ 0.2273
     expect(chanceAtLeast(2, 6, 12, 2)).toBeCloseTo(15 / 66, 10);
   });
 
   it("agrees with the at-least-one form of the draw-odds math", () => {
-    // Same hypergeometric, so k=1 reproduces 1 - C(n-c,d)/C(n,d).
     expect(chanceAtLeast(1, 4, 12, 3)).toBeCloseTo(1 - (8 * 7 * 6) / (12 * 11 * 10), 10);
   });
 
@@ -95,7 +91,6 @@ describe("buildRuneOddsRows", () => {
 
   it("matches the hand-computed 6/6 split on turn 1", () => {
     const rows = buildRuneOddsRows(sixSix, { goingSecond: false });
-    // Two runes channeled: P(at least one Calm) = 1 - C(6,2)/C(12,2) ≈ 77%.
     expect(rowFor(rows, "calm", 1)?.byTurn[0]).toBeCloseTo(1 - 15 / 66, 10);
   });
 
@@ -106,7 +101,6 @@ describe("buildRuneOddsRows", () => {
     const secondTurnOne = rowFor(second, "calm", 1)?.byTurn[0] ?? 0;
 
     expect(secondTurnOne).toBeGreaterThan(firstTurnOne);
-    // Three runes channeled: 1 - C(6,3)/C(12,3) = 1 - 20/220.
     expect(secondTurnOne).toBeCloseTo(1 - 20 / 220, 10);
   });
 
@@ -134,8 +128,6 @@ describe("buildRuneOddsRows", () => {
   });
 
   it("caps the draws at the rune deck's size", () => {
-    // 4 runes total, so by turn 4 the whole deck is channeled and a single
-    // copy is a certainty rather than an out-of-range draw.
     const rows = buildRuneOddsRows(
       [rune("calm-rune", 1, ["calm"]), rune("fury-rune", 3, ["fury"])],
       {
@@ -147,16 +139,13 @@ describe("buildRuneOddsRows", () => {
   });
 
   it("skips a domain that is already certain on turn 1", () => {
-    // Every rune is Calm, so "at least 1 Calm" is guaranteed from the start.
     const rows = buildRuneOddsRows([rune("calm-rune", 12, ["calm"])], { goingSecond: false });
 
     expect(rowFor(rows, "calm", 1)).toBeUndefined();
-    // Deeper thresholds still say something: three Calm needs a second turn.
     expect(rowFor(rows, "calm", 3)?.byTurn).toEqual([0, 1, 1, 1]);
   });
 
   it("skips thresholds no turn can reach", () => {
-    // 1 Calm rune in 12: "at least 2" is impossible, "at least 1" is not.
     const rows = buildRuneOddsRows(
       [rune("calm-rune", 1, ["calm"]), rune("fury-rune", 11, ["fury"])],
       {

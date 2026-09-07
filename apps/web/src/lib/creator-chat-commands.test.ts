@@ -34,16 +34,11 @@ describe("chatBotSetups", () => {
 
   it("uses each bot's own fetch and escape syntax", () => {
     const byId = Object.fromEntries(setups.map((setup) => [setup.id, setup.command]));
-    // Nightbot: $(urlfetch) with $(querystring), which url-encodes on its own.
     expect(byId.nightbot).toContain("$(urlfetch ");
     expect(byId.nightbot).toContain("$(querystring)");
-    // StreamElements: $(customapi) with $(queryescape ${1:}) — ${1:} is the
-    // rest of the message, not just the first word.
     expect(byId.streamelements).toContain("$(customapi ");
     // oxlint-disable-next-line eslint/no-template-curly-in-string -- StreamElements' own syntax, asserted literally
     expect(byId.streamelements).toContain("$(queryescape ${1:})");
-    // Fossabot: $(customapi) with $(urlencode $(query)) — it has no
-    // queryescape, and its encoder emits "+" for spaces.
     expect(byId.fossabot).toContain("$(customapi ");
     expect(byId.fossabot).toContain("$(urlencode $(query))");
     expect(byId.fossabot).not.toContain("queryescape");
@@ -53,7 +48,6 @@ describe("chatBotSetups", () => {
     const byId = Object.fromEntries(setups.map((setup) => [setup.id, setup.command]));
     expect(byId.nightbot).toContain("!addcom !card ");
     expect(byId.streamelements).toContain("!command add !card ");
-    // Fossabot is the exception: its add-command takes the bare name.
     expect(byId.fossabot).toContain("!addcmd card ");
   });
 

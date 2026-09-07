@@ -18,10 +18,6 @@ function getServerSnapshot(): boolean {
   return false;
 }
 
-/**
- * Reactively tracks whether the viewport is in landscape orientation.
- * @returns Whether the viewport currently matches `(orientation: landscape)`.
- */
 export function useIsLandscape(): boolean {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }

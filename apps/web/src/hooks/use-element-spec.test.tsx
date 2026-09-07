@@ -122,7 +122,7 @@ describe("useElementSpec", () => {
   });
 
   it("stays null when the wrapper has no element child", () => {
-    // render() flushes mount effects via act, so measure() has already run.
+    // render() flushes mount effects via act; measure() has already run.
     const { getByTestId } = render(<EmptyProbe />);
     expect(getByTestId("empty").dataset.measured).toBe("no");
   });

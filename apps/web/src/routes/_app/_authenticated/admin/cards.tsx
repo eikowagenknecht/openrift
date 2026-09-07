@@ -19,17 +19,15 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards")({
     tableSort: z.string().optional(),
     status: z.enum(["unchecked", "new-printings", "prices-to-assign"]).optional(),
     // Source+language scope for the "prices to assign" filter, e.g. "cardmarket"
-    // or "cardtrader:FR". Absent means all assignable buckets. Only meaningful
-    // while `status` is "prices-to-assign".
+    // or "cardtrader:FR". Only meaningful while `status` is "prices-to-assign".
     priceScope: z.string().optional(),
-    // ADR-036: when "usersubmission", the candidates tab shows only groups that
+    // When "usersubmission", the candidates tab shows only groups that
     // include an in-app user submission. Composes with `status`.
     source: z.enum(["usersubmission"]).optional(),
   }),
   loader: async ({ context }) => {
-    // Already warm from the admin layout beforeLoad. Unified mappings are a
-    // marketplace endpoint that card-review grant holders cannot reach — only
-    // prefetch it for full admins.
+    // Unified mappings are a marketplace endpoint that card-review grant
+    // holders cannot reach; only prefetch it for full admins.
     const access = await context.queryClient.query({
       ...adminAccessQueryOptions(context.userId),
       staleTime: "static",

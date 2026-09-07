@@ -12,8 +12,6 @@ describe("scanAssetError", () => {
   });
 
   it("never names the removed dev export script", () => {
-    // The scanner has one source now. Pointing at a local export would send
-    // the reader after a repair that no longer exists.
     for (const url of [
       "/media/scan/scan-encoder-v2.onnx",
       "/media/scan/scan-opencv-v1.js",

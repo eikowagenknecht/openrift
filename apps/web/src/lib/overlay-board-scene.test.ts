@@ -5,7 +5,6 @@ import { stubCard, stubPrinting } from "@/test/factories";
 
 import { deriveOverlayBoardScene } from "./overlay-board-scene";
 
-/** The four cards every board below ranks, all present in the catalogue. */
 const CARD_IDS = ["a", "b", "c", "d"];
 
 const cardsById: Record<string, Card> = Object.fromEntries(
@@ -16,7 +15,6 @@ const printingsByCardId = new Map<string, Printing[]>(
   CARD_IDS.map((id) => [id, [stubPrinting({ id: `p-${id}`, cardId: id })]]),
 );
 
-/** @returns A board ranking `a b` in S and `c d` in A. */
 function board(overrides: Partial<OverlayBoard> = {}): OverlayBoard {
   return {
     title: "Origins, ranked",
@@ -34,7 +32,6 @@ function entry(cardId: string) {
   return { cardId, printingId: null };
 }
 
-/** @returns The ids on the board, row by row, as a flat list per row. */
 function placed(rows: { cards: { cardId: string }[] }[]): string[][] {
   return rows.map((row) => row.cards.map((view) => view.cardId));
 }
@@ -51,7 +48,6 @@ describe("deriveOverlayBoardScene", () => {
   it("draws an empty ladder before the run starts, with nothing spotlit", () => {
     const scene = deriveOverlayBoardScene(board(), cardsById, printingsByCardId);
 
-    // The rows stay: a tier the run hasn't reached still holds its place.
     expect(placed(scene.rows)).toEqual([[], []]);
     expect(scene.focusCardId).toBeNull();
   });
@@ -63,7 +59,6 @@ describe("deriveOverlayBoardScene", () => {
       ["a", "b"],
       ["c", "d"],
     ]);
-    // A finished board is the whole ranking, not one card with the rest dimmed.
     expect(scene.focusCardId).toBeNull();
   });
 
@@ -84,8 +79,6 @@ describe("deriveOverlayBoardScene", () => {
       printingsByCardId,
     );
 
-    // Placed in walk order, but drawn where they rank: the bottom row fills
-    // while the top one waits.
     expect(placed(scene.rows)).toEqual([[], ["c", "d"]]);
     expect(scene.focusCardId).toBe("d");
   });
@@ -104,8 +97,6 @@ describe("deriveOverlayBoardScene", () => {
       printingsByCardId,
     );
 
-    // The missing entry is never a step of its own: three stored cards make a
-    // two-step run, so the second press finishes it.
     expect(placed(midway.rows)).toEqual([["a"]]);
     expect(midway.focusCardId).toBe("a");
     expect(placed(done.rows)).toEqual([["a", "b"]]);

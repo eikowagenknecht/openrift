@@ -1,11 +1,7 @@
 /**
- * The reference renders feature verification matches a camera frame against.
- *
- * One implementation for both sides of the scanner: the page decodes into a
- * `<canvas>`, the worker into an `OffscreenCanvas`, and everything else about
- * the decode — the grey flatten, what counts as missing, what counts as
- * transient — is identical and has to stay that way. It did not: the worker
- * carried its own copy, whose own docstring said so.
+ * Shared by both sides of the scanner: the page decodes into a `<canvas>`,
+ * the worker into an `OffscreenCanvas`. The grey flatten and missing/transient
+ * handling must stay identical between them.
  */
 
 import { imageUrl } from "@openrift/shared";
@@ -32,11 +28,6 @@ interface ReferenceCanvas {
 // Reused across reference fetches; a new canvas per card would churn memory.
 let referenceCanvas: ReferenceCanvas | null = null;
 
-/**
- * The reusable decode canvas, of whichever kind this thread has.
- *
- * @returns The canvas, created on first use.
- */
 function decodeCanvas(): ReferenceCanvas {
   referenceCanvas ??=
     typeof document === "undefined" ? new OffscreenCanvas(1, 1) : document.createElement("canvas");
@@ -44,18 +35,12 @@ function decodeCanvas(): ReferenceCanvas {
 }
 
 /**
- * Fetch a reference render for feature verification.
- *
- * Transparent rounded corners are flattened onto mid grey, matching how the
- * bank references were decoded in the bench; a hard white or black corner
+ * Flattens transparent rounded corners onto mid grey, matching how bank
+ * references were decoded in the bench, since a hard white or black corner
  * would inject an edge no photograph shows.
  *
- * Throws on transient failures (network errors, server errors): the session
- * caches null as "definitively missing" for its whole lifetime, and a cached
- * transient miss would silently remove the rival that refuses a wrong winner,
- * on every frame until restart.
- *
- * @returns The decoded render, or null when the render does not exist.
+ * Throws on transient failures: callers cache a null return as permanently
+ * missing, and caching a transient failure would hide it until restart.
  */
 export async function fetchReference(key: string): Promise<RgbaImage | null> {
   const response = await fetch(imageUrl(key, "400w"));

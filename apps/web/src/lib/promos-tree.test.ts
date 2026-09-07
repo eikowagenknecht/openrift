@@ -59,13 +59,10 @@ describe("buildPromoTree", () => {
     const houston = stubChannel({ id: "houston", label: "Houston", parentId: "parent" });
     const dallas = stubChannel({ id: "dallas", label: "Dallas", parentId: "parent" });
 
-    // One printing distributed at both Houston and Dallas — must not inflate
-    // the "Regional Event" parent to 2.
     const shared = stubPrinting({
       id: "shared",
       distributionChannels: [linkTo(houston), linkTo(dallas)],
     });
-    // Another printing only at Houston.
     const houstonOnly = stubPrinting({
       id: "houston-only",
       distributionChannels: [linkTo(houston)],

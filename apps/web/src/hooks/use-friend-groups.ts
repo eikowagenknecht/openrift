@@ -34,8 +34,6 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import type { GroupMatchPanels } from "@/lib/trade-derivation";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-// ── Server functions: queries ───────────────────────────────────────────────
-
 const fetchGroups = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }): Promise<FriendGroupListResponse> =>
@@ -52,8 +50,7 @@ const fetchGroupDetail = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: slug }): Promise<FriendGroupDetailResponse> => {
-    // 404 (unknown group, or one the viewer can't see) maps to the NOT_FOUND
-    // sentinel the route boundary expects.
+    // The route boundary expects a thrown "NOT_FOUND" for an unknown or hidden group.
     const { error, data } = await safe(
       apiOrpcClient(friendGroupsContract, context.cookie).get({ slug }),
     );
@@ -157,8 +154,6 @@ const fetchSharedCollection = createServerFn({ method: "GET" })
     return result;
   });
 
-// ── Hooks ───────────────────────────────────────────────────────────────────
-
 export function friendGroupsQueryOptions(userId: string) {
   return queryOptions({
     queryKey: queryKeys.friendGroups.all(userId),
@@ -174,11 +169,8 @@ function friendGroupDetailQueryOptions(userId: string, slug: string) {
 }
 
 /**
- * Route-loader helper: ensures the group detail and, when the API resolved a
- * rename alias (the group's `previous_slug`), redirects to the same page
- * under the canonical slug so bookmarks and trade-email links survive a
- * group rename.
- * @returns The ensured detail payload (already in the query cache).
+ * Redirects to the canonical slug when the API resolved a rename alias, so
+ * bookmarks and trade-email links survive a group rename.
  */
 export async function ensureFriendGroupDetailCanonical(options: {
   queryClient: QueryClient;
@@ -205,12 +197,8 @@ function friendGroupMatchesQueryOptions(userId: string, slug: string) {
   return queryOptions({
     queryKey: queryKeys.friendGroups.matches(userId, slug),
     queryFn: () => fetchGroupMatches({ data: slug }),
-    // Matching is the app's most expensive read and three surfaces now mount it
-    // (the groups index, a group's overview, its trades page), so walking the
-    // index into a group would otherwise run the same matcher twice within
-    // seconds. Everything the viewer does to a trade invalidates this key, which
-    // refetches regardless of the window; what waits out the minute is only a
-    // suggestion someone else's list edit created.
+    // Trade actions invalidate this key directly; the window only covers a
+    // suggestion created by someone else's list edit.
     staleTime: 60_000,
   });
 }
@@ -219,10 +207,8 @@ function friendGroupBoxWantsQueryOptions(userId: string, slug: string) {
   return queryOptions({
     queryKey: queryKeys.friendGroups.boxWants(userId, slug),
     queryFn: () => fetchGroupBoxWants({ data: slug }),
-    // No mutation invalidates this key yet, so counts can lag up to a minute
-    // behind a take or a wishlist edit. That's tolerable because the box's own
-    // stacks update instantly (the taken copy leaves the synced collection);
-    // only the tile count and per-printing quantities ride out the window.
+    // No mutation invalidates this key, so counts can lag up to a minute
+    // behind a take or a wishlist edit.
     staleTime: 60_000,
   });
 }
@@ -242,13 +228,8 @@ export function useFriendGroups() {
 }
 
 /**
- * Non-suspending variant of {@link useFriendGroups} for surfaces that fetch the
- * viewer's groups opportunistically and must not suspend their subtree — e.g.
- * the create-list dialog's optional "share with groups" section, which is only
- * relevant while the dialog is open.
- * @param enabled Whether to run the query (gate on the dialog's open state to
- *   avoid an always-on fetch).
- * @returns The query result; `data` is undefined until the groups load.
+ * Non-suspending variant of {@link useFriendGroups} for surfaces (e.g. a
+ * dialog's optional section) that must not suspend their subtree.
  */
 export function useFriendGroupsList(enabled: boolean) {
   const userId = useRequiredUserId();
@@ -267,17 +248,7 @@ export function useFriendGroupMatches(slug: string) {
 
 /**
  * The match rows of several groups at once, pooled into one pair of arrays.
- * The trades hub uses it for the viewer's *other* groups, so a member card can
- * say that the person it is about has suggestions the sheet will show and this
- * group does not.
- *
- * Non-suspending on purpose: matching is the most expensive read in the app
- * (rule lists expand against the whole catalog), and the hub must paint its
- * cards from this group's data rather than wait on every other group. Rows
- * arrive as each group answers, and they land on the same query keys those
- * groups' own trades pages use, so a hub visit warms them and vice versa.
- * @param slugs The groups to read, usually every group but the current one.
- * @returns The pooled rows, empty until the first group answers.
+ * Must not suspend: each group's data must paint independently of the others.
  */
 export function useFriendGroupMatchesForSlugs(
   slugs: readonly string[],
@@ -294,14 +265,7 @@ export function useFriendGroupMatchesForSlugs(
 
 /**
  * The same rows kept apart per group, for a surface that shows several groups
- * side by side and needs a number for each (the groups index).
- *
- * Non-suspending for the reason {@link useFriendGroupMatchesForSlugs} gives:
- * matching is the most expensive read in the app, so the cards paint at once and
- * each group's count fills in when that group answers. A group still loading is
- * simply absent from the result rather than reported as zero.
- * @param slugs The groups to read.
- * @returns One entry per group that has answered, in `slugs` order.
+ * side by side. A group still loading is absent from the result, not zero.
  */
 export function useFriendGroupMatchPanels(
   slugs: readonly string[],
@@ -326,13 +290,8 @@ export function useFriendGroupMatchPanels(
 }
 
 /**
- * Which printings in a group's bulk boxes the viewer's wish lists still want,
- * and how many of each the box can actually hand over. Non-suspending and
- * gated on the slug: the collection grid resolves a group's slug from the
- * collection it is showing, so the query must stand down until it has one (and
- * on every personal collection, which has no group at all).
- * @param slug The group to read, or undefined to fetch nothing.
- * @returns The lookups over the group's rows; empty until the query answers.
+ * Which printings in a group's bulk boxes the viewer's wish lists still want.
+ * Gated on `slug` being defined: personal collections have no group at all.
  */
 export function useGroupBoxWants(slug?: string): BoxWantsLookup {
   const userId = useRequiredUserId();
@@ -412,11 +371,8 @@ export function useFriendGroupSharedCollection(slug: string, collectionId: strin
 }
 
 /**
- * Polls the count of pending join requests across all groups the viewer
- * owns or administers (the requests awaiting their approval). Drives the
- * header "Groups" badge. Non-suspense so it can sit in the header without an
- * authenticated route boundary.
- * @returns The query result; `count` is 0 when the viewer isn't logged in.
+ * Non-suspense so it can sit in the header without an authenticated route
+ * boundary.
  */
 export function useFriendGroupPendingRequestsCount(opts?: { enabled?: boolean }) {
   return useQuery({
@@ -426,8 +382,6 @@ export function useFriendGroupPendingRequestsCount(opts?: { enabled?: boolean })
     enabled: opts?.enabled ?? true,
   });
 }
-
-// ── Server functions: mutations ─────────────────────────────────────────────
 
 const createGroupFn = createServerFn({ method: "POST" })
   .validator(
@@ -567,8 +521,6 @@ const unshareCollectionFn = createServerFn({ method: "POST" })
     await apiOrpcClient(friendGroupsContract, context.cookie).unshareCollection(data);
   });
 
-// ── Mutation hooks ──────────────────────────────────────────────────────────
-
 export function useCreateFriendGroup() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
@@ -589,9 +541,6 @@ export function useUpdateFriendGroup() {
     { slug: string; name?: string; description?: string | null; newSlug?: string }
   >({
     mutationFn: (data) => updateGroupFn({ data }),
-    // Invalidate both the old slug (in case the rename succeeded) and, when a
-    // newSlug was set, the new one too so its detail cache doesn't carry pre-
-    // rename state.
     invalidates: (variables) => [
       queryKeys.friendGroups.all(userId),
       queryKeys.friendGroups.detail(userId, variables.slug),
@@ -763,8 +712,6 @@ export function useUnshareCollectionFromFriendGroup() {
   });
 }
 
-// ── Discord links (admin) ───────────────────────────────────────────────────
-
 const fetchDiscordLinks = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
@@ -787,10 +734,8 @@ const deleteDiscordLinkFn = createServerFn({ method: "POST" })
   });
 
 /**
- * The group's linked Discord servers (admin-only endpoint). Pass a
- * `refetchInterval` while a link code is outstanding so the panel notices the
- * redeem happening over in Discord without a manual reload.
- * @returns The suspense query for the group's Discord links.
+ * Pass `refetchInterval` while a link code is outstanding so the panel
+ * notices the redeem happening over in Discord without a manual reload.
  */
 export function useFriendGroupDiscordLinks(slug: string, opts?: { refetchInterval?: number }) {
   const userId = useRequiredUserId();

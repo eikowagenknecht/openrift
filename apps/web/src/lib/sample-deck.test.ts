@@ -11,8 +11,6 @@ describe("sample deck", () => {
   });
 
   it("returns null instead of a partial deck when the catalog can't resolve the code", () => {
-    // An empty catalog resolves nothing — the sample must refuse to build
-    // rather than create a deck with missing cards.
     expect(buildSampleDeckCards([])).toBeNull();
   });
 });

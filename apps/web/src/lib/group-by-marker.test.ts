@@ -32,7 +32,6 @@ describe("groupItemsByMarker", () => {
     const sections = groupItemsByMarker([a, b], "asc");
 
     expect(sections.map((section) => section.group.id)).toEqual(["champion", "top-8"]);
-    // slug is blank so the header shows only the label, not "champion Champion"
     expect(sections.map((section) => section.group.slug)).toEqual(["", ""]);
     expect(sections.map((section) => section.group.name)).toEqual(["Champion", "Top 8"]);
   });

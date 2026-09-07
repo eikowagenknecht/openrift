@@ -56,7 +56,6 @@ describe("applySwaps", () => {
 
     expect(entry(result, "flex", "main")?.quantity).toBe(2);
     expect(entry(result, "flex", "sideboard")?.quantity).toBe(1);
-    // No duplicate main entry was appended.
     expect(result.filter((card) => card.cardId === "flex" && card.zone === "main")).toHaveLength(1);
   });
 
@@ -104,7 +103,6 @@ describe("applySwaps", () => {
 
   it("ignores cards that are not in the relevant zone", () => {
     const cards = [main("only-main", 2), side("only-side", 1)];
-    // Bringing in a main-only card and cutting a sideboard-only card are both no-ops.
     const result = applySwaps(cards, [bringIn("only-main", 2), takeOut("only-side", 1)]);
 
     expect(result).toHaveLength(2);
@@ -150,8 +148,6 @@ describe("applySwaps", () => {
   });
 
   it("drains copies split across pinned printings", () => {
-    // Two sideboard entries for one card (different pinned printings) still
-    // answer a single swap entry.
     const cards = [
       { ...side("tech", 1), preferredPrintingId: "print-a" },
       { ...side("tech", 2), preferredPrintingId: "print-b" },
@@ -179,7 +175,6 @@ describe("applySwaps", () => {
     const cards = [main("flex", 1), side("flex", 2)];
     const result = applySwaps(cards, [takeOut("flex", 1), bringIn("flex", 2)]);
 
-    // 1 in main plus 2 brought in, minus the 1 cut.
     expect(entry(result, "flex", "main")?.quantity).toBe(2);
     expect(entry(result, "flex", "sideboard")).toBeUndefined();
   });

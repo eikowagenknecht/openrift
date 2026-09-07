@@ -71,8 +71,6 @@ describe("buildCardMetaDescription", () => {
     );
   });
 
-  // ADR-037: a multi-type card must render every type in order, not just the
-  // primary. Reading the scalar `type` would drop the "Gear" here.
   it("joins all types for a multi-type card", () => {
     const unitGear: CardDetailResponse["card"] = {
       ...baseCard,
@@ -219,11 +217,6 @@ describe("pickCardMetaPrinting", () => {
     expect(pickCardMetaPrinting([], LANG_ORDER)).toBeUndefined();
   });
 
-  // Regression: head() used to use `printings[0]` directly, so if the API
-  // returned a non-EN printing first, crawlers got its metadata (rules text,
-  // og:image) while the in-page UI showed the EN printing via
-  // `preferredPrinting(..., ["EN"])`. This test fails without the
-  // `preferredPrinting` call in `pickCardMetaPrinting`.
   it("prefers the EN printing even when printings[0] is in another language", () => {
     const ja: CatalogPrintingResponse = { ...makePrinting("JA text"), id: "p-ja", language: "JA" };
     const en: CatalogPrintingResponse = { ...makePrinting("EN text"), id: "p-en", language: "EN" };
@@ -241,13 +234,10 @@ describe("pickCardMetaPrinting", () => {
 
 describe("resolveCardMetaPrinting", () => {
   const LANG_ORDER = ["EN", "DE", "JA"] as const;
-  // The EN printing is what `pickCardMetaPrinting` prefers, so the fallback is
-  // distinguishable from a pinned non-EN variant.
   const en: CatalogPrintingResponse = { ...makePrinting("EN text"), id: "p-en", language: "EN" };
   const ja: CatalogPrintingResponse = { ...makePrinting("JA text"), id: "p-ja", language: "JA" };
 
-  it("returns the pinned printing when printingId matches one on the card", () => {
-    // Pin the JA variant even though EN is the language-preferred fallback.
+  it("returns the pinned printing even when it isn't the language-preferred one", () => {
     expect(resolveCardMetaPrinting([en, ja], "p-ja", LANG_ORDER)?.id).toBe("p-ja");
   });
 

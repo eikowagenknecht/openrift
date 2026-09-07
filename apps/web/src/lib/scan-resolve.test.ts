@@ -187,8 +187,6 @@ describe("resolveLock", () => {
   });
 
   it("still asks when more than the language separates the candidates", () => {
-    // Same card in two languages AND two sets: the preference answers the
-    // language but not the set, so the picker must still open.
     const en = withImage(
       stubPrinting({ id: "p-en", language: "EN", shortCode: "OGN-009", cardId: "card-9" }),
       "img-en",
@@ -209,9 +207,6 @@ describe("resolveLock", () => {
   });
 
   it("overrides a resolved lock's language with the stated one", () => {
-    // The engine read a language off a few rows of glyphs; the user said their
-    // cards are English. The user wins — a Simplified Chinese printing in an
-    // English collection is never what they meant.
     const shared = { shortCode: "OGN-010", cardId: "card-10" };
     const sc = withImage(stubPrinting({ id: "p-sc", language: "SC", ...shared }), "img-sc");
     const en = withImage(stubPrinting({ id: "p-en", language: "EN", ...shared }), "img-en");
@@ -227,8 +222,6 @@ describe("resolveLock", () => {
   });
 
   it("keeps the engine's language read when no language is stated", () => {
-    // The mixed-stack setting: nobody said what language to expect, so the
-    // pixels decide.
     const shared = { shortCode: "OGN-010", cardId: "card-10" };
     const sc = withImage(stubPrinting({ id: "p-sc", language: "SC", ...shared }), "img-sc");
     const en = withImage(stubPrinting({ id: "p-en", language: "EN", ...shared }), "img-en");
@@ -259,9 +252,6 @@ describe("resolveLock", () => {
   });
 
   it("auto-adds the unmarked printing when a promo stamp is the only other difference", () => {
-    // The reported case: normal, foil and foil-promo on one render always
-    // opened the picker. The stamp band reports a stamp when it sees one, so
-    // an abstention means there was none.
     const shared = { shortCode: "OGN-012", cardId: "card-12" };
     const normal = withImage(stubPrinting({ id: "p-normal", ...shared }), "img-a");
     const foil = withImage(stubPrinting({ id: "p-foil", finish: "foil", ...shared }), "img-a");
@@ -333,9 +323,6 @@ describe("resolveLock", () => {
   });
 
   it("auto-adds the normal finish for an unresolved single-render artwork with a foil pair", () => {
-    // Single-render artworks never run the disambiguation stage, so their
-    // locks arrive unresolved; a finish-only pair must still not open the
-    // picker.
     const shared = { shortCode: "OGN-005", cardId: "card-5" };
     const normal = withImage(
       stubPrinting({ id: "p-normal", finish: "normal", ...shared }),

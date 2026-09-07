@@ -23,18 +23,9 @@ import { useListEntriesStore } from "@/stores/list-entries-store";
 export interface UseListEntryBrowserDataParams {
   kind: ListKind;
   entries: ListEntryDetailResponse[];
-  /** True when the library toggle is on (catalog mode). Never true for copy-kind lists. */
   showLibrary: boolean;
 }
 
-/**
- * Data pipeline for `ListEntryBrowser`: resolves list entries to printings,
- * runs the browse-mode (list-scoped) and add-mode (full catalog) `useCardData`
- * pipelines, merges them by `showLibrary`, and builds the grid items + per-
- * entry lookups the browser renders from.
- * @param params - The list kind, its entries, and whether library (catalog) mode is active.
- * @returns Flat object of every value the list entry browser's data layer produces.
- */
 export function useListEntryBrowserData({
   kind,
   entries,
@@ -50,25 +41,16 @@ export function useListEntryBrowserData({
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
 
   const { filters, sortBy, sortDir, groupBy, groupDir, hasActiveFilters } = useFilterValues();
-  // List surfaces lock the view to the list's kind — a card-kind list
-  // displays as cards, printing-kind as printings, copy-kind as copies.
-  // The filter toolbar hides the view-mode toggle entirely on these pages
-  // so there's no way to land on a mismatched view.
   const view: "cards" | "printings" | "copies" = kindToView(kind);
-  // useCardData and CardCell only know "cards" | "printings". The catalog
-  // pipeline still operates on printings; we expand to one-per-entry below.
+  // useCardData and CardCell only support "cards" | "printings"; "copies" expands per-entry below.
   const dataView: "cards" | "printings" = view === "copies" ? "printings" : view;
 
-  // Resolve each entry to a printing for the catalog filter pipeline. Card-
-  // targeted entries fall back to the card's first known printing. Entries we
-  // can't resolve (printing missing from catalog) are dropped.
   const { listPrintings, entriesByPrintingId } = collectListPrintings(
     entries,
     printingsById,
     printingsByCardId,
   );
 
-  // Browse-mode pipeline (scoped to entries on the list).
   const {
     sortedCards: listSortedCards,
     printingsByCardId: listPrintingsByCardId,
@@ -87,21 +69,15 @@ export function useListEntryBrowserData({
     sortDir,
     view: dataView,
     groupBy,
-    // Browse mode hides the catalog-wide owned/customTags sections (see
-    // LIST_HIDDEN_FILTER_SECTIONS), so the owned-count map wouldn't drive
-    // any visible UI here.
     ownedCountByPrinting: undefined,
     favoriteMarketplace: display.favoriteMarketplace,
     prices: display.prices,
-    // Meta feeds the filter chrome only for the active mode (see the
-    // showLibrary ternaries below) — skip the counts pass for the other one.
     metaEnabled: !showLibrary,
     keywordReverseMap,
     channels,
   });
 
-  // Add-mode pipeline (full catalog). Computed unconditionally so toggling the
-  // mode is cheap — `useCardData` is memoized by its inputs.
+  // Computed unconditionally (not gated on showLibrary) so useCardData's memoization keeps toggling cheap.
   const {
     sortedCards: catalogSortedCards,
     printingsByCardId: catalogPrintingsByCardId,
@@ -120,16 +96,11 @@ export function useListEntryBrowserData({
     sortDir,
     view: dataView,
     groupBy,
-    // Only thread the owned-count map when the owned-bucket filter is
-    // actually active. Otherwise the global map mutates on every +/- and
-    // invalidates this hook's "use memo" cache, rebuilding every cell's
-    // siblings / priceRange refs on every entry mutation. Mirrors the
-    // guards in /cards and /collections.
+    // Threaded only when the owned-bucket filter is active: otherwise the global map
+    // mutates on every +/- and invalidates this hook's memoization every entry mutation.
     ownedCountByPrinting: filters.ownedFilter.length > 0 ? ownedCountByPrinting : undefined,
     favoriteMarketplace: display.favoriteMarketplace,
     prices: display.prices,
-    // Same gating as the browse pipeline above, inverted: full-catalog meta
-    // is only rendered in library (add) mode.
     metaEnabled: showLibrary,
     keywordReverseMap,
     channels,
@@ -145,33 +116,17 @@ export function useListEntryBrowserData({
   const totalUniqueCards = showLibrary ? catalogTotalUniqueCards : listTotalUniqueCards;
   const filteredCount = showLibrary ? catalogFilteredCount : listFilteredCount;
 
-  // User-scoped fan: for card-kind lists we want the fan + detail pane to
-  // show every printing of the card *from the global catalog*, but limited
-  // to the user's preferred languages so the user doesn't see foreign-
-  // language reprints they aren't interested in. Falls back to the full
-  // catalog map when the user has no language preference set.
   const userLanguages = useDisplayStore((state) => state.languages);
   const userScopedPrintingsByCardId = filterPrintingsByLanguages(printingsByCardId, userLanguages);
 
-  // Items + per-tile entry lookup. Copies view expands one tile per entry so
-  // the user sees every physical copy separately; other views collapse to one
-  // tile per printing. Add mode iterates over the catalog (one tile per
-  // printing) — no per-entry expansion since most catalog tiles have no entry.
   const { items, entryByItemId } = showLibrary
     ? buildItemsFromCatalog(sortedCards)
     : buildItems(view, sortedCards, entriesByPrintingId);
 
-  // ── Entry lookup for library mode + quantity display ─────────────────
-  // Keyed by cardId on card-kind lists and printingId on printing-kind lists.
-  // Quantity comes straight from `entry.quantity`. Mutations write to the
-  // query cache optimistically (see useBulkAddListEntries / useUpdateListEntry),
-  // so rapid +/- clicks reflect immediately without a separate pending store.
   const entryByKey = buildEntryByKey(kind, entries);
 
-  // Feed the per-cell entry store so cells can self-subscribe by key without
-  // taking parent-derived maps as unstable props. Effect deps include the
-  // recomputed maps directly — when entries don't change, the upstream maps'
-  // identities are stable across renders.
+  // Effect deps are the recomputed maps directly: their identities stay stable across
+  // renders when entries don't change, so cells can self-subscribe via the store.
   useEffect(() => {
     useListEntriesStore.getState().setEntries(entryByItemId, entryByKey);
   }, [entryByItemId, entryByKey]);

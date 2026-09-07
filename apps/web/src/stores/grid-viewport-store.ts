@@ -1,22 +1,11 @@
 import { create } from "zustand";
 
-/**
- * Card-grid measurements published by the active grid so the toolbar's column
- * controls can read them.
- *
- * These are viewport facts, not preferences: `useResponsiveColumns` derives
- * them from the measured container width on every resize, and they mean nothing
- * on the next visit. They lived in the display store, which is a persisted
- * preferences store, so every resize woke every preference subscriber (the
- * server sync among them) with a change that could never be saved. Keeping them
- * here means a resize only wakes the two toolbar controls that care.
- */
+// Viewport facts, not preferences: useResponsiveColumns derives these on every
+// resize and they mean nothing on the next visit. Kept out of the persisted
+// display store so a resize doesn't wake every preference subscriber.
 interface GridViewportState {
-  /** Most columns the container can fit at the minimum card width. */
   physicalMax: number;
-  /** Fewest columns the container can fit at the maximum card width. */
   physicalMin: number;
-  /** Column count the breakpoint ladder picks when the user hasn't chosen one. */
   autoColumns: number;
   setMeasurements: (measurements: {
     physicalMax: number;

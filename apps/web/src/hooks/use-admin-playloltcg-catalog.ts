@@ -15,19 +15,15 @@ import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-/** One filtered page of the playloltcg catalogue. */
 export interface PlayloltcgCatalogParams {
   page?: number;
   search?: string;
   triage?: MetaCatalogTriage;
   status?: PlayloltcgStatus;
   minPlayers?: number;
-  /** Inclusive `YYYY-MM-DD` bounds; the source's start is a calendar day. */
   dateFrom?: string;
   dateTo?: string;
-  /** Only ever true or absent — see the note in the fetcher. */
   missing?: boolean;
-  /** Only ever true or absent — see the note in the fetcher. */
   awaitingResults?: boolean;
   sort?: MetaCatalogSort;
   direction?: MetaCatalogSortDirection;
@@ -50,9 +46,7 @@ const fetchPlayloltcgCatalog = createServerFn({ method: "GET" })
       dateTo: data.dateTo,
       sort: data.sort,
       direction: data.direction,
-      // The two flag filters are coerced from query strings on the way in, and
-      // "false" coerces to true, so an off toggle has to be absent rather than
-      // false.
+      // Query strings coerce "false" to true; an off toggle must be absent, never false.
       missing: data.missing === true ? true : undefined,
       awaitingResults: data.awaitingResults === true ? true : undefined,
     }),
@@ -97,7 +91,6 @@ const dismissFn = createServerFn({ method: "POST" })
     await apiOrpcClient(adminMetaCatalogContract, context.cookie).playloltcgDismiss(data);
   });
 
-/** A dismiss moves the row out of the untriaged count the funnel reads. */
 const dismissInvalidates = [
   queryKeys.admin.meta.playloltcgCatalogue,
   queryKeys.admin.meta.syncStatus.prefix,
@@ -117,11 +110,6 @@ const undismissFn = createServerFn({ method: "POST" })
     await apiOrpcClient(adminMetaCatalogContract, context.cookie).playloltcgUndismiss(data);
   });
 
-/**
- * Removes the ignore key, putting the row back in the new queue.
- *
- * @returns The mutation.
- */
 export function useUndismissPlayloltcgEvent() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { activityShopId: number }) => undismissFn({ data: vars }),
@@ -136,12 +124,6 @@ const fetchEventFn = createServerFn({ method: "POST" })
     apiOrpcClient(adminMetaCatalogContract, context.cookie).playloltcgFetchEvent(data),
   );
 
-/**
- * Pulls one accepted event's results now instead of waiting for its next
- * recheck.
- *
- * @returns The mutation; resolves with what the fetch did.
- */
 export function useFetchPlayloltcgEvent() {
   return useMutationWithInvalidation<MetaSyncTriggerResult, { activityShopId: number }>({
     mutationFn: (vars) => fetchEventFn({ data: vars }),

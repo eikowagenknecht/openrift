@@ -102,11 +102,7 @@ interface StubLinkProps {
   children?: ReactNode;
 }
 
-/**
- * A `Link` that renders the href it would navigate to, search params included,
- * so a test can assert what a "+ Add" link prefills rather than only that it
- * exists.
- */
+/** Renders the href it would navigate to, search params included. */
 export function StubLink({ to = "", params, search, className, children }: StubLinkProps) {
   let path = to;
   for (const [key, value] of Object.entries(params ?? {})) {

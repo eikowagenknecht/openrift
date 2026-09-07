@@ -9,12 +9,7 @@ import {
   quadArea,
 } from "@/lib/scan-aim-hint";
 
-/**
- * A frame with nothing to complain about: card well framed, sharp, matched
- * far above the accept floor. Every case below changes one field of it.
- *
- * @returns The baseline input with the overrides applied.
- */
+/** A frame with nothing to complain about; each test overrides one field. */
 function frame(overrides: Partial<AimHintInput> = {}): AimHintInput {
   return {
     active: true,
@@ -53,7 +48,6 @@ describe("quadArea", () => {
   });
 
   it("measures a rotated quad", () => {
-    // A diamond with diagonals of 2, so half the 2x2 bounding box.
     expect(
       quadArea([
         { x: 1, y: 0 },
@@ -134,8 +128,6 @@ describe("deriveAimHint", () => {
   });
 
   it("settling outranks the stale readings behind it", () => {
-    // Mid-swap the last processed frame is whatever was there before the card
-    // moved, so its framing and focus say nothing about now.
     expect(
       deriveAimHint(frame({ settling: true, hasCandidate: false, focus: 5, bestInliers: 0 }))?.kind,
     ).toBe("settling");
@@ -272,7 +264,6 @@ describe("createAimHintSmoother", () => {
     const smoother = createAimHintSmoother({ appearAfterMs: 100, minVisibleMs: 200 });
     expect(smoother.update(BLURRY, 0)).toBeNull();
     expect(smoother.update(BLURRY, 100)).toEqual(BLURRY);
-    // Visible since 100, so the replacement may land from 300 onwards.
     expect(smoother.update(TOO_FAR, 150)).toEqual(BLURRY);
     expect(smoother.update(TOO_FAR, 299)).toEqual(BLURRY);
     expect(smoother.update(TOO_FAR, 300)).toEqual(TOO_FAR);
@@ -291,8 +282,6 @@ describe("createAimHintSmoother", () => {
     expect(smoother.update(BLURRY, 350)).toEqual(BLURRY);
     expect(smoother.update(TOO_FAR, 800)).toEqual(BLURRY);
     expect(smoother.update(TOO_FAR, 1549)).toEqual(BLURRY);
-    // Visible since 350, replaced once both 1200ms on screen and 350ms of
-    // dwell have passed.
     expect(smoother.update(TOO_FAR, 1550)).toEqual(TOO_FAR);
   });
 

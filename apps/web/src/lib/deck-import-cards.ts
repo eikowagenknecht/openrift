@@ -1,7 +1,6 @@
 import type { DeckZone } from "@openrift/shared";
 
-/** One deck-card row produced by an import: the shape both the server
- * save-cards mutation and the local-decks store accept. */
+/** The shape both the server save-cards mutation and the local-decks store accept. */
 export interface ImportedDeckCard {
   cardId: string;
   zone: DeckZone;
@@ -9,20 +8,13 @@ export interface ImportedDeckCard {
   preferredPrintingId: string | null;
 }
 
-/** The slice of a matched import entry the dedupe needs. */
 interface MatchedEntryLike {
   zone: DeckZone;
   entry: { quantity: number };
   resolvedCard: { cardId: string; preferredPrintingId: string | null } | null;
 }
 
-/**
- * Group matched import entries by cardId + zone + preferredPrintingId,
- * summing quantities. Printing-specific matches (piltover/tts short codes)
- * become distinct rows from any default-art rows of the same card. Entries
- * without a resolved card are skipped.
- * @returns The deduped deck-card rows.
- */
+/** Groups by cardId + zone + preferredPrintingId, so a printing-specific match (short code) stays a distinct row from a default-art match of the same card. */
 export function dedupeMatchedEntries(entries: readonly MatchedEntryLike[]): ImportedDeckCard[] {
   const cardMap = new Map<string, ImportedDeckCard>();
   for (const entry of entries) {

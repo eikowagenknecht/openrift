@@ -23,34 +23,19 @@ import { serverCache } from "@/lib/server-cache";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
-// Every read here is public and identical for every visitor, so the SSR
-// responses go through the shared `serverCache` rather than being refetched
-// per request.
-
-/** One page of a legend's record, which is a scope plus which page of it. */
 export type MetaLegendPageQuery = MetaScopeQuery & { page?: number };
 
-/**
- * Drops the fields a caller left open, so an absent bound never reaches the
- * wire as an empty query param and the cache key matches what was asked.
- *
- * @returns The query with only the fields that are set.
- */
 function narrow<T extends object>(query?: T): T {
   return Object.fromEntries(
     Object.entries(query ?? {}).filter(([, value]) => value !== undefined),
   ) as T;
 }
 
-/**
- * The validator for a query whose every field is optional. A bare GET to the
- * server function's own endpoint arrives with no payload at all.
- */
+/** Defaults to {} because a bare GET to the endpoint arrives with no payload. */
 export function optionalQuery<T extends object>(input?: T): T {
   return input ?? ({} as T);
 }
 
-/** A `serverCache` key segment per field, so two windows cannot share an entry. */
 function cacheKeyFor(query: Record<string, unknown>): unknown[] {
   return Object.entries(query)
     .toSorted(([left], [right]) => left.localeCompare(right))
@@ -67,12 +52,6 @@ const fetchMetaEvents = createServerFn({ method: "GET" })
     }),
   );
 
-/**
- * The archived events inside an inclusive window of event dates. Absent bounds
- * still ask for the whole archive, which no page does.
- *
- * @returns Query options for the events in that window.
- */
 export function metaEventsQueryOptions(range?: MetaDateRange) {
   const narrowed = narrow(range);
   return queryOptions({
@@ -96,12 +75,6 @@ const fetchMetaCounts = createServerFn({ method: "GET" })
     }),
   );
 
-/**
- * How much the archive holds: the standings rows and published decks inside the
- * query, plus the archive's own all-time event numbers.
- *
- * @returns Query options for those counts.
- */
 export function metaCountsQueryOptions(query?: MetaCountsQuery) {
   const narrowed = narrow(query);
   return queryOptions({
@@ -138,8 +111,7 @@ const fetchMetaEvent = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: slug }): Promise<MetaEventDetailResponse> => {
-    // 404 maps to the NOT_FOUND sentinel the route boundary expects — the
-    // ApiError prototype doesn't survive the server-function boundary.
+    // 404 maps to NOT_FOUND: the ApiError prototype doesn't survive the server-function boundary.
     const { error, data } = await safe(apiOrpcClient(metaContract, context.cookie).event({ slug }));
     if (error) {
       if (isDefinedError(error) && error.code === "NOT_FOUND") {
@@ -172,13 +144,6 @@ const fetchMetaDecks = createServerFn({ method: "GET" })
     }),
   );
 
-/**
- * The archived decks a page renders: an inclusive window of event dates, one
- * legend or one player, and a row cap. `total` counts the whole match, so a
- * capped page can still say how much of it it is showing.
- *
- * @returns Query options for those decks.
- */
 export function metaDecksQueryOptions(query?: MetaDeckQuery) {
   const narrowed = narrow(query);
   return queryOptions({
@@ -202,14 +167,6 @@ const fetchMetaDeckCards = createServerFn({ method: "GET" })
     }),
   );
 
-/**
- * What every archived list is made of, for the browser's collection overlay,
- * under the same window as {@link metaDecksQueryOptions}. Fetched on its own
- * rather than folded into the deck payload: it is several times the size, and
- * only a signed-in reader has anything to compare it against.
- *
- * @returns Query options for the card index in that window.
- */
 function metaDeckCardsQueryOptions(range?: MetaDateRange) {
   const narrowed = narrow(range);
   return queryOptions({
@@ -282,12 +239,6 @@ const fetchMetaLegend = createServerFn({ method: "GET" })
     return data;
   });
 
-/**
- * One legend's record inside a scope: its counts, its best placings, and one
- * page of the record itself.
- *
- * @returns Query options for that page.
- */
 export function metaLegendQueryOptions(slug: string, query?: MetaLegendPageQuery) {
   const narrowed = narrow(query);
   return queryOptions({

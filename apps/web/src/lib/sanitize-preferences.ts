@@ -17,16 +17,8 @@ const VALID_DEFAULT_CARD_VIEWS = new Set<string>(["cards", "printings"]);
 const VALID_CURRENCIES = new Set<string>(CURRENCIES);
 
 /**
- * Filters a persisted language array to non-empty strings and rewrites codes
- * retired by a rename. Migration 204 handles the server-side copy of this
- * array; localStorage is out of its reach, so the remap happens on read.
- * Deduped because the contract rejects repeats, and a user holding both the old
- * and new code would otherwise end up with two of the same.
- *
- * Languages are DB rows rather than a compile-time enum, so this only rewrites
- * known-dead codes and deliberately doesn't validate the rest.
- * @param value Raw persisted value, any shape.
- * @returns The cleaned code list, or null when the input isn't an array.
+ * Rewrites codes retired by a rename (localStorage isn't covered by the DB
+ * migration for it) and dedupes, since the contract rejects repeated codes.
  */
 function sanitizeLanguageList(value: unknown): string[] | null {
   if (!Array.isArray(value)) {
@@ -43,18 +35,12 @@ interface SanitizedOverrides {
   maxColumns?: number | null;
 }
 
-/**
- * Sanitizes persisted data (localStorage) into the overrides format.
- * Handles both the new `overrides` shape and the legacy flat shape.
- * @returns Sanitized overrides, or null if the input is not an object.
- */
 export function sanitizeOverrides(data: unknown): SanitizedOverrides {
   if (typeof data !== "object" || data === null) {
     return { overrides: { ...NULL_OVERRIDES } };
   }
   const record = data as Record<string, unknown>;
 
-  // New format: has an `overrides` key
   if (typeof record.overrides === "object" && record.overrides !== null) {
     const raw = record.overrides as Record<string, unknown>;
     return {
@@ -66,7 +52,6 @@ export function sanitizeOverrides(data: unknown): SanitizedOverrides {
     };
   }
 
-  // Legacy flat format: migrate to overrides
   return {
     overrides: sanitizeLegacyFlat(record),
     maxColumns:
@@ -76,11 +61,7 @@ export function sanitizeOverrides(data: unknown): SanitizedOverrides {
   };
 }
 
-/**
- * Sanitizes server response data (UserPreferencesResponse) into overrides.
- * Missing fields stay undefined so hydration preserves the localStorage value.
- * @returns Partial display overrides (undefined = server had no value for this field).
- */
+/** Missing fields stay undefined so hydration keeps the existing localStorage value. */
 export function sanitizeServerResponse(data: unknown): Partial<DisplayOverrides> {
   if (typeof data !== "object" || data === null) {
     return {};
@@ -131,10 +112,6 @@ export function sanitizeServerResponse(data: unknown): Partial<DisplayOverrides>
   return result;
 }
 
-/**
- * Sanitizes a theme value from server or persisted data.
- * @returns The theme preference, or null for auto/default.
- */
 export function sanitizeTheme(value: unknown): Theme | null {
   if (typeof value === "string" && VALID_THEMES.has(value)) {
     return value as Theme;
@@ -142,10 +119,6 @@ export function sanitizeTheme(value: unknown): Theme | null {
   return null;
 }
 
-/**
- * Sanitizes a palette value from server or persisted data.
- * @returns The palette preference, or null for default.
- */
 export function sanitizePalette(value: unknown): Palette | null {
   if (typeof value === "string" && VALID_PALETTES.has(value)) {
     return value as Palette;
@@ -153,22 +126,9 @@ export function sanitizePalette(value: unknown): Palette | null {
   return null;
 }
 
-// ── Persisted-blob migrations ───────────────────────────────────────────────
-//
-// These read straight off a persisted localStorage/cookie blob rather than off
-// a typed state object, because a zustand `merge` is the only shape-migration
-// hook the stores have (an explicit persist `version` would make an older
-// bundle discard a newer blob outright). They live here so the migration
-// ladders are reachable from a test.
+// Shape migrations go through zustand's `merge`, never a `version` bump: a version bump discards a newer persisted blob.
 
-/**
- * Reads the persisted card-count overlay flag, migrating the legacy
- * `catalogMode` tri-state that preceded it: "off" meant no overlay, while
- * "count" and "add" both surfaced counts.
- * @param data Raw persisted blob, any shape.
- * @param fallback Value to keep when the blob carries neither key.
- * @returns Whether catalog cards show owned counts.
- */
+/** Migrates the legacy `catalogMode` tri-state: "off" meant no overlay, "count" and "add" both meant show counts. */
 export function sanitizeCardsShowCounts(data: unknown, fallback: boolean): boolean {
   const record = asRecord(data);
   if (typeof record.cardsShowCounts === "boolean") {
@@ -184,73 +144,33 @@ export function sanitizeCardsShowCounts(data: unknown, fallback: boolean): boole
   return fallback;
 }
 
-/**
- * Reads the persisted grid/table choice, rejecting anything outside the union.
- * @param data Raw persisted blob, any shape.
- * @param fallback Value to keep when the blob carries no valid mode.
- * @returns The stored display mode.
- */
 export function sanitizeDisplayMode(data: unknown, fallback: DisplayMode): DisplayMode {
   const raw = asRecord(data).displayMode;
   return raw === "grid" || raw === "table" ? raw : fallback;
 }
 
-/**
- * Reads the persisted archived-deck browser layout.
- * @param data Raw persisted blob, any shape.
- * @param fallback Value to keep when the blob carries no valid view.
- * @returns The stored view.
- */
 export function sanitizeMetaDeckView(data: unknown, fallback: MetaDeckView): MetaDeckView {
   const raw = asRecord(data).metaDeckView;
   return raw === "list" || raw === "grid" ? raw : fallback;
 }
 
-/**
- * Reads the persisted filter-bar expansion flag.
- * @param data Raw persisted blob, any shape.
- * @param fallback Value to keep when the blob carries no boolean.
- * @returns Whether the filter bar starts expanded.
- */
 export function sanitizeFiltersExpanded(data: unknown, fallback: boolean): boolean {
   const raw = asRecord(data).filtersExpanded;
   return typeof raw === "boolean" ? raw : fallback;
 }
 
-/**
- * Reads the persisted docked-detail-pane flag. Blobs written before the pane
- * became opt-in carry no such key, so those users land on the default (closed)
- * and meet the card modal instead.
- * @param data Raw persisted blob, any shape.
- * @param fallback Value to keep when the blob carries no boolean.
- * @returns Whether the card detail pane stays docked beside the grid.
- */
+/** Blobs from before the pane was opt-in carry no key, so those users land on the closed default. */
 export function sanitizePaneDocked(data: unknown, fallback: boolean): boolean {
   const raw = asRecord(data).paneDocked;
   return typeof raw === "boolean" ? raw : fallback;
 }
 
-/**
- * Reads the persisted frosted-bars preference. Absent in every blob written
- * before the setting existed, which correctly falls back to off.
- * @param data Raw persisted blob, any shape.
- * @param fallback Value to use when the key is missing or not a boolean.
- * @returns The stored preference, or the fallback.
- */
 export function sanitizeFrostedBars(data: unknown, fallback: boolean): boolean {
   const raw = asRecord(data).frostedBars;
   return typeof raw === "boolean" ? raw : fallback;
 }
 
-/**
- * Reads the persisted tier-board tile size. Stored as a step index rather than
- * a pixel width so widening the ladder later can't strand a saved value between
- * two steps.
- * @param data Raw persisted blob, any shape.
- * @param stepCount How many steps the ladder currently has.
- * @param fallback Step to use when the key is missing or out of range.
- * @returns The stored step index, or the fallback.
- */
+/** Stored as a step index, not a pixel width, so widening the ladder later can't strand a saved value between two steps. */
 export function sanitizeTierTileStep(data: unknown, stepCount: number, fallback: number): number {
   const raw = asRecord(data).tierTileStep;
   return typeof raw === "number" && Number.isInteger(raw) && raw >= 0 && raw < stepCount
@@ -258,18 +178,11 @@ export function sanitizeTierTileStep(data: unknown, stepCount: number, fallback:
     : fallback;
 }
 
-/**
- * Reads the persisted theme preference, migrating the legacy `theme` key that
- * held it before the store split stored preference from resolved theme.
- * @param data Raw persisted blob, any shape.
- * @returns The theme preference, or null for auto/default.
- */
+/** Migrates the legacy `theme` key, used before the store split preference from resolved theme. */
 export function sanitizeThemePreference(data: unknown): Theme | null {
   const record = asRecord(data);
   return sanitizeTheme(record.preference === undefined ? record.theme : record.preference);
 }
-
-// ── Internal helpers ────────────────────────────────────────────────────────
 
 function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
@@ -289,12 +202,6 @@ function sanitizeCurrency(value: unknown): Currency | null {
   return null;
 }
 
-/**
- * Sanitizes a filter key list (top-level units, or the legacy hidden
- * sections). Keeps only non-empty strings and de-duplicates. Returns null for
- * anything that isn't an array so hydration falls back to the existing value.
- * @returns A de-duplicated list of keys, or null if the input is invalid.
- */
 function sanitizeFilterKeyList(value: unknown): string[] | null {
   if (!Array.isArray(value)) {
     return null;
@@ -306,13 +213,11 @@ function sanitizeFilterKeyList(value: unknown): string[] | null {
 }
 
 function sanitizeOverrideFields(record: Record<string, unknown>): DisplayOverrides {
-  // Migrate legacy `richEffects` → new granular settings
   const legacyRich = typeof record.richEffects === "boolean" ? record.richEffects : undefined;
 
   const showImages = typeof record.showImages === "boolean" ? record.showImages : null;
 
   const fancyFan = typeof record.fancyFan === "boolean" ? record.fancyFan : (legacyRich ?? null);
-  // Migrate old tristate ("none"/"static"/"animated") → boolean
   const foilEffect: boolean | null =
     typeof record.foilEffect === "boolean"
       ? record.foilEffect
@@ -384,10 +289,6 @@ function sanitizeCompletionScope(value: unknown): CompletionScopePreference | nu
   return Object.keys(result).length > 0 ? result : null;
 }
 
-/**
- * Migrate the old flat persisted shape (pre-overrides) to DisplayOverrides.
- * @returns Display overrides with legacy values mapped to the new shape.
- */
 function sanitizeLegacyFlat(record: Record<string, unknown>): DisplayOverrides {
   return sanitizeOverrideFields(record);
 }

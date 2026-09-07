@@ -34,8 +34,6 @@ describe("bucketFor", () => {
   });
 
   it("never returns 'partial' for size-1 cards", () => {
-    // Legends, battlefields, and [Unique] keyword cards have playset size 1 —
-    // there is no intermediate state between "none" and "full".
     expect(bucketFor(0, 1)).toBe("none");
     expect(bucketFor(1, 1)).toBe("full");
     expect(bucketFor(2, 1)).toBe("extra");
@@ -49,8 +47,6 @@ describe("applyOwnedBucketFilter", () => {
   });
 
   it("aggregates copies across all variants of the same card", () => {
-    // Two printings of the same card with 2 + 1 copies = full playset of 3.
-    // Both printings should survive a "full" filter — this is option (c).
     const cardId = "card-foo";
     const variantA = stubPrinting({ cardId });
     const variantB = stubPrinting({ cardId });
@@ -76,7 +72,6 @@ describe("applyOwnedBucketFilter", () => {
   });
 
   it("respects per-card-type playset sizes when bucketing", () => {
-    // Legends have playset size 1 — owning one copy is "full", not "extra".
     const legend = stubPrinting({ card: { type: "legend", keywords: [] } });
 
     const fullResult = applyOwnedBucketFilter([legend], ["full"], { [legend.id]: 1 });
@@ -89,8 +84,6 @@ describe("applyOwnedBucketFilter", () => {
 
 describe("applyOwnedBucketFilter — per-printing bucketing", () => {
   it("excludes a 0-owned variant even when another variant of the card is owned", () => {
-    // The printings-view bug: selecting every bucket but "none" should hide
-    // unowned printings, not surface them because a sibling variant is owned.
     const cardId = "card-foo";
     const owned = stubPrinting({ cardId });
     const unowned = stubPrinting({ cardId });
@@ -140,9 +133,7 @@ describe("applyOwnedBucketFilter — per-printing bucketing", () => {
     const unowned = stubPrinting({ cardId });
     const counts = { [owned.id]: 1, [unowned.id]: 0 };
 
-    // Default (card) mode: the card is "partial", so both variants survive.
     expect(applyOwnedBucketFilter([owned, unowned], ["partial"], counts)).toHaveLength(2);
-    // Printing mode: only the owned variant survives.
     expect(applyOwnedBucketFilter([owned, unowned], ["partial"], counts, "printing")).toHaveLength(
       1,
     );
@@ -167,30 +158,24 @@ describe("applyOwnedCountFilter", () => {
     const ten = stubPrinting();
     const counts = { [zero.id]: 0, [two.id]: 2, [ten.id]: 10 };
 
-    // min only: everything with at least 2 copies.
     expect(applyOwnedCountFilter([zero, two, ten], 2, null, counts).map((p) => p.id)).toEqual([
       two.id,
       ten.id,
     ]);
-    // max only: everything with at most 2 copies (includes the unowned card).
     expect(applyOwnedCountFilter([zero, two, ten], null, 2, counts).map((p) => p.id)).toEqual([
       zero.id,
       two.id,
     ]);
-    // both null: no constraint.
     expect(applyOwnedCountFilter([zero, two, ten], null, null, counts)).toHaveLength(3);
   });
 
   it("aggregates copies across variants in card mode but ranges each printing in printing mode", () => {
-    // One card, two variants: 2 + 1 = 3 copies total.
     const cardId = "card-foo";
     const variantA = stubPrinting({ cardId });
     const variantB = stubPrinting({ cardId });
     const counts = { [variantA.id]: 2, [variantB.id]: 1 };
 
-    // Card mode: the card's total (3) is in range, so both variants survive.
     expect(applyOwnedCountFilter([variantA, variantB], 3, 3, counts)).toHaveLength(2);
-    // Printing mode: only variantA (2 copies) falls in [2, 2].
     expect(
       applyOwnedCountFilter([variantA, variantB], 2, 2, counts, "printing").map((p) => p.id),
     ).toEqual([variantA.id]);
@@ -200,8 +185,6 @@ describe("applyOwnedCountFilter", () => {
     const tracked = stubPrinting();
     const untracked = stubPrinting();
 
-    // Only `tracked` is in the map; `untracked` defaults to 0 and is excluded
-    // by a min of 1.
     expect(
       applyOwnedCountFilter([tracked, untracked], 1, null, { [tracked.id]: 1 }).map((p) => p.id),
     ).toEqual([tracked.id]);
@@ -222,7 +205,6 @@ describe("maxOwnedCount", () => {
     const other = stubPrinting();
     const counts = { [variantA.id]: 2, [variantB.id]: 3, [other.id]: 4 };
 
-    // card-foo totals 5 across its two variants, beating `other`'s 4.
     expect(maxOwnedCount([variantA, variantB, other], counts)).toBe(5);
   });
 
@@ -232,7 +214,6 @@ describe("maxOwnedCount", () => {
     const variantB = stubPrinting({ cardId });
     const counts = { [variantA.id]: 2, [variantB.id]: 3 };
 
-    // Printing mode never sums variants, so the max is the largest single count.
     expect(maxOwnedCount([variantA, variantB], counts, "printing")).toBe(3);
   });
 });

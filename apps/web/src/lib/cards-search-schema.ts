@@ -3,12 +3,8 @@ import { z } from "zod";
 
 import { filterSearchSchema } from "@/lib/search-schemas";
 
-// `customTags` is a deck-builder concept (see CARD_BROWSER_HIDDEN_LOGGED_IN in
-// card-browser.tsx). The /cards UI hides the section, but the param still ends
-// up in the URL when navigating from a deck → /cards with preserved search.
-// Without assignments wired in, the filter matches zero printings and the grid
-// goes empty. Omit it from the schema so the existing beforeLoad redirect
-// strips it from the URL on entry.
+// `customTags` can leak in from a deck → /cards navigation without
+// `customTagAssignments` wired in, matching zero printings; omit it here so beforeLoad strips it.
 export const cardsSearchSchema = filterSearchSchema.omit({ customTags: true }).extend({
   printingId: z.string().optional().catch(undefined),
 });

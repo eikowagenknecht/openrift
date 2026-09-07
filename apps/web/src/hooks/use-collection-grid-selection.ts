@@ -44,9 +44,6 @@ interface UseCollectionGridSelectionParams {
   stacked: boolean;
   mode: "browse" | "select";
   setSelectMode: (value: boolean) => void;
-  // ── Selection state, owned by the caller's useCardSelection() call — passed
-  //    through rather than called again here so `clearSelection` etc. keep the
-  //    single reference the rest of CollectionGrid (and its effect deps) use.
   selected: Set<string>;
   toggleSelect: (itemId: string) => void;
   toggleStack: (copyIds: string[]) => void;
@@ -62,16 +59,6 @@ interface UseCollectionGridSelectionParams {
   openAction: (action: CollectionContextAction, copyIds: string[]) => void;
 }
 
-/**
- * Bundles the collection grid's click handlers (row click, sibling click,
- * stack toggle, shift-range, right-click context action), the drag-preview
- * summary effect, and the row-actions-store registration effect that lets the
- * virtualized grid's cells dispatch these handlers without taking unstable
- * closures as props. Selection state itself (`selected`, `clearSelection`,
- * etc.) is owned by the caller so its references stay stable for the rest of
- * CollectionGrid; this hook only consumes them.
- * @returns The tile→copy-id map the row wiring needs (`allCopyIdsByTile`).
- */
 export function useCollectionGridSelection({
   items,
   stackByItemId,
@@ -97,10 +84,8 @@ export function useCollectionGridSelection({
   setLendTarget,
   openAction,
 }: UseCollectionGridSelectionParams) {
-  // In "cards" view, collect all copy IDs and printing IDs per tile for
-  // selection/popover. Keyed by the tile (cardId, or cardId|set / cardId|rarity
-  // when split) so a card owned across sets keeps each set tile's copies
-  // separate instead of pooling them under one card.
+  // Keyed by tile (cardId, or cardId|set / cardId|rarity when split) so a card
+  // owned across sets keeps each set tile's copies separate.
   const allCopyIdsByTile = new Map<string, string[]>();
   const allPrintingIdsByTile = new Map<string, string[]>();
   if (dataView === "cards") {
@@ -121,21 +106,13 @@ export function useCollectionGridSelection({
     }
   }
 
-  // ── Grid click handlers ─────────────────────────────────────────────
-  // When a card is split into per-set / per-rarity tiles, multiple cells share
-  // a cardId, so click selection must navigate by printing to land on the tile
-  // the user clicked rather than the card's first tile.
+  // Multiple cells can share a cardId when split into tiles, so selection
+  // must navigate by printing to land on the tile the user clicked.
   const findBy =
     dataView === "cards" && !splitsCardIntoTiles(tileGroupBy) ? "card" : ("printing" as const);
 
-  // Drag-overlay summary: walk items + selection for the first three unique
-  // printings whose copies are selected (the fan) plus the selected-tile count
-  // (the overlay label, e.g. "3 printings"). Fed into useDragPreviewStore here
-  // so cells can subscribe to the fan with a stable ref — a +/- click leaves
-  // `selected` untouched, so the same printing refs come back from the walk
-  // and we skip the store update via the shallow compare below. Without that
-  // compare, cells would re-render on every +/- since the store would publish
-  // a fresh array reference every render.
+  // Skips the store update when the walk returns the same printing refs, or
+  // cells re-render on every +/- click.
   const dragSummary = computeDragSelectionSummary({
     mode,
     selected,
@@ -155,10 +132,8 @@ export function useCollectionGridSelection({
     }
   });
 
-  // `itemId` is what pins the click to the tile it came from: copies view is one
-  // tile per physical copy, so a card with several copies has several tiles
-  // carrying the same printing, and a printing lookup would always land on the
-  // first of them.
+  // `itemId` pins the click to its tile: copies view has one tile per copy, so
+  // a printing lookup alone would always land on the first of them.
   const handleGridCardClick = (printing: Printing, itemId?: string) => {
     useAddModeStore.getState().closeVariants();
     useSelectionStore.getState().selectCard(printing, items, findBy, { itemId });
@@ -179,8 +154,7 @@ export function useCollectionGridSelection({
     }
   };
 
-  // Shift-click range select. In stacked views a tile stands for every copy of
-  // the card (scoped to the tile when split by set / rarity), so the range
+  // In stacked views a tile stands for every copy of the card, so the range
   // accumulates copy ids; in copies view the tile is the copy.
   const shiftSelectRange = (itemId: string) => {
     const rangeIds = computeShiftRange({
@@ -210,9 +184,7 @@ export function useCollectionGridSelection({
     setLastSelectedItemId(itemId);
   };
 
-  // Right-click menu action on a card. See resolveContextActionTarget for the
-  // browse-vs-select rules; here we apply any selection narrowing and open the
-  // matching dialog on the resolved copy ids.
+  // See resolveContextActionTarget for the browse-vs-select rules.
   const handleContextAction = (
     itemId: string,
     action: CollectionContextAction,
@@ -223,11 +195,7 @@ export function useCollectionGridSelection({
       return;
     }
     // Lend targets one printing, never the multi-selection: a loan row is a
-    // single printing + quantity (ADR-039). It follows the cell's *displayed*
-    // printing (sibling swaps included) when that variant has copies in scope,
-    // falling back to the tile's representative stack — the dialog names the
-    // printing either way. The stepper is capped to the copies in view; the
-    // server enforces the true unclaimed bound.
+    // single printing + quantity.
     if (action === "lend") {
       const lendStack = (printing && stackByPrintingId.get(printing.id)) ?? stack;
       setLendTarget({
@@ -277,9 +245,8 @@ export function useCollectionGridSelection({
   // tile's own set so it can't add or remove a printing from another set.
   const openVariantsForTile = handleOpenVariants
     ? (printing: Printing, anchorEl: HTMLElement, intent: VariantPopoverIntent) =>
-        // Cards view shows every variant of the card (scoped to the tile's set
-        // when split by set); printings/copies view scopes to the one printing
-        // the tile stands for.
+        // Cards view shows every variant of the card; printings/copies view
+        // scopes to the one printing the tile stands for.
         handleOpenVariants(printing, anchorEl, intent, tileGroupBy === "set", dataView !== "cards")
     : undefined;
 

@@ -9,10 +9,8 @@ export const Route = createLazyFileRoute("/")({
   component: LandingRoute,
 });
 
-// The landing stays outside `_app` so the hero gradient spans the viewport
-// rather than the container width, so it composes the header and footer itself.
-// Only signed-out visitors get here: `__root` beforeLoad redirects a session to
-// /cards, which is also what preloads the session the header renders from.
+// Outside `_app` so the hero gradient spans the full viewport width; it composes
+// the header and footer itself. Only signed-out visitors reach it.
 function LandingRoute() {
   return (
     <>

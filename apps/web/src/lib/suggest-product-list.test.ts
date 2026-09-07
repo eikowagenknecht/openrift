@@ -15,7 +15,6 @@ describe("suggestListIdForProduct", () => {
 
   it("falls back to a case-insensitive name match when the slug was edited", () => {
     const lists = [list("a", "Origins Starter Set")];
-    // Admin renamed the product slug but kept the display name.
     const product = { name: "origins starter set  ", slug: "custom-slug" };
     expect(suggestListIdForProduct(lists, product)).toBe("a");
   });

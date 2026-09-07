@@ -33,11 +33,7 @@ export const Route = createLazyFileRoute("/_app/stage")({
   component: StagePage,
 });
 
-/**
- * Dark stand-in while the deck or catalog query settles, so no white flash
- * reaches a capture.
- * @returns The black stage placeholder.
- */
+// Dark stand-in while the deck or catalog query settles, so no white flash reaches a capture.
 function StageFallback() {
   return <div className="fixed inset-0 z-50 bg-[#08090c]" />;
 }
@@ -49,18 +45,16 @@ function StagePage() {
   const { data: presets } = useStagePresets();
   const presetApplied = useRef(false);
 
-  // Dressing arrives once, on the first list the query hands back. Deliberately
-  // not re-run when the URL or the list changes later: a preset is a starting
-  // point, and reapplying it would undo every switch flipped since — including
-  // mid-recording.
+  // Applied once from the first preset list; re-running later would undo
+  // switches flipped since, including mid-recording.
   useEffect(() => {
     if (presetApplied.current || preset === undefined || presets === undefined) {
       return;
     }
     presetApplied.current = true;
     const found = presets.find((candidate) => candidate.id === preset);
-    // An id that no longer resolves (deleted, or someone else's) is silently
-    // dropped: a stale bookmark opens the stage undressed rather than failing.
+    // An id that doesn't resolve (deleted, or someone else's) is dropped
+    // silently: a stale bookmark opens the stage undressed.
     if (found) {
       applyStagePresetConfig(found.config);
     }
@@ -146,9 +140,7 @@ function StagePage() {
     );
   }
 
-  // The builder's card browser reads its filters from the URL through the
-  // provider, so it has to sit inside one. Only this branch needs it — a
-  // presentation shows a fixed list and never filters.
+  // Only this branch needs FilterSearchProvider: a presentation shows a fixed list and never filters.
   return (
     <FilterSearchProvider value={search}>
       <StageBuilder initialIds={cards ?? []} />
@@ -156,29 +148,14 @@ function StagePage() {
   );
 }
 
-/**
- * The stage's control surface: assemble a queue of cards, then send it to one
- * of the two outputs — a full-screen show on this screen, or the OBS browser
- * source. Reached at `/stage` with nothing to present, and on leaving a queue
- * presentation (which brings its queue back here for editing).
- *
- * The builder is an ordinary app page and carries the usual header and footer.
- * Only the show itself is chrome-free, and it gets there by covering the shell
- * rather than by living outside it. Laid out in the shared
- * {@link BuilderWorkbench}, the same shell the tier-list builder uses.
- *
- * @returns The stage builder page.
- */
+// The show is chrome-free by covering the shell, not by living outside it;
+// this builder stays an ordinary page with the usual header and footer.
 function StageBuilder({ initialIds }: { initialIds: readonly string[] }) {
   const navigate = useNavigate();
   const queued = usePresentQueueStore((state) => state.ids.length);
 
-  // Adopt whatever queue the URL arrived with, once, then keep `?cards=`
-  // tracking every edit — the URL in the bar is the draft's one persistent
-  // home, so a refresh mid-build reopens the same queue and a copied link
-  // carries it. Subscribed after the load so arrival doesn't rewrite the URL
-  // it just read, and unsubscribed before the reset so tearing the draft down
-  // on unmount can't blank the `cards` the next branch is presenting.
+  // Loads the URL's queue once, then keeps `?cards=` synced to it. Subscribed
+  // after the load, and unsubscribed before the reset, to avoid feedback loops.
   useEffect(() => {
     usePresentQueueStore.getState().load(initialIds);
     const unsubscribe = usePresentQueueStore.subscribe((state, previous) => {

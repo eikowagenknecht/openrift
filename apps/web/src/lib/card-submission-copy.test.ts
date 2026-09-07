@@ -53,9 +53,7 @@ describe("copy coverage", () => {
     }
   });
 
-  it("shows the same wording for not_applied and rejected", () => {
-    // The split between them is an internal abuse signal, not something to
-    // point at a contributor who simply could not be verified.
+  it("shows the same wording for not_applied and rejected, to hide the internal abuse signal", () => {
     expect(submissionStatusLabels.not_applied).toBe(submissionStatusLabels.rejected);
     expect(submissionStatusBadgeVariant.not_applied).toBe(submissionStatusBadgeVariant.rejected);
   });

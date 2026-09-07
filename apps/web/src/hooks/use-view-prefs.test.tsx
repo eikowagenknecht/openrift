@@ -21,11 +21,6 @@ beforeEach(() => {
   resetLocalStore();
 });
 
-/**
- * Wraps children in a surface context, optionally supplying a resolved
- * (cookie) view-prefs blob to simulate the SSR-resolved value.
- * @returns A wrapper component for `renderHook`'s `wrapper` option.
- */
 function makeWrapper(
   surface: string | null,
   resolved?: Parameters<typeof sanitizeViewPrefsBlob>[0],
@@ -106,7 +101,6 @@ describe("useViewPrefsWriter", () => {
       result.current.setGroupBy("rarity");
       result.current.setGroupDir("desc");
     }).not.toThrow();
-    // No-ops must not touch either store.
     expect(useCookieViewPrefsStore.getState().cards.sort).toBe("id");
     expect(useLocalViewPrefsStore.getState().decks.sort).toBe("updated");
   });

@@ -5,10 +5,7 @@ import { z } from "zod";
 
 import { cycleIncludeExclude } from "@/lib/filter-cycle";
 
-/**
- * One facet's selection. A single bare value is read as a one-element list, so a
- * link written against the scalar params the bar used to carry still narrows.
- */
+/** Must accept a bare string as a one-element list: old links used a scalar param. */
 const facetList = () =>
   z
     .union([z.string().transform((value) => [value]), z.array(z.string())])
@@ -16,24 +13,13 @@ const facetList = () =>
     .catch(undefined);
 
 /**
- * The scope every archive page narrows by, in the URL (ADR-014). Each field is
- * optional and `.catch`es to undefined, so a stale bookmark loses the bad value
- * rather than crashing the route.
- *
- * The three value facets are include/exclude pairs (ADR-034), named the way the
- * card browser names its own: the bare key holds the includes and the `Ex`
- * companion the excludes. An axis is never both at once, which is what
- * {@link cycleScopeFacet} enforces.
+ * The scope every archive page narrows by, in the URL. Each field `.catch`es
+ * to undefined, so a stale bookmark drops the bad value without crashing the
+ * route. The three value facets are include/exclude pairs; an axis is never
+ * both, enforced by {@link cycleScopeFacet}.
  */
 export const metaScopeSearchSchema = z.object({
-  /**
-   * A set slug, {@link ERA_ALL}, or {@link ERA_CUSTOM}. Absent means all time —
-   * the same as {@link ERA_ALL}, which only ever appears once the reader has
-   * picked it back. Single-valued: two eras with a gap between them are not a
-   * window, and the archive scopes by window.
-   */
   era: z.string().optional().catch(undefined),
-  /** Inclusive event-date bounds as date-only strings; read only under {@link ERA_CUSTOM}. */
   from: z.string().optional().catch(undefined),
   to: z.string().optional().catch(undefined),
   formats: facetList(),
@@ -50,28 +36,14 @@ export type MetaScope = z.infer<typeof metaScopeSearchSchema>;
 export const ERA_ALL = "all";
 export const ERA_CUSTOM = "custom";
 
-/**
- * The format an archive page scopes to while the URL names none. Constructed is
- * what a reader means by "the meta": the sealed and freeform side events of a
- * weekend are a different game, and they outnumber the main event on any
- * convention's schedule.
- *
- * Absent therefore means this rather than "every format", and an empty
- * selection is written to the URL rather than dropped, so a reader who wants
- * everything can get there. The era default works the same way, with the
- * current set standing in for an absent `era`; {@link ERA_ALL} is how a reader
- * says all time.
- */
 const DEFAULT_SCOPE_FORMATS: readonly string[] = ["constructed"];
 
 /** One selectable stretch of archive time: a set's run, from its release to the next one's. */
 export interface MetaEra {
-  /** The set's slug, which is what the URL carries. */
   id: string;
   label: string;
-  /** First day of the era, inclusive. */
   from: string;
-  /** Last day, inclusive. Null on the current era, which has no end yet. */
+  /** Last day, inclusive; null on the current era. */
   to: string | null;
 }
 
@@ -83,28 +55,24 @@ export interface MetaDateRange {
 
 /**
  * Which archived decks a browser asks the API for: the whole scope, plus who
- * the rows belong to and how many of them to send.
- *
- * The facets ride along rather than being applied to the answer, so a capped
- * request comes back with a full grid of rows that are already in scope.
+ * the rows belong to and how many to send. The facets ride along un-applied;
+ * the answer already matches the scope.
  */
 export interface MetaDeckQuery extends MetaScopeQuery {
-  /** A legend's card id. */
   legend?: string;
-  /** A player key, as `/meta/players/{key}` spells it. */
+  /** As `/meta/players/{key}` spells it. */
   player?: string;
   limit?: number;
 }
 
 /**
- * What an archive route hands the scope bar. Each route builds its own from its
- * `getRouteApi`, because `useNavigate` types its search reducer against the
- * route it was called from and an unbound one narrows to `never`. The merging
- * itself is shared: {@link nextScopeSearch} and {@link CLEARED_SCOPE}.
+ * What an archive route hands the scope bar. Each route builds its own:
+ * `useNavigate` types its search reducer against the calling route, and an
+ * unbound one narrows to `never`.
  */
 export interface MetaScopeControls {
   scope: MetaScope;
-  /** Merges a patch into the URL; undefined drops a facet rather than writing an empty one. */
+  /** Undefined drops a facet; `{}` would write an empty one instead. */
   setScope: (patch: Partial<MetaScope>) => void;
   clearScope: () => void;
 }
@@ -118,15 +86,9 @@ export interface EraSet {
 }
 
 /**
- * The eras the scope bar offers, newest first.
- *
- * Only main sets draw a boundary: a supplemental product released mid-season
- * does not start a new one, and treating it as if it did would cut a season's
- * events in two. An era runs to the day before the next main set, so the
- * windows tile the whole archive with no gap and no overlap.
- *
- * Unreleased sets are left out — an era nothing has happened in yet is a dead
- * option in the dropdown.
+ * The eras the scope bar offers, newest first. Only main sets draw a
+ * boundary; an era runs to the day before the next main set's release, so
+ * eras tile the archive with no gap or overlap. Unreleased sets are excluded.
  */
 export function deriveSetEras(sets: readonly EraSet[], today = todayUtc()): MetaEra[] {
   const dated = sets
@@ -148,19 +110,13 @@ export function deriveSetEras(sets: readonly EraSet[], today = todayUtc()): Meta
 
 /**
  * The era a scope with no explicit choice stands for: the current set, which is
- * the first entry {@link deriveSetEras} returns.
- *
- * @returns The era's id, or undefined before any set has released.
+ * the first entry {@link deriveSetEras} returns, or undefined before any set has released.
  */
 export function defaultEraId(eras: readonly MetaEra[]): string | undefined {
   return eras[0]?.id;
 }
 
-/**
- * The date window a scope selection stands for.
- *
- * @returns The window, empty when the scope covers all of time.
- */
+/** The date window a scope selection stands for, empty when the scope covers all of time. */
 export function resolveScopeRange(scope: MetaScope, eras: readonly MetaEra[]): MetaDateRange {
   if (scope.era === ERA_ALL) {
     return {};
@@ -192,17 +148,14 @@ export const CLEARED_SCOPE: Record<keyof MetaScope, undefined> = {
 };
 
 /**
- * The scope that narrows nothing. Leaving a key out is not the same thing: an
- * absent era resolves to the current set and an absent format to constructed,
- * so a link whose label counts the whole archive has to say all time and every
- * format outright or it lands on a page holding fewer rows than it promised.
+ * The scope that narrows nothing. An absent scope is not this: an absent era
+ * resolves to the current set and an absent format to constructed.
  */
 export const UNSCOPED: Pick<MetaScope, "era" | "formats"> = { era: ERA_ALL, formats: [] };
 
 /** The facets a reader picks values on, as opposed to the era's single window. */
 export type MetaScopeFacet = "formats" | "tiers" | "countries";
 
-/** Every facet, for the callers that walk all three. */
 const META_SCOPE_FACETS: readonly MetaScopeFacet[] = ["formats", "tiers", "countries"];
 
 /**
@@ -212,11 +165,9 @@ const META_SCOPE_FACETS: readonly MetaScopeFacet[] = ["formats", "tiers", "count
 export type ScopeFacetDefaults = Partial<Record<MetaScopeFacet, readonly string[]>>;
 
 /**
- * One facet's two buckets, in the order the cycling helpers read them.
- *
- * A facet the URL says nothing about at all resolves to its default. A URL that
- * carries either of the facet's keys has been written by the bar, so it is taken
- * at its word, empty selection included.
+ * One facet's two buckets, in the order the cycling helpers read them. A
+ * facet the URL says nothing about at all resolves to its default; a URL
+ * carrying either of the facet's keys is taken as explicit, empty selection included.
  */
 export function scopeFacetValues(
   scope: MetaScope,
@@ -269,7 +220,7 @@ function facetPatch(
 
 /**
  * The patch for one click on a facet's value: off → include → exclude → off,
- * the same cycle the card browser's filters run (ADR-034).
+ * the same cycle the card browser's filters run.
  */
 export function cycleScopeFacet(
   scope: MetaScope,
@@ -283,12 +234,8 @@ export function cycleScopeFacet(
 }
 
 /**
- * A scope patch merged into a route's existing search params.
- *
- * Empty values are dropped rather than written as "", [] or false, so the
- * unnarrowed view keeps a clean URL and the back button does not step through
- * states that look identical. Params the scope knows nothing about ride along
- * untouched, which is what lets one bar sit on every archive route.
+ * A scope patch merged into a route's existing search params, with empty
+ * values ("", [], false) dropped and unknown params left untouched.
  */
 export function nextScopeSearch(
   prev: Record<string, unknown>,
@@ -302,7 +249,7 @@ export function nextScopeSearch(
         return false;
       }
       if (Array.isArray(value) && value.length === 0) {
-        // Absent means the surface's default, so an emptied one must survive.
+        // Absent means the surface's default; an emptied array must still survive.
         return key === "formats" || key === "tiers";
       }
       return true;
@@ -310,20 +257,14 @@ export function nextScopeSearch(
   );
 }
 
-/**
- * Whether the reader has moved the scope off the one every archive page opens
- * on, which is what the Reset control offers to undo. An explicit all-time era
- * counts: it is a choice away from the default, not the absence of one.
- */
+/** Whether the scope differs from the page's default. An explicit all-time era counts as customized. */
 export function isScopeCustomized(scope: MetaScope): boolean {
   return Object.keys(CLEARED_SCOPE).some((key) => scope[key as keyof MetaScope] !== undefined);
 }
 
 /**
- * Whether a scope holds back any of the archive, defaults included. This is the
- * question an empty list asks: "nothing in this scope" and "nothing on record"
- * are different facts, and with a default era and format the unnarrowed page is
- * already a slice.
+ * Whether a scope holds back any of the archive, defaults included: with a
+ * default era and format, the unnarrowed page is already a slice.
  */
 export function isScopeRestricting(scope: MetaScope, eras: readonly MetaEra[]): boolean {
   const range = resolveScopeRange(scope, eras);
@@ -343,16 +284,7 @@ const SCOPE_EXCLUDE_KEYS = {
   countries: "countriesEx",
 } as const satisfies Record<MetaScopeFacet, keyof MetaScopeQuery>;
 
-/**
- * The scope bar's selection as the API takes it: the era resolved to a window,
- * and each facet resolved to the lists {@link scopeMatches} would compare
- * against, so a server-side narrowing agrees with the client-side one.
- *
- * A facet that narrows nothing is left off rather than sent empty, which is what
- * keeps the request URL and the cache key of an unnarrowed page clean.
- *
- * @returns The query, holding only the fields that narrow.
- */
+/** A facet that narrows nothing is omitted, never sent empty. */
 export function metaScopeQueryFromScope(
   scope: MetaScope,
   eras: readonly MetaEra[],
@@ -379,10 +311,8 @@ export function metaScopeQueryFromScope(
 }
 
 /**
- * A scope as one string, for the `key` that remounts a narrowed list. A section
- * holding a "show more" depth is showing a slice of one selection, and carrying
- * that depth into the next selection would show a slice of a list the reader
- * never scrolled.
+ * A scope as one string, for the `key` that remounts a narrowed list: a
+ * "show more" depth from one selection must not carry into the next.
  */
 export function scopeKey(scope: MetaScope): string {
   const facets = META_SCOPE_FACETS.map((facet) => {

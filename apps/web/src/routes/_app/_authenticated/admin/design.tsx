@@ -7,7 +7,6 @@ import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/design")({
   head: () => adminSeoHead("Design"),
-  // The scope-bar demo derives its eras from the set list.
   loader: ({ context }) =>
     context.queryClient.query({ ...publicSetListQueryOptions, staleTime: "static" }),
   pendingComponent: AdminPending,

@@ -13,13 +13,9 @@ const { serverCache } = (await import("./server-cache")) as { serverCache: Query
 const SESSION_COOKIE = "better-auth.session_token=abc123; theme=dark";
 const NO_SESSION_COOKIE = "theme=dark";
 
-// The oRPC OpenAPI client reads the response content-type and streams the body,
-// so the mock must be a real Response (not a hand-rolled stub). Mock at the
-// global fetch boundary so the test still exercises the client's real cookie
-// forwarding and URL composition.
+// The oRPC OpenAPI client reads the response content-type and streams the
+// body, so the mock must be a real Response, not a hand-rolled stub.
 function mockFlagsResponse(flags: Record<string, boolean>) {
-  // Response.json sets `content-type: application/json`, which the oRPC OpenAPI
-  // codec requires to parse the body.
   return Response.json({ flags });
 }
 
@@ -56,9 +52,7 @@ describe("loadFeatureFlags", () => {
     expect(headers.get("cookie")).toBe(SESSION_COOKIE);
   });
 
-  it("bypasses the shared serverCache for authenticated users", async () => {
-    // Two authenticated requests with different session cookies must each hit
-    // the API — otherwise user A's overrides would leak to user B.
+  it("bypasses the shared serverCache for authenticated users so overrides don't leak between accounts", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(mockFlagsResponse({ a: true }))
@@ -80,7 +74,6 @@ describe("loadFeatureFlags", () => {
     await loadFeatureFlags(NO_SESSION_COOKIE);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    // Anonymous path calls the API with no cookie at all (not the non-session cookie).
     const { headers } = readFetchCall(fetchMock.mock.calls[0]);
     expect(headers.get("cookie")).toBeNull();
   });

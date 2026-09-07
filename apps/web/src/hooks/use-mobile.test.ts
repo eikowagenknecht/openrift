@@ -3,11 +3,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useIsMobile } from "./use-mobile";
 
-/**
- * Stubs matchMedia so a test can fire a breakpoint change, and innerWidth so
- * the snapshot has something to read.
- * @returns A `change` trigger that also moves the reported viewport width.
- */
 function stubViewport(initialWidth: number) {
   const listeners = new Set<() => void>();
   vi.stubGlobal("innerWidth", initialWidth);

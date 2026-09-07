@@ -2,9 +2,6 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import type { BufferedHydrationError } from "./hydration-error-buffer";
 
-// The buffer is a module singleton (a queue + a sink). Reset module state
-// between tests by re-importing a fresh copy rather than reaching into private
-// internals.
 let bufferHydrationError: (entry: BufferedHydrationError) => void;
 let drainHydrationErrors: (capture: (entry: BufferedHydrationError) => void) => void;
 
@@ -86,7 +83,6 @@ describe("hydration-error-buffer", () => {
     const capture = vi.fn();
     drainHydrationErrors(capture);
 
-    // 50 retained, the last 10 dropped.
     expect(capture).toHaveBeenCalledTimes(50);
     expect(capture.mock.calls[0]?.[0].error).toHaveProperty("message", "err-0");
     expect(capture.mock.calls.at(-1)?.[0].error).toHaveProperty("message", "err-49");

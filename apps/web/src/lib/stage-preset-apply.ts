@@ -10,13 +10,8 @@ import { useDisplayStore } from "@/stores/display-store";
 import { clampCardScale, usePresentationStore } from "@/stores/presentation-store";
 
 /**
- * What the presentation stage takes from a preset, plus the one display
- * preference that belongs to the board rather than the stage.
- *
- * Split in two because the two halves land in two different stores: `stage`
- * goes to the presentation store, `tierTileStep` to the display store. Both are
- * absent when the preset says nothing about them — an applied preset only ever
- * moves the switches it was saved with.
+ * `stage` lands in the presentation store, `tierTileStep` in the display
+ * store; both are absent when the preset says nothing about them.
  */
 export interface StagePresetPatch {
   stage: {
@@ -28,7 +23,6 @@ export interface StagePresetPatch {
   tierTileStep?: number;
 }
 
-/** The presentation-store fields a preset reads from and writes back to. */
 export interface CapturedStageState {
   cardScale: number;
   showText: boolean;
@@ -36,19 +30,7 @@ export interface CapturedStageState {
   plateFields: OverlayPlateFields;
 }
 
-/**
- * Turns a preset into the switches the presentation stage should move.
- *
- * `plateFields` merges over what the stage already has rather than replacing
- * it: a preset saved to turn the flavour line on carries that one key, and
- * replacing the object would read as "and switch the other four off".
- *
- * The scale is clamped on the way in. The API validates its range, but a
- * preset written before the range moved (or by a client that got it wrong) must
- * not be able to shrink the card to nothing on stage.
- *
- * @returns The presentation-store patch and the board's tile size.
- */
+/** `plateFields` merges over `currentPlateFields`; it does not replace them. */
 export function presetToStagePatch(
   config: StagePresetConfig,
   currentPlateFields: OverlayPlateFields,
@@ -75,12 +57,8 @@ export function presetToStagePatch(
 }
 
 /**
- * Puts a preset on the stage: the one impure function here, and the single
- * place both callers (the settings popover's picker and `/stage?preset=`)
- * write through, so recall behaves the same whichever asked for it.
- *
- * The plate fields are read at call time rather than passed in, because a
- * preset merges over whatever the stage is dressed as *now*.
+ * The single place both callers (the settings popover's picker and
+ * `/stage?preset=`) apply a preset, so recall behaves the same either way.
  */
 export function applyStagePresetConfig(config: StagePresetConfig): void {
   const patch = presetToStagePatch(config, usePresentationStore.getState().plateFields);
@@ -91,18 +69,8 @@ export function applyStagePresetConfig(config: StagePresetConfig): void {
 }
 
 /**
- * Turns a preset into the stream overlay's settings update.
- *
- * Only the fields the preset actually sets, because the settings call treats an
- * absent key as "leave it alone". `qrUrl` is the one field where null is a
- * value of its own (hide the code), so it is included whenever it is not
- * `undefined`.
- *
- * The presentation-only fields (`cardScale`, `showText`, `ground`,
- * `tierTileStep`) are dropped — one preset dresses both surfaces, and each
- * surface takes the half it can render.
- *
- * @returns The settings patch for the overlay's update mutation.
+ * Only the fields the preset actually sets: the update call treats an absent
+ * key as "leave it alone". `qrUrl` null is a value of its own (hide the code).
  */
 export function presetToOverlaySettings(config: StagePresetConfig): OverlaySettings {
   const settings: OverlaySettings = {};
@@ -127,15 +95,6 @@ export function presetToOverlaySettings(config: StagePresetConfig): OverlaySetti
   return settings;
 }
 
-/**
- * What "Save current as preset" writes from the presentation stage.
- *
- * Every stage field is set, unlike a preset assembled by hand: the creator is
- * saving the scene in front of them, and a field left out would come back as
- * whatever the stage happened to have at recall time.
- *
- * @returns The preset config for the stage's current dressing.
- */
 export function captureStagePreset(
   state: CapturedStageState,
   tierTileStep: number,
@@ -149,12 +108,6 @@ export function captureStagePreset(
   };
 }
 
-/**
- * What "Save current as preset" writes from the Stage's OBS output: the scene as
- * the browser source is painting it right now, minus the card itself.
- *
- * @returns The preset config for the channel's current dressing.
- */
 export function captureOverlayPreset(payload: OverlayPayload): StagePresetConfig {
   return {
     showPlate: payload.showPlate,

@@ -109,8 +109,6 @@ describe("defaultOddsGroupKeys", () => {
   });
 
   it("adapts to the deck: a meaningful gear slice earns its row", () => {
-    // 8 gears in a 39-card deck (the Azir case): informative, ≥5 copies,
-    // opening odds in the decision band.
     const cards = [
       main({ cardTypes: ["gear"], energy: 2, quantity: 8 }),
       main({ cardTypes: ["unit"], energy: 3, quantity: 21 }),

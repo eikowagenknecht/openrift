@@ -4,15 +4,9 @@ import { persist } from "zustand/middleware";
 import type { OddsGroupDef } from "@/lib/deck-odds-groups";
 
 interface DeckOddsGroupsState {
-  /**
-   * Deck id → the odds-group keys the user explicitly chose for that deck.
-   * A deck with no entry shows the suggested defaults (core + adaptive).
-   */
   selectionByDeck: Record<string, string[]>;
   setSelection: (deckId: string, keys: string[]) => void;
-  /** Back to the suggested defaults for this deck. */
   clearSelection: (deckId: string) => void;
-  /** Deck id → user-defined groups for that deck's odds table. */
   customByDeck: Record<string, OddsGroupDef[]>;
   addCustomGroup: (deckId: string, group: OddsGroupDef) => void;
   removeCustomGroup: (deckId: string, key: string) => void;
@@ -21,7 +15,6 @@ interface DeckOddsGroupsState {
 /**
  * Keeps a persisted custom group only when it has the required strings and
  * plausible optional fields; anything else is dropped on rehydrate.
- * @returns The sanitized group, or null when the entry is junk.
  */
 function sanitizeCustomGroup(raw: unknown): OddsGroupDef | null {
   if (!raw || typeof raw !== "object") {
@@ -59,8 +52,7 @@ function sanitizeCustomGroup(raw: unknown): OddsGroupDef | null {
 
 /**
  * Device-local, per-deck selection of which group rows the draw-odds table
- * shows. Preset keys are stable strings, so a stale selection simply ignores
- * keys that no longer resolve to a preset.
+ * shows. A stale selection with an unresolved preset key is ignored.
  */
 export const useDeckOddsGroupsStore = create<DeckOddsGroupsState>()(
   persist(
@@ -92,8 +84,8 @@ export const useDeckOddsGroupsStore = create<DeckOddsGroupsState>()(
     }),
     {
       name: "deck-odds-groups",
-      // Validate on rehydrate: keep only well-shaped entries so a corrupt
-      // blob degrades to defaults instead of loading junk.
+      // Validates on rehydrate: malformed entries are dropped, so a corrupt
+      // blob degrades to defaults.
       merge: (persisted, current) => {
         if (!persisted || typeof persisted !== "object") {
           return current;

@@ -1,9 +1,8 @@
 import type { LandingSummaryResponse } from "@openrift/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Importing the module evaluates `createServerFn(...).handler(...)` at the top
-// level — stub it so the import has no real server-function side effects. We
-// only exercise the browser path here.
+// Importing the module evaluates createServerFn(...).handler(...) at the top
+// level, so this stub is needed just to import it.
 vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => {
     const chain = {
@@ -50,8 +49,7 @@ const SUMMARY: LandingSummaryResponse = {
   ],
 };
 
-// The oRPC OpenAPI link may call fetch with a Request object or a (url, init)
-// pair — normalize both (mirrors copies-query.test.ts).
+// fetch may be called with a Request object or a (url, init) pair; normalize both.
 function fetchedUrl(call: unknown[]): string {
   const first = call[0];
   return first instanceof Request ? first.url : String(first);
@@ -60,11 +58,8 @@ function fetchedUrl(call: unknown[]): string {
 const originalLocation = globalThis.location;
 
 beforeEach(() => {
-  // Reproduce the preview/prod situation: the page origin is NOT the
-  // localhost:3000 dev fallback that the server-internal API base degrades to
-  // in the browser bundle. Under plain jsdom the two collide (both
-  // http://localhost:3000), which is exactly why the original bug slipped
-  // through — so we force them apart.
+  // Page origin differs from the server API base's localhost:3000 dev
+  // fallback; under plain jsdom the two collide and hide same-origin bugs.
   Object.defineProperty(globalThis, "location", {
     configurable: true,
     value: { ...originalLocation, origin: "https://preview.openrift.app" },
@@ -88,9 +83,6 @@ describe("landingSummaryQueryOptions browser fetch", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const url = fetchedUrl(fetchMock.mock.calls[0]);
-    // Regression: the buggy path used the server `apiOrpcClient`, whose base is
-    // the internal `http://localhost:3000` fallback — a cross-origin URL the
-    // production CSP blocks. The browser path must go same-origin.
     expect(url).toBe("https://preview.openrift.app/api/v1/landing-summary");
     expect(url).not.toContain("localhost:3000");
     expect(result).toEqual(SUMMARY);

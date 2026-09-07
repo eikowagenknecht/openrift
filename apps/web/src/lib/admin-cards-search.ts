@@ -19,13 +19,7 @@ export function stringifySort(sorting: SortingState): string | undefined {
   return `${first.id}:${first.desc ? "desc" : "asc"}`;
 }
 
-/**
- * Keeps only rows whose printings belong to `setSlug`. A row's `setSlugs`
- * covers both accepted and pending candidate printings, so this narrows the
- * Cards and Candidates tabs alike. Returns the original `rows` when no set
- * filter is active.
- * @returns Filtered row array (same order).
- */
+/** `setSlugs` covers both accepted and pending candidate printings. */
 export function filterCardsBySet<T extends { setSlugs: string[] }>(
   rows: T[],
   setSlug: string | undefined,

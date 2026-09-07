@@ -30,24 +30,11 @@ export function useAdminCardList() {
   return useSuspenseQuery(adminCardListQueryOptions);
 }
 
-/**
- * Non-suspending variant for pages that only need the list under a condition —
- * the card detail page reads it to scope prev/next to the new-printings filter,
- * and must not pay for the whole list when that filter is off.
- *
- * @returns The card-list query, disabled unless `enabled`.
- */
+/** Non-suspending variant so a caller can skip fetching the whole list when unused. */
 export function useAdminCardListWhen(enabled: boolean) {
   return useQuery({ ...adminCardListQueryOptions, enabled });
 }
 
-/**
- * Fetches the unchecked list and returns the first card slug that isn't
- * `currentSlug`. When `allowedSlugs` is provided, only returns a slug that
- * appears in that set — used to keep check-all-and-next scoped to the active
- * set filter on the detail page.
- * @returns an object with a `fetchNext` function that resolves to the next card slug or null
- */
 export function useNextUncheckedCard(currentSlug: string, allowedSlugs?: Set<string> | null) {
   const queryClient = useQueryClient();
 
@@ -98,20 +85,12 @@ const fetchAdminCardDetail = createServerFn({ method: "GET" })
     return result as AdminCardDetailResponse;
   });
 
-/** Cadence for re-fetching the detail while a just-accepted image is still
- * being rehosted in the background. Rehosting one image is quick, so a tight
- * poll makes the view swap from the external URL to the self-hosted webp within
- * a few seconds without the admin reloading. */
 const REHOST_POLL_INTERVAL_MS = 3000;
 
 /**
- * Whether any printing image in the detail response has a source URL but no
- * rehosted URL yet. Accepting a printing kicks off rehosting as a fire-and-
- * forget background job, so the accept response lands with `rehostedUrl` still
- * null; polling until it fills in lets the view upgrade to the self-hosted
- * image on its own. Images without an `originalUrl` can never be rehosted, so
- * they are ignored to avoid polling forever.
- * @returns true when at least one image is still awaiting rehosting
+ * Rehosting runs as a fire-and-forget background job, so `rehostedUrl` stays
+ * null until it finishes. Images with no `originalUrl` can never be rehosted
+ * and are ignored, or polling would never stop.
  */
 export function hasPendingRehost(data?: {
   printingImages?: readonly { originalUrl: string | null; rehostedUrl: string | null }[];

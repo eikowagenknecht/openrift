@@ -15,11 +15,6 @@ const fetchSubmissionForCandidateFn = createServerFn({ method: "GET" })
     apiOrpcClient(adminCardSubmissionsContract, context.cookie).forCandidate(data),
   );
 
-/**
- * The submission behind a candidate column, or null for a scraped provider.
- * @param candidateCardId The candidate column being inspected.
- * @returns Query options for the admin submission lookup.
- */
 function submissionForCandidateQueryOptions(candidateCardId: string) {
   return queryOptions({
     queryKey: queryKeys.cardSubmissions.forCandidate(candidateCardId),
@@ -27,12 +22,7 @@ function submissionForCandidateQueryOptions(candidateCardId: string) {
   });
 }
 
-/**
- * Loads the submission behind a candidate column. Only enabled once the caller
- * has a candidate to ask about, so an unopened dialog fetches nothing.
- * @param candidateCardId The candidate column, or null while the dialog is closed.
- * @returns The submission query.
- */
+/** Enabled only once the caller has a candidate, so an unopened dialog fetches nothing. */
 export function useSubmissionForCandidate(candidateCardId: string | null) {
   return useQuery({
     ...submissionForCandidateQueryOptions(candidateCardId ?? ""),
@@ -54,10 +44,8 @@ const setSubmissionResolutionFn = createServerFn({ method: "POST" })
   });
 
 /**
- * Writes the message a contributor sees for their submission. Independent of
- * the outcome itself, which the check and ignore verbs derive, so this can be
- * written before or after the submission settles.
- * @returns The resolution mutation.
+ * Independent of the outcome (the check/ignore verbs derive that); can be set
+ * before or after the submission settles.
  */
 export function useSetSubmissionResolution() {
   const queryClient = useQueryClient();

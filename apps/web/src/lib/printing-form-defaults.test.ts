@@ -85,8 +85,7 @@ describe("printingFormDefaults", () => {
   });
 
   it("carries the source size over so a duplicate keeps the printing identity", () => {
-    // `size` is part of `uq_printings_identity`. Resetting it to the default
-    // silently pointed the duplicate at a different printing.
+    // `size` is part of `uq_printings_identity`; resetting it changes which printing this becomes.
     const defaults = printingFormDefaults(stubPrinting({ size: "oversized" }), fallbacks);
 
     expect(defaults.size).toBe("oversized");

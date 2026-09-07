@@ -612,7 +612,6 @@ describe("useScanSessionStore", () => {
         expect(state.rows.get("p1")?.copyIds).toEqual(["copy-1"]);
         expect(state.rows.get("p1")?.identifiedCount).toBe(1);
         expect(state.scans).toBe(3);
-        // The live session's own timestamp outranks the restored one.
         expect(state.lastScanAt).not.toBe(42);
       });
 

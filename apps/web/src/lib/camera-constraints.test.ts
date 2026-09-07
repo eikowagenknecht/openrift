@@ -13,9 +13,7 @@ describe("scannerVideoConstraints", () => {
     });
   });
 
-  it("leaves the frame rate unconstrained on a fast device", () => {
-    // Absent, not set to some high number: a device that keeps up has no
-    // throttling problem, and a ceiling would only make the preview choppier.
+  it("leaves the frame rate absent, not just uncapped, on a fast device", () => {
     expect(scannerVideoConstraints(false)).not.toHaveProperty("frameRate");
   });
 

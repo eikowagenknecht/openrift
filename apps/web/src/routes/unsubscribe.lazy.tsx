@@ -15,7 +15,6 @@ export const Route = createLazyFileRoute("/unsubscribe")({
   component: UnsubscribePage,
 });
 
-// Centered, app-shell-free card for this standalone email-landing page.
 function Shell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-3">
@@ -38,8 +37,6 @@ function UnsubscribePage() {
   const preview = Route.useLoaderData();
   const { token } = Route.useSearch();
   const [status, setStatus] = useState<"idle" | "submitting" | "done" | "error">("idle");
-  // The success label comes from the confirm response; before that, fall back to
-  // the preview's label so the prompt reads correctly.
   const [doneLabel, setDoneLabel] = useState<string | null>(null);
 
   async function handleConfirm() {

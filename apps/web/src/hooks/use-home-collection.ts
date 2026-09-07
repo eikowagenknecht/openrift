@@ -5,12 +5,8 @@ import { useUserId } from "@/lib/auth-session";
 import { collectionsQueryOptions } from "@/lib/collections-query";
 
 /**
- * Resolves the collection a deck is stored in (its deck box). Safe on surfaces
- * with no signed-in viewer — the public deck share never carries a
- * `collectionId`, and an anonymous viewer has no collections to match it
- * against.
- * @returns The box collection, or undefined while it loads, when the deck has
- *   no box, or when the id belongs to someone else.
+ * Resolves the collection a deck is stored in. Safe with no signed-in
+ * viewer: an anonymous viewer has no collections to match against.
  */
 export function useHomeCollection(collectionId?: string | null): CollectionResponse | undefined {
   const userId = useUserId();

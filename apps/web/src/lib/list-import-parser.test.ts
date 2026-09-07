@@ -102,7 +102,6 @@ describe("parseListImport", () => {
     const result = parseListImport("1 Teemo, Scout\n3 Jinx, Rebel");
     expect(result.errors).toEqual([]);
     expect(result.entries).toHaveLength(2);
-    // Plain text carries no printing detail — no source code, default finish.
     expect(result.entries[0]).toMatchObject({
       cardName: "Teemo, Scout",
       sourceCode: "",

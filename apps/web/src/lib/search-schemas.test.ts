@@ -62,8 +62,6 @@ describe("cleanedSearchForRedirect", () => {
   });
 
   it("returns the cleaned params when the URL carries an unknown key", () => {
-    // TanStack merges raw URL keys onto the validated search object, so an
-    // unknown key arrives here alongside the valid ones.
     const search = { ...filterSearchSchema.parse({ sort: "name" }), promo: "true" };
     const cleaned = cleanedSearchForRedirect(filterSearchSchema, search, "?sort=name&promo=true");
     expect(cleaned).not.toBeNull();
@@ -72,8 +70,6 @@ describe("cleanedSearchForRedirect", () => {
   });
 
   it("returns the cleaned params when a known key carries an unknown value", () => {
-    // `groupBy=garbage` coerces to undefined during validation; the raw URL
-    // still carries the key, so the caller must redirect to drop it.
     const search = filterSearchSchema.parse({ groupBy: "garbage" });
     const cleaned = cleanedSearchForRedirect(filterSearchSchema, search, "?groupBy=garbage");
     expect(cleaned).not.toBeNull();

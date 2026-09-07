@@ -28,8 +28,6 @@ describe("guideRectIn", () => {
   });
 
   it("clamps to 90% of the width when the card would overflow sideways", () => {
-    // A wide, short box: 70% of the height is 140, which wants a 100-wide card
-    // in a 100-wide budget... so pick a box where the portrait card overflows.
     const rect = guideRectIn({ width: 200, height: 600 });
 
     expect(rect.width).toBeCloseTo(180, 5);
@@ -47,8 +45,6 @@ describe("guideRectIn", () => {
   });
 
   it("matches the landscape preview shape used on desktop", () => {
-    // 16:9 always trips the width clamp, since 0.7 * height * CARD_ASPECT is
-    // small but the card is tall.
     const rect = guideRectIn({ width: 960, height: 540 });
 
     expect(rect.height).toBeCloseTo(0.7 * 540, 5);
@@ -110,7 +106,6 @@ describe("planFlight", () => {
   it("translates centre to centre", () => {
     const plan = planFlight(source, { x: 20, y: 700, width: 50, height: 70 });
 
-    // Source centre (200, 240), target centre (45, 735).
     expect(plan.to.translateX).toBeCloseTo(-155, 5);
     expect(plan.to.translateY).toBeCloseTo(495, 5);
   });
@@ -118,7 +113,6 @@ describe("planFlight", () => {
   it("scales uniformly so the card fits inside the target", () => {
     const plan = planFlight(source, { x: 0, y: 0, width: 50, height: 200 });
 
-    // min(50 / 200, 200 / 280) — the width is the tighter fit.
     expect(plan.to.scale).toBeCloseTo(0.25, 5);
   });
 
@@ -177,8 +171,6 @@ describe("videoCropRect", () => {
   });
 
   it("accounts for the horizontal crop of a wider frame", () => {
-    // A 640x480 frame in a 300x300 box: cover scales by 300/480 = 0.625, so the
-    // frame is drawn 400 wide and 50px is cut from each side.
     const crop = videoCropRect(
       { x: 0, y: 0, width: 300, height: 300 },
       { width: 300, height: 300 },
@@ -193,7 +185,6 @@ describe("videoCropRect", () => {
   });
 
   it("accounts for the vertical crop of a taller frame", () => {
-    // A 480x640 frame in a 300x300 box: cover scales by 300/480 = 0.625.
     const crop = videoCropRect(
       { x: 0, y: 0, width: 300, height: 300 },
       { width: 300, height: 300 },
@@ -213,7 +204,6 @@ describe("videoCropRect", () => {
       { width: 640, height: 480 },
     );
 
-    // scale 0.625, offsetX -50: (100 + 50) / 0.625 = 240.
     expect(crop?.x).toBeCloseTo(240, 5);
     expect(crop?.y).toBeCloseTo(80, 5);
     expect(crop?.width).toBeCloseTo(160, 5);

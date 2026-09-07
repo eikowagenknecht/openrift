@@ -13,7 +13,6 @@ export const Route = createFileRoute("/_app/decks/$deckId")({
   ssr: "data-only",
   validateSearch: filterSearchSchema,
   beforeLoad: ({ search, location, params }) => {
-    // Strip unknown / malformed search params — same canonicalization as /cards.
     const cleaned = cleanedSearchForRedirect(filterSearchSchema, search, location.searchStr);
     if (cleaned) {
       throw redirect({
@@ -26,12 +25,8 @@ export const Route = createFileRoute("/_app/decks/$deckId")({
   },
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Deck Editor", noIndex: true }),
   staticData: { hideFooter: true },
-  // Auth-optional (ADR-035), branching on the id:
-  //  - `local:` id → no server fetch (cards live in the browser); the editor
-  //    reads them client-side after hydration.
-  //  - server id + session → today's server deck-detail path.
-  //  - server id + no session → redirect to /login, preserving `redirect` so a
-  //    bookmarked/shared authenticated deck link still works after sign-in.
+  // Auth is optional: a `local:` id needs no server fetch; a server id with no
+  // session redirects to /login, preserving `redirect` for post-login return.
   loader: async ({ context, params, location }) => {
     if (isLocalDeckId(params.deckId)) {
       await context.queryClient.query({ ...initQueryOptions, staleTime: "static" });

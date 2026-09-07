@@ -21,27 +21,14 @@ import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-// The Meta Archive's overlay queue and drift view (ADR-014 revision 3),
-// full-admin only. Split out of `use-admin-meta.ts` because reviewing is its
-// own surface with its own query keys: the curation hooks there edit the live
-// archive directly, these settle what other people proposed.
-//
-// Every write invalidates the queue AND the live archive keys, because
-// accepting or claiming re-promotes the event it touches.
-
-/** Queue, suggestions, live event list, and the public archive. */
+/** Every write invalidates the queue and the live archive keys: accepting or claiming re-promotes the event it touches. */
 const ALL_META_KEYS = [
   queryKeys.admin.meta.overlays,
   queryKeys.admin.meta.events,
   queryKeys.meta.all,
 ] as const;
 
-/** The above plus the ignore lists, for the writes that touch them. */
 const ALL_META_KEYS_WITH_IGNORED = [...ALL_META_KEYS, queryKeys.admin.meta.ignoredSources] as const;
-
-// ---------------------------------------------------------------------------
-// Queue
-// ---------------------------------------------------------------------------
 
 const fetchMetaOverlays = createServerFn({ method: "GET" })
   .middleware([withCookies])
@@ -55,19 +42,10 @@ export const adminMetaOverlaysQueryOptions = queryOptions({
   staleTime: 5 * 60 * 1000,
 });
 
-/**
- * Every pending overlay, oldest first, with the fields it claims and the live
- * values those would replace.
- *
- * @returns The suspense query holding the review queue.
- */
+/** Every pending overlay, oldest first, with the fields it claims and the live values those would replace. */
 export function useAdminMetaOverlays() {
   return useSuspenseQuery(adminMetaOverlaysQueryOptions);
 }
-
-// ---------------------------------------------------------------------------
-// Drift
-// ---------------------------------------------------------------------------
 
 const fetchMetaEventDrift = createServerFn({ method: "GET" })
   .middleware([withCookies])
@@ -76,19 +54,6 @@ const fetchMetaEventDrift = createServerFn({ method: "GET" })
     apiOrpcClient(adminMetaCandidatesContract, context.cookie).drift({ id: data }),
   );
 
-/**
- * What each linked mirror published for one event, beside the live values.
- *
- * A field an accepted overlay claims comes back flagged rather than compared:
- * the sources no longer decide it, so the UI greys them instead of showing a
- * conflict the reviewer cannot usefully act on.
- *
- * @param metaEventId - The event being inspected.
- * @param enabled - False while the panel is collapsed, which is most of the
- *   time: drift is a join across every linked mirror and nothing reads it until
- *   the disclosure is opened.
- * @returns The query holding the drift view.
- */
 export function useMetaEventDrift(metaEventId: string, enabled: boolean) {
   return useQuery({
     queryKey: [...queryKeys.admin.meta.events, metaEventId, "drift"],
@@ -108,14 +73,8 @@ const writeEventOverlayFieldsFn = createServerFn({ method: "POST" })
   );
 
 /**
- * Claims event fields for the archive.
- *
- * The admin's correction is born accepted, so this lands and re-promotes in one
- * call: each named field flips to overlay-owned and no source wins it again.
- * Only the fields the admin actually changed are sent — claiming everything at
+ * Only the fields the admin actually changed are sent: claiming everything at
  * once is indistinguishable from turning the sources off.
- *
- * @returns The mutation.
  */
 export function useWriteMetaEventOverlayFields() {
   return useMutationWithInvalidation({
@@ -135,12 +94,7 @@ const releaseEventOverlayFieldFn = createServerFn({ method: "POST" })
     apiOrpcClient(adminMetaCandidatesContract, context.cookie).releaseEventOverlayField(data),
   );
 
-/**
- * Hands one claimed field back to the sources, so the next promote lets the
- * winning source decide it again.
- *
- * @returns The mutation.
- */
+/** Hands one claimed field back to the sources, so the next promote lets the winning source decide it again. */
 export function useReleaseMetaEventOverlayField() {
   return useMutationWithInvalidation({
     mutationFn: (
@@ -159,15 +113,7 @@ const writePlayerOverlayFieldsFn = createServerFn({ method: "POST" })
     apiOrpcClient(adminMetaCandidatesContract, context.cookie).writePlayerOverlayFields(data),
   );
 
-/**
- * Claims standings fields for the archive, mirroring
- * {@link useWriteMetaEventOverlayFields}. `list` is three-valued: absent says
- * nothing about the deck, an object claims those cards, and null claims that
- * there is no list — which is what makes a detach survive a source that keeps
- * publishing one.
- *
- * @returns The mutation.
- */
+/** `list` is three-valued: absent, an object of claimed cards, or null for "no list" (survives a source that keeps publishing one). */
 export function useWritePlayerOverlayFields() {
   return useMutationWithInvalidation({
     mutationFn: (
@@ -187,12 +133,7 @@ const releasePlayerOverlayFieldFn = createServerFn({ method: "POST" })
     apiOrpcClient(adminMetaCandidatesContract, context.cookie).releasePlayerOverlayField(data),
   );
 
-/**
- * Hands one claimed standings field back to the sources. Releasing `cards` or
- * `listStatus` releases both, so a caller names either one.
- *
- * @returns The mutation.
- */
+/** Releasing `cards` or `listStatus` releases both; a caller names either one. */
 export function useReleasePlayerOverlayField() {
   return useMutationWithInvalidation({
     mutationFn: (
@@ -220,10 +161,6 @@ export function useSetMetaSourcePriority() {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Review
-// ---------------------------------------------------------------------------
-
 const acceptEventOverlayFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .validator(
@@ -233,12 +170,7 @@ const acceptEventOverlayFn = createServerFn({ method: "POST" })
     apiOrpcClient(adminMetaCandidatesContract, context.cookie).acceptEventOverlay(data),
   );
 
-/**
- * Applies an event overlay. `metaEventId` accepts a proposal into an event the
- * archive already has instead of minting a duplicate.
- *
- * @returns The mutation.
- */
+/** Passing `metaEventId` accepts the proposal into that existing event; omitting it mints a new one. */
 export function useAcceptMetaEventOverlay() {
   return useMutationWithInvalidation({
     mutationFn: (input: ContractInput<typeof adminMetaCandidatesContract, "acceptEventOverlay">) =>
@@ -308,12 +240,7 @@ const linkPlayerOverlayFn = createServerFn({ method: "POST" })
     apiOrpcClient(adminMetaCandidatesContract, context.cookie).linkPlayerOverlay(data),
   );
 
-/**
- * Anchors a standings overlay to the live row it describes. An already-accepted
- * overlay lands on that row immediately.
- *
- * @returns The mutation.
- */
+/** An already-accepted overlay lands on the newly linked row immediately. */
 export function useLinkMetaPlayerOverlay() {
   return useMutationWithInvalidation({
     mutationFn: (input: ContractInput<typeof adminMetaCandidatesContract, "linkPlayerOverlay">) =>
@@ -359,7 +286,6 @@ const rejectOverlayFn = createServerFn({ method: "POST" })
     apiOrpcClient(adminMetaCandidatesContract, context.cookie).rejectOverlay(data),
   );
 
-/** Rejecting is a status change, so the submitter still sees what happened to it. */
 export function useRejectMetaOverlay() {
   return useMutationWithInvalidation({
     mutationFn: (input: ContractInput<typeof adminMetaCandidatesContract, "rejectOverlay">) =>
@@ -368,10 +294,6 @@ export function useRejectMetaOverlay() {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Upload and card names
-// ---------------------------------------------------------------------------
-
 const uploadMetaOverlaysFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .validator((body: MetaUploadBody) => body)
@@ -379,7 +301,6 @@ const uploadMetaOverlaysFn = createServerFn({ method: "POST" })
     apiOrpcClient(adminMetaCandidatesContract, context.cookie).upload(data),
   );
 
-/** The push endpoint, for providers with no crawler of their own. */
 export function useUploadMetaOverlays() {
   return useMutationWithInvalidation({
     mutationFn: (body: MetaUploadBody) => uploadMetaOverlaysFn({ data: body }),
@@ -394,7 +315,6 @@ const resolveNameFn = createServerFn({ method: "POST" })
     apiOrpcClient(adminMetaCandidatesContract, context.cookie).resolveName(data),
   );
 
-/** Points every queued line holding one unmatched name at a card. */
 export function useResolveMetaOverlayName() {
   return useMutationWithInvalidation({
     mutationFn: (input: ContractInput<typeof adminMetaCandidatesContract, "resolveName">) =>
@@ -403,10 +323,6 @@ export function useResolveMetaOverlayName() {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Dismissed source keys
-// ---------------------------------------------------------------------------
-
 const ignoreEventFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .validator((input: ContractInput<typeof adminMetaCandidatesContract, "ignoreEvent">) => input)
@@ -414,12 +330,7 @@ const ignoreEventFn = createServerFn({ method: "POST" })
     apiOrpcClient(adminMetaCandidatesContract, context.cookie).ignoreEvent(data),
   );
 
-/**
- * Skips one source event from now on. The overlay itself stays where it is, so
- * the key is what stops the next crawl staging it again.
- *
- * @returns The mutation.
- */
+/** The overlay itself stays where it is; the ignore key stops the next crawl staging it again. */
 export function useIgnoreMetaSourceEvent() {
   return useMutationWithInvalidation({
     mutationFn: (input: ContractInput<typeof adminMetaCandidatesContract, "ignoreEvent">) =>
@@ -450,7 +361,6 @@ const fetchIgnored = createServerFn({ method: "GET" })
     apiOrpcClient(adminMetaCandidatesContract, context.cookie).listIgnored(),
   );
 
-/** One dismissed source key, as the ignore dialog lists it. */
 export interface IgnoredMetaSourceEvent {
   provider: string;
   externalId: string;
@@ -500,10 +410,6 @@ export function useUnignoreMetaSourcePlayer() {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Match suggestions
-// ---------------------------------------------------------------------------
-
 const fetchEventSuggestions = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .validator((id: string) => id)
@@ -514,14 +420,7 @@ const fetchEventSuggestions = createServerFn({ method: "GET" })
       }),
   );
 
-/**
- * Ranked hints for which live event an overlay describes, never applied
- * automatically. An overlay already on an event is ranked minus that event.
- *
- * @param overlayId - The event overlay being reviewed.
- * @returns The query holding the suggestions and the day window they were
- *   searched over, which is what an empty list needs to explain itself.
- */
+/** Ranked hints only, never applied automatically; an overlay already on an event is ranked minus that event. */
 export function useMetaEventMatchSuggestions(overlayId: string) {
   return useQuery({
     queryKey: queryKeys.admin.meta.eventSuggestions(overlayId),
@@ -539,15 +438,7 @@ const fetchPlayerSuggestions = createServerFn({ method: "GET" })
     }),
   );
 
-/**
- * See {@link useMetaEventMatchSuggestions}, for standings rows.
- *
- * Every standings overlay in the queue asks, so an upload of a whole top cut
- * opens one request per row.
- *
- * @param overlayId - The standings overlay being reviewed.
- * @returns The query holding the suggestions.
- */
+/** See {@link useMetaEventMatchSuggestions}, for standings rows; an upload of a whole top cut opens one request per row. */
 export function useMetaPlayerMatchSuggestions(overlayId: string) {
   return useQuery({
     queryKey: queryKeys.admin.meta.playerSuggestions(overlayId),
@@ -556,10 +447,6 @@ export function useMetaPlayerMatchSuggestions(overlayId: string) {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Cross-mirror player links
-// ---------------------------------------------------------------------------
-
 const fetchCrossSourceReview = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .validator((id: string) => id)
@@ -567,16 +454,6 @@ const fetchCrossSourceReview = createServerFn({ method: "GET" })
     apiOrpcClient(adminMetaCandidatesContract, context.cookie).crossSourceReview({ id: data }),
   );
 
-/**
- * Every standings row the event's cited-but-unread mirrors publish, each ranked
- * against the live field (ADR-014, "Two mirrors on one event").
- *
- * @param metaEventId - The event being reviewed.
- * @param enabled - False while the panel is collapsed. The read walks a whole
- *   mirror's standings and ranks every row against the live field, and most
- *   events have no second mirror to review at all.
- * @returns The query holding the review.
- */
 export function useMetaCrossSourceReview(metaEventId: string, enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.admin.meta.crossSource(metaEventId),
@@ -595,13 +472,7 @@ const linkCrossSourcePlayersFn = createServerFn({ method: "POST" })
     apiOrpcClient(adminMetaCandidatesContract, context.cookie).linkCrossSourcePlayers(data),
   );
 
-/**
- * Records decisions: each of this mirror's entries is that live row, or is
- * nobody the event lists. One call is one promote, which is why the bulk action
- * sends its whole batch here rather than looping.
- *
- * @returns The mutation.
- */
+/** One call is one promote; the bulk action sends its whole batch here, not a loop of single calls. */
 export function useLinkMetaCrossSourcePlayers() {
   return useMutationWithInvalidation({
     mutationFn: (

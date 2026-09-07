@@ -3,17 +3,10 @@ import { GROUP_BY_FIELDS, SORT_DIRECTIONS, SORT_OPTIONS } from "@openrift/shared
 
 import { PROMO_GROUPINGS } from "@/lib/promo-groupings";
 
-// Per-surface sort/group defaults ("view prefs"). Two things share this module:
-// the Zustand stores in `stores/view-prefs-store.ts` (which own the persisted
-// blobs) and the SSR resolver below (which reads the cookie server-side before
-// any store exists). Keeping the vocabularies and validation here means both
-// paths clamp identically, so the SSR paint and the hydrated grid agree.
-//
-// Sort/group values are surface-specific: /cards sorts by "id" | "name" | ...
-// while the deck list sorts by "updated" | "created" | ... Each surface
-// therefore declares its own allowed sets rather than sharing one enum.
+// Shared by the Zustand stores in stores/view-prefs-store.ts and the SSR
+// cookie resolver below, so both paths clamp identically and the SSR paint
+// matches the hydrated grid.
 
-/** Sort/group state a single surface remembers. */
 export interface SurfaceViewPrefs {
   sort: string;
   sortDir: SortDirection;
@@ -27,17 +20,10 @@ interface ViewSurfaceConfig {
   defaults: SurfaceViewPrefs;
 }
 
-/**
- * Group axes /promos offers — the shared list minus "none" and "collection",
- * led by its own channel tree. Owned by promo-groupings so the page's dropdown
- * and this validation can't disagree about what a stored value may be.
- */
 const PROMO_GROUPS = PROMO_GROUPINGS;
 
-/** Sort fields the deck list offers (deck metadata, not card attributes). */
 const DECK_LIST_SORTS = ["updated", "created", "name", "value"] as const;
 
-/** Group axes the deck list offers. */
 const DECK_LIST_GROUPS = ["none", "format", "domains", "legend", "validity"] as const;
 
 const CARD_BROWSER_SORTS: ReadonlySet<string> = new Set(SORT_OPTIONS);
@@ -49,21 +35,12 @@ const CARD_BROWSER_CONFIG: ViewSurfaceConfig = {
   defaults: { sort: "id", sortDir: "asc", groupBy: "set", groupDir: "asc" },
 };
 
-/**
- * Every surface that remembers its own sort/group choice.
- *
- * `cards` and `promos` render server-side, so their prefs live in a cookie the
- * SSR pass can read (see `resolveViewPrefsFromCookie`). The rest are
- * `ssr: "data-only"` routes with no server HTML, so a localStorage blob is
- * enough and costs nothing per request.
- */
 export const VIEW_SURFACE_CONFIGS = {
   cards: CARD_BROWSER_CONFIG,
   promos: {
     sorts: CARD_BROWSER_SORTS,
     groups: new Set<string>(PROMO_GROUPS),
-    // /promos is a hierarchy first: channel is the axis the page is built
-    // around, matching `asPromoGrouping`'s fallback.
+    // Must match asPromoGrouping's fallback.
     defaults: { sort: "id", sortDir: "asc", groupBy: "channel", groupDir: "asc" },
   },
   collections: CARD_BROWSER_CONFIG,
@@ -77,10 +54,8 @@ export const VIEW_SURFACE_CONFIGS = {
 
 export type ViewSurface = keyof typeof VIEW_SURFACE_CONFIGS;
 
-/** Surfaces whose prefs ride in the `view-prefs` cookie so SSR can read them. */
 export const COOKIE_VIEW_SURFACES = ["cards", "promos"] as const satisfies readonly ViewSurface[];
 
-/** Surfaces whose prefs live in localStorage (no server-rendered grid). */
 export const LOCAL_VIEW_SURFACES = [
   "collections",
   "deckBrowser",
@@ -90,18 +65,11 @@ export const LOCAL_VIEW_SURFACES = [
 export type CookieViewSurface = (typeof COOKIE_VIEW_SURFACES)[number];
 export type LocalViewSurface = (typeof LOCAL_VIEW_SURFACES)[number];
 
-/** The persisted shape: one entry per surface the owning store covers. */
 export type ViewPrefsBlob<Surface extends ViewSurface> = Record<Surface, SurfaceViewPrefs>;
 
 const DIRECTIONS: ReadonlySet<string> = new Set(SORT_DIRECTIONS);
 
-/**
- * Clamp one surface's persisted entry to values the surface actually offers.
- * A stale bookmark, a hand-edited cookie, or a renamed axis falls back per
- * field rather than reaching the grouping code, where an unknown value would
- * render an empty grid.
- * @returns The sanitized prefs for the surface.
- */
+// Falls back per field: an unknown value reaching the grouping code would render an empty grid.
 export function sanitizeSurfacePrefs(raw: unknown, surface: ViewSurface): SurfaceViewPrefs {
   const config = VIEW_SURFACE_CONFIGS[surface];
   const { defaults } = config;
@@ -123,12 +91,7 @@ export function sanitizeSurfacePrefs(raw: unknown, surface: ViewSurface): Surfac
   };
 }
 
-/**
- * Build a full blob for `surfaces`, sanitizing whatever the persisted value
- * holds. Unknown surface keys in the stored blob are dropped rather than
- * passed through, so a renamed surface can't resurrect stale state.
- * @returns One sanitized entry per requested surface.
- */
+// Unknown surface keys in the stored blob are dropped, so a renamed surface can't resurrect stale state.
 export function sanitizeViewPrefsBlob<Surface extends ViewSurface>(
   raw: unknown,
   surfaces: readonly Surface[],
@@ -144,19 +107,10 @@ export function sanitizeViewPrefsBlob<Surface extends ViewSurface>(
   return result;
 }
 
-/** Cookie name the cookie-backed store persists under. Read during SSR. */
 export const VIEW_PREFS_COOKIE = "view-prefs";
 
-/**
- * Resolve the raw `view-prefs` cookie (Zustand persist envelope,
- * `{"state":{"cards":{...},"promos":{...}}}`) to the defaults the SSR pass
- * should render with. Mirrors `resolveThemeFromCookie` in `shell-prefs.ts`:
- * the server reads the request cookie, the client reads `document.cookie`, and
- * both land on the same value so the hydrated grid matches the server HTML.
- *
- * @param raw - The decoded cookie value, or null/undefined when absent.
- * @returns Sanitized prefs for every cookie-backed surface.
- */
+// Expects the Zustand persist envelope shape:
+// {"state":{"cards":{...},"promos":{...}}}
 export function resolveViewPrefsFromCookie(
   raw: string | null | undefined,
 ): ViewPrefsBlob<CookieViewSurface> {

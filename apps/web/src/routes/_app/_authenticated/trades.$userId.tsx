@@ -7,10 +7,8 @@ import { getSiteUrl } from "@/lib/site-config";
 
 export const Route = createFileRoute("/_app/_authenticated/trades/$userId")({
   ssr: "data-only",
-  // The sheet pools every group the two people share, so it has no group of its
-  // own. `from` carries the one the viewer came through, purely so the trail
-  // leads back where they were rather than to whichever shared group sorts
-  // first. It is checked against the sheet's own groups before it is used.
+  // `from` carries the group the viewer came through, so the trail leads
+  // back there; checked against the sheet's own groups before use.
   validateSearch: (search: Record<string, unknown>) => ({
     from: typeof search.from === "string" && search.from.length > 0 ? search.from : undefined,
   }),

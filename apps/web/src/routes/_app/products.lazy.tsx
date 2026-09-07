@@ -31,18 +31,11 @@ export const Route = createLazyFileRoute("/_app/products")({
   component: ProductsIndexPage,
 });
 
-/**
- * The tile's cover band: up to four of the product's cards fanned like a
- * physical spread, or dashed outlines when no printing has an image yet.
- *
- * @returns The fan band element.
- */
 function ProductCoverFan({
   coverCards,
   priority,
 }: {
   coverCards: ProductCoverCard[];
-  /** Loads this fan eagerly — set on the first row, which carries the LCP. */
   priority?: boolean;
 }) {
   // overflow-hidden crops the fan's bottom bleed at the band edge, so the
@@ -61,18 +54,12 @@ function ProductCoverFan({
   );
 }
 
-/** @returns One product tile: cover fan, name, description teaser, counts. */
 function ProductTile({
   product,
   titleAs,
   priority,
 }: {
   product: ProductSummary;
-  /**
-   * Heading tag for the product name. Products nest under a set heading when
-   * the page groups by set, so they are h3 there and h2 on the flat layout.
-   * The visual size stays level 2 either way.
-   */
   titleAs: "h2" | "h3";
   priority?: boolean;
 }) {
@@ -96,7 +83,6 @@ function ProductTile({
   );
 }
 
-/** @returns The empty state inviting catalogue contributions. */
 function ProductsEmptyState() {
   return (
     <div className="flex flex-col items-center gap-1.5 pt-10 pb-6 text-center">
@@ -114,7 +100,6 @@ function ProductsEmptyState() {
   );
 }
 
-/** @returns A section heading: the set name linking to the set page, or "Other products". */
 function ProductGroupHeading({ set }: { set: ProductSet | null }) {
   if (!set) {
     return <Heading className="mb-4">Other products</Heading>;
@@ -128,7 +113,6 @@ function ProductGroupHeading({ set }: { set: ProductSet | null }) {
   );
 }
 
-/** Tiles in the first grid row (sm:grid-cols-2), which load their art eagerly. */
 const EAGER_TILE_COUNT = 2;
 
 function ProductGrid({
@@ -138,11 +122,8 @@ function ProductGrid({
   eager,
 }: {
   products: ProductSummary[];
-  /** Renders a quick-add overlay per tile when set (viewer is signed in). */
   onAdd?: (product: ProductSummary) => void;
-  /** Heading tag for the tile names — see {@link ProductTile}. */
   titleAs: "h2" | "h3";
-  /** Whether this is the first group on the page, so its first row is above the fold. */
   eager?: boolean;
 }) {
   return (
@@ -177,8 +158,6 @@ function ProductsIndexPage() {
   const { data } = useProductsList();
   const { products } = data;
   const groups = groupProductsBySet(products);
-  // With no sets assigned anywhere there is only the null group — render it
-  // as a flat grid instead of a lone "Other products" section.
   const showHeadings = groups.some((group) => group.set !== null);
   const { data: session } = useSession();
   const isLoggedIn = Boolean(session?.user);

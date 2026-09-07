@@ -15,10 +15,6 @@ import {
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 
-/**
- * Non-reactive read of a single local deck, for assertions.
- * @returns The local deck, or undefined when absent.
- */
 function getLocalDeck(id: string): LocalDeck | undefined {
   return useLocalDecksStore.getState().decks[id];
 }
@@ -74,8 +70,6 @@ describe("createDeck", () => {
 
 describe("updateDeck", () => {
   it("patches metadata and bumps updatedAt", () => {
-    // Fake timers so the stamped `updatedAt` is provably later than `createdAt`
-    // without a real delay.
     vi.useFakeTimers();
     try {
       const id = useLocalDecksStore.getState().createDeck(WellKnown.deckFormat.CONSTRUCTED);
@@ -141,7 +135,6 @@ describe("duplicateDeck", () => {
     const copy = getLocalDeck(copyId as string);
     expect(copy?.name).toBe("Original (copy)");
     expect(copy?.cards).toEqual(sampleCards);
-    // Mutating the copy must not touch the original (deep copy).
     expect(copy?.cards).not.toBe(getLocalDeck(id)?.cards);
   });
 
@@ -253,8 +246,6 @@ describe("sanitizeDecks", () => {
   });
 
   it("keeps zones and formats this bundle doesn't know", () => {
-    // Cross-version safety: a newer deploy may write zones/formats this
-    // bundle predates. They must survive the round-trip, not be dropped.
     const decks = sanitizeDecks({
       "local:abc": {
         ...validDeck,
@@ -303,8 +294,6 @@ describe("sanitizeDecks", () => {
   });
 
   it("lifts a pre-links videoUrl into the first link", () => {
-    // Blobs written before deck links existed carry a single YouTube string.
-    // The store has no persist `version`, so the shape change migrates here.
     const { links: _links, ...beforeLinks } = validDeck;
     const decks = sanitizeDecks({
       "local:abc": { ...beforeLinks, videoUrl: "https://youtu.be/abc123" },

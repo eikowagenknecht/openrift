@@ -13,15 +13,7 @@ import type { DeckBoxPlan } from "@/lib/deck-box";
 import { computeDeckBoxPlan } from "@/lib/deck-box";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 
-/**
- * What it takes to put this deck in its box, recomputed from the live copies
- * feed so a move is reflected the moment it lands.
- *
- * SSR-unsafe (it reads the copies collection through `useLiveQuery`), so mount
- * consumers behind `useHydrated` — see the Box tab.
- * @returns The plan, or undefined while the data loads or when the deck has no
- *   box to fill.
- */
+/** SSR-unsafe (reads the copies collection through `useLiveQuery`); mount consumers behind `useHydrated`. */
 export function useDeckBox(
   deckId: string,
   cards: readonly DeckBuilderCard[],
@@ -43,8 +35,7 @@ export function useDeckBox(
     query: (q) => (enabled && copiesCollection ? q.from({ copy: copiesCollection }) : null),
   });
 
-  // Another deck may live in the same box. Its cards belong there too, so the
-  // sweep has to know what they are before calling anything surplus.
+  // Cards claimed by another deck sharing this box must be excluded before computing surplus.
   const sharingDeckIds =
     collections
       ?.find((collection) => collection.id === homeCollectionId)

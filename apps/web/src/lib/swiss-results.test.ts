@@ -12,7 +12,7 @@ describe("swissResultPresets", () => {
     ]);
   });
 
-  it("offers clean finishes, time-limit scorelines, and draws for Bo3", () => {
+  it("offers clean finishes, time-limit scorelines, draws, and a mirror for each Bo3 win", () => {
     const presets = swissResultPresets("bo3");
     const pairs = presets.map((preset) => preset.gamePoints);
     expect(pairs).toContainEqual([2, 0]);
@@ -20,7 +20,6 @@ describe("swissResultPresets", () => {
     expect(pairs).toContainEqual([1, 0]);
     expect(pairs).toContainEqual([1, 1]);
     expect(pairs).toContainEqual([0, 2]);
-    // Every player-1-win preset has a mirrored player-2-win preset.
     for (const [p1, p2] of pairs) {
       if (p1 !== p2) {
         expect(pairs).toContainEqual([p2, p1]);

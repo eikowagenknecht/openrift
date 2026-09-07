@@ -11,8 +11,8 @@ export const Route = createFileRoute("/_app/_authenticated/tournaments_/$id_/par
   ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Participants", noIndex: true }),
   loader: async ({ context, params }) => {
-    // The roster surface (and its staff-gated API endpoint, which carries the
-    // claim links) is staff-only; a plain participant lands on the overview.
+    // The roster's API endpoint is staff-only; a plain participant lands on
+    // the overview.
     const detail = await loadTournamentDetail(context.queryClient, context.userId, params.id);
     if (!isTournamentStaff(detail.myRoles)) {
       redirectToTournamentOverview(params.id);
