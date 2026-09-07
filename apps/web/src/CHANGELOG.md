@@ -8,6 +8,7 @@
 
 ### Other
 
+- fix(Scan): **One look for the scan page on phones** — the scan page now uses the same full-screen layout before and after starting the camera, instead of switching between two different designs.
 - fix(Scan): **Clearer foil correction while scanning** — the scan tray no longer shows a normal card's finish button labeled as foil; switch a card's finish through the printing picker, which now marks the printing you're already on.
 - fix(App): **No more flashed negative counts on the landing page** — under a slow first frame, the animated cards/printings/copies line could briefly read "-1 cards" before settling on the real numbers.
 

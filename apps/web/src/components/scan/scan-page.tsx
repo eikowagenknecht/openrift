@@ -9,6 +9,7 @@ import {
   TriangleAlertIcon,
   XIcon,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -31,7 +32,7 @@ import { ScanPrintingPicker } from "@/components/scan/scan-printing-picker";
 import { ScanSessionTray } from "@/components/scan/scan-session-tray";
 import { ScanSettingsMenu } from "@/components/scan/scan-settings-menu";
 import { ScanStage } from "@/components/scan/scan-stage";
-import { ScanStartPanel } from "@/components/scan/scan-start-panel";
+import { ScanStartPanel, ScanTips } from "@/components/scan/scan-start-panel";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -99,6 +100,30 @@ function describeLastScan(lastScanAt: number | null): string {
 
 function cardWord(count: number): string {
   return count === 1 ? "card" : "cards";
+}
+
+interface ShutterProps {
+  icon: ReactNode;
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+}
+
+function Shutter({ icon, label, disabled, onClick }: ShutterProps) {
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <Button
+        size="icon"
+        className="size-18 rounded-full [clip-path:none] [&_svg:not([class*='size-'])]:size-7"
+        disabled={disabled}
+        onClick={onClick}
+        aria-label={label}
+      >
+        {icon}
+      </Button>
+      <span className="text-sm text-white/80">{label}</span>
+    </div>
+  );
 }
 
 function recordScanned(printing: Printing): void {
@@ -650,7 +675,8 @@ export function ScanPage() {
   }
 
   const layout = useScanLayout();
-  const immersive = layout !== "boxed" && active;
+  const immersive = layout !== "boxed";
+  const fullscreen = immersive && active;
   const shutter = immersive && layout === "portrait";
   const coarsePointer = useCoarsePointer();
   const phoneHandoff = layout === "boxed" && !coarsePointer;
@@ -659,14 +685,14 @@ export function ScanPage() {
   // Matching rules live in index.css. Cleared on unmount too, so leaving the
   // page mid-scan cannot strand the document in the immersive state.
   useEffect(() => {
-    if (!immersive) {
+    if (!fullscreen) {
       return;
     }
     document.documentElement.dataset.scanImmersive = "";
     return () => {
       delete document.documentElement.dataset.scanImmersive;
     };
-  }, [immersive]);
+  }, [fullscreen]);
 
   const settingsProps = {
     languageItems,
@@ -722,6 +748,7 @@ export function ScanPage() {
           embedderReady={embedderReady}
           engineProgress={engineProgress}
           showPhoneHint={phoneHandoff}
+          immersive={immersive}
           onStart={handleStart}
         />
       )}
@@ -730,14 +757,16 @@ export function ScanPage() {
 
   const chrome = (
     <>
-      <Button
-        variant="ghost"
-        onClick={handleStop}
-        className={cn("h-11 rounded-full px-4", OVER_VIDEO)}
-      >
-        <CameraOffIcon />
-        Stop
-      </Button>
+      {active && (
+        <Button
+          variant="ghost"
+          onClick={handleStop}
+          className={cn("h-11 rounded-full px-4", OVER_VIDEO)}
+        >
+          <CameraOffIcon />
+          Stop
+        </Button>
+      )}
       <div className="ml-auto">
         <ScanSettingsMenu
           {...settingsProps}
@@ -779,20 +808,27 @@ export function ScanPage() {
           </Button>
         </div>
       )}
+      {immersive && !active && <ScanTips className="justify-center text-white/70" />}
+      {!active && shutter && (
+        <Shutter
+          icon={<CameraIcon />}
+          label="Start camera"
+          disabled={!ready || cameraAvailable !== true}
+          onClick={handleStart}
+        />
+      )}
+      {!active && immersive && !shutter && (
+        <Button size="lg" disabled={!ready || cameraAvailable !== true} onClick={handleStart}>
+          <CameraIcon />
+          Start camera
+        </Button>
+      )}
       {active && shutter && (
-        <div className="flex flex-col items-center gap-1">
-          <Button
-            size="icon"
-            className="size-18 rounded-full [clip-path:none] [&_svg:not([class*='size-'])]:size-7"
-            onClick={settings.mode === "capture" ? handleCapture : () => void handleIdentifyNow()}
-            aria-label={settings.mode === "capture" ? "Scan card" : "Identify now"}
-          >
-            <ScanSearchIcon />
-          </Button>
-          <span className="text-sm text-white/80">
-            {settings.mode === "capture" ? "Scan card" : "Identify now"}
-          </span>
-        </div>
+        <Shutter
+          icon={<ScanSearchIcon />}
+          label={settings.mode === "capture" ? "Scan card" : "Identify now"}
+          onClick={settings.mode === "capture" ? handleCapture : () => void handleIdentifyNow()}
+        />
       )}
       {active && !shutter && (
         <div className="flex flex-wrap items-center justify-center gap-2">
@@ -889,6 +925,7 @@ export function ScanPage() {
       <ScanStage
         layout={layout}
         immersive={immersive}
+        fullscreen={fullscreen}
         viewfinder={viewfinder}
         chrome={chrome}
         controls={controls}

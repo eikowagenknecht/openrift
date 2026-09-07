@@ -15,6 +15,19 @@ const TIPS = [
   { icon: LayersIcon, label: "One card at a time" },
 ];
 
+export function ScanTips({ className }: { className?: string }) {
+  return (
+    <ul className={cn("flex flex-wrap items-center gap-x-4 gap-y-1 text-xs", className)}>
+      {TIPS.map((tip) => (
+        <li key={tip.label} className="flex items-center gap-1.5">
+          <tip.icon className="size-3.5" />
+          {tip.label}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 interface ScanStartPanelProps {
   ready: boolean;
   cameraAvailable: boolean | null;
@@ -23,6 +36,7 @@ interface ScanStartPanelProps {
   embedderReady: boolean;
   engineProgress: EngineProgress;
   showPhoneHint: boolean;
+  immersive: boolean;
   onStart: () => void;
 }
 
@@ -34,6 +48,7 @@ export function ScanStartPanel({
   embedderReady,
   engineProgress,
   showPhoneHint,
+  immersive,
   onStart,
 }: ScanStartPanelProps) {
   return (
@@ -54,10 +69,12 @@ export function ScanStartPanel({
               <span className="md:hidden">below</span>
               <span className="hidden md:inline">on the right</span>.
             </p>
-            <Button onClick={onStart} disabled={cameraAvailable !== true}>
-              <CameraIcon />
-              Start camera
-            </Button>
+            {!immersive && (
+              <Button onClick={onStart} disabled={cameraAvailable !== true}>
+                <CameraIcon />
+                Start camera
+              </Button>
+            )}
           </>
         ) : (
           <div className="flex w-full flex-col items-center gap-3">
@@ -86,14 +103,9 @@ export function ScanStartPanel({
         </div>
       )}
 
-      <ul className="absolute right-3 bottom-3 flex flex-wrap items-center justify-end gap-x-4 gap-y-1 pl-3 text-xs text-white/60">
-        {TIPS.map((tip) => (
-          <li key={tip.label} className="flex items-center gap-1.5">
-            <tip.icon className="size-3.5" />
-            {tip.label}
-          </li>
-        ))}
-      </ul>
+      {!immersive && (
+        <ScanTips className="absolute right-3 bottom-3 justify-end pl-3 text-white/60" />
+      )}
     </div>
   );
 }

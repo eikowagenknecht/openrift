@@ -12,11 +12,12 @@ const LANDSCAPE_PANEL_WIDTH = "w-72";
 
 interface ScanTrayShellProps {
   layout: ScanLayout;
+  fullscreen: boolean;
   anchorRef: RefObject<HTMLDivElement | null>;
   children: ReactNode;
 }
 
-export function ScanTrayShell({ layout, anchorRef, children }: ScanTrayShellProps) {
+export function ScanTrayShell({ layout, fullscreen, anchorRef, children }: ScanTrayShellProps) {
   if (layout === "boxed") {
     return (
       <div
@@ -33,7 +34,8 @@ export function ScanTrayShell({ layout, anchorRef, children }: ScanTrayShellProp
       <div
         ref={anchorRef}
         className={cn(
-          "bg-background/80 pr-safe fixed inset-y-0 right-0 z-50 flex min-h-0 flex-col border-l px-3 pb-3 backdrop-blur-lg",
+          "bg-background/80 pr-safe fixed right-0 bottom-0 z-50 flex min-h-0 flex-col border-l px-3 pb-3 backdrop-blur-lg",
+          fullscreen ? "top-0" : "top-(--header-height)",
           LANDSCAPE_PANEL_WIDTH,
         )}
       >

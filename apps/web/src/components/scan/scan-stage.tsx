@@ -12,6 +12,7 @@ const BOXED_GRID =
 interface ScanStageProps {
   layout: ScanLayout;
   immersive: boolean;
+  fullscreen: boolean;
   viewfinder: ReactNode;
   chrome: ReactNode;
   controls: ReactNode;
@@ -28,6 +29,7 @@ interface ScanStageProps {
 export function ScanStage({
   layout,
   immersive,
+  fullscreen,
   viewfinder,
   chrome,
   controls,
@@ -50,14 +52,23 @@ export function ScanStage({
             immersive
               ? // Below the tray's z-50; the app header is hidden separately
                 // via the `data-scan-immersive` rules in index.css.
-                cn("fixed inset-y-0 left-0 z-40", landscape ? LANDSCAPE_PANEL_INSET : "right-0")
+                cn(
+                  "fixed bottom-0 left-0 z-40",
+                  fullscreen ? "top-0" : "top-(--header-height)",
+                  landscape ? LANDSCAPE_PANEL_INSET : "right-0",
+                )
               : "aspect-3/4 rounded-lg sm:aspect-video md:col-start-1 md:row-start-2 md:aspect-auto md:h-full",
           )}
         >
           {viewfinder}
 
           {immersive && (
-            <div className="px-safe pt-safe absolute inset-x-0 top-0 z-10 flex items-start gap-2 pb-3">
+            <div
+              className={cn(
+                "px-safe absolute inset-x-0 top-0 z-10 flex items-start gap-2 pb-3",
+                fullscreen ? "pt-safe" : "pt-3",
+              )}
+            >
               {chrome}
             </div>
           )}
@@ -86,7 +97,11 @@ export function ScanStage({
 
         {/* Must stay the last child: only later siblings may change shape
             without disturbing the viewfinder's position above it. */}
-        <ScanTrayShell layout={immersive ? layout : "boxed"} anchorRef={trayAnchorRef}>
+        <ScanTrayShell
+          layout={immersive ? layout : "boxed"}
+          fullscreen={fullscreen}
+          anchorRef={trayAnchorRef}
+        >
           {tray}
         </ScanTrayShell>
       </div>
