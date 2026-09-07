@@ -8,7 +8,6 @@ import {
   InfoIcon,
   MinusIcon,
   PlusIcon,
-  SparklesIcon,
   Trash2Icon,
 } from "lucide-react";
 import { useId } from "react";
@@ -43,7 +42,6 @@ import { sessionCountOf, useScanSessionStore } from "@/stores/scan-session-store
 
 interface ScanSessionTrayProps {
   index: ScanPrintingIndex | null;
-  onSwitchFinish: (row: ScanSessionRow, sibling: Printing) => void;
   onAddOne: (row: ScanSessionRow) => void;
   onRemoveOne: (row: ScanSessionRow) => void;
   onChangePrinting: (row: ScanSessionRow) => void;
@@ -56,7 +54,6 @@ interface ScanSessionTrayProps {
 
 export function ScanSessionTray({
   index,
-  onSwitchFinish,
   onAddOne,
   onRemoveOne,
   onChangePrinting,
@@ -134,12 +131,10 @@ export function ScanSessionTray({
             row={row}
             sequence={sequence}
             siblings={index ? finishSiblingsOf(row.printing, index) : []}
-            finishLabels={labels.finishes}
             rarityLabels={labels.rarities}
             domainColors={domainColors}
             open={openId === row.printing.id}
             onToggle={toggle}
-            onSwitchFinish={onSwitchFinish}
             onAddOne={onAddOne}
             onRemoveOne={onRemoveOne}
             onChangePrinting={onChangePrinting}
@@ -170,12 +165,10 @@ interface TrayRowProps {
   row: ScanSessionRow;
   sequence: string[];
   siblings: Printing[];
-  finishLabels: Record<string, string>;
   rarityLabels: Record<string, string>;
   domainColors: Record<string, string>;
   open: boolean;
   onToggle: (printingId: string) => void;
-  onSwitchFinish: (row: ScanSessionRow, sibling: Printing) => void;
   onAddOne: (row: ScanSessionRow) => void;
   onRemoveOne: (row: ScanSessionRow) => void;
   onChangePrinting: (row: ScanSessionRow) => void;
@@ -189,12 +182,10 @@ function TrayRow({
   row,
   sequence,
   siblings,
-  finishLabels,
   rarityLabels,
   domainColors,
   open,
   onToggle,
-  onSwitchFinish,
   onAddOne,
   onRemoveOne,
   onChangePrinting,
@@ -241,7 +232,7 @@ function TrayRow({
               <span className="truncate font-medium">{name}</span>
               {count > 1 && <CountPill className="shrink-0">×{count}</CountPill>}
             </span>
-            <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-sm">
+            <span className="text-muted-foreground flex min-w-0 items-baseline gap-1.5 text-sm">
               <span className="font-mono sm:hidden">{printing.shortCode}</span>
               <PrintingVariantLabel printing={printing} siblings={siblings} />
             </span>
@@ -295,21 +286,6 @@ function TrayRow({
           )}
           {count > 0 && (
             <>
-              {siblings.map((sibling) => {
-                const toFoil = sibling.finish !== WellKnown.finish.NORMAL;
-                return (
-                  <Button
-                    key={sibling.id}
-                    variant={isFoil ? "secondary" : "outline"}
-                    className={cn(toFoil && "ring-border-accent/60 ring-1")}
-                    onClick={() => onSwitchFinish(row, sibling)}
-                    aria-label={`Mark one ${name} as ${finishLabels[sibling.finish]}`}
-                  >
-                    <SparklesIcon className={cn(toFoil && "text-border-accent")} />
-                    {finishLabels[sibling.finish]}
-                  </Button>
-                );
-              })}
               <Button
                 variant="outline"
                 onClick={() => onChangePrinting(row)}

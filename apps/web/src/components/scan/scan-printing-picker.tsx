@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
 import { Pressable } from "@/components/ui/pressable";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { cn } from "@/lib/utils";
 import { useScanPrefsStore } from "@/stores/scan-prefs-store";
 
 /** One unresolved lock waiting for the user to name its printing. */
@@ -14,6 +15,7 @@ export interface PickerRequest {
   artKey: string;
   label: string;
   candidates: Printing[];
+  currentId?: string;
 }
 
 interface ScanPrintingPickerProps {
@@ -50,20 +52,32 @@ export function ScanPrintingPicker({
 
   const renderList = (items: Printing[]) => (
     <div className="flex min-h-0 flex-col gap-1 overflow-y-auto">
-      {items.map((candidate) => (
-        <Pressable
-          key={candidate.id}
-          className="hover:bg-muted flex w-full items-center rounded-md px-2 py-1.5"
-          onClick={() => onPick(candidate)}
-        >
-          <PrintingRowContent
-            printing={candidate}
-            // Full candidate set, not the tab's: the variant label needs every sibling.
-            siblings={candidates}
-            name={legendDisplayName(candidate.card)}
-          />
-        </Pressable>
-      ))}
+      {items.map((candidate) => {
+        const isCurrent = candidate.id === request?.currentId;
+        return (
+          <Pressable
+            key={candidate.id}
+            aria-current={isCurrent ? "true" : undefined}
+            className={cn(
+              "hover:bg-muted flex w-full items-center rounded-md px-2 py-1.5",
+              isCurrent && "bg-muted",
+            )}
+            onClick={() => onPick(candidate)}
+          >
+            <PrintingRowContent
+              printing={candidate}
+              // Full candidate set, not the tab's: the variant label needs every sibling.
+              siblings={candidates}
+              name={legendDisplayName(candidate.card)}
+              right={
+                isCurrent ? (
+                  <span className="text-muted-foreground shrink-0 text-xs">Current</span>
+                ) : null
+              }
+            />
+          </Pressable>
+        );
+      })}
     </div>
   );
 

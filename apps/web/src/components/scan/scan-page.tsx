@@ -615,6 +615,7 @@ export function ScanPage() {
         candidates: sortForPicker(
           allPrintings.filter((printing) => printing.cardId === swapRow.printing.cardId),
         ),
+        currentId: swapRow.printing.id,
       }
     : null;
 
@@ -879,7 +880,6 @@ export function ScanPage() {
       )}
       <ScanSessionTray
         index={index}
-        onSwitchFinish={(row, to) => void handleSwitchPrinting(row, to)}
         onAddOne={handleAddOne}
         onRemoveOne={(row) => void handleRemoveOne(row)}
         onChangePrinting={setSwapRow}
@@ -950,7 +950,7 @@ export function ScanPage() {
         title="Switch to another printing"
         description={
           swapRow
-            ? `Move one scanned ${legendDisplayName(swapRow.printing.card)} to a different printing of the same card.`
+            ? `Move one scanned ${legendDisplayName(swapRow.printing.card)} to another printing, finish or language of the same card.`
             : ""
         }
       />
