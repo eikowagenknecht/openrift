@@ -9,6 +9,7 @@
 
 ### Other
 
+- feat(App): **Landing page says what OpenRift does** — the hero now opens with the job: track your collection, build decks, and trade with friends.
 - feat(Cards): **Marketplace icon on card grid prices** — the price shown on each card in a grid now carries the icon of the marketplace it came from.
 - feat(Cards): **A readable link for each printing** — picking a printing on a card page now names it in the address bar, so a shared link opens on that exact printing instead of carrying an id.
 - fix(App): **Mobile menu scrolls and folds** — the mobile navigation menu no longer clips off-screen on tall menus, and the Play, Organize, Create and Explore sections now collapse behind their heading, folded by default.

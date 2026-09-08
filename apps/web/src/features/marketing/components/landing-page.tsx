@@ -101,17 +101,14 @@ export function LandingPage() {
                   className={cn("size-16", spinning && "animate-logo-spin")}
                 />
               </Button>
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-center gap-3 lg:justify-start">
-                  <h1 className="font-heading text-4xl font-bold md:text-5xl">OpenRift</h1>
-                </div>
-                <p className="text-muted-foreground/60 text-xs italic">
-                  Built with Fury. Maintained with Calm.
-                </p>
-              </div>
+              <span className="font-heading text-4xl font-bold md:text-5xl">OpenRift</span>
             </div>
+            <h1 className="font-heading text-2xl font-bold text-balance md:text-4xl">
+              Track your Riftbound collection. Build decks. Trade with friends.
+            </h1>
             <p className="text-muted-foreground text-lg">
-              The Riftbound app for you and your playgroup. Fast, free, and open source.
+              Scan cards with your phone, follow prices, and match wishlists with your playgroup.
+              Fast, free, and open source.
             </p>
             <HeroCtas />
             {data && (
