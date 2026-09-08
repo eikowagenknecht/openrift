@@ -120,6 +120,8 @@ export interface PrintingImage {
 export interface Printing {
   id: string;
   cardId: string;
+  /** Permalink segment, on the card detail payload only. See the wire schema. */
+  slug?: string;
   shortCode: string;
   setId: string;
   setSlug: string;

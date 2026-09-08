@@ -43,7 +43,10 @@ function SetDetailPage() {
   const printingsByCardId = Map.groupBy(data.printings, (printing) => printing.cardId);
 
   const handleCardClick = (printing: Printing) => {
-    void navigate({ to: "/cards/$cardSlug", params: { cardSlug: printing.card.slug } });
+    void navigate({
+      to: "/cards/$cardSlug/{-$printingSlug}",
+      params: { cardSlug: printing.card.slug },
+    });
   };
 
   return (

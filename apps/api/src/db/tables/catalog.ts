@@ -68,6 +68,7 @@ export interface PrintingsTable {
   id: Generated<string>;
   cardId: string;
   setId: string;
+  slug: Generated<string>;
   shortCode: string;
   rarity: Rarity;
   artVariant: ArtVariant;

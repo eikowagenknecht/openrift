@@ -26,10 +26,10 @@ import { resolveCardMetaPrinting } from "@/features/cards/lib/card-meta";
 import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 import { cn, PAGE_PADDING, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 
-const routeApi = getRouteApi("/_app/cards_/$cardSlug");
+const routeApi = getRouteApi("/_app/cards_/$cardSlug/{-$printingSlug}");
 
 export function CardDetailPage() {
-  const { cardSlug } = routeApi.useParams();
+  const { cardSlug, printingSlug } = routeApi.useParams();
   const { printingId: linkedPrintingId } = routeApi.useSearch();
   const navigate = useNavigate();
   const { data } = useSuspenseQuery(cardDetailQueryOptions(cardSlug));
@@ -42,19 +42,21 @@ export function CardDetailPage() {
     const bRank = rankByLang.get(b.language) ?? unlistedRank;
     return aRank - bRank || a.canonicalRank - b.canonicalRank;
   });
-  // Derived from `?printingId=`, not useState: the route stays mounted across
+  // Derived from the URL, not useState: the route stays mounted across
   // `$cardSlug` changes, and state would keep showing the previous card's printing.
   const selectedPrinting = resolveCardMetaPrinting(
     printings,
-    linkedPrintingId,
+    printingSlug ?? linkedPrintingId,
     effectiveLanguageOrder,
   );
 
-  // Mirrored into `?printingId=`; the route's `head()` reads this for deep-link unfurls.
+  // Mirrored into the path; the route's `head()` reads it for deep-link unfurls.
+  // `?printingId=` is dropped on the way, so the two never disagree.
   const selectPrinting = (printing: Printing) => {
     void navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, printingId: printing.id }),
+      to: "/cards/$cardSlug/{-$printingSlug}",
+      params: { cardSlug, printingSlug: printing.slug },
+      search: (prev) => ({ ...prev, printingId: undefined }),
       replace: true,
     });
   };

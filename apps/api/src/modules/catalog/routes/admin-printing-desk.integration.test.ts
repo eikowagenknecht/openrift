@@ -280,7 +280,7 @@ describe.skipIf(!adminCtx)("Admin printing-desk routes (integration)", () => {
         setSlug: "PDK",
         markerSlugs: ["pdk-prerelease"],
         distributionChannelSlugs: ["pdk-skirmish"],
-        createdByMe: true,
+        canEdit: true,
       });
     });
 
@@ -325,8 +325,14 @@ describe.skipIf(!adminCtx)("Admin printing-desk routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await readJson(res);
-      expect(json.printing).toMatchObject({ printingId: createdPrintingId, createdByMe: true });
+      expect(json.printing).toMatchObject({ printingId: createdPrintingId, canEdit: true });
       expect(json.images).toEqual([]);
+    });
+
+    it("carries a slug the insert trigger derived from the printing's own parts", async () => {
+      const res = await app.fetch(adminReq("GET", `/printing-desk/printings/${createdPrintingId}`));
+      const json = await readJson(res);
+      expect(json.printing.slug).toBe("en-pdk-p01-foil-pdk-prerelease-standard");
     });
 
     it("404s on an unknown printing", async () => {
@@ -378,9 +384,19 @@ describe.skipIf(!adminCtx)("Admin printing-desk routes (integration)", () => {
       expect(event).toMatchObject({ actorUserId: ADMIN_ID });
     });
 
-    it("403s a grant holder editing a printing somebody else added", async () => {
+    it("lets a grant holder edit a promo somebody else added", async () => {
       const res = await grantApp.fetch(
-        adminReq("PATCH", `/printing-desk/printings/${createdPrintingId}`, { artist: "Nope" }),
+        adminReq("PATCH", `/printing-desk/printings/${createdPrintingId}`, {
+          releasedAt: "2026-05-01",
+          releasePrecision: "month",
+        }),
+      );
+      expect(res.status).toBe(204);
+    });
+
+    it("403s a grant holder editing a printing outside the desk", async () => {
+      const res = await grantApp.fetch(
+        adminReq("PATCH", `/printing-desk/printings/${basePrintingId}`, { artist: "Nope" }),
       );
       expect(res.status).toBe(403);
     });

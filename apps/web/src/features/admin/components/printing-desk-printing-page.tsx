@@ -4,6 +4,7 @@ import { formatDay } from "@openrift/shared/format-date";
 import { formatPrintingCode } from "@openrift/shared/printing-code";
 import type { AdminPrintingCitation } from "@openrift/shared/types/api/admin";
 import { getOrientation } from "@openrift/shared/utils";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
   ExternalLinkIcon,
@@ -39,12 +40,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdminPageTopBar } from "@/features/admin/components/admin-page-top-bar";
 import { PrintingDeskEditFields } from "@/features/admin/components/printing-desk-form-page";
-import {
-  DeskSegmented,
-  DeskStatusBadge,
-  DeskThumb,
-} from "@/features/admin/components/printing-desk-shared";
-import { useIsAdmin } from "@/features/admin/hooks/use-admin";
+import { DeskSegmented, DeskStatusBadge } from "@/features/admin/components/printing-desk-shared";
 import {
   useActivatePrintingImage,
   useDeletePrintingImage,
@@ -68,10 +64,10 @@ import { deskPrintingPeriod } from "@/features/admin/lib/printing-desk-status";
 import { encodePostSlides } from "@/features/admin/lib/printing-post-slides";
 import { sourceBrand } from "@/features/admin/lib/source-brand";
 import { CardArtThumb } from "@/features/cards/components/card-art-thumb";
-import { ImageCreditLine } from "@/features/cards/components/card-detail/image-credit";
-import { PrintingCitationList } from "@/features/cards/components/card-detail/printing-citations";
+import { CardDetail } from "@/features/cards/components/card-detail/card-detail";
 import { ImageHoverPreview } from "@/features/cards/components/printing-hover-preview";
-import { catalogKeys, promosKeys } from "@/features/cards/lib/cards-query-keys";
+import { freshCardDetailQueryOptions } from "@/features/cards/hooks/use-card-detail";
+import { cardsKeys, catalogKeys, promosKeys } from "@/features/cards/lib/cards-query-keys";
 import { buildChannelBreadcrumbsBySlug } from "@/features/cards/lib/channel-breadcrumbs";
 import { useDistributionChannels } from "@/hooks/use-distribution-channels";
 import { useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
@@ -84,6 +80,7 @@ const DESK_IMAGE_SCOPE = [
   adminKeys.printingDesk.all,
   adminKeys.cards.all,
   catalogKeys.all,
+  cardsKeys.all,
   promosKeys.all,
 ] as const;
 
@@ -99,7 +96,6 @@ export function PrintingDeskPrintingPage({ printingId }: { printingId: string })
   const { data } = useDeskPrinting(printingId);
   const { data: channelData } = useDistributionChannels();
   const { data: session } = useSession();
-  const citations = useAdminPrintingCitations(printingId);
   const uploadImage = useUploadPrintingImage(DESK_IMAGE_SCOPE);
   const activateImage = useActivatePrintingImage(DESK_IMAGE_SCOPE);
 
@@ -209,21 +205,27 @@ export function PrintingDeskPrintingPage({ printingId }: { printingId: string })
                     const activeId = images.find((image) => image.isActive)?.printingImageId ?? "";
                     return (
                       <div key={option.value} className="space-y-2">
-                        <p className="text-sm font-medium">{option.label}</p>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium">{option.label}</p>
+                          {activeId !== "" && (
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              onClick={() =>
+                                activateImage.mutate({ imageId: activeId, active: false })
+                              }
+                            >
+                              Clear
+                            </Button>
+                          )}
+                        </div>
                         <RadioGroup
                           aria-label={`Active ${option.label.toLowerCase()} image`}
                           value={activeId}
                           onValueChange={(value) => {
-                            if (typeof value !== "string") {
-                              return;
+                            if (typeof value === "string" && value !== "") {
+                              activateImage.mutate({ imageId: value, active: true });
                             }
-                            if (value === "") {
-                              if (activeId !== "") {
-                                activateImage.mutate({ imageId: activeId, active: false });
-                              }
-                              return;
-                            }
-                            activateImage.mutate({ imageId: value, active: true });
                           }}
                           className="gap-2"
                         >
@@ -235,13 +237,6 @@ export function PrintingDeskPrintingPage({ printingId }: { printingId: string })
                               landscape={getOrientation([printing.cardType]) === "landscape"}
                             />
                           ))}
-                          <label
-                            htmlFor={`active-none-${option.value}`}
-                            className="text-muted-foreground flex w-fit items-center gap-1.5 text-sm"
-                          >
-                            <RadioGroupItem id={`active-none-${option.value}`} value="" />
-                            None
-                          </label>
                         </RadioGroup>
                       </div>
                     );
@@ -262,36 +257,30 @@ export function PrintingDeskPrintingPage({ printingId }: { printingId: string })
           <CardHeader>
             <CardTitle>On the card page</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <DeskThumb row={printing} className="w-32" variant="400w" />
-
-            {activeFront?.credit !== null && activeFront?.credit !== undefined && (
-              <ImageCreditLine credit={activeFront.credit} />
-            )}
-
-            <div>
-              <p className="text-sm font-medium">Sources</p>
-              {(citations.data?.citations ?? []).length === 0 ? (
-                <p className="text-muted-foreground text-sm">None yet.</p>
-              ) : (
-                <div className="text-muted-foreground text-sm">
-                  <PrintingCitationList
-                    citations={citations.data?.citations ?? []}
-                    bullets={false}
-                  />
-                </div>
-              )}
-            </div>
-
-            <p className="text-muted-foreground text-sm">
-              Your image and its credit show on the card page and on the promos page as soon as you
-              set it active.
-            </p>
+          <CardContent>
+            <Suspense fallback={<Skeleton className="h-96 w-full rounded-lg" />}>
+              <CardPagePreview cardSlug={printing.cardSlug} printingId={printingId} />
+            </Suspense>
           </CardContent>
         </Card>
       </div>
     </div>
   );
+}
+
+function CardPagePreview({ cardSlug, printingId }: { cardSlug: string; printingId: string }) {
+  const { data } = useSuspenseQuery(freshCardDetailQueryOptions(cardSlug));
+  const printing = data.printings.find((entry) => entry.id === printingId);
+
+  if (!printing) {
+    return (
+      <p className="text-muted-foreground text-sm">
+        Not on the card page yet. It appears once the catalog picks the printing up.
+      </p>
+    );
+  }
+
+  return <CardDetail printing={printing} showImages showPrices={false} />;
 }
 
 function DetailsCard({
@@ -301,14 +290,13 @@ function DetailsCard({
   printing: DeskPrintingRow;
   channelPath: string;
 }) {
-  const isAdmin = useIsAdmin();
   const { labels } = useEnumOrders();
   const languageLabels = useLanguageLabels();
   const { data: markerData } = useMarkers();
   const [editing, setEditing] = useState(false);
 
   const markerLabels = new Map(markerData.markers.map((marker) => [marker.slug, marker.label]));
-  const canEdit = isAdmin || printing.createdByMe;
+  const canEdit = printing.canEdit;
 
   return (
     <Card>
@@ -369,7 +357,7 @@ function DetailsCard({
 
             {!canEdit && (
               <p className="text-muted-foreground mt-3 text-sm">
-                Added by someone else. Only the admin changes these details.
+                Not a promo. Only the admin changes these details.
               </p>
             )}
           </>

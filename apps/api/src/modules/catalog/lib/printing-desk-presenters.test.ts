@@ -5,6 +5,7 @@ import { toDeskImages, toDeskPrintingRow } from "./printing-desk-presenters.js";
 
 const row: DeskPrintingRow = {
   printingId: "p1",
+  slug: "en-tba-summoner-skirmish-banner-foil-prerelease-standard",
   cardId: "c1",
   cardSlug: "summoner-skirmish-banner",
   cardName: "Summoner Skirmish Banner",
@@ -30,26 +31,48 @@ const row: DeskPrintingRow = {
   activeImageUrl: "/media/cards/g1/img1-full.webp",
   createdAt: new Date("2026-03-01T10:00:00.000Z"),
   updatedAt: new Date("2026-03-02T11:30:00.000Z"),
+  isPromo: true,
+};
+
+const base: DeskPrintingRow = {
+  ...row,
+  markerSlugs: [],
+  distributionChannelSlugs: [],
+  isPromo: false,
 };
 
 describe("toDeskPrintingRow", () => {
   it("maps a row to the wire shape with ISO timestamps", () => {
-    const result = toDeskPrintingRow(row, true);
+    const result = toDeskPrintingRow(row, { createdByMe: true, isAdmin: false });
     expect(result).toEqual({
       ...row,
+      isPromo: undefined,
       createdAt: "2026-03-01T10:00:00.000Z",
       updatedAt: "2026-03-02T11:30:00.000Z",
-      createdByMe: true,
+      canEdit: true,
     });
   });
 
-  it("carries the ownership flag the caller resolved", () => {
-    expect(toDeskPrintingRow(row, false).createdByMe).toBe(false);
+  it("lets any grant holder edit a promo", () => {
+    expect(toDeskPrintingRow(row, { createdByMe: false, isAdmin: false }).canEdit).toBe(true);
+  });
+
+  it("lets a grant holder edit a non-promo they added", () => {
+    expect(toDeskPrintingRow(base, { createdByMe: true, isAdmin: false }).canEdit).toBe(true);
+  });
+
+  it("keeps a non-promo someone else added out of a grant holder's reach", () => {
+    expect(toDeskPrintingRow(base, { createdByMe: false, isAdmin: false }).canEdit).toBe(false);
+  });
+
+  it("lets the admin edit any printing", () => {
+    expect(toDeskPrintingRow(base, { createdByMe: false, isAdmin: true }).canEdit).toBe(true);
   });
 
   it("carries the announcement date, null included", () => {
-    expect(toDeskPrintingRow(row, true).announcedAt).toBe("2026-02-14");
-    expect(toDeskPrintingRow({ ...row, announcedAt: null }, true).announcedAt).toBeNull();
+    const opts = { createdByMe: true, isAdmin: false };
+    expect(toDeskPrintingRow(row, opts).announcedAt).toBe("2026-02-14");
+    expect(toDeskPrintingRow({ ...row, announcedAt: null }, opts).announcedAt).toBeNull();
   });
 });
 

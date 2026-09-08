@@ -12,7 +12,7 @@ vi.mock("@/features/cards/hooks/use-prices", () => ({
 }));
 
 const { fetchPricesForSeo } = await import("@/features/cards/hooks/use-prices");
-const { Route } = await import("./cards_.$cardSlug");
+const { Route } = await import("./cards_.$cardSlug.{-$printingSlug}");
 
 const PRICES = {
   prices: { "p-en": { tcgplayer: 250, cardmarket: 199, cardtrader: 300 } },

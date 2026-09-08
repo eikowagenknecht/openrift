@@ -55,6 +55,7 @@ type CatalogPrintingRow = Omit<
   | "announcedAt"
   | "releasedAt"
   | "releasePrecision"
+  | "slug"
 > & {
   printedName: string | null;
   language: string;
@@ -71,6 +72,9 @@ type CatalogPrintingRow = Omit<
    */
   fallbackImageId: string | null;
 };
+
+/** Only the card detail read carries the slug; the bulk read is one row per printing of every card. */
+type CatalogPrintingDetailRow = CatalogPrintingRow & { slug: string };
 
 /** Selecting from `printings_ordered` (the view) so we get `canonical_rank` too. */
 const PRINTING_VIEW_COLUMNS = [
@@ -167,7 +171,7 @@ export function catalogPrintingsRepo(db: Kysely<Database>) {
      * per-card monotonic (1, 2, 3 …) — consumers only use it as a within-card
      * tiebreaker, so the smaller values are semantically equivalent.
      */
-    printingsByCardId(cardId: string): Promise<CatalogPrintingRow[]> {
+    printingsByCardId(cardId: string): Promise<CatalogPrintingDetailRow[]> {
       return db
         .selectFrom("printings as p")
         .innerJoin("sets as s", "s.id", "p.setId")
@@ -179,6 +183,7 @@ export function catalogPrintingsRepo(db: Kysely<Database>) {
           "p.id",
           "p.cardId",
           "p.setId",
+          "p.slug",
           "p.shortCode",
           "p.rarity",
           "p.artVariant",

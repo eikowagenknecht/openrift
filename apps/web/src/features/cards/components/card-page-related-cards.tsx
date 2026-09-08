@@ -16,7 +16,7 @@ export function RelatedCardsSection({ related }: { related: CardDetailRelatedCar
         {related.map((relatedCard) => (
           <Link
             key={relatedCard.slug}
-            to="/cards/$cardSlug"
+            to="/cards/$cardSlug/{-$printingSlug}"
             params={{ cardSlug: relatedCard.slug }}
             className="group flex flex-col gap-1.5"
           >

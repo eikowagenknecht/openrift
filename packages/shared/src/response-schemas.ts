@@ -180,6 +180,8 @@ export const catalogCardResponseSchema = z.object({
 
 export const catalogPrintingResponseSchema = z.object({
   id: z.string().openapi({ example: "019cfc3b-03d3-7dac-86c9-27900cd43727" }),
+  // Card detail only: the browse payload is one row per printing of every card.
+  slug: z.string().optional().openapi({ example: "en-ogn-202-foil-promo-standard" }),
   shortCode: z.string().openapi({ example: "OGN-202" }),
   setId: z.string().openapi({ example: "019cfc3b-0369-7890-a450-7859471cc3f6" }),
   rarity: raritySchema,

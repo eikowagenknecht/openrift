@@ -5,9 +5,13 @@ import type {
   DeskPrintingRow as DeskPrintingDbRow,
 } from "../repositories/printing-desk.js";
 
-export function toDeskPrintingRow(row: DeskPrintingDbRow, createdByMe: boolean): DeskPrintingRow {
+export function toDeskPrintingRow(
+  row: DeskPrintingDbRow,
+  { createdByMe, isAdmin }: { createdByMe: boolean; isAdmin: boolean },
+): DeskPrintingRow {
   return {
     printingId: row.printingId,
+    slug: row.slug,
     cardId: row.cardId,
     cardSlug: row.cardSlug,
     cardName: row.cardName,
@@ -33,7 +37,7 @@ export function toDeskPrintingRow(row: DeskPrintingDbRow, createdByMe: boolean):
     activeImageUrl: row.activeImageUrl,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
-    createdByMe,
+    canEdit: isAdmin || row.isPromo || createdByMe,
   };
 }
 

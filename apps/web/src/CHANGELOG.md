@@ -4,6 +4,7 @@
 
 ### Other
 
+- feat(Cards): **A readable link for each printing** — picking a printing on a card page now names it in the address bar, so a shared link opens on that exact printing instead of carrying an id.
 - fix(App): **Mobile menu scrolls and folds** — the mobile navigation menu no longer clips off-screen on tall menus, and the Play, Organize, Create and Explore sections now collapse behind their heading, folded by default.
 - fix(Cards): **Contribute form field labels** — every field on the contribute form now carries its label for screen readers and focuses when the label is clicked.
 

@@ -1,12 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Repos, Transact } from "../../../deps.js";
-import { AppError } from "../../../errors.js";
 import type { Io } from "../../../io.js";
 import type { AdminAccess } from "../../../middleware/require-admin.js";
 import {
   assertDeskImageFileScope,
-  assertDeskOwnership,
   assertDeskPrintingScope,
   assertImageUploader,
   createDeskPrinting,
@@ -57,7 +55,9 @@ function makeRepos() {
       getCardById: vi.fn(() => Promise.resolve(CARD)),
       getSetPrintedTotalForPrinting: vi.fn(() => Promise.resolve({ printedTotal: 298 })),
     },
-    distributionChannels: {},
+    distributionChannels: {
+      listForPrintingIds: vi.fn(() => Promise.resolve([{ channelSlug: "nexus-night-2026-09" }])),
+    },
     markers: {},
     printingDesk: {
       isDeskPrinting: vi.fn(() => Promise.resolve(false)),
@@ -342,6 +342,50 @@ describe("updateDeskPrinting", () => {
     );
   });
 
+  it("records the marker and channel slugs on both sides of the change", async () => {
+    repos.printingDesk.getFullPrinting.mockResolvedValue({
+      ...BASE_PRINTING,
+      markerSlugs: ["stamped"],
+    } as never);
+
+    await update(repos, FULL_ADMIN, {
+      markerSlugs: ["prerelease"],
+      distributionChannelSlugs: ["skirmish-2026"],
+    });
+
+    expect(recordAdminEvent).toHaveBeenCalledWith(
+      repos,
+      "user-1",
+      expect.objectContaining({
+        oldValues: {
+          markerSlugs: ["stamped"],
+          distributionChannelSlugs: ["nexus-night-2026-09"],
+        },
+        newValues: {
+          markerSlugs: ["prerelease"],
+          distributionChannelSlugs: ["skirmish-2026"],
+        },
+      }),
+    );
+  });
+
+  it("lets a grant holder edit a promo they did not add", async () => {
+    repos.printingDesk.isDeskPrinting.mockResolvedValue(true);
+    repos.adminEvents.wasPrintingCreatedBy.mockResolvedValue(false);
+
+    await expect(update(repos, GRANT_HOLDER, { releasedAt: null })).resolves.toBeUndefined();
+  });
+
+  it("403s a grant holder on a printing outside the desk", async () => {
+    repos.printingDesk.isDeskPrinting.mockResolvedValue(false);
+    repos.adminEvents.wasPrintingCreatedBy.mockResolvedValue(false);
+
+    await expect(update(repos, GRANT_HOLDER, { artist: "Guest Artist" })).rejects.toMatchObject({
+      status: 403,
+      code: "FORBIDDEN",
+    });
+  });
+
   it("maps an identity unique violation to a 409", async () => {
     repos.printingDesk.updatePrintingDeskFields.mockRejectedValue(
       Object.assign(new Error("duplicate"), {
@@ -359,35 +403,6 @@ describe("updateDeskPrinting", () => {
   it("404s on a printing that does not exist", async () => {
     repos.printingDesk.getFullPrinting.mockResolvedValue(undefined as never);
     await expect(update(repos, FULL_ADMIN, { artist: "X" })).rejects.toMatchObject({ status: 404 });
-  });
-});
-
-describe("assertDeskOwnership", () => {
-  it("lets a full admin through without reading the event log", async () => {
-    await expect(
-      assertDeskOwnership(repos as unknown as Repos, FULL_ADMIN, "user-1", "p-1"),
-    ).resolves.toBeUndefined();
-    expect(repos.adminEvents.wasPrintingCreatedBy).not.toHaveBeenCalled();
-  });
-
-  it("lets the grant holder who added the printing through", async () => {
-    repos.adminEvents.wasPrintingCreatedBy.mockResolvedValue(true);
-    await expect(
-      assertDeskOwnership(repos as unknown as Repos, GRANT_HOLDER, "user-1", "p-1"),
-    ).resolves.toBeUndefined();
-  });
-
-  it("403s another grant holder", async () => {
-    repos.adminEvents.wasPrintingCreatedBy.mockResolvedValue(false);
-    await expect(
-      assertDeskOwnership(repos as unknown as Repos, GRANT_HOLDER, "user-2", "p-1"),
-    ).rejects.toMatchObject({ status: 403, code: "FORBIDDEN" });
-  });
-
-  it("403s when there is no admin access at all", async () => {
-    await expect(
-      assertDeskOwnership(repos as unknown as Repos, null, "user-1", "p-1"),
-    ).rejects.toBeInstanceOf(AppError);
   });
 });
 

@@ -38,7 +38,7 @@ export function MostExpensivePrintings({
           {visible.map((printing, index) => (
             <Link
               key={printing.printingId}
-              to="/cards/$cardSlug"
+              to="/cards/$cardSlug/{-$printingSlug}"
               params={{ cardSlug: printing.cardSlug }}
               className="hover:bg-muted/50 focus-visible:ring-ring/50 flex items-center gap-3 rounded-md p-2 no-underline transition-colors outline-none focus-visible:ring-2"
             >

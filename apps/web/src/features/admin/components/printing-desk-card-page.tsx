@@ -45,7 +45,7 @@ export function PrintingDeskCardPage({ cardSlug }: { cardSlug: string }) {
         promo printing.
       </PageDescription>
 
-      <CardHeaderPanel card={data.card} base={base} domainLabels={labels.domains} />
+      <CardHeaderPanel card={data.card} base={base} />
 
       {languages.length > 1 && (
         <DeskSegmented
@@ -75,18 +75,11 @@ export function PrintingDeskCardPage({ cardSlug }: { cardSlug: string }) {
   );
 }
 
-function CardHeaderPanel({
-  card,
-  base,
-  domainLabels,
-}: {
-  card: DeskCard;
-  base: DeskPrintingRow | undefined;
-  domainLabels: Record<string, string>;
-}) {
+function CardHeaderPanel({ card, base }: { card: DeskCard; base: DeskPrintingRow | undefined }) {
+  const { labels } = useEnumOrders();
   const meta = [
-    card.type,
-    card.domains.map((domain) => domainLabels[domain] ?? domain).join(" · "),
+    enumLabel(labels.cardTypes, card.type),
+    card.domains.map((domain) => enumLabel(labels.domains, domain)).join(" · "),
     base?.setName,
   ].filter((part): part is string => Boolean(part));
 
@@ -100,7 +93,7 @@ function CardHeaderPanel({
           {base && <p className="text-muted-foreground text-sm">Art by {base.artist}</p>}
         </div>
         <Link
-          to="/cards/$cardSlug"
+          to="/cards/$cardSlug/{-$printingSlug}"
           params={{ cardSlug: card.slug }}
           className="text-primary flex shrink-0 items-center gap-1 text-sm hover:underline"
         >

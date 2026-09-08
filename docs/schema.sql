@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict AneYzVuw8J0Pw4BCg6G1TErkN4MuYuxqcel45fzEyJuODBbrXHwou0UmnupokGl
+\restrict Rt081jjImIjoVahWxTYmYdy9IBc3iaPKffWQrab1cIkQtLY075iLgYjEAHyLxkx
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -633,6 +633,47 @@ CREATE FUNCTION public.trg_printing_markers_sync() RETURNS trigger
         PERFORM recompute_printing_marker_slugs(NEW.printing_id);
         RETURN NEW;
       END IF;
+    END;
+    $$;
+
+
+--
+-- Name: trg_printings_set_slug(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.trg_printings_set_slug() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    DECLARE
+      base text;
+      candidate text;
+      n int := 1;
+    BEGIN
+      IF NEW.slug IS NOT NULL AND NEW.slug <> '' THEN
+        RETURN NEW;
+      END IF;
+      base := trim(BOTH '-' FROM regexp_replace(
+        lower(
+          coalesce(NEW.language, '') || '-' ||
+          coalesce(NEW.short_code, '') || '-' ||
+          coalesce(NEW.finish, '') || '-' ||
+          array_to_string(coalesce(NEW.marker_slugs, '{}'), '-') || '-' ||
+          coalesce(NEW.size, '')
+        ),
+        '[^a-z0-9]+', '-', 'g'
+      ));
+      IF base = '' THEN
+        base := 'printing';
+      END IF;
+      candidate := base;
+      WHILE EXISTS (
+        SELECT 1 FROM printings WHERE card_id = NEW.card_id AND slug = candidate
+      ) LOOP
+        n := n + 1;
+        candidate := base || '-' || n;
+      END LOOP;
+      NEW.slug := candidate;
+      RETURN NEW;
     END;
     $$;
 
@@ -2603,6 +2644,7 @@ CREATE TABLE public.printings (
     released_at date,
     release_precision public.release_precision,
     announced_at date,
+    slug text NOT NULL,
     CONSTRAINT chk_printings_artist_not_empty CHECK ((artist <> ''::text)),
     CONSTRAINT chk_printings_fallback_art_mode CHECK ((fallback_art_mode = ANY (ARRAY['auto'::text, 'pinned'::text, 'none'::text]))),
     CONSTRAINT chk_printings_fallback_pinned_has_image CHECK (((fallback_art_mode = 'pinned'::text) = (fallback_image_file_id IS NOT NULL))),
@@ -2614,7 +2656,8 @@ CREATE TABLE public.printings (
     CONSTRAINT chk_printings_public_code_not_empty CHECK ((public_code <> ''::text)),
     CONSTRAINT chk_printings_release_period_start CHECK (((released_at IS NULL) OR (release_precision = 'day'::public.release_precision) OR ((release_precision = 'month'::public.release_precision) AND (EXTRACT(day FROM released_at) = (1)::numeric)) OR ((release_precision = 'quarter'::public.release_precision) AND (EXTRACT(day FROM released_at) = (1)::numeric) AND (EXTRACT(month FROM released_at) = ANY (ARRAY[(1)::numeric, (4)::numeric, (7)::numeric, (10)::numeric]))) OR ((release_precision = 'year'::public.release_precision) AND (EXTRACT(doy FROM released_at) = (1)::numeric)))),
     CONSTRAINT chk_printings_release_precision CHECK (((released_at IS NULL) = (release_precision IS NULL))),
-    CONSTRAINT chk_printings_short_code_not_empty CHECK ((short_code <> ''::text))
+    CONSTRAINT chk_printings_short_code_not_empty CHECK ((short_code <> ''::text)),
+    CONSTRAINT chk_printings_slug_not_empty CHECK ((slug <> ''::text))
 );
 
 
@@ -3012,6 +3055,7 @@ CREATE VIEW public.printings_ordered AS
     p.released_at,
     p.release_precision,
     p.announced_at,
+    p.slug,
     COALESCE(r.canonical_rank, 2147483647) AS canonical_rank,
     (t.printing_id IS NOT NULL) AS has_foil_twin
    FROM ((public.printings p
@@ -6618,6 +6662,13 @@ CREATE UNIQUE INDEX uq_printing_citations_url ON public.printing_citations USING
 
 
 --
+-- Name: uq_printings_card_slug; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_printings_card_slug ON public.printings USING btree (card_id, slug);
+
+
+--
 -- Name: uq_stage_presets_user_name; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6741,6 +6792,13 @@ CREATE TRIGGER printing_events_set_updated_at BEFORE UPDATE ON public.printing_e
 --
 
 CREATE TRIGGER printing_markers_sync_iud AFTER INSERT OR DELETE OR UPDATE ON public.printing_markers FOR EACH ROW EXECUTE FUNCTION public.trg_printing_markers_sync();
+
+
+--
+-- Name: printings printings_set_slug; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER printings_set_slug BEFORE INSERT ON public.printings FOR EACH ROW EXECUTE FUNCTION public.trg_printings_set_slug();
 
 
 --
@@ -9169,5 +9227,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict AneYzVuw8J0Pw4BCg6G1TErkN4MuYuxqcel45fzEyJuODBbrXHwou0UmnupokGl
+\unrestrict Rt081jjImIjoVahWxTYmYdy9IBc3iaPKffWQrab1cIkQtLY075iLgYjEAHyLxkx
 

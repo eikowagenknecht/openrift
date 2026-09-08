@@ -67,9 +67,16 @@ export function PrintingDeskMarkerBrowser({
                 key={marker.id}
                 aria-pressed={isSelected}
                 onClick={() => onToggle(marker.slug)}
-                className="hover:bg-muted/50 flex w-full items-center gap-2 px-3 py-2 text-sm"
+                className="hover:bg-muted/50 flex w-full items-baseline gap-2 px-3 py-2 text-sm"
               >
-                <span className="min-w-0 flex-1 truncate">{marker.label}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{marker.label}</span>
+                  {marker.description !== null && (
+                    <span className="text-muted-foreground block text-xs">
+                      {marker.description}
+                    </span>
+                  )}
+                </span>
                 <span className="text-muted-foreground shrink-0 font-mono text-xs">
                   {marker.slug}
                 </span>

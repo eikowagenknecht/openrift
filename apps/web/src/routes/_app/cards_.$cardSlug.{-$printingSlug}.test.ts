@@ -4,7 +4,7 @@ import type {
 } from "@openrift/shared/types/api/catalog";
 import { describe, expect, it } from "vitest";
 
-import { Route } from "./cards_.$cardSlug";
+import { Route } from "./cards_.$cardSlug.{-$printingSlug}";
 
 const card: CardDetailResponse["card"] = {
   id: "card-1",
@@ -29,6 +29,7 @@ const card: CardDetailResponse["card"] = {
 function makePrinting(id: string, language: string, frontImageId: string): CatalogPrintingResponse {
   return {
     id,
+    slug: `${language.toLowerCase()}-ogn-202-normal-standard`,
     cardId: "card-1",
     setId: "set-1",
     shortCode: "OGN-202",
@@ -72,12 +73,19 @@ interface MarketplaceOffer {
   offerCount: number;
 }
 
-type HeadFn = (ctx: { loaderData: unknown; match: { search: { printingId?: string } } }) => {
+type HeadFn = (ctx: {
+  loaderData: unknown;
+  match: { params: { printingSlug?: string }; search: { printingId?: string } };
+}) => {
   meta: HeadMeta[];
   scripts?: { type: string; children: string }[];
 };
 
-function runHeadFull(printingId?: string, marketplaceOffers: MarketplaceOffer[] = []) {
+function runHeadFull(
+  printingRef?: string,
+  marketplaceOffers: MarketplaceOffer[] = [],
+  from: "path" | "search" = "search",
+) {
   const loaderData = {
     data: {
       card,
@@ -92,11 +100,17 @@ function runHeadFull(printingId?: string, marketplaceOffers: MarketplaceOffer[] 
     marketplaceOffers,
   };
   const head = Route.options.head as unknown as HeadFn;
-  return head({ loaderData, match: { search: { printingId } } });
+  return head({
+    loaderData,
+    match: {
+      params: { printingSlug: from === "path" ? printingRef : undefined },
+      search: { printingId: from === "search" ? printingRef : undefined },
+    },
+  });
 }
 
-function runHead(printingId?: string): HeadMeta[] {
-  return runHeadFull(printingId).meta;
+function runHead(printingRef?: string, from: "path" | "search" = "search"): HeadMeta[] {
+  return runHeadFull(printingRef, [], from).meta;
 }
 
 function ogImage(meta: HeadMeta[]): string | undefined {
@@ -121,6 +135,19 @@ describe("/cards/$cardSlug SSR head", () => {
 
   it("falls back to the EN-preferred printing when ?printingId= matches no printing", () => {
     expect(ogImage(runHead("does-not-exist"))).toContain("/media/cards/en/front-en-full.webp");
+  });
+
+  it("picks the printing named by the path segment", () => {
+    expect(ogImage(runHead("ja-ogn-202-normal-standard", "path"))).toContain(
+      "/media/cards/ja/front-ja-full.webp",
+    );
+  });
+
+  it("makes the printing's own path canonical", () => {
+    const meta = runHead("ja-ogn-202-normal-standard", "path");
+    expect(meta.find((entry) => entry.property === "og:url")?.content).toContain(
+      "/cards/inferna/ja-ogn-202-normal-standard",
+    );
   });
 
   it("emits no Product JSON-LD when the card has no marketplace prices", () => {

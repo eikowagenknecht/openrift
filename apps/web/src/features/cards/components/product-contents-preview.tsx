@@ -77,7 +77,7 @@ export function ProductContentsPreview({
           {printings.map((printing) => (
             <li key={printing.id} className="rounded-lg p-1.5">
               <Link
-                to="/cards/$cardSlug"
+                to="/cards/$cardSlug/{-$printingSlug}"
                 params={{ cardSlug: printing.card.slug }}
                 className="block"
               >

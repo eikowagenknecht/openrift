@@ -13,10 +13,9 @@ vi.mock("@tanstack/react-router", () => {
     children?: React.ReactNode;
     className?: string;
   }) {
-    const href = Object.entries(params ?? {}).reduce(
-      (path, [key, value]) => path.replace(`$${key}`, value),
-      to ?? "#",
-    );
+    const href = Object.entries(params ?? {})
+      .reduce((path, [key, value]) => path.replace(`$${key}`, value), to ?? "#")
+      .replaceAll(/\/\{-\$[^}]+\}/gu, "");
     return (
       <a href={href} className={className}>
         {children ?? "link"}

@@ -50,12 +50,18 @@ export function pickCardMetaPrinting<T extends CatalogPrintingResponse>(
 
 // A `?printingId=` that exists on the card wins; otherwise (or if it
 // belongs to a different card) falls back to the language-preferred printing.
+/**
+ * `printingRef` is the permalink slug from the path, or the uuid the older
+ * `?printingId=` links still carry.
+ */
 export function resolveCardMetaPrinting<T extends CatalogPrintingResponse>(
   printings: readonly T[],
-  printingId: string | undefined,
+  printingRef: string | undefined,
   languageOrder: readonly string[],
 ): T | undefined {
-  const linked = printingId ? printings.find((printing) => printing.id === printingId) : undefined;
+  const linked = printingRef
+    ? printings.find((printing) => printing.slug === printingRef || printing.id === printingRef)
+    : undefined;
   return linked ?? pickCardMetaPrinting(printings, languageOrder);
 }
 

@@ -37,6 +37,7 @@ interface CardDetailProps {
   printings?: Printing[];
   onSelectPrinting?: (printing: Printing) => void;
   layout?: CardDetailLayout;
+  showPrices?: boolean;
   actions?: ReactNode;
   navLabel?: string;
   footerSlot?: ReactNode;
@@ -72,6 +73,7 @@ export function CardDetail({
   printings,
   onSelectPrinting,
   layout = "pane",
+  showPrices = true,
   actions,
   navLabel,
   footerSlot,
@@ -86,7 +88,7 @@ export function CardDetail({
 
   const notes = <PrintingNotesSection printing={printing} />;
   const holdings = <CardHoldingsSection printing={printing} printings={printings} />;
-  const footer = <CardFooter printing={printing} />;
+  const footer = <CardFooter printing={printing} showPrices={showPrices} />;
   const picker = hasPicker ? (
     <PrintingPicker current={printing} printings={printings} onSelect={onSelectPrinting} />
   ) : null;

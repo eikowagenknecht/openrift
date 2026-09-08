@@ -10,27 +10,30 @@ import { cardsKeys } from "@/features/cards/lib/cards-query-keys";
 import { serverCache } from "@/lib/server-cache";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
+async function loadCardDetail(cardSlug: string): Promise<CardDetailResponse> {
+  // 404 is a typed NOT_FOUND error on the contract, mapped here to the
+  // sentinel the route boundary expects.
+  const { error, data: detail } = await safe(apiOrpcClient(cardsContract).detail({ cardSlug }));
+  if (error) {
+    if (isDefinedError(error) && error.code === "NOT_FOUND") {
+      throw new Error("NOT_FOUND");
+    }
+    throw error;
+  }
+  return detail;
+}
+
 const fetchCardDetail = createServerFn({ method: "GET" })
-  .validator((input: string) => input)
-  .handler(({ data }): Promise<CardDetailResponse> =>
-    serverCache.query({
-      queryKey: ["server-cache", "card-detail", data],
-      queryFn: async () => {
-        // 404 is a typed NOT_FOUND error on the contract, mapped here to the
-        // sentinel the route boundary expects.
-        const { error, data: detail } = await safe(
-          apiOrpcClient(cardsContract).detail({ cardSlug: data }),
-        );
-        if (error) {
-          if (isDefinedError(error) && error.code === "NOT_FOUND") {
-            throw new Error("NOT_FOUND");
-          }
-          throw error;
-        }
-        return detail;
-      },
-    }),
-  );
+  .validator((input: { cardSlug: string; fresh?: boolean }) => input)
+  .handler(({ data }): Promise<CardDetailResponse> => {
+    if (data.fresh) {
+      return loadCardDetail(data.cardSlug);
+    }
+    return serverCache.query({
+      queryKey: ["server-cache", "card-detail", data.cardSlug],
+      queryFn: () => loadCardDetail(data.cardSlug),
+    });
+  });
 
 interface EnrichedCardDetail {
   card: CardDetailResponse["card"];
@@ -69,8 +72,21 @@ function enrichCardDetail(response: CardDetailResponse): EnrichedCardDetail {
 export function cardDetailQueryOptions(cardSlug: string) {
   return queryOptions({
     queryKey: cardsKeys.detail(cardSlug),
-    queryFn: () => fetchCardDetail({ data: cardSlug }),
+    queryFn: () => fetchCardDetail({ data: { cardSlug } }),
     staleTime: 5 * 60 * 1000,
+    select: enrichCardDetail,
+  });
+}
+
+/**
+ * Same payload, past the SSR server cache's one-minute window, so an admin
+ * preview reflects a save right after it lands.
+ */
+export function freshCardDetailQueryOptions(cardSlug: string) {
+  return queryOptions({
+    queryKey: cardsKeys.detailFresh(cardSlug),
+    queryFn: () => fetchCardDetail({ data: { cardSlug, fresh: true } }),
+    staleTime: 0,
     select: enrichCardDetail,
   });
 }

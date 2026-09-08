@@ -2,6 +2,7 @@ import { formatPrintingCode } from "@openrift/shared/printing-code";
 import { formatPostDate, postDateFromQuery } from "@openrift/shared/printing-post-date";
 import {
   postImageAspectFromQuery,
+  postImageCreditFromQuery,
   postImageLabelFromQuery,
   postImageScaleFromQuery,
 } from "@openrift/shared/printing-post-image";
@@ -36,12 +37,14 @@ export function mountAdminPrintingPostImage(app: Hono<{ Variables: Variables }>)
     const aspect = postImageAspectFromQuery(c.req.query("aspect"));
     const scale = postImageScaleFromQuery(c.req.query("scale"));
     const postDate = postDateFromQuery(c.req.query("date"));
+    const withCredit = postImageCreditFromQuery(c.req.query("credit"));
+    const detailsLine = c.req.query("details")?.trim();
 
     const [channels, markers, finish, imageCredit] = await Promise.all([
       repos.distributionChannels.listForPrintingIds([printingId]),
       repos.markers.listBySlugs(printing.markerSlugs),
       repos.finishes.getBySlug(printing.finish),
-      imageFileId ? repos.printingDesk.getImageCredit(imageFileId) : undefined,
+      imageFileId && withCredit ? repos.printingDesk.getImageCredit(imageFileId) : undefined,
     ]);
 
     const leaf = channels[0];
@@ -65,6 +68,7 @@ export function mountAdminPrintingPostImage(app: Hono<{ Variables: Variables }>)
         artist: printing.artist,
         siteHost: siteHostFromOrigin(config.corsOrigin),
         imageCredit: imageCredit?.credit ?? null,
+        detailsLine: detailsLine || undefined,
         label,
         dateText: postDate === undefined ? undefined : formatPostDate(postDate),
         imageFileId,

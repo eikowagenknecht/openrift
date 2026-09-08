@@ -41,10 +41,10 @@ export interface PrintingDeskCsvOptions {
 }
 
 export function printingDeskCardUrl(
-  row: Pick<DeskPrintingRow, "cardSlug" | "printingId">,
+  row: Pick<DeskPrintingRow, "cardSlug" | "slug">,
   siteUrl = "",
 ): string {
-  return `${siteUrl}/cards/${row.cardSlug}?printingId=${row.printingId}`;
+  return `${siteUrl}/cards/${row.cardSlug}/${row.slug}`;
 }
 
 export function buildPrintingDeskCsv(

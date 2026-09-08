@@ -1,9 +1,9 @@
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, SearchIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Pressable } from "@/components/ui/pressable";
 import { PrintingDeskMarkerBrowser } from "@/features/admin/components/printing-desk-marker-browser";
@@ -77,13 +77,16 @@ export function PrintingDeskMarkerPicker({
       )}
 
       <div className="flex items-center gap-2">
-        <Input
-          id="desk-marker-search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Stamp, signature, promo mark…"
-          className="min-w-0 flex-1"
-        />
+        <div className="relative min-w-0 flex-1">
+          <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2" />
+          <Input
+            id="desk-marker-search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Stamp, signature, promo mark…"
+            className="pl-8"
+          />
+        </div>
         <PrintingDeskMarkerBrowser markers={data.markers} selected={value} onToggle={toggle} />
       </div>
 
@@ -95,7 +98,12 @@ export function PrintingDeskMarkerPicker({
               onClick={() => add(marker.slug)}
               className="hover:bg-muted/50 flex w-full items-baseline justify-between gap-2 px-3 py-2"
             >
-              <span className="truncate text-sm">{marker.label}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm">{marker.label}</span>
+                {marker.description !== null && (
+                  <span className="text-muted-foreground block text-xs">{marker.description}</span>
+                )}
+              </span>
               <span className="text-muted-foreground shrink-0 font-mono text-xs">
                 {marker.slug}
               </span>
@@ -113,10 +121,6 @@ export function PrintingDeskMarkerPicker({
           )}
         </div>
       )}
-
-      <FieldDescription>
-        What the card itself shows: a stamp, a signature, a promo mark.
-      </FieldDescription>
     </Field>
   );
 }

@@ -19,10 +19,9 @@ vi.mock("@tanstack/react-router", () => ({
     children: React.ReactNode;
   }) => (
     <a
-      href={Object.entries(params).reduce(
-        (path, [key, value]) => path.replace(`$${key}`, value),
-        to,
-      )}
+      href={Object.entries(params)
+        .reduce((path, [key, value]) => path.replace(`$${key}`, value), to)
+        .replaceAll(/\/\{-\$[^}]+\}/gu, "")}
     >
       {children}
     </a>

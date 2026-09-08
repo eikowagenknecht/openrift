@@ -42,6 +42,18 @@ describe("printingPostImageUrl", () => {
     ).toContain("scale=2");
   });
 
+  it("asks the renderer to drop the credit only when the toggle is off", () => {
+    expect(
+      printingPostImageUrl("p-1", { label: "released", aspect: "square", showCredit: true }),
+    ).not.toContain("credit");
+    expect(printingPostImageUrl("p-1", { label: "released", aspect: "square" })).not.toContain(
+      "credit",
+    );
+    expect(
+      printingPostImageUrl("p-1", { label: "released", aspect: "square", showCredit: false }),
+    ).toContain("credit=0");
+  });
+
   it("carries the date when one is given", () => {
     expect(
       printingPostImageUrl("p-1", { label: "released", aspect: "square", date: "2026-10-04" }),

@@ -10,7 +10,9 @@ export const pricesKeys = {
 } as const;
 
 export const cardsKeys = {
+  all: ["card-detail"] as const,
   detail: (slug: string) => ["card-detail", slug] as const,
+  detailFresh: (slug: string) => ["card-detail", slug, "fresh"] as const,
 } as const;
 
 export const setsKeys = {

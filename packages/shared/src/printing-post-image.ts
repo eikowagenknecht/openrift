@@ -33,3 +33,21 @@ export function postImageAspectFromQuery(value: string | undefined | null): Post
 export function postImageScaleFromQuery(value: string | undefined | null): number {
   return Number(value) === MAX_POST_IMAGE_SCALE ? MAX_POST_IMAGE_SCALE : 1;
 }
+
+export function postImageCreditFromQuery(value: string | undefined | null): boolean {
+  return value !== "0";
+}
+
+export interface PostImageDetailsInput {
+  publicCode: string;
+  finishLabel: string;
+  channelLabel: string | null;
+  markerLabels: readonly string[];
+}
+
+/** The gold line under the card name. Shared so the editor's default matches the render. */
+export function buildPostImageDetailsLine(input: PostImageDetailsInput): string {
+  return [input.publicCode, input.finishLabel, input.channelLabel, ...input.markerLabels]
+    .filter((part): part is string => Boolean(part))
+    .join(" \u00B7 ");
+}

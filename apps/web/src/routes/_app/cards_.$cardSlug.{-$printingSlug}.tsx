@@ -41,10 +41,10 @@ const MARKETPLACE_OFFER_CONFIG = ALL_MARKETPLACES.map((key) => ({
   currency: MARKETPLACE_CURRENCY[key],
 }));
 
-export const Route = createFileRoute("/_app/cards_/$cardSlug")({
+export const Route = createFileRoute("/_app/cards_/$cardSlug/{-$printingSlug}")({
   validateSearch: cardDetailSearchSchema,
-  // Empty deps keep the match ID stable across `?printingId=` changes; depending on
-  // it would remount the detail subtree (skeleton flash) on every variant switch.
+  // Empty deps keep the match ID stable across printing changes; depending on
+  // them would remount the detail subtree (skeleton flash) on every switch.
   loaderDeps: () => ({}),
   head: ({ loaderData, match }) => {
     const siteUrl = getSiteUrl();
@@ -54,11 +54,11 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       return seoHead({ siteUrl, title: "Card" });
     }
 
-    // Read from the live search, not loaderData: loaderDeps is empty (see above), so
-    // loaderData never carries the per-variant printingId.
+    // Read from the live params and search, not loaderData: loaderDeps is empty
+    // (see above), so loaderData never carries the per-variant printing.
     const metaPrinting = resolveCardMetaPrinting(
       data.printings,
-      match.search.printingId,
+      match.params.printingSlug ?? match.search.printingId,
       loaded.languageOrder,
     );
     const imageUrl = toAbsoluteUrl(siteUrl, getCardFrontImageFullUrl(metaPrinting));
@@ -71,7 +71,9 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       },
       loaded.marketplaceOffers,
     );
-    const cardPath = `/cards/${data.card.slug}`;
+    const cardPath = metaPrinting?.slug
+      ? `/cards/${data.card.slug}/${metaPrinting.slug}`
+      : `/cards/${data.card.slug}`;
     const cardName = legendDisplayName(data.card);
     const titleSuffix =
       loaded.marketplaceOffers.length > 0 ? "Riftbound Card Price & Data" : "Riftbound Card";

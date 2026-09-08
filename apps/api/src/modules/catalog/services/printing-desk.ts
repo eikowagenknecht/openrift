@@ -60,25 +60,6 @@ function normalizeRelease(release: DeskRelease): DeskRelease {
   return { releasedAt: normalized.releasedAt, releasePrecision: normalized.precision };
 }
 
-export async function assertDeskOwnership(
-  repos: Pick<Repos, "adminEvents">,
-  adminAccess: AdminAccess | null,
-  userId: string,
-  printingId: string,
-): Promise<void> {
-  if (adminAccess?.isAdmin) {
-    return;
-  }
-  if (await repos.adminEvents.wasPrintingCreatedBy(printingId, userId)) {
-    return;
-  }
-  throw new AppError(
-    403,
-    ERROR_CODES.FORBIDDEN,
-    "Only the admin can edit a printing you did not add",
-  );
-}
-
 /**
  * The desk's universe is promo printings (a marker or a distribution channel)
  * plus whatever the caller added, so a base-set printing stays admin-only.
@@ -101,7 +82,7 @@ export async function assertDeskPrintingScope(
   throw new AppError(
     403,
     ERROR_CODES.FORBIDDEN,
-    "Only the admin can change images on a printing outside the desk",
+    "Only the admin can change a printing outside the desk",
   );
 }
 
@@ -300,7 +281,13 @@ export async function updateDeskPrinting(
 
   const before = await repos.printingDesk.getFullPrinting(printingId);
   assertFound(before, "Printing not found");
-  await assertDeskOwnership(repos, adminAccess, userId, printingId);
+  await assertDeskPrintingScope(repos, adminAccess, userId, printingId);
+
+  const channelsBefore =
+    distributionChannelSlugs === undefined
+      ? []
+      : await repos.distributionChannels.listForPrintingIds([printingId]);
+  const beforeChannelSlugs = channelsBefore.map((row) => row.channelSlug);
 
   const patch: Updateable<PrintingsTable> = {};
   for (const field of SCALAR_FIELDS) {
@@ -351,8 +338,18 @@ export async function updateDeskPrinting(
     entityId: printingId,
     entityLabel: patch.shortCode === undefined ? before.shortCode : String(patch.shortCode),
     cardSlug: null,
-    oldValues: Object.fromEntries(changed.map((key) => [key, before[key as keyof typeof before]])),
-    newValues: { ...patch, ...(markerSlugs ? { markerSlugs } : {}) },
+    oldValues: {
+      ...Object.fromEntries(changed.map((key) => [key, before[key as keyof typeof before]])),
+      ...(markerSlugs === undefined ? {} : { markerSlugs: before.markerSlugs }),
+      ...(distributionChannelSlugs === undefined
+        ? {}
+        : { distributionChannelSlugs: beforeChannelSlugs }),
+    },
+    newValues: {
+      ...patch,
+      ...(markerSlugs === undefined ? {} : { markerSlugs }),
+      ...(distributionChannelSlugs === undefined ? {} : { distributionChannelSlugs }),
+    },
   });
 
   await repos.catalog.refreshCatalogViews();

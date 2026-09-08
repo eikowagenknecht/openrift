@@ -37,6 +37,7 @@ export const deskPrintingFieldsSchema = z
 
 export const deskPrintingRowSchema = z.object({
   printingId: z.string(),
+  slug: z.string(),
   cardId: z.string(),
   cardSlug: z.string(),
   cardName: z.string(),
@@ -62,7 +63,7 @@ export const deskPrintingRowSchema = z.object({
   activeImageUrl: z.string().nullable(),
   createdAt: isoDateTime,
   updatedAt: isoDateTime,
-  createdByMe: z.boolean(),
+  canEdit: z.boolean(),
 });
 
 /**
@@ -151,6 +152,7 @@ export const adminPrintingDeskContract = {
     .input(deskCreateInputSchema)
     .output(deskCreateOutputSchema),
 
+  // Scoped like the image writes: any promo, plus whatever the caller added.
   // Omit a field to leave it unchanged.
   update: authedRoute
     .route({
@@ -163,7 +165,7 @@ export const adminPrintingDeskContract = {
       NOT_FOUND: { message: "Printing not found" },
       BAD_REQUEST: { message: "Invalid printing fields" },
       CONFLICT: { message: "Printing already exists" },
-      FORBIDDEN: { message: "That printing was added by someone else" },
+      FORBIDDEN: { message: "That printing is outside the desk" },
     })
     .input(deskUpdateInputSchema),
 

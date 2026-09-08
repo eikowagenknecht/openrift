@@ -45,7 +45,7 @@ export function MetaLegendHero({
             {/* h2: the page's h1 is the champion in the top bar. */}
             <h2 className="font-heading text-2xl font-bold">
               <Link
-                to="/cards/$cardSlug"
+                to="/cards/$cardSlug/{-$printingSlug}"
                 params={{ cardSlug: legend.slug }}
                 className="hover:underline"
               >

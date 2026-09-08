@@ -6,6 +6,7 @@ import { basePrintingForLanguage, defaultCardLanguage } from "./printing-desk-ba
 function printing(printingId: string, language: string): DeskPrintingRow {
   return {
     printingId,
+    slug: `en-ogn-101-${printingId}`,
     cardId: "c-1",
     cardSlug: "annie-dark-child",
     cardName: "Annie, Dark Child",
@@ -31,7 +32,7 @@ function printing(printingId: string, language: string): DeskPrintingRow {
     activeImageUrl: null,
     createdAt: "2026-09-01T10:00:00.000Z",
     updatedAt: "2026-09-01T10:00:00.000Z",
-    createdByMe: false,
+    canEdit: false,
   };
 }
 

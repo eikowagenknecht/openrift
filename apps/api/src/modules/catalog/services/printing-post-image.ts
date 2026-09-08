@@ -1,4 +1,8 @@
-import { POST_IMAGE_ASPECTS, POST_IMAGE_LABEL_TEXT } from "@openrift/shared/printing-post-image";
+import {
+  POST_IMAGE_ASPECTS,
+  POST_IMAGE_LABEL_TEXT,
+  buildPostImageDetailsLine,
+} from "@openrift/shared/printing-post-image";
 import type { PostImageAspect, PostImageLabel } from "@openrift/shared/printing-post-image";
 
 import type { Io } from "../../../io.js";
@@ -23,6 +27,7 @@ export interface PrintingPostImageInput {
   artist: string;
   siteHost?: string;
   imageCredit: string | null;
+  detailsLine?: string;
   label: PostImageLabel;
   /** Already display-formatted by the caller (`formatPostDate`). */
   dateText?: string;
@@ -128,22 +133,7 @@ function ribbon(canvas: PostCanvas, input: PrintingPostImageInput): Element {
       elideTitle(input.dateText, canvas.metaMaxChars),
     );
 
-  const markers =
-    input.markerLabels.length > 0 &&
-    element(
-      "div",
-      {
-        display: "flex",
-        marginLeft: Math.round(canvas.pad * 0.3),
-        color: COLORS.text,
-        fontSize: canvas.markerSize,
-        fontWeight: 600,
-        lineHeight: 1,
-      },
-      elideTitle(input.markerLabels.join(DOT), canvas.metaMaxChars),
-    );
-
-  return element("div", { display: "flex", alignItems: "center" }, pill, date, markers);
+  return element("div", { display: "flex", alignItems: "center" }, pill, date);
 }
 
 function photoBlock(
@@ -190,9 +180,7 @@ function photoBlock(
 }
 
 function bottomStrip(canvas: PostCanvas, input: PrintingPostImageInput): Element {
-  const meta = [input.publicCode, input.finishLabel, input.channelLabel]
-    .filter((part): part is string => Boolean(part))
-    .join(DOT);
+  const meta = input.detailsLine ?? buildPostImageDetailsLine(input);
 
   const credit = [
     input.imageCredit === null ? null : `Image credit: ${input.imageCredit}`,

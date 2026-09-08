@@ -63,7 +63,12 @@ export function CatalogCardContextMenu({
         )}
         {(canAdd || canWish) && <ContextMenuSeparator />}
         <ContextMenuItem
-          render={<Link to="/cards/$cardSlug" params={{ cardSlug: printing.card.slug }} />}
+          render={
+            <Link
+              to="/cards/$cardSlug/{-$printingSlug}"
+              params={{ cardSlug: printing.card.slug }}
+            />
+          }
         >
           <ExternalLinkIcon />
           Open card page

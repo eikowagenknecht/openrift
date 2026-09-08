@@ -12,7 +12,7 @@ import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query"
 import { createServerFn } from "@tanstack/react-start";
 
 import { adminKeys } from "@/features/admin/lib/admin-query-keys";
-import { catalogKeys, promosKeys } from "@/features/cards/lib/cards-query-keys";
+import { cardsKeys, catalogKeys, promosKeys } from "@/features/cards/lib/cards-query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -90,7 +90,12 @@ const updateDeskPrintingFn = createServerFn({ method: "POST" })
     await apiOrpcClient(adminPrintingDeskContract, context.cookie).update(data);
   });
 
-const PUBLIC_CATALOG_KEYS = [catalogKeys.all, promosKeys.all, adminKeys.cards.all] as const;
+const PUBLIC_CATALOG_KEYS = [
+  catalogKeys.all,
+  promosKeys.all,
+  cardsKeys.all,
+  adminKeys.cards.all,
+] as const;
 
 export function useCreateDeskPrinting() {
   return useMutationWithInvalidation<DeskCreateOutput, DeskCreateInput>({

@@ -6,6 +6,7 @@ import {
   POST_IMAGE_LABELS,
   postImageAspectFromQuery,
   postImageLabelFromQuery,
+  postImageCreditFromQuery,
   postImageScaleFromQuery,
 } from "./printing-post-image.js";
 
@@ -65,4 +66,14 @@ describe("postImageScaleFromQuery", () => {
       expect(postImageScaleFromQuery(value)).toBe(1);
     },
   );
+});
+
+describe("postImageCreditFromQuery", () => {
+  it("drops the credit only on an explicit 0", () => {
+    expect(postImageCreditFromQuery("0")).toBe(false);
+  });
+
+  it.each([undefined, null, "", "1", "true", "0.0"])("keeps the credit for %s", (value) => {
+    expect(postImageCreditFromQuery(value)).toBe(true);
+  });
 });

@@ -22,11 +22,17 @@ function ChartSkeleton() {
   );
 }
 
-export function CardFooter({ printing }: { printing: Printing }) {
+export function CardFooter({
+  printing,
+  showPrices = true,
+}: {
+  printing: Printing;
+  showPrices?: boolean;
+}) {
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const favorite = marketplaceOrder[0];
   const prices = usePrices();
-  const hasPrice = prices.get(printing.id, favorite) !== undefined;
+  const hasPrice = showPrices && prices.get(printing.id, favorite) !== undefined;
   const frontImage = printing.images.find((image) => image.face === "front") ?? printing.images[0];
 
   return (
@@ -41,7 +47,7 @@ export function CardFooter({ printing }: { printing: Printing }) {
           <PriceHistoryChart printingId={printing.id} />
         </Suspense>
       )}
-      <PricingSection printing={printing} />
+      {showPrices && <PricingSection printing={printing} />}
     </div>
   );
 }

@@ -17,84 +17,95 @@ const base: PrintingPostCaptionInput = {
 describe("buildPrintingPostCaption", () => {
   it("builds every line for a fully described printing", () => {
     expect(buildPrintingPostCaption(base).split("\n")).toEqual([
-      "Yasuo, the Wanderer, Summoner Skirmish promo",
-      "Prerelease · Stamped · Foil · OGN-042",
-      "Art: Nara Vale · Image credit: Rift Register",
+      "Yasuo, the Wanderer · Foil · OGN-042",
+      "Summoner Skirmish · Prerelease · Stamped · Art by Nara Vale · Image credit: Rift Register",
       "https://example.test/cards/yasuo-the-wanderer",
+      "",
       "#Riftbound #RiftboundPromo",
     ]);
   });
 
-  it("drops the channel from the headline when there is none", () => {
+  it("keeps the channel off the headline", () => {
+    expect(buildPrintingPostCaption(base).split("\n")[0]).toBe(
+      "Yasuo, the Wanderer · Foil · OGN-042",
+    );
+  });
+
+  it("omits the channel from the second line when there is none", () => {
     const caption = buildPrintingPostCaption({ ...base, channelLabel: null });
-    expect(caption.split("\n")[0]).toBe("Yasuo, the Wanderer promo");
+    expect(caption.split("\n")[1]).toBe(
+      "Prerelease · Stamped · Art by Nara Vale · Image credit: Rift Register",
+    );
+  });
+
+  it("keeps a nested channel path whole", () => {
+    const caption = buildPrintingPostCaption({
+      ...base,
+      channelLabel: "Nexus Night › October 2025",
+      markerLabels: [],
+    });
+    expect(caption.split("\n")[1]).toBe(
+      "Nexus Night › October 2025 · Art by Nara Vale · Image credit: Rift Register",
+    );
   });
 
   it("drops the image credit when there is none", () => {
     const caption = buildPrintingPostCaption({ ...base, imageCredit: null });
-    expect(caption.split("\n")[2]).toBe("Art: Nara Vale");
+    expect(caption.split("\n")[1]).toBe(
+      "Summoner Skirmish · Prerelease · Stamped · Art by Nara Vale",
+    );
   });
 
-  it("omits the marker segment when there are no markers", () => {
+  it("keeps the markers off the headline", () => {
+    expect(buildPrintingPostCaption(base).split("\n")[0]).not.toContain("Prerelease");
+  });
+
+  it("omits the markers from the second line when there are none", () => {
     const caption = buildPrintingPostCaption({ ...base, markerLabels: [] });
-    expect(caption.split("\n")[1]).toBe("Foil · OGN-042");
+    expect(caption.split("\n")[1]).toBe(
+      "Summoner Skirmish · Art by Nara Vale · Image credit: Rift Register",
+    );
   });
 
   it("renders an unannounced code as Code TBA", () => {
     const caption = buildPrintingPostCaption({ ...base, publicCode: "TBA" });
-    expect(caption.split("\n")[1]).toBe("Prerelease · Stamped · Foil · Code TBA");
+    expect(caption.split("\n")[0]).toBe("Yasuo, the Wanderer · Foil · Code TBA");
   });
 
   it("skips an empty finish label rather than leaving a dangling separator", () => {
-    const caption = buildPrintingPostCaption({
-      ...base,
-      finishLabel: "",
-      markerLabels: [],
-    });
-    expect(caption.split("\n")[1]).toBe("OGN-042");
+    const caption = buildPrintingPostCaption({ ...base, finishLabel: "" });
+    expect(caption.split("\n")[0]).toBe("Yasuo, the Wanderer · OGN-042");
   });
 
-  it("appends the label and the date to the headline", () => {
+  it("leads the second line with the label and the date", () => {
     const caption = buildPrintingPostCaption({
       ...base,
       labelText: "Released",
       dateText: "4 October 2026",
     });
-    expect(caption.split("\n")[0]).toBe(
-      "Yasuo, the Wanderer, Summoner Skirmish promo · Released 4 October 2026",
+    expect(caption.split("\n")[1]).toBe(
+      "Released 4 October 2026 · Summoner Skirmish · Prerelease · Stamped · Art by Nara Vale · Image credit: Rift Register",
     );
   });
 
-  it("appends the date alone when there is no label text", () => {
+  it("leads with the date alone when there is no label text", () => {
     const caption = buildPrintingPostCaption({ ...base, dateText: "October 2026" });
-    expect(caption.split("\n")[0]).toBe(
-      "Yasuo, the Wanderer, Summoner Skirmish promo · October 2026",
-    );
+    expect(caption.split("\n")[1]).toMatch(/^October 2026 · /u);
   });
 
-  it("leaves the headline alone when there is no date", () => {
+  it("leaves the second line dateless when there is no date", () => {
     const caption = buildPrintingPostCaption({ ...base, labelText: "Released" });
-    expect(caption.split("\n")[0]).toBe("Yasuo, the Wanderer, Summoner Skirmish promo");
+    expect(caption.split("\n")[1]).toMatch(/^Summoner Skirmish/u);
   });
 
-  it("appends the date to a headline without a channel", () => {
-    const caption = buildPrintingPostCaption({
-      ...base,
-      channelLabel: null,
-      labelText: "Collected",
-      dateText: "2026",
-    });
-    expect(caption.split("\n")[0]).toBe("Yasuo, the Wanderer promo · Collected 2026");
-  });
-
-  it("always ends with the hashtags", () => {
+  it("always ends with the hashtags after a blank line", () => {
     const caption = buildPrintingPostCaption({
       ...base,
       channelLabel: null,
       imageCredit: null,
       markerLabels: [],
     });
-    expect(caption.endsWith("\n#Riftbound #RiftboundPromo")).toBe(true);
+    expect(caption.endsWith("\n\n#Riftbound #RiftboundPromo")).toBe(true);
   });
 });
 
@@ -116,22 +127,21 @@ describe("buildPrintingsPostCaption", () => {
 
   it("separates the blocks with a blank line and ends with one hashtag line", () => {
     expect(buildPrintingsPostCaption([base, second]).split("\n")).toEqual([
-      "Yasuo, the Wanderer, Summoner Skirmish promo",
-      "Prerelease · Stamped · Foil · OGN-042",
-      "Art: Nara Vale · Image credit: Rift Register",
+      "Yasuo, the Wanderer · Foil · OGN-042",
+      "Summoner Skirmish · Prerelease · Stamped · Art by Nara Vale · Image credit: Rift Register",
       "https://example.test/cards/yasuo-the-wanderer",
       "",
-      "Annie, Dark Child, Nexus Night promo",
-      "Stamped · Standard · OGN-101",
-      "Art: Rune Atelier",
+      "Annie, Dark Child · Standard · OGN-101",
+      "Nexus Night · Stamped · Art by Rune Atelier",
       "https://example.test/cards/annie-dark-child",
+      "",
       "#Riftbound #RiftboundPromo",
     ]);
   });
 
   it("keeps the printings in the order they were given", () => {
     const caption = buildPrintingsPostCaption([second, base]);
-    expect(caption.split("\n")[0]).toBe("Annie, Dark Child, Nexus Night promo");
+    expect(caption.split("\n")[0]).toBe("Annie, Dark Child · Standard · OGN-101");
   });
 
   it("adds no headcount line for several printings", () => {
@@ -144,8 +154,8 @@ describe("buildPrintingsPostCaption", () => {
       { ...second, labelText: "Announced", dateText: "Q2 2026" },
     ]);
     const lines = caption.split("\n");
-    expect(lines[0]).toBe("Yasuo, the Wanderer, Summoner Skirmish promo · Released 4 October 2026");
-    expect(lines[5]).toBe("Annie, Dark Child, Nexus Night promo · Announced Q2 2026");
+    expect(lines[1]).toMatch(/^Released 4 October 2026 · /u);
+    expect(lines[5]).toMatch(/^Announced Q2 2026 · /u);
   });
 
   it("returns nothing for no printings", () => {

@@ -183,7 +183,7 @@ function PrintingEventRow({
       <TableCell>
         {event.cardSlug ? (
           <Link
-            to="/cards/$cardSlug"
+            to="/cards/$cardSlug/{-$printingSlug}"
             params={{ cardSlug: event.cardSlug }}
             className="hover:underline"
           >

@@ -6,6 +6,7 @@ import { buildPrintingDeskCsv, printingDeskCardUrl } from "./printing-desk-csv";
 function row(overrides: Partial<DeskPrintingRow> = {}): DeskPrintingRow {
   return {
     printingId: "p-1",
+    slug: "en-ogn-101-foil-standard",
     cardId: "c-1",
     cardSlug: "annie-dark-child",
     cardName: "Annie, Dark Child",
@@ -31,7 +32,7 @@ function row(overrides: Partial<DeskPrintingRow> = {}): DeskPrintingRow {
     activeImageUrl: "https://openrift.app/media/img-1.webp",
     createdAt: "2026-09-01T10:00:00.000Z",
     updatedAt: "2026-09-02T11:00:00.000Z",
-    createdByMe: true,
+    canEdit: true,
     ...overrides,
   };
 }
@@ -166,14 +167,17 @@ describe("buildPrintingDeskCsv", () => {
       siteUrl: "https://openrift.app",
     });
 
-    expect(csv).toContain("https://openrift.app/cards/annie-dark-child?printingId=p-1");
+    expect(csv).toContain("https://openrift.app/cards/annie-dark-child/en-ogn-101-foil-standard");
   });
 });
 
 describe("printingDeskCardUrl", () => {
   it("is site-relative without a site URL", () => {
-    expect(printingDeskCardUrl({ cardSlug: "annie-dark-child", printingId: "p-1" })).toBe(
-      "/cards/annie-dark-child?printingId=p-1",
-    );
+    expect(
+      printingDeskCardUrl({
+        cardSlug: "annie-dark-child",
+        slug: "en-ogn-101-foil-promo-standard",
+      }),
+    ).toBe("/cards/annie-dark-child/en-ogn-101-foil-promo-standard");
   });
 });

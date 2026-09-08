@@ -26,7 +26,12 @@ export const adminPrintingDeskRouter = {
         ? await printingDesk.listDeskPrintings({ printingIds: [...mine] })
         : await printingDesk.listDeskPrintings({ promosOnly: true });
 
-    return { printings: rows.map((row) => toDeskPrintingRow(row, mine.has(row.printingId))) };
+    const isAdmin = context.adminAccess?.isAdmin ?? false;
+    return {
+      printings: rows.map((row) =>
+        toDeskPrintingRow(row, { createdByMe: mine.has(row.printingId), isAdmin }),
+      ),
+    };
   }),
 
   cardPrintings: os.cardPrintings.handler(async ({ input, context }) => {
@@ -37,9 +42,12 @@ export const adminPrintingDeskRouter = {
     const mine = new Set(await adminEvents.printingIdsCreatedBy(context.userId));
     const rows = await printingDesk.listDeskPrintingsForCard(card.id);
 
+    const isAdmin = context.adminAccess?.isAdmin ?? false;
     return {
       card,
-      printings: rows.map((row) => toDeskPrintingRow(row, mine.has(row.printingId))),
+      printings: rows.map((row) =>
+        toDeskPrintingRow(row, { createdByMe: mine.has(row.printingId), isAdmin }),
+      ),
     };
   }),
 
@@ -58,7 +66,10 @@ export const adminPrintingDeskRouter = {
     );
 
     return {
-      printing: toDeskPrintingRow(row, createdByMe),
+      printing: toDeskPrintingRow(row, {
+        createdByMe,
+        isAdmin: context.adminAccess?.isAdmin ?? false,
+      }),
       images: toDeskImages(images, deletable),
     };
   }),

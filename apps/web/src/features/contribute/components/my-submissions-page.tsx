@@ -37,7 +37,7 @@ function SubmissionRow({ submission }: { submission: CardSubmissionStatusRespons
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
           {cardLink ? (
             <Link
-              to="/cards/$cardSlug"
+              to="/cards/$cardSlug/{-$printingSlug}"
               params={{ cardSlug: cardLink }}
               className="font-medium hover:underline"
             >

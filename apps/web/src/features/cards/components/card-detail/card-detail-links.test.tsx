@@ -19,7 +19,16 @@ vi.mock("@tanstack/react-router", async () => {
       to: string;
       params?: { cardSlug: string };
       children: ReactNode;
-    }) => <a href={params ? to.replace("$cardSlug", params.cardSlug) : to}>{children}</a>,
+    }) => (
+      <a
+        href={(params ? to.replace("$cardSlug", params.cardSlug) : to).replaceAll(
+          /\/\{-\$[^}]+\}/gu,
+          "",
+        )}
+      >
+        {children}
+      </a>
+    ),
   };
 });
 

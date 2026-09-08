@@ -68,7 +68,7 @@ export function PrintingDeskChannelPicker({
 
   return (
     <Field>
-      <FieldLabel htmlFor="desk-channel-search">Where does it come from</FieldLabel>
+      <FieldLabel htmlFor="desk-channel-search">Distribution Channels</FieldLabel>
 
       {value.length > 0 && (
         <div className="flex flex-wrap gap-1">
@@ -156,10 +156,6 @@ export function PrintingDeskChannelPicker({
           )}
         </div>
       )}
-
-      <FieldDescription>
-        Pick the event or product the promo was handed out at. Add one if it is missing.
-      </FieldDescription>
     </Field>
   );
 }

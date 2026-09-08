@@ -19,7 +19,7 @@ vi.mock("@tanstack/react-router", () => ({
       path = path.replace(`$${key}`, value);
     }
     return (
-      <a href={path} className={className}>
+      <a href={path.replaceAll(/\/\{-\$[^}]+\}/gu, "")} className={className}>
         {children}
       </a>
     );

@@ -15,7 +15,7 @@ export function CardDetailLinks({ card }: { card: Card }) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
       <Link
-        to="/cards/$cardSlug"
+        to="/cards/$cardSlug/{-$printingSlug}"
         params={{ cardSlug: card.slug }}
         className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
       >

@@ -113,6 +113,7 @@ const { PrintingDeskPage } = await import("./printing-desk-page");
 function row(overrides: Partial<DeskPrintingRow> = {}): DeskPrintingRow {
   return {
     printingId: "p-1",
+    slug: "en-ogn-101-foil-standard",
     cardId: "c-1",
     cardSlug: "annie-dark-child",
     cardName: "Annie, Dark Child",
@@ -138,7 +139,7 @@ function row(overrides: Partial<DeskPrintingRow> = {}): DeskPrintingRow {
     activeImageUrl: null,
     createdAt: "2026-09-01T10:00:00.000Z",
     updatedAt: "2026-09-02T11:00:00.000Z",
-    createdByMe: true,
+    canEdit: true,
     ...overrides,
   };
 }

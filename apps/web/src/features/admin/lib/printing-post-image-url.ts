@@ -10,6 +10,8 @@ export interface PrintingPostImageOptions {
   aspect: PostImageAspect;
   date?: string;
   scale?: 1 | 2;
+  showCredit?: boolean;
+  detailsLine?: string;
 }
 
 export function printingPostImageUrl(
@@ -27,6 +29,12 @@ export function printingPostImageUrl(
   }
   if (options.scale === 2) {
     params.set("scale", "2");
+  }
+  if (options.showCredit === false) {
+    params.set("credit", "0");
+  }
+  if (options.detailsLine) {
+    params.set("details", options.detailsLine);
   }
   return `${POST_IMAGE_BASE}/${encodeURIComponent(printingId)}/post-image.png?${params.toString()}`;
 }

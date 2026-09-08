@@ -9,6 +9,7 @@ import {
 } from "@openrift/shared/printing-post-date";
 import type { PostImageAspect, PostImageLabel } from "@openrift/shared/printing-post-image";
 import {
+  buildPostImageDetailsLine,
   POST_IMAGE_ASPECTS,
   POST_IMAGE_LABEL_TEXT,
   POST_IMAGE_LABELS,
@@ -18,6 +19,7 @@ import { getOrientation } from "@openrift/shared/utils";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
+  CalendarDaysIcon,
   CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -44,6 +46,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Pressable } from "@/components/ui/pressable";
 import { Textarea } from "@/components/ui/textarea";
@@ -68,6 +71,7 @@ import {
   removeSlide,
 } from "@/features/admin/lib/printing-post-slides";
 import { CardArtThumb } from "@/features/cards/components/card-art-thumb";
+import { buildChannelBreadcrumbsBySlug } from "@/features/cards/lib/channel-breadcrumbs";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useDistributionChannels } from "@/hooks/use-distribution-channels";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -184,6 +188,7 @@ function PostComposer({
 
   const [selected, setSelected] = useState(0);
   const [showCredit, setShowCredit] = useState(true);
+  const [detailsLine, setDetailsLine] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
@@ -193,6 +198,7 @@ function PostComposer({
   const markerLabelBySlug = new Map(
     markerData.markers.map((marker) => [marker.slug, marker.label]),
   );
+  const channelPaths = buildChannelBreadcrumbsBySlug(channelData.distributionChannels);
 
   const entries: SlideEntry[] = slides.flatMap((slide) => {
     const data = dataByPrinting.get(slide.printingId);
@@ -239,12 +245,11 @@ function PostComposer({
     return getOrientation([printing.cardType]) === "landscape";
   }
 
+  // The full path, matching what the renderer draws: a leaf label like
+  // "October 2025" says nothing without its series.
   function channelLabelFor(printing: DeskPrintingRow): string | null {
-    return (
-      channelData.distributionChannels.find(
-        (channel) => channel.slug === printing.distributionChannelSlugs.at(0),
-      )?.label ?? null
-    );
+    const slug = printing.distributionChannelSlugs.at(0);
+    return slug === undefined ? null : (channelPaths.get(slug) ?? slug);
   }
 
   function goTo(next: {
@@ -281,6 +286,19 @@ function PostComposer({
     setAddOpen(false);
   }
 
+  const generatedDetails = current
+    ? buildPostImageDetailsLine({
+        publicCode: formatPrintingCode(current.printing.publicCode),
+        finishLabel: enumLabel(labels.finishes, current.printing.finish),
+        channelLabel: channelLabelFor(current.printing),
+        markerLabels: current.printing.markerSlugs.map(
+          (slug) => markerLabelBySlug.get(slug) ?? slug,
+        ),
+      })
+    : "";
+  const detailsValue = detailsLine ?? generatedDetails;
+  const detailsOverride = detailsValue === generatedDetails ? undefined : detailsValue;
+
   const downloadItems: DownloadItem[] = entries.map((entry, position) => ({
     url: printingPostImageUrl(entry.slide.printingId, {
       imageFileId: entry.slide.imageFileId,
@@ -288,6 +306,8 @@ function PostComposer({
       aspect,
       date: postDate,
       scale: 2,
+      showCredit,
+      detailsLine: detailsOverride,
     }),
     filename: printingPostImageFilename(entry.printing.cardSlug, label, aspect, position + 1),
   }));
@@ -335,6 +355,8 @@ function PostComposer({
     label,
     aspect,
     date: postDate,
+    showCredit,
+    detailsLine: detailsOverride,
   });
 
   return (
@@ -486,7 +508,10 @@ function PostComposer({
         <Card>
           <CardHeader>
             <CardTitle>Make the post</CardTitle>
-            <CardDescription>Pick the wording and the shape.</CardDescription>
+            <CardDescription>
+              Pick the wording and the shape. Nothing here is saved to the printing. These settings
+              only change the image and the caption.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Field>
@@ -501,16 +526,33 @@ function PostComposer({
 
             <Field>
               <FieldLabel>Date</FieldLabel>
-              <DatePicker
-                value={postDayValue}
-                onChange={(iso) => goTo({ date: iso })}
-                onClear={() => goTo({ date: POST_DATE_NONE })}
-                placeholder={postDate === undefined ? "No date" : formatPostDate(postDate)}
-              />
-              <div className="flex flex-wrap gap-1">
-                <Button variant="ghost" size="sm" onClick={() => goTo({ date: todayUtc() })}>
-                  Today
+              <div className="flex items-center gap-1">
+                <DatePicker
+                  value={postDayValue}
+                  onChange={(iso) => goTo({ date: iso })}
+                  onClear={() => goTo({ date: POST_DATE_NONE })}
+                  placeholder={postDate === undefined ? "No date" : formatPostDate(postDate)}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Today"
+                  title="Today"
+                  onClick={() => goTo({ date: todayUtc() })}
+                >
+                  <CalendarDaysIcon />
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="No date"
+                  title="No date"
+                  onClick={() => goTo({ date: POST_DATE_NONE })}
+                >
+                  <XIcon />
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-1">
                 {announcedDate === null ? null : (
                   <Button variant="ghost" size="sm" onClick={() => goTo({ date: announcedDate })}>
                     Announced on
@@ -521,15 +563,7 @@ function PostComposer({
                     Release period
                   </Button>
                 )}
-                <Button variant="ghost" size="sm" onClick={() => goTo({ date: POST_DATE_NONE })}>
-                  Clear
-                </Button>
               </div>
-              <FieldDescription>
-                {postDate === undefined
-                  ? "No date on the image"
-                  : `Shown as “${formatPostDate(postDate)}”`}
-              </FieldDescription>
             </Field>
 
             <Field>
@@ -540,6 +574,25 @@ function PostComposer({
                 onChange={(next) => goTo({ aspect: next })}
                 options={ASPECT_OPTIONS}
               />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="desk-post-details">Line below the image</FieldLabel>
+              <Input
+                id="desk-post-details"
+                value={detailsValue}
+                onChange={(event) => setDetailsLine(event.target.value)}
+              />
+              {detailsLine !== null && detailsLine !== generatedDetails && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-fit"
+                  onClick={() => setDetailsLine(null)}
+                >
+                  Back to the printing&apos;s own
+                </Button>
+              )}
             </Field>
 
             <div className="flex items-center gap-2">
@@ -558,14 +611,6 @@ function PostComposer({
               >
                 <DownloadIcon />
                 Download this slide
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => void runDownload(downloadItems)}
-                disabled={downloading}
-              >
-                <DownloadIcon />
-                Download all
               </Button>
               <Button variant="outline" onClick={() => void copy(caption)}>
                 {copied ? <CheckIcon /> : <CopyIcon />}

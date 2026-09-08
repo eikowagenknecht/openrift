@@ -68,7 +68,7 @@ describe("PrintingDeskChannelPicker", () => {
     const user = userEvent.setup();
     render(<PrintingDeskChannelPicker value={[]} onChange={vi.fn()} />);
 
-    await user.type(screen.getByLabelText("Where does it come from"), "October");
+    await user.type(screen.getByLabelText("Distribution Channels"), "October");
 
     expect(screen.getByText("Nexus Night › October 2026")).toBeInTheDocument();
     expect(screen.queryByText("Nexus Night › September 2026")).not.toBeInTheDocument();
@@ -78,7 +78,7 @@ describe("PrintingDeskChannelPicker", () => {
     const user = userEvent.setup();
     render(<PrintingDeskChannelPicker value={[]} onChange={vi.fn()} />);
 
-    await user.type(screen.getByLabelText("Where does it come from"), "nexus");
+    await user.type(screen.getByLabelText("Distribution Channels"), "nexus");
 
     expect(screen.getByText("Nexus Night › October 2026")).toBeInTheDocument();
     expect(screen.getByText("Nexus Night › September 2026")).toBeInTheDocument();
@@ -88,7 +88,7 @@ describe("PrintingDeskChannelPicker", () => {
     const user = userEvent.setup();
     render(<PrintingDeskChannelPicker value={[]} onChange={vi.fn()} />);
 
-    await user.type(screen.getByLabelText("Where does it come from"), "prize");
+    await user.type(screen.getByLabelText("Distribution Channels"), "prize");
 
     expect(screen.getByText("Prize Wall")).toBeInTheDocument();
   });
@@ -98,7 +98,7 @@ describe("PrintingDeskChannelPicker", () => {
     const onChange = vi.fn();
     render(<PrintingDeskChannelPicker value={[]} onChange={onChange} />);
 
-    await user.type(screen.getByLabelText("Where does it come from"), "October");
+    await user.type(screen.getByLabelText("Distribution Channels"), "October");
     await user.click(screen.getByText("Nexus Night › October 2026"));
 
     expect(onChange).toHaveBeenCalledWith(["nexus-night-2026-10"]);
@@ -108,7 +108,7 @@ describe("PrintingDeskChannelPicker", () => {
     const user = userEvent.setup();
     render(<PrintingDeskChannelPicker value={["nexus-night-2026-10"]} onChange={vi.fn()} />);
 
-    await user.type(screen.getByLabelText("Where does it come from"), "October");
+    await user.type(screen.getByLabelText("Distribution Channels"), "October");
 
     expect(screen.getAllByText("Nexus Night › October 2026")).toHaveLength(1);
     expect(screen.getByRole("button", { name: "Remove October 2026" })).toBeInTheDocument();
@@ -133,7 +133,7 @@ describe("PrintingDeskChannelPicker", () => {
     const user = userEvent.setup();
     render(<PrintingDeskChannelPicker value={[]} onChange={vi.fn()} />);
 
-    await user.type(screen.getByLabelText("Where does it come from"), "November 2026");
+    await user.type(screen.getByLabelText("Distribution Channels"), "November 2026");
 
     expect(screen.getByText(/Add “November 2026” under Nexus Night/u)).toBeInTheDocument();
   });
@@ -142,7 +142,7 @@ describe("PrintingDeskChannelPicker", () => {
     const user = userEvent.setup();
     render(<PrintingDeskChannelPicker value={[]} onChange={vi.fn()} />);
 
-    await user.type(screen.getByLabelText("Where does it come from"), "November 2026");
+    await user.type(screen.getByLabelText("Distribution Channels"), "November 2026");
     await user.click(screen.getByText(/Add “November 2026” under Nexus Night/u));
 
     expect(screen.getByLabelText("Short name")).toHaveValue("nexus-night-2026-11");
@@ -153,7 +153,7 @@ describe("PrintingDeskChannelPicker", () => {
     const onChange = vi.fn();
     render(<PrintingDeskChannelPicker value={[]} onChange={onChange} />);
 
-    await user.type(screen.getByLabelText("Where does it come from"), "November 2026");
+    await user.type(screen.getByLabelText("Distribution Channels"), "November 2026");
     await user.click(screen.getByText(/Add “November 2026” under Nexus Night/u));
     await user.click(screen.getByRole("button", { name: "Add" }));
 
@@ -216,7 +216,7 @@ describe("PrintingDeskChannelPicker", () => {
     const user = userEvent.setup();
     render(<PrintingDeskChannelPicker value={[]} onChange={vi.fn()} />);
 
-    await user.type(screen.getByLabelText("Where does it come from"), "zaun");
+    await user.type(screen.getByLabelText("Distribution Channels"), "zaun");
 
     expect(screen.getByText("Add a new series or product")).toBeInTheDocument();
   });

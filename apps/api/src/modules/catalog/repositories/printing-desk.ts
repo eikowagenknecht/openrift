@@ -9,6 +9,7 @@ import { imageUrlWithOriginal, joinFrontImage } from "../../../repositories/quer
 
 export interface DeskPrintingRow {
   printingId: string;
+  slug: string;
   cardId: string;
   cardSlug: string;
   cardName: string;
@@ -34,6 +35,7 @@ export interface DeskPrintingRow {
   activeImageUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
+  isPromo: boolean;
 }
 
 export interface DeskImageRow {
@@ -99,6 +101,7 @@ export function printingDeskRepo(db: Kysely<Database>) {
       .innerJoin("sets as s", "s.id", "p.setId")
       .select([
         "p.id as printingId",
+        "p.slug",
         "p.cardId",
         "c.slug as cardSlug",
         "c.name as cardName",
@@ -124,6 +127,7 @@ export function printingDeskRepo(db: Kysely<Database>) {
         "p.updatedAt",
         channelSlugs,
         imageCount,
+        isPromo.as("isPromo"),
       ])
       .orderBy("p.updatedAt", "desc");
   }

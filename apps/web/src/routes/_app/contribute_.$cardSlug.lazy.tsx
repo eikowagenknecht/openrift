@@ -28,7 +28,7 @@ function ContributeCorrectionPage() {
     if (canGoBack) {
       router.history.back();
     } else {
-      void navigate({ to: "/cards/$cardSlug", params: { cardSlug } });
+      void navigate({ to: "/cards/$cardSlug/{-$printingSlug}", params: { cardSlug } });
     }
   };
 

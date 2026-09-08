@@ -69,7 +69,7 @@ export function MetaIdentity({
     );
   } else if (cardSlug !== null) {
     named = (
-      <Link to="/cards/$cardSlug" params={{ cardSlug }} className={linkClass}>
+      <Link to="/cards/$cardSlug/{-$printingSlug}" params={{ cardSlug }} className={linkClass}>
         {championText}
       </Link>
     );

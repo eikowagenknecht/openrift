@@ -459,7 +459,12 @@ function TrayRow({
           ) : (
             <Button
               variant="outline"
-              render={<Link to="/cards/$cardSlug" params={{ cardSlug: printing.card.slug }} />}
+              render={
+                <Link
+                  to="/cards/$cardSlug/{-$printingSlug}"
+                  params={{ cardSlug: printing.card.slug }}
+                />
+              }
               aria-label={`Open the card page for ${name}`}
             >
               <InfoIcon />
