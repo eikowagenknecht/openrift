@@ -8,6 +8,7 @@ import { WellKnown, isBaseBanFormat } from "@openrift/shared/well-known";
 import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { memo, useEffect, useRef, useState } from "react";
 
+import { MarketplaceIcon } from "@/components/marketplace-icon";
 import { Pressable } from "@/components/ui/pressable";
 import { CardMetaLabel } from "@/features/cards/components/card-meta-label";
 import { CardPlaceholderImage } from "@/features/cards/components/card-placeholder-image";
@@ -601,27 +602,30 @@ export const CardThumbnail = memo(function CardThumbnail({
   );
 
   const priceNode =
-    favoritePrice === undefined ? undefined : view === "cards" &&
-      priceRange &&
-      priceRange.min !== priceRange.max ? (
-      <>
-        {/* Below 12rem (phone 2-column grid) the full range leaves the name ~10 characters. */}
-        <span className={cn("shrink-0 @[12rem]:hidden", priceColorClass(priceRange.min))}>
-          {display.compactFmt(priceRange.min)}+
-        </span>
-        <span className="hidden shrink-0 items-center gap-0.5 @[12rem]:flex">
-          <span className={priceColorClass(priceRange.min)}>
-            {display.compactFmt(priceRange.min)}
+    favoritePrice === undefined ? undefined : (
+      <span className="flex shrink-0 items-center gap-1">
+        <MarketplaceIcon marketplace={display.favoriteMarketplace} className="h-2.5 opacity-70" />
+        {view === "cards" && priceRange && priceRange.min !== priceRange.max ? (
+          <>
+            {/* Below 12rem (phone 2-column grid) the full range leaves the name ~10 characters. */}
+            <span className={cn("@[12rem]:hidden", priceColorClass(priceRange.min))}>
+              {display.compactFmt(priceRange.min)}+
+            </span>
+            <span className="hidden items-center gap-0.5 @[12rem]:flex">
+              <span className={priceColorClass(priceRange.min)}>
+                {display.compactFmt(priceRange.min)}
+              </span>
+              <span className="text-muted-foreground/60">&ndash;</span>
+              <span className={priceColorClass(priceRange.max)}>
+                {display.compactFmt(priceRange.max)}
+              </span>
+            </span>
+          </>
+        ) : (
+          <span className={priceColorClass(favoritePrice)}>
+            {display.compactFmt(favoritePrice)}
           </span>
-          <span className="text-muted-foreground/60">&ndash;</span>
-          <span className={priceColorClass(priceRange.max)}>
-            {display.compactFmt(priceRange.max)}
-          </span>
-        </span>
-      </>
-    ) : (
-      <span className={cn("shrink-0", priceColorClass(favoritePrice))}>
-        {display.compactFmt(favoritePrice)}
+        )}
       </span>
     );
 

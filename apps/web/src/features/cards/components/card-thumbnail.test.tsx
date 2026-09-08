@@ -497,6 +497,38 @@ describe("CardThumbnail placeholder promo label", () => {
   });
 });
 
+describe("CardThumbnail price", () => {
+  const pricedDisplay: CardThumbnailDisplay = {
+    ...baseDisplay,
+    prices: { get: () => 12.5, has: () => true },
+    compactFmt: (value) => `${value} €`,
+  };
+
+  function queryMarketplaceIcon(container: HTMLElement) {
+    return container.querySelector<HTMLImageElement>('img[src*="/images/external/"]');
+  }
+
+  it("shows the favorite marketplace icon in front of the price", () => {
+    const printing = makePrintingWithImage("RB1-004");
+    const { container } = render(
+      <CardThumbnail printing={printing} onClick={() => {}} showImages display={pricedDisplay} />,
+      { wrapper: makeWrapper() },
+    );
+    const icon = queryMarketplaceIcon(container);
+    expect(icon?.src).toContain("cardtrader");
+    expect(icon?.nextSibling?.textContent).toBe("12.5 €");
+  });
+
+  it("omits the icon when the printing has no price", () => {
+    const printing = makePrintingWithImage("RB1-005");
+    const { container } = render(
+      <CardThumbnail printing={printing} onClick={() => {}} showImages display={baseDisplay} />,
+      { wrapper: makeWrapper() },
+    );
+    expect(queryMarketplaceIcon(container)).toBeNull();
+  });
+});
+
 describe("CardThumbnail tilt shell", () => {
   it("renders without the 3D tilt transform when coarsePointer is true", () => {
     const printing = makePrintingWithImage("RB1-002");
