@@ -7,7 +7,10 @@ import { TradePreferencePill } from "@/features/groups/components/trade-preferen
 import { TradeStatusChip } from "@/features/groups/components/trade-status-chip";
 import { ListEntryTableActions } from "@/features/lists/components/list-entry-table-actions";
 import type { ListTradeIndex } from "@/features/lists/components/list-trade-status";
-import { listEntryTradeStatus } from "@/features/lists/components/list-trade-status";
+import {
+  listEntryTrades,
+  listEntryTradeStatus,
+} from "@/features/lists/components/list-trade-status";
 import { RuleSourceBadge } from "@/features/lists/components/rule-source-badge";
 import { entryToExcludeTarget } from "@/features/rules/lib/rule-exclude";
 
@@ -53,7 +56,11 @@ export function ListActionsCell({
   }
   const tradeStatus = listEntryTradeStatus(entry, tradeIndex);
   const tradeChip = tradeStatus ? (
-    <TradeStatusChip annotation={tradeStatus} detail={entry.kind === "copy" ? "word" : "label"} />
+    <TradeStatusChip
+      annotation={tradeStatus}
+      trades={listEntryTrades(tradeStatus, tradeIndex)}
+      detail={entry.kind === "copy" ? "word" : "label"}
+    />
   ) : null;
   // Rule-derived entries have no list_entries row, so they can only be
   // excluded, never edited or removed.

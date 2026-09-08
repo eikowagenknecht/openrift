@@ -11,6 +11,7 @@
 
 ### Other
 
+- feat(Lists): **Trade chip on a wishlist row links to the trade** — a Reserved/Requested/Offered chip on a list entry now opens the trade sheet with whoever holds it, or a picker when more than one person does.
 - feat(App): **Landing page says what OpenRift does** — the hero now opens with the job: track your collection, build decks, and trade with friends.
 - feat(Cards): **Marketplace icon on card grid prices** — the price shown on each card in a grid now carries the icon of the marketplace it came from.
 - feat(Collection): **Import from the collection page** — Import in the three-dot menu opens a paste-or-upload dialog and lands on the preview with that collection preselected.

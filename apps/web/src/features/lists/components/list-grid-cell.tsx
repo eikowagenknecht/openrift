@@ -1,4 +1,7 @@
-import type { CardTradeLiveAnnotation } from "@openrift/shared/types/api/card-trade";
+import type {
+  CardTradeLiveAnnotation,
+  CardTradeResponse,
+} from "@openrift/shared/types/api/card-trade";
 import type { ListKind } from "@openrift/shared/types/api/list";
 import type { Currency, TradePreference } from "@openrift/shared/types/api/trade-preferences";
 import type { Printing } from "@openrift/shared/types/catalog";
@@ -35,11 +38,16 @@ import { TradeStatusChip } from "@/features/groups/components/trade-status-chip"
 import { DraggableListEntry } from "@/features/lists/components/draggable-list-entry";
 import { ListEntryContextMenu } from "@/features/lists/components/list-entry-context-menu";
 import type { ListTradeIndex } from "@/features/lists/components/list-trade-status";
-import { listEntryTradeStatus } from "@/features/lists/components/list-trade-status";
+import {
+  listEntryTrades,
+  listEntryTradeStatus,
+} from "@/features/lists/components/list-trade-status";
 import { isRuleSourced, RuleSourceBadge } from "@/features/lists/components/rule-source-badge";
 import { useListEntriesStore } from "@/features/lists/stores/list-entries-store";
 import { entryToExcludeTarget } from "@/features/rules/lib/rule-exclude";
 import type { CardRenderContext } from "@/lib/card-viewer-types";
+
+const NO_TRADES: readonly CardTradeResponse[] = [];
 
 interface ListGridCellProps {
   printing: Printing;
@@ -124,6 +132,7 @@ export const ListGridCell = memo(function ListGridCell({
   );
 
   const tradeStatus = entry ? listEntryTradeStatus(entry, tradeIndex) : null;
+  const trades = tradeStatus ? listEntryTrades(tradeStatus, tradeIndex) : NO_TRADES;
 
   const strip = inSelectMode
     ? undefined
@@ -136,6 +145,7 @@ export const ListGridCell = memo(function ListGridCell({
         listCurrency,
         supportsTradePrefs,
         tradeStatus,
+        trades,
       });
 
   const dragData: ListEntryDragData | undefined =
@@ -232,6 +242,7 @@ interface BuildStripArgs {
   listCurrency: Currency | null;
   supportsTradePrefs: boolean;
   tradeStatus: CardTradeLiveAnnotation | null;
+  trades: readonly CardTradeResponse[];
 }
 
 function buildStrip({
@@ -243,9 +254,14 @@ function buildStrip({
   listCurrency,
   supportsTradePrefs,
   tradeStatus,
+  trades,
 }: BuildStripArgs): ReactNode {
   const tradeChip = tradeStatus ? (
-    <TradeStatusChip annotation={tradeStatus} detail={kind === "copy" ? "word" : "label"} />
+    <TradeStatusChip
+      annotation={tradeStatus}
+      trades={trades}
+      detail={kind === "copy" ? "word" : "label"}
+    />
   ) : null;
   if (showLibrary) {
     // The stepper edits only the manual part; the rule's contribution can't be

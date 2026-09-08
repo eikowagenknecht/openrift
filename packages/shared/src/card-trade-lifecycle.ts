@@ -59,3 +59,25 @@ export function needsViewerAction(trade: CardTradeStateFields): boolean {
 export function isTradedCardTrade(trade: CardTradeStateFields): boolean {
   return cardTradeState(trade) === "done";
 }
+
+export interface CardTradeLivePhaseFields {
+  status: CardTradeStatus;
+  initiator: "giver" | "receiver";
+  viewerSyncAppliedAt: string | null;
+}
+
+/**
+ * Mirrors the `liveAnnotationsForUser` query: a terminal trade has no phase,
+ * and neither has a reserved trade the viewer has already settled.
+ */
+export function cardTradeLivePhase(
+  trade: CardTradeLivePhaseFields,
+): (typeof CARD_TRADE_LIVE_PHASES)[number] | null {
+  if (trade.status === "pending") {
+    return trade.initiator === "receiver" ? "asked" : "offered";
+  }
+  if (trade.status === "reserved" && trade.viewerSyncAppliedAt === null) {
+    return "reserved";
+  }
+  return null;
+}

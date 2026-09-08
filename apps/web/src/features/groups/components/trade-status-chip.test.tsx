@@ -1,15 +1,41 @@
 import type {
   CardTradeLiveAnnotation,
   CardTradeLivePhase,
+  CardTradeResponse,
   CardTradeRole,
 } from "@openrift/shared/types/api/card-trade";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
+import type { ComponentProps, ReactNode } from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   SharedTradeStatusChip,
   TradeStatusChip,
 } from "@/features/groups/components/trade-status-chip";
+
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({
+    to,
+    params,
+    children,
+    ...props
+  }: {
+    to: string;
+    params?: Record<string, string>;
+    children?: ReactNode;
+  } & ComponentProps<"a">) => {
+    let path = to;
+    for (const [key, value] of Object.entries(params ?? {})) {
+      path = path.replace(`$${key}`, value);
+    }
+    return (
+      <a href={path} {...props}>
+        {children}
+      </a>
+    );
+  },
+}));
 
 function annotation(overrides: Partial<CardTradeLiveAnnotation> = {}): CardTradeLiveAnnotation {
   return {
@@ -19,6 +45,44 @@ function annotation(overrides: Partial<CardTradeLiveAnnotation> = {}): CardTrade
     tradeCount: 1,
     quantity: 1,
     ...overrides,
+  };
+}
+
+function stubTrade(overrides: Partial<CardTradeResponse> = {}): CardTradeResponse {
+  return {
+    id: "trade-1",
+    groupId: "group-1",
+    groupSlug: "summoner-skirmish",
+    groupName: "Summoner Skirmish",
+    role: "receiver",
+    initiator: "receiver",
+    counterparty: {
+      userId: "user-2",
+      name: "Robin",
+      image: null,
+      gravatarHash: "hash",
+      contactMethods: [],
+    },
+    printingId: "printing-1",
+    cardId: "card-1",
+    quantity: 1,
+    status: "reserved",
+    createdAt: "2026-08-01T10:00:00.000Z",
+    updatedAt: "2026-08-01T10:00:00.000Z",
+    acceptedAt: "2026-08-01T10:00:00.000Z",
+    completedAt: null,
+    closedAt: null,
+    expiresAt: null,
+    viewerSyncAppliedAt: null,
+    counterpartySyncAppliedAt: null,
+    actionNeeded: null,
+    ...overrides,
+  };
+}
+
+function withPerson(userId: string | null, name: string): Partial<CardTradeResponse> {
+  return {
+    counterparty: { userId, name, image: null, gravatarHash: "h", contactMethods: [] },
   };
 }
 
@@ -127,6 +191,87 @@ describe("TradeStatusChip", () => {
     const chip = screen.getByTitle("Requested (outgoing) · 1 copy");
     expect(chip).not.toHaveClass("text-foreground");
     expect(chip).toHaveClass("text-muted-foreground");
+  });
+
+  it("stays a plain pill when no trade is passed", () => {
+    render(<TradeStatusChip detail="label" annotation={annotation({ phase: "reserved" })} />);
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("links a single counterparty's trades to their trade sheet", () => {
+    render(
+      <TradeStatusChip
+        detail="label"
+        annotation={annotation({ role: "receiver", phase: "reserved" })}
+        trades={[stubTrade()]}
+      />,
+    );
+    const chip = screen.getByRole("link", { name: "Reserved (incoming) · 1 copy · with Robin" });
+    expect(chip).toHaveAttribute("href", "/trades/user-2");
+    expect(chip).toHaveTextContent("Reserved1");
+  });
+
+  it("keeps a counterparty whose account is gone out of the link", () => {
+    render(
+      <TradeStatusChip
+        annotation={annotation({ role: "receiver", phase: "reserved" })}
+        trades={[stubTrade(withPerson(null, "Robin"))]}
+      />,
+    );
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.getByTitle("Reserved (incoming) · 1 copy")).toBeInTheDocument();
+  });
+
+  it("opens a picker when several people hold the same printing", async () => {
+    const user = userEvent.setup();
+    render(
+      <TradeStatusChip
+        annotation={annotation({ role: "receiver", phase: "reserved", quantity: 3 })}
+        trades={[
+          stubTrade({ id: "trade-robin", quantity: 2 }),
+          stubTrade({ id: "trade-vi", ...withPerson("user-3", "Vi") }),
+        ]}
+      />,
+    );
+    await user.click(screen.getByTitle("Reserved (incoming) · 3 copies"));
+    const links = screen.getAllByRole("link");
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/trades/user-2",
+      "/trades/user-3",
+    ]);
+    expect(links[0]).toHaveTextContent("Robin×2");
+  });
+
+  it("sums one person's trades on the printing into a single row", async () => {
+    const user = userEvent.setup();
+    render(
+      <TradeStatusChip
+        annotation={annotation({ role: "receiver", phase: "reserved", quantity: 4 })}
+        trades={[
+          stubTrade({ id: "trade-a", quantity: 3 }),
+          stubTrade({ id: "trade-b", groupId: "group-2", groupName: "Piltover Pod" }),
+          stubTrade({ id: "trade-vi", ...withPerson("user-3", "Vi") }),
+        ]}
+      />,
+    );
+    await user.click(screen.getByTitle("Reserved (incoming) · 4 copies"));
+    expect(screen.getAllByRole("link")[0]).toHaveTextContent("Robin×4");
+  });
+
+  it("keeps the card click from firing when the chip is used", async () => {
+    const user = userEvent.setup();
+    const onCellClick = vi.fn();
+    render(
+      // oxlint-disable-next-line eslint/jsx-a11y/click-events-have-key-events, eslint/jsx-a11y/no-static-element-interactions -- stands in for the card cell around the strip
+      <div onClick={onCellClick}>
+        <TradeStatusChip
+          annotation={annotation({ role: "receiver", phase: "reserved" })}
+          trades={[stubTrade()]}
+        />
+      </div>,
+    );
+    await user.click(screen.getByRole("link"));
+    expect(onCellClick).not.toHaveBeenCalled();
   });
 });
 

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import type { CardTradeStateFields } from "./card-trade-lifecycle.js";
+import type { CardTradeLivePhaseFields, CardTradeStateFields } from "./card-trade-lifecycle.js";
 import {
+  cardTradeLivePhase,
   cardTradeState,
   isLiveCardTradeStatus,
   isTradedCardTrade,
@@ -84,6 +85,34 @@ describe("isTradedCardTrade", () => {
 
   it("does not count a swap the viewer still owes a settle on", () => {
     expect(isTradedCardTrade(trade({ status: "reserved", actionNeeded: "settle" }))).toBe(false);
+  });
+});
+
+describe("cardTradeLivePhase", () => {
+  function live(overrides: Partial<CardTradeLivePhaseFields> = {}): CardTradeLivePhaseFields {
+    return { status: "pending", initiator: "receiver", viewerSyncAppliedAt: null, ...overrides };
+  }
+
+  it("reads a pending trade's phase off who opened it", () => {
+    expect(cardTradeLivePhase(live())).toBe("asked");
+    expect(cardTradeLivePhase(live({ initiator: "giver" }))).toBe("offered");
+  });
+
+  it("calls an accepted trade reserved for both sides", () => {
+    expect(cardTradeLivePhase(live({ status: "reserved" }))).toBe("reserved");
+    expect(cardTradeLivePhase(live({ status: "reserved", initiator: "giver" }))).toBe("reserved");
+  });
+
+  it("drops the viewer's half once they have settled it", () => {
+    expect(
+      cardTradeLivePhase(live({ status: "reserved", viewerSyncAppliedAt: "2026-08-02T00:00:00Z" })),
+    ).toBeNull();
+  });
+
+  it("gives a terminal trade no phase", () => {
+    for (const status of ["completed", "declined", "cancelled", "expired"] as const) {
+      expect(cardTradeLivePhase(live({ status }))).toBeNull();
+    }
   });
 });
 

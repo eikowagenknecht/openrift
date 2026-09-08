@@ -1,4 +1,7 @@
-import type { CardTradeLiveAnnotation } from "@openrift/shared/types/api/card-trade";
+import type {
+  CardTradeLiveAnnotation,
+  CardTradeResponse,
+} from "@openrift/shared/types/api/card-trade";
 import type { ListEntryDetailResponse, ListKind } from "@openrift/shared/types/api/list";
 import type { Currency, TradePreference } from "@openrift/shared/types/api/trade-preferences";
 import type { ListRule } from "@openrift/shared/types/list-rule";
@@ -22,7 +25,7 @@ import { FilterSearchProvider, useFilterSearch } from "@/features/cards/lib/sear
 import { useSiblingOverrideStore } from "@/features/cards/stores/sibling-override-store";
 import { FloatingActionBar } from "@/features/collections/components/floating-action-bar";
 import { TradePreferenceDialog } from "@/features/groups/components/trade-preference-dialog";
-import { useLiveTradesByPrinting } from "@/features/groups/hooks/use-card-trades";
+import { useLiveTradesByPrinting, useUserTrades } from "@/features/groups/hooks/use-card-trades";
 import { ListActionsCell } from "@/features/lists/components/list-actions-cell";
 import { ListGridCell } from "@/features/lists/components/list-grid-cell";
 import { ListRemoveDialog } from "@/features/lists/components/list-remove-dialog";
@@ -40,6 +43,7 @@ const LIST_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set(["owned", "cust
 // Stable reference: a fresh array here would rebuild the trade index every
 // render and break the grid cells' memo.
 const NO_TRADE_ANNOTATIONS: readonly CardTradeLiveAnnotation[] = [];
+const NO_TRADES: readonly CardTradeResponse[] = [];
 
 export interface ListEntryBrowserProps {
   listId: string;
@@ -115,9 +119,11 @@ export function ListEntryBrowser({
   // catalog to map that printing back to the card the entry wants.
   const { printingsById } = useCards();
   const { data: liveTrades } = useLiveTradesByPrinting();
+  const { data: userTrades } = useUserTrades();
   const tradeIndex = buildListTradeIndex(
     liveTrades?.annotations ?? NO_TRADE_ANNOTATIONS,
     printingsById,
+    userTrades?.items ?? NO_TRADES,
   );
 
   // Clear on unmount so a sibling-swap pin from a previous list doesn't leak in.
