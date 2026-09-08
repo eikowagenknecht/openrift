@@ -6,7 +6,13 @@ import { requireAuthedUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
 import { recordAdminEvent } from "../../system/services/record-admin-event.js";
 import { toDeskImages, toDeskPrintingRow } from "../lib/printing-desk-presenters.js";
-import { createDeskPrinting, updateDeskPrinting } from "../services/printing-desk.js";
+import {
+  assertDeskImageFileScope,
+  assertDeskPrintingScope,
+  createDeskPrinting,
+  imagesDeletableBy,
+  updateDeskPrinting,
+} from "../services/printing-desk.js";
 
 const os = implement(adminPrintingDeskContract).$context<ApiContext>().use(requireAuthedUser);
 
@@ -44,8 +50,17 @@ export const adminPrintingDeskRouter = {
 
     const createdByMe = await adminEvents.wasPrintingCreatedBy(input.printingId, context.userId);
     const images = await printingDesk.listDeskImages(input.printingId);
+    const deletable = await imagesDeletableBy(
+      context.repos,
+      context.adminAccess,
+      context.userId,
+      images.map((image) => image.printingImageId),
+    );
 
-    return { printing: toDeskPrintingRow(row, createdByMe), images: toDeskImages(images) };
+    return {
+      printing: toDeskPrintingRow(row, createdByMe),
+      images: toDeskImages(images, deletable),
+    };
   }),
 
   create: os.create.handler(async ({ input, context }) => {
@@ -75,6 +90,7 @@ export const adminPrintingDeskRouter = {
 
     const current = await printingDesk.getImageCredit(imageFileId);
     assertFound(current, "Image file not found");
+    await assertDeskImageFileScope(context.repos, context.adminAccess, context.userId, imageFileId);
 
     await printingDesk.updateImageCredit(imageFileId, patch);
 
@@ -93,6 +109,12 @@ export const adminPrintingDeskRouter = {
 
     const image = await printingImages.getForActivate(printingImageId);
     assertFound(image, "Printing image not found");
+    await assertDeskPrintingScope(
+      context.repos,
+      context.adminAccess,
+      context.userId,
+      image.printingId,
+    );
 
     if (image.face === face) {
       return;

@@ -9,12 +9,49 @@ import { isUniqueViolationOn } from "../../../lib/pg-errors.js";
 import { requireAuthedUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
 import { recordAdminEvent } from "../../system/services/record-admin-event.js";
+import { assertDeskPrintingScope } from "../services/printing-desk.js";
 
 const os = implement(adminPrintingCitationsContract).$context<ApiContext>().use(requireAuthedUser);
 
+interface CitationRow {
+  id: string;
+  label: string;
+  sourceUrl: string | null;
+}
+
 /** The wire shape of a citation row; the sort key stays server-side. */
-function toCitation(row: { id: string; label: string; sourceUrl: string | null }) {
-  return { id: row.id, label: row.label, sourceUrl: row.sourceUrl } satisfies AdminPrintingCitation;
+function toCitation(row: CitationRow, canEdit: boolean): AdminPrintingCitation {
+  return { id: row.id, label: row.label, sourceUrl: row.sourceUrl, canEdit };
+}
+
+async function citationsEditableBy(
+  repos: ApiContext["repos"],
+  adminAccess: ApiContext["adminAccess"],
+  userId: string,
+  citationIds: readonly string[],
+): Promise<Set<string>> {
+  if (adminAccess?.isAdmin) {
+    return new Set(citationIds);
+  }
+  return new Set(await repos.adminEvents.citationIdsCreatedBy(citationIds, userId));
+}
+
+/** `citation.create` is the only record of who added a link; the table has no author. */
+async function assertCitationAuthor(
+  repos: ApiContext["repos"],
+  adminAccess: ApiContext["adminAccess"],
+  userId: string,
+  citationId: string,
+): Promise<void> {
+  const editable = await citationsEditableBy(repos, adminAccess, userId, [citationId]);
+  if (editable.has(citationId)) {
+    return;
+  }
+  throw new AppError(
+    403,
+    ERROR_CODES.FORBIDDEN,
+    "Only the admin can change a link you did not add",
+  );
 }
 
 /**
@@ -36,29 +73,41 @@ async function assertOwnedByPrinting(
   repo: ApiContext["repos"]["printingCitations"],
   printingId: string,
   citationId: string,
-): Promise<AdminPrintingCitation> {
+): Promise<CitationRow> {
   const rows = await repo.listForPrinting(printingId);
   const row = rows.find((candidate) => candidate.id === citationId);
   assertFound(row, "Citation not found");
-  return toCitation(row);
+  return { id: row.id, label: row.label, sourceUrl: row.sourceUrl };
 }
 
 /**
  * Source citations on a promo printing: the videos and posts backing what the
- * catalog claims about where a card came from. Every citation is hand-entered;
- * no ingest owns rows, so delete is unrestricted.
+ * catalog claims about where a card came from. Every citation is hand-entered,
+ * and only its author or the admin may change it.
  */
 export const adminPrintingCitationsRouter = {
   list: os.list.handler(async ({ input, context }) => {
     const { catalog, printingCitations } = context.repos;
     assertFound(await catalog.printingById(input.printingId), "Printing not found");
     const rows = await printingCitations.listForPrinting(input.printingId);
-    return { citations: rows.map((row) => toCitation(row)) };
+    const editable = await citationsEditableBy(
+      context.repos,
+      context.adminAccess,
+      context.userId,
+      rows.map((row) => row.id),
+    );
+    return { citations: rows.map((row) => toCitation(row, editable.has(row.id))) };
   }),
 
   create: os.create.handler(async ({ input, context }) => {
     const { catalog, printingCitations } = context.repos;
     assertFound(await catalog.printingById(input.printingId), "Printing not found");
+    await assertDeskPrintingScope(
+      context.repos,
+      context.adminAccess,
+      context.userId,
+      input.printingId,
+    );
 
     try {
       const row = await printingCitations.insert({
@@ -66,7 +115,7 @@ export const adminPrintingCitationsRouter = {
         label: input.label,
         sourceUrl: input.sourceUrl,
       });
-      const citation = toCitation(row);
+      const citation = toCitation(row, true);
       await recordAdminEvent(context.repos, context.userId, {
         action: "citation.create",
         entityType: "citation",
@@ -86,6 +135,12 @@ export const adminPrintingCitationsRouter = {
     const before = await assertOwnedByPrinting(
       printingCitations,
       input.printingId,
+      input.citationId,
+    );
+    await assertCitationAuthor(
+      context.repos,
+      context.adminAccess,
+      context.userId,
       input.citationId,
     );
 
@@ -118,6 +173,12 @@ export const adminPrintingCitationsRouter = {
     const before = await assertOwnedByPrinting(
       printingCitations,
       input.printingId,
+      input.citationId,
+    );
+    await assertCitationAuthor(
+      context.repos,
+      context.adminAccess,
+      context.userId,
       input.citationId,
     );
     assertFound(await printingCitations.delete(input.citationId), "Citation not found");

@@ -27,11 +27,11 @@ export function printingImagesRepo(db: Kysely<Database>) {
   return {
     getIdAndRehostedUrl(
       imageId: string,
-    ): Promise<{ id: string; rehostedUrl: string | null } | undefined> {
+    ): Promise<{ id: string; printingId: string; rehostedUrl: string | null } | undefined> {
       return db
         .selectFrom("printingImages")
         .innerJoin("imageFiles as imgf", "imgf.id", "printingImages.imageFileId")
-        .select(["printingImages.id", "imgf.rehostedUrl"])
+        .select(["printingImages.id", "printingImages.printingId", "imgf.rehostedUrl"])
         .where("printingImages.id", "=", imageId)
         .executeTakeFirst();
     },
@@ -61,6 +61,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
         .innerJoin("imageFiles as imgf", "imgf.id", "printingImages.imageFileId")
         .select([
           "printingImages.id",
+          "printingImages.printingId",
           "printingImages.imageFileId",
           "imgf.originalUrl",
           "imgf.rotation",

@@ -5,10 +5,19 @@ import { registerRouterForTest } from "../../../test/mount-router.js";
 import type { Variables } from "../../../types.js";
 import { adminPrintingDeskRouter } from "./admin-printing-desk";
 
-const mockPrintingDesk = { getImageCredit: vi.fn(), updateImageCredit: vi.fn() };
+const mockPrintingDesk = {
+  getImageCredit: vi.fn(),
+  updateImageCredit: vi.fn(),
+  isDeskPrinting: vi.fn(),
+  nonDeskPrintingIdsForImageFile: vi.fn(),
+};
 const mockPrintingImages = { getForActivate: vi.fn(), setFace: vi.fn() };
 const mockCatalog = { refreshCatalogViews: vi.fn() };
-const mockAdminEvents = { insert: vi.fn() };
+const mockAdminEvents = { insert: vi.fn(), wasPrintingCreatedBy: vi.fn() };
+
+const FULL_ADMIN = { isAdmin: true, sections: [] };
+const GRANT_HOLDER = { isAdmin: false, sections: ["printing-desk"] };
+let adminAccess: typeof FULL_ADMIN | typeof GRANT_HOLDER = FULL_ADMIN;
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const IMAGE_FILE_ID = "b0000000-0001-4000-a000-000000000001";
@@ -18,7 +27,7 @@ const UNKNOWN_ID = "b0000000-0001-4000-a000-000000000099";
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
-  c.set("adminAccess", { isAdmin: true, sections: [] });
+  c.set("adminAccess", adminAccess as never);
   c.set("repos", {
     adminEvents: mockAdminEvents,
     printingDesk: mockPrintingDesk,
@@ -47,6 +56,7 @@ function patchFace(body: unknown, printingImageId = PRINTING_IMAGE_ID) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  adminAccess = FULL_ADMIN;
   mockPrintingDesk.getImageCredit.mockResolvedValue({ credit: "gamesnight" });
   mockPrintingImages.getForActivate.mockResolvedValue({
     id: PRINTING_IMAGE_ID,
@@ -151,5 +161,48 @@ describe("PATCH /printing-desk/printing-images/:printingImageId", () => {
 
     expect(res.status).toBe(404);
     expect(mockPrintingImages.setFace).not.toHaveBeenCalled();
+  });
+});
+
+describe("grant holder scope", () => {
+  beforeEach(() => {
+    adminAccess = GRANT_HOLDER;
+    mockAdminEvents.wasPrintingCreatedBy.mockResolvedValue(false);
+  });
+
+  it("403s a credit edit on a file shared with a printing outside the desk", async () => {
+    mockPrintingDesk.nonDeskPrintingIdsForImageFile.mockResolvedValue(["p-1"]);
+
+    const res = await patchImage({ credit: "Nope" });
+
+    expect(res.status).toBe(403);
+    expect(mockPrintingDesk.updateImageCredit).not.toHaveBeenCalled();
+  });
+
+  it("lets them credit a file that only desk printings use", async () => {
+    mockPrintingDesk.nonDeskPrintingIdsForImageFile.mockResolvedValue([]);
+
+    const res = await patchImage({ credit: "gamesnight" });
+
+    expect(res.status).toBe(204);
+    expect(mockPrintingDesk.updateImageCredit).toHaveBeenCalled();
+  });
+
+  it("403s moving an image to the other side on a printing outside the desk", async () => {
+    mockPrintingDesk.isDeskPrinting.mockResolvedValue(false);
+
+    const res = await patchFace({ face: "back" });
+
+    expect(res.status).toBe(403);
+    expect(mockPrintingImages.setFace).not.toHaveBeenCalled();
+  });
+
+  it("lets them move an image on a promo", async () => {
+    mockPrintingDesk.isDeskPrinting.mockResolvedValue(true);
+
+    const res = await patchFace({ face: "back" });
+
+    expect(res.status).toBe(204);
+    expect(mockPrintingImages.setFace).toHaveBeenCalled();
   });
 });

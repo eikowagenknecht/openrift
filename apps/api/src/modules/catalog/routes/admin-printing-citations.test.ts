@@ -15,7 +15,16 @@ const mockPrintingCitations = {
   delete: vi.fn(),
 };
 
-const mockAdminEvents = { insert: vi.fn() };
+const mockAdminEvents = {
+  insert: vi.fn(),
+  citationIdsCreatedBy: vi.fn(),
+  wasPrintingCreatedBy: vi.fn(),
+};
+const mockPrintingDesk = { isDeskPrinting: vi.fn() };
+
+const FULL_ADMIN = { isAdmin: true, sections: [] };
+const GRANT_HOLDER = { isAdmin: false, sections: ["printing-desk"] };
+let adminAccess: typeof FULL_ADMIN | typeof GRANT_HOLDER = FULL_ADMIN;
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const PRINTING_ID = "b0000000-0001-4000-a000-000000000001";
@@ -26,10 +35,12 @@ const BASE = `/api/admin/v1/printings/${PRINTING_ID}/citations`;
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
+  c.set("adminAccess", adminAccess as never);
   c.set("repos", {
     adminEvents: mockAdminEvents,
     catalog: mockCatalog,
     printingCitations: mockPrintingCitations,
+    printingDesk: mockPrintingDesk,
   } as never);
   await next();
 });
@@ -56,6 +67,7 @@ function createCitation(body: unknown) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  adminAccess = FULL_ADMIN;
 });
 
 describe("GET /printings/{printingId}/citations", () => {
@@ -303,5 +315,84 @@ describe("DELETE /printings/{printingId}/citations/{citationId}", () => {
 
     expect(res.status).toBe(404);
     expect(mockPrintingCitations.delete).not.toHaveBeenCalled();
+  });
+});
+
+describe("grant holder scope", () => {
+  beforeEach(() => {
+    adminAccess = GRANT_HOLDER;
+    mockCatalog.printingById.mockResolvedValue({ id: PRINTING_ID });
+    mockPrintingCitations.listForPrinting.mockResolvedValue([citationRow()]);
+  });
+
+  it("marks a link somebody else added as not editable", async () => {
+    mockAdminEvents.citationIdsCreatedBy.mockResolvedValue([]);
+
+    const res = await app.request(BASE);
+
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(json.citations[0]).toMatchObject({ id: CITATION_ID, canEdit: false });
+  });
+
+  it("marks their own link as editable", async () => {
+    mockAdminEvents.citationIdsCreatedBy.mockResolvedValue([CITATION_ID]);
+
+    const res = await app.request(BASE);
+
+    const json = await readJson(res);
+    expect(json.citations[0]).toMatchObject({ canEdit: true });
+  });
+
+  it("403s editing a link somebody else added", async () => {
+    mockAdminEvents.citationIdsCreatedBy.mockResolvedValue([]);
+
+    const res = await app.request(`${BASE}/${CITATION_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: "Corrected" }),
+    });
+
+    expect(res.status).toBe(403);
+    expect(mockPrintingCitations.update).not.toHaveBeenCalled();
+  });
+
+  it("403s deleting a link somebody else added", async () => {
+    mockAdminEvents.citationIdsCreatedBy.mockResolvedValue([]);
+
+    const res = await app.request(`${BASE}/${CITATION_ID}`, { method: "DELETE" });
+
+    expect(res.status).toBe(403);
+    expect(mockPrintingCitations.delete).not.toHaveBeenCalled();
+  });
+
+  it("lets them delete the link they added", async () => {
+    mockAdminEvents.citationIdsCreatedBy.mockResolvedValue([CITATION_ID]);
+    mockPrintingCitations.delete.mockResolvedValue(CITATION_ID);
+
+    const res = await app.request(`${BASE}/${CITATION_ID}`, { method: "DELETE" });
+
+    expect(res.status).toBe(204);
+  });
+
+  it("403s adding a link to a printing outside the desk", async () => {
+    mockPrintingDesk.isDeskPrinting.mockResolvedValue(false);
+    mockAdminEvents.wasPrintingCreatedBy.mockResolvedValue(false);
+
+    const res = await createCitation({ label: "Unboxing", sourceUrl: null });
+
+    expect(res.status).toBe(403);
+    expect(mockPrintingCitations.insert).not.toHaveBeenCalled();
+  });
+
+  it("lets them add a link to a promo printing", async () => {
+    mockPrintingDesk.isDeskPrinting.mockResolvedValue(true);
+    mockPrintingCitations.insert.mockResolvedValue(citationRow({ label: "Unboxing" }));
+
+    const res = await createCitation({ label: "Unboxing", sourceUrl: null });
+
+    expect(res.status).toBe(201);
+    const json = await readJson(res);
+    expect(json).toMatchObject({ canEdit: true });
   });
 });

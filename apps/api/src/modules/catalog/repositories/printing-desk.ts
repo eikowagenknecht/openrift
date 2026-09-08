@@ -91,6 +91,8 @@ export function printingDeskRepo(db: Kysely<Database>) {
     OR EXISTS (SELECT 1 FROM printing_distribution_channels pdc2 WHERE pdc2.printing_id = p.id)
   )`;
 
+  const notPromo = sql<boolean>`NOT ${isPromo}`;
+
   function rowQuery() {
     return joinFrontImage(db.selectFrom("printings as p"))
       .innerJoin("cards as c", "c.id", "p.cardId")
@@ -154,6 +156,28 @@ export function printingDeskRepo(db: Kysely<Database>) {
 
     getDeskPrinting(printingId: string): Promise<DeskPrintingRow | undefined> {
       return rowQuery().where("p.id", "=", printingId).executeTakeFirst();
+    },
+
+    async isDeskPrinting(printingId: string): Promise<boolean> {
+      const row = await db
+        .selectFrom("printings as p")
+        .select("p.id")
+        .where("p.id", "=", printingId)
+        .where(isPromo)
+        .executeTakeFirst();
+      return row !== undefined;
+    },
+
+    async nonDeskPrintingIdsForImageFile(imageFileId: string): Promise<string[]> {
+      const rows = await db
+        .selectFrom("printingImages as pi")
+        .innerJoin("printings as p", "p.id", "pi.printingId")
+        .select("p.id")
+        .where("pi.imageFileId", "=", imageFileId)
+        .where(notPromo)
+        .distinct()
+        .execute();
+      return rows.map((row) => row.id);
     },
 
     listDeskImages(printingId: string): Promise<DeskImageRow[]> {

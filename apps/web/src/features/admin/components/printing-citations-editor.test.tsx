@@ -28,6 +28,7 @@ const citation: AdminPrintingCitation = {
   id: "c-1",
   label: "Launch party unboxing (RiftboundDaily)",
   sourceUrl: "https://www.youtube.com/watch?v=abc123",
+  canEdit: true,
 };
 
 beforeEach(() => {

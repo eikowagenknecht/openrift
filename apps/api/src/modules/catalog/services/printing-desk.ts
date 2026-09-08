@@ -79,6 +79,85 @@ export async function assertDeskOwnership(
   );
 }
 
+/**
+ * The desk's universe is promo printings (a marker or a distribution channel)
+ * plus whatever the caller added, so a base-set printing stays admin-only.
+ */
+export async function assertDeskPrintingScope(
+  repos: Pick<Repos, "adminEvents" | "printingDesk">,
+  adminAccess: AdminAccess | null,
+  userId: string,
+  printingId: string,
+): Promise<void> {
+  if (adminAccess?.isAdmin) {
+    return;
+  }
+  if (await repos.printingDesk.isDeskPrinting(printingId)) {
+    return;
+  }
+  if (await repos.adminEvents.wasPrintingCreatedBy(printingId, userId)) {
+    return;
+  }
+  throw new AppError(
+    403,
+    ERROR_CODES.FORBIDDEN,
+    "Only the admin can change images on a printing outside the desk",
+  );
+}
+
+/** An image file can hang on several printings; every one of them must be in scope. */
+export async function assertDeskImageFileScope(
+  repos: Pick<Repos, "adminEvents" | "printingDesk">,
+  adminAccess: AdminAccess | null,
+  userId: string,
+  imageFileId: string,
+): Promise<void> {
+  if (adminAccess?.isAdmin) {
+    return;
+  }
+  const outside = await repos.printingDesk.nonDeskPrintingIdsForImageFile(imageFileId);
+  const added = await Promise.all(
+    outside.map((printingId) => repos.adminEvents.wasPrintingCreatedBy(printingId, userId)),
+  );
+  if (added.every(Boolean)) {
+    return;
+  }
+  throw new AppError(
+    403,
+    ERROR_CODES.FORBIDDEN,
+    "Only the admin can change an image on a printing outside the desk",
+  );
+}
+
+export async function imagesDeletableBy(
+  repos: Pick<Repos, "adminEvents">,
+  adminAccess: AdminAccess | null,
+  userId: string,
+  imageIds: readonly string[],
+): Promise<Set<string>> {
+  if (adminAccess?.isAdmin) {
+    return new Set(imageIds);
+  }
+  return new Set(await repos.adminEvents.imageIdsUploadedBy(imageIds, userId));
+}
+
+export async function assertImageUploader(
+  repos: Pick<Repos, "adminEvents">,
+  adminAccess: AdminAccess | null,
+  userId: string,
+  imageId: string,
+): Promise<void> {
+  const deletable = await imagesDeletableBy(repos, adminAccess, userId, [imageId]);
+  if (deletable.has(imageId)) {
+    return;
+  }
+  throw new AppError(
+    403,
+    ERROR_CODES.FORBIDDEN,
+    "Only the admin can delete an image you did not upload",
+  );
+}
+
 type CreateRepos = Pick<
   Repos,
   | "adminEvents"

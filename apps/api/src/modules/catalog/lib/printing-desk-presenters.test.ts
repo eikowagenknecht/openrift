@@ -67,7 +67,10 @@ describe("toDeskImages", () => {
 
   it("maps rows to the wire shape", () => {
     expect(
-      toDeskImages([image({ rotation: 90, face: "back", isActive: false, credit: "gamesnight" })]),
+      toDeskImages(
+        [image({ rotation: 90, face: "back", isActive: false, credit: "gamesnight" })],
+        new Set(["pi1"]),
+      ),
     ).toEqual([
       {
         printingImageId: "pi1",
@@ -77,17 +80,22 @@ describe("toDeskImages", () => {
         rotation: 90,
         face: "back",
         credit: "gamesnight",
+        canDelete: true,
       },
     ]);
   });
 
   it("keeps an uncredited file's null credit", () => {
-    expect(toDeskImages([image({})])[0]).toMatchObject({ credit: null });
+    expect(toDeskImages([image({})], new Set())[0]).toMatchObject({ credit: null });
+  });
+
+  it("marks an image the caller may not delete", () => {
+    expect(toDeskImages([image({})], new Set(["other"]))[0]).toMatchObject({ canDelete: false });
   });
 
   it("drops a file with neither a rehosted nor an original URL", () => {
-    expect(toDeskImages([image({ url: null }), image({ imageFileId: "img2" })])).toEqual([
-      expect.objectContaining({ imageFileId: "img2" }),
-    ]);
+    expect(toDeskImages([image({ url: null }), image({ imageFileId: "img2" })], new Set())).toEqual(
+      [expect.objectContaining({ imageFileId: "img2" })],
+    );
   });
 });

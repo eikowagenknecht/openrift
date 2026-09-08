@@ -44,6 +44,27 @@ export interface AdminEventFilters {
  * deletion (reads LEFT JOIN users for display).
  */
 export function adminEventsRepo(db: Kysely<Database>) {
+  async function entityIdsFromAction(
+    action: AdminEventAction,
+    entityType: AdminEventEntityType,
+    entityIds: readonly string[],
+    actorUserId: string,
+  ): Promise<string[]> {
+    if (entityIds.length === 0) {
+      return [];
+    }
+    const rows = await db
+      .selectFrom("adminEvents")
+      .select("entityId")
+      .where("actorUserId", "=", actorUserId)
+      .where("action", "=", action)
+      .where("entityType", "=", entityType)
+      .where("entityId", "in", entityIds)
+      .distinct()
+      .execute();
+    return rows.map((row) => row.entityId).filter((id): id is string => id !== null);
+  }
+
   return {
     async insert(event: AdminEventInsert): Promise<void> {
       await db
@@ -147,6 +168,15 @@ export function adminEventsRepo(db: Kysely<Database>) {
         .limit(1)
         .executeTakeFirst();
       return row !== undefined;
+    },
+
+    /** `image.upload` is the only event that names an uploader; candidate images have none. */
+    imageIdsUploadedBy(imageIds: readonly string[], actorUserId: string): Promise<string[]> {
+      return entityIdsFromAction("image.upload", "image", imageIds, actorUserId);
+    },
+
+    citationIdsCreatedBy(citationIds: readonly string[], actorUserId: string): Promise<string[]> {
+      return entityIdsFromAction("citation.create", "citation", citationIds, actorUserId);
     },
 
     /** Ordered by email; deleted users (null email) sort last. */

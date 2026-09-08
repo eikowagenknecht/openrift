@@ -37,7 +37,10 @@ export function toDeskPrintingRow(row: DeskPrintingDbRow, createdByMe: boolean):
   };
 }
 
-export function toDeskImages(rows: readonly DeskImageRow[]): DeskImage[] {
+export function toDeskImages(
+  rows: readonly DeskImageRow[],
+  deletableIds: ReadonlySet<string>,
+): DeskImage[] {
   return rows
     .filter((row): row is DeskImageRow & { url: string } => row.url !== null)
     .map((row) => ({
@@ -48,5 +51,6 @@ export function toDeskImages(rows: readonly DeskImageRow[]): DeskImage[] {
       rotation: row.rotation,
       face: row.face,
       credit: row.credit,
+      canDelete: deletableIds.has(row.printingImageId),
     }));
 }

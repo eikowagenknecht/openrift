@@ -4,7 +4,15 @@ import type { Repos, Transact } from "../../../deps.js";
 import { AppError } from "../../../errors.js";
 import type { Io } from "../../../io.js";
 import type { AdminAccess } from "../../../middleware/require-admin.js";
-import { assertDeskOwnership, createDeskPrinting, updateDeskPrinting } from "./printing-desk.js";
+import {
+  assertDeskImageFileScope,
+  assertDeskOwnership,
+  assertDeskPrintingScope,
+  assertImageUploader,
+  createDeskPrinting,
+  imagesDeletableBy,
+  updateDeskPrinting,
+} from "./printing-desk.js";
 
 const acceptPrinting = vi.hoisted(() =>
   vi.fn((..._args: unknown[]) => Promise.resolve("new-printing")),
@@ -40,6 +48,7 @@ const BASE_PRINTING = {
 function makeRepos() {
   return {
     adminEvents: {
+      imageIdsUploadedBy: vi.fn(() => Promise.resolve([] as string[])),
       printingIdsCreatedBy: vi.fn(() => Promise.resolve([] as string[])),
       wasPrintingCreatedBy: vi.fn(() => Promise.resolve(false)),
     },
@@ -51,6 +60,8 @@ function makeRepos() {
     distributionChannels: {},
     markers: {},
     printingDesk: {
+      isDeskPrinting: vi.fn(() => Promise.resolve(false)),
+      nonDeskPrintingIdsForImageFile: vi.fn(() => Promise.resolve([] as string[])),
       getFullPrinting: vi.fn(() => Promise.resolve(BASE_PRINTING)),
       findBasePrinting: vi.fn(() => Promise.resolve(BASE_PRINTING)),
       updatePrintingDeskFields: vi.fn(() => Promise.resolve()),
@@ -377,5 +388,95 @@ describe("assertDeskOwnership", () => {
     await expect(
       assertDeskOwnership(repos as unknown as Repos, null, "user-1", "p-1"),
     ).rejects.toBeInstanceOf(AppError);
+  });
+});
+
+describe("imagesDeletableBy", () => {
+  it("gives a full admin every image without reading the event log", async () => {
+    await expect(
+      imagesDeletableBy(repos as unknown as Repos, FULL_ADMIN, "user-1", ["i-1", "i-2"]),
+    ).resolves.toEqual(new Set(["i-1", "i-2"]));
+    expect(repos.adminEvents.imageIdsUploadedBy).not.toHaveBeenCalled();
+  });
+
+  it("gives a grant holder only the images they uploaded", async () => {
+    repos.adminEvents.imageIdsUploadedBy.mockResolvedValue(["i-2"]);
+    await expect(
+      imagesDeletableBy(repos as unknown as Repos, GRANT_HOLDER, "user-1", ["i-1", "i-2"]),
+    ).resolves.toEqual(new Set(["i-2"]));
+  });
+});
+
+describe("assertImageUploader", () => {
+  it("lets the grant holder who uploaded the image through", async () => {
+    repos.adminEvents.imageIdsUploadedBy.mockResolvedValue(["i-1"]);
+    await expect(
+      assertImageUploader(repos as unknown as Repos, GRANT_HOLDER, "user-1", "i-1"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("403s a grant holder on someone else's upload", async () => {
+    repos.adminEvents.imageIdsUploadedBy.mockResolvedValue([]);
+    await expect(
+      assertImageUploader(repos as unknown as Repos, GRANT_HOLDER, "user-2", "i-1"),
+    ).rejects.toMatchObject({ status: 403, code: "FORBIDDEN" });
+  });
+
+  it("lets a full admin delete an image they did not upload", async () => {
+    await expect(
+      assertImageUploader(repos as unknown as Repos, FULL_ADMIN, "user-2", "i-1"),
+    ).resolves.toBeUndefined();
+  });
+});
+
+describe("assertDeskPrintingScope", () => {
+  it("lets a full admin through without reading anything", async () => {
+    await expect(
+      assertDeskPrintingScope(repos as unknown as Repos, FULL_ADMIN, "user-1", "p-1"),
+    ).resolves.toBeUndefined();
+    expect(repos.printingDesk.isDeskPrinting).not.toHaveBeenCalled();
+  });
+
+  it("lets a grant holder through on a promo printing", async () => {
+    repos.printingDesk.isDeskPrinting.mockResolvedValue(true);
+    await expect(
+      assertDeskPrintingScope(repos as unknown as Repos, GRANT_HOLDER, "user-1", "p-1"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("lets a grant holder through on a printing they added", async () => {
+    repos.adminEvents.wasPrintingCreatedBy.mockResolvedValue(true);
+    await expect(
+      assertDeskPrintingScope(repos as unknown as Repos, GRANT_HOLDER, "user-1", "p-1"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("403s a grant holder on a base-set printing", async () => {
+    await expect(
+      assertDeskPrintingScope(repos as unknown as Repos, GRANT_HOLDER, "user-1", "p-1"),
+    ).rejects.toMatchObject({ status: 403, code: "FORBIDDEN" });
+  });
+});
+
+describe("assertDeskImageFileScope", () => {
+  it("passes a file that hangs on nothing outside the desk", async () => {
+    await expect(
+      assertDeskImageFileScope(repos as unknown as Repos, GRANT_HOLDER, "user-1", "if-1"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("403s a file shared with a base-set printing", async () => {
+    repos.printingDesk.nonDeskPrintingIdsForImageFile.mockResolvedValue(["p-1"]);
+    await expect(
+      assertDeskImageFileScope(repos as unknown as Repos, GRANT_HOLDER, "user-1", "if-1"),
+    ).rejects.toMatchObject({ status: 403, code: "FORBIDDEN" });
+  });
+
+  it("passes when every printing outside the desk was added by the caller", async () => {
+    repos.printingDesk.nonDeskPrintingIdsForImageFile.mockResolvedValue(["p-1"]);
+    repos.adminEvents.wasPrintingCreatedBy.mockResolvedValue(true);
+    await expect(
+      assertDeskImageFileScope(repos as unknown as Repos, GRANT_HOLDER, "user-1", "if-1"),
+    ).resolves.toBeUndefined();
   });
 });

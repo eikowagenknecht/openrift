@@ -8,10 +8,12 @@ const BASE = "/api/admin/v1/printings/{printingId}/citations";
 
 const printingIdParamSchema = z.object({ printingId: z.uuid() });
 
+/** `canEdit` is false for a link someone else added, unless the caller is an admin. */
 export const adminPrintingCitationSchema = z.object({
   id: z.string(),
   label: z.string(),
   sourceUrl: z.string().nullable(),
+  canEdit: z.boolean(),
 });
 
 const createPrintingCitationFields = z.object({

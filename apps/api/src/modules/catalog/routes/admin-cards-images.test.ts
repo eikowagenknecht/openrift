@@ -86,15 +86,28 @@ const mockTransact = vi.fn(
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const mockIo = { fetch: vi.fn() };
 
-const mockAdminEvents = { insert: vi.fn() };
+const mockAdminEvents = {
+  insert: vi.fn(),
+  imageIdsUploadedBy: vi.fn(),
+  wasPrintingCreatedBy: vi.fn(),
+};
+const mockPrintingDesk = { isDeskPrinting: vi.fn() };
+
+const FULL_ADMIN = { isAdmin: true, sections: [] };
+const GRANT_HOLDER = { isAdmin: false, sections: ["printing-desk"] };
+let adminAccess: typeof FULL_ADMIN | typeof GRANT_HOLDER = FULL_ADMIN;
 
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
-  c.set("adminAccess", { isAdmin: true, sections: [] });
+  c.set("adminAccess", adminAccess as never);
   c.set("io", mockIo as never);
   c.set("transact", mockTransact as never);
-  c.set("repos", { printingImages: mockPrintingImages, adminEvents: mockAdminEvents } as never);
+  c.set("repos", {
+    printingImages: mockPrintingImages,
+    adminEvents: mockAdminEvents,
+    printingDesk: mockPrintingDesk,
+  } as never);
   await next();
 });
 registerRouterForTest(app, adminCardImagesRouter);
@@ -107,6 +120,7 @@ const PRINTING_ID = "00000000-0000-4000-a000-000000000003";
 describe("POST /candidate-printings/:id/set-image", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    adminAccess = FULL_ADMIN;
     mockTransact.mockImplementation(async (cb) => cb({ printingImages: mockTrxPrintingImages }));
   });
 
@@ -221,6 +235,7 @@ describe("POST /candidate-printings/:id/set-image", () => {
 describe("DELETE /printing-images/:imageId", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    adminAccess = FULL_ADMIN;
   });
 
   it("returns 204 and deletes rehost files when no others share them", async () => {
@@ -286,6 +301,7 @@ describe("DELETE /printing-images/:imageId", () => {
 describe("POST /printing-images/:imageId/activate", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    adminAccess = FULL_ADMIN;
     mockTransact.mockImplementation(async (cb) => cb({ printingImages: mockTrxPrintingImages }));
   });
 
@@ -351,6 +367,7 @@ describe("POST /printing-images/:imageId/activate", () => {
 describe("POST /printing-images/:imageId/unrehost", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    adminAccess = FULL_ADMIN;
   });
 
   it("returns 204 and deletes files when no others share them", async () => {
@@ -432,6 +449,7 @@ describe("POST /printing-images/:imageId/unrehost", () => {
 describe("POST /printing-images/:imageId/rehost", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    adminAccess = FULL_ADMIN;
   });
 
   it("returns 200 with rehosted url on success", async () => {
@@ -517,6 +535,7 @@ describe("POST /printing-images/:imageId/rehost", () => {
 describe("POST /printing-images/:imageId/rotate", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    adminAccess = FULL_ADMIN;
   });
 
   it("sets the rotation and regenerates variants", async () => {
@@ -570,6 +589,7 @@ describe("POST /printing-images/:imageId/rotate", () => {
 describe("POST /printing-images/:imageId/set-needs-trim", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    adminAccess = FULL_ADMIN;
   });
 
   it("sets needs-trim and regenerates variants", async () => {
@@ -617,6 +637,7 @@ describe("POST /printing-images/:imageId/set-needs-trim", () => {
 describe("POST /printing/:printingId/add-image-url", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    adminAccess = FULL_ADMIN;
     mockTransact.mockImplementation(async (cb) => cb({ printingImages: mockTrxPrintingImages }));
   });
 
@@ -681,6 +702,7 @@ describe("POST /printing/:printingId/add-image-url", () => {
 describe("POST /printing/:printingId/upload-image", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    adminAccess = FULL_ADMIN;
     mockTransact.mockImplementation(async (cb) => cb({ printingImages: mockTrxPrintingImages }));
   });
 
@@ -771,6 +793,7 @@ describe("POST /printing/:printingId/upload-image", () => {
 describe("audit events", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    adminAccess = FULL_ADMIN;
     mockTransact.mockImplementation(async (cb) => cb({ printingImages: mockTrxPrintingImages }));
   });
 
@@ -820,6 +843,7 @@ function mockPrintingWithAutoFallback(): void {
 describe("POST /printing/:printingId/fallback-art", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    adminAccess = FULL_ADMIN;
     mockTransact.mockImplementation(async (cb) => cb({ printingImages: mockTrxPrintingImages }));
     mockPrintingWithAutoFallback();
   });
@@ -914,6 +938,7 @@ describe("POST /printing/:printingId/fallback-art", () => {
 describe("POST /printing/:printingId/fallback-art/from-url", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    adminAccess = FULL_ADMIN;
     mockTransact.mockImplementation(async (cb) => cb({ printingImages: mockTrxPrintingImages }));
     mockPrintingWithAutoFallback();
   });
@@ -953,6 +978,7 @@ describe("POST /printing/:printingId/fallback-art/from-url", () => {
 describe("POST /printing/:printingId/fallback-art/upload", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    adminAccess = FULL_ADMIN;
     mockTransact.mockImplementation(async (cb) => cb({ printingImages: mockTrxPrintingImages }));
     mockPrintingWithAutoFallback();
   });
@@ -978,5 +1004,132 @@ describe("POST /printing/:printingId/fallback-art/upload", () => {
       "pinned",
       "mock-uuid-v7",
     );
+  });
+});
+
+describe("grant holder scope", () => {
+  const PROMO_ID = "00000000-0000-4000-a000-000000000004";
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    adminAccess = GRANT_HOLDER;
+    mockTransact.mockImplementation(async (cb) => cb({ printingImages: mockTrxPrintingImages }));
+    mockPrintingDesk.isDeskPrinting.mockImplementation((id: string) =>
+      Promise.resolve(id === PROMO_ID),
+    );
+    mockAdminEvents.wasPrintingCreatedBy.mockResolvedValue(false);
+  });
+
+  function uploadTo(printingId: string, mode?: string) {
+    const formData = new FormData();
+    formData.append("file", new File(["image-data"], "card.png", { type: "image/png" }));
+    if (mode !== undefined) {
+      formData.append("mode", mode);
+    }
+    return app.request(`/api/admin/v1/cards/printing/${printingId}/upload-image`, {
+      method: "POST",
+      body: formData,
+    });
+  }
+
+  it("403s an upload to a printing outside the desk", async () => {
+    mockPrintingImages.getPrintingById.mockResolvedValue({ id: PRINTING_ID });
+
+    const res = await uploadTo(PRINTING_ID);
+
+    expect(res.status).toBe(403);
+    expect(mockProcessAndSave).not.toHaveBeenCalled();
+  });
+
+  it("stores an upload to a promo as additional, so it never takes over the live art", async () => {
+    mockPrintingImages.getPrintingById.mockResolvedValue({ id: PROMO_ID });
+    mockImageRehostedUrl.mockReturnValue("/media/cards/v7/mock-uuid-v7");
+
+    const res = await uploadTo(PROMO_ID, "main");
+
+    expect(res.status).toBe(200);
+    expect(mockTrxPrintingImages.insertUploadedImage).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: "additional" }),
+    );
+  });
+
+  it("403s activating an image on a printing outside the desk", async () => {
+    mockPrintingImages.getForActivate.mockResolvedValue({
+      printingId: PRINTING_ID,
+      face: "front",
+    });
+
+    const res = await app.request(`/api/admin/v1/cards/printing-images/${IMAGE_ID}/activate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ active: true }),
+    });
+
+    expect(res.status).toBe(403);
+    expect(mockTrxPrintingImages.setActive).not.toHaveBeenCalled();
+  });
+
+  it("lets them activate an image on a promo", async () => {
+    mockPrintingImages.getForActivate.mockResolvedValue({ printingId: PROMO_ID, face: "front" });
+
+    const res = await app.request(`/api/admin/v1/cards/printing-images/${IMAGE_ID}/activate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ active: false }),
+    });
+
+    expect(res.status).toBe(204);
+    expect(mockTrxPrintingImages.setActive).toHaveBeenCalledWith(IMAGE_ID, false);
+  });
+
+  it("403s rotating an image on a printing outside the desk", async () => {
+    mockPrintingImages.getForRehost.mockResolvedValue({
+      printingId: PRINTING_ID,
+      imageFileId: "if-1",
+      originalUrl: null,
+      rotation: 0,
+      needsTrim: false,
+    });
+
+    const res = await app.request(`/api/admin/v1/cards/printing-images/${IMAGE_ID}/rotate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rotation: 90 }),
+    });
+
+    expect(res.status).toBe(403);
+    expect(mockPrintingImages.setRotation).not.toHaveBeenCalled();
+  });
+
+  it("403s deleting an image on a printing outside the desk, even one they uploaded", async () => {
+    mockPrintingImages.getIdAndRehostedUrl.mockResolvedValue({
+      printingId: PRINTING_ID,
+      rehostedUrl: null,
+    });
+    mockAdminEvents.imageIdsUploadedBy.mockResolvedValue([IMAGE_ID]);
+
+    const res = await app.request(`/api/admin/v1/cards/printing-images/${IMAGE_ID}`, {
+      method: "DELETE",
+    });
+
+    expect(res.status).toBe(403);
+    expect(mockPrintingImages.deleteById).not.toHaveBeenCalled();
+  });
+
+  it("lets them delete their own upload on a promo", async () => {
+    mockPrintingImages.getIdAndRehostedUrl.mockResolvedValue({
+      printingId: PROMO_ID,
+      rehostedUrl: null,
+    });
+    mockAdminEvents.imageIdsUploadedBy.mockResolvedValue([IMAGE_ID]);
+    mockPrintingImages.getImageFileId.mockResolvedValue(null);
+    mockPrintingImages.deleteById.mockResolvedValue(undefined);
+
+    const res = await app.request(`/api/admin/v1/cards/printing-images/${IMAGE_ID}`, {
+      method: "DELETE",
+    });
+
+    expect(res.status).toBe(204);
+    expect(mockPrintingImages.deleteById).toHaveBeenCalledWith(IMAGE_ID);
   });
 });

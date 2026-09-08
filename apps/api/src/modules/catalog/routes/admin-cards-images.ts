@@ -23,6 +23,7 @@ import {
   processAndSave,
   regenerateFromOrig,
 } from "../services/images/variants.js";
+import { assertDeskPrintingScope, assertImageUploader } from "../services/printing-desk.js";
 
 const os = implement(adminCardImagesContract).$context<ApiContext>().use(requireAuthedUser);
 
@@ -84,6 +85,10 @@ export const adminCardImagesRouter = {
     const image = await printingImages.getIdAndRehostedUrl(imageId);
     assertFound(image, "Printing image not found");
 
+    const { adminAccess, userId } = context;
+    await assertDeskPrintingScope(context.repos, adminAccess, userId, image.printingId);
+    await assertImageUploader(context.repos, adminAccess, userId, imageId);
+
     const imageFileId = await printingImages.getImageFileId(imageId);
 
     // A pin can outlive the scan it was taken from, so check pins too before deleting the file from disk.
@@ -114,6 +119,12 @@ export const adminCardImagesRouter = {
 
     const image = await printingImages.getForActivate(imageId);
     assertFound(image, "Printing image not found");
+    await assertDeskPrintingScope(
+      context.repos,
+      context.adminAccess,
+      context.userId,
+      image.printingId,
+    );
 
     await transact(async (trxRepos) => {
       if (active) {
@@ -216,6 +227,12 @@ export const adminCardImagesRouter = {
 
     const image = await printingImages.getForRehost(imageId);
     assertFound(image, "Printing image not found");
+    await assertDeskPrintingScope(
+      context.repos,
+      context.adminAccess,
+      context.userId,
+      image.printingId,
+    );
 
     await printingImages.setRotation(image.imageFileId, rotation);
     await regenerateFromOrig(
@@ -292,8 +309,11 @@ export const adminCardImagesRouter = {
 
     const printing = await printingImages.getPrintingById(printingId);
     assertFound(printing, "Printing not found");
+    await assertDeskPrintingScope(context.repos, context.adminAccess, context.userId, printing.id);
 
-    const mode = rawMode === "additional" ? ("additional" as const) : ("main" as const);
+    const requested = rawMode === "additional" ? ("additional" as const) : ("main" as const);
+    // A grant holder's upload never takes over the live art; activating stays a separate step.
+    const mode = context.adminAccess?.isAdmin ? requested : ("additional" as const);
     const face = rawFace ?? "front";
 
     const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;

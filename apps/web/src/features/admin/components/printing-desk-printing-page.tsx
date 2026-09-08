@@ -2,6 +2,7 @@ import type { DeskImage, DeskPrintingRow } from "@openrift/shared/contracts/admi
 import { enumLabel } from "@openrift/shared/enum-label";
 import { formatDay } from "@openrift/shared/format-date";
 import { formatPrintingCode } from "@openrift/shared/printing-code";
+import type { AdminPrintingCitation } from "@openrift/shared/types/api/admin";
 import { getOrientation } from "@openrift/shared/utils";
 import { Link } from "@tanstack/react-router";
 import {
@@ -205,16 +206,24 @@ export function PrintingDeskPrintingPage({ printingId }: { printingId: string })
                     if (images.length === 0) {
                       return null;
                     }
+                    const activeId = images.find((image) => image.isActive)?.printingImageId ?? "";
                     return (
                       <div key={option.value} className="space-y-2">
                         <p className="text-sm font-medium">{option.label}</p>
                         <RadioGroup
                           aria-label={`Active ${option.label.toLowerCase()} image`}
-                          value={images.find((image) => image.isActive)?.printingImageId ?? ""}
+                          value={activeId}
                           onValueChange={(value) => {
-                            if (typeof value === "string") {
-                              activateImage.mutate({ imageId: value, active: true });
+                            if (typeof value !== "string") {
+                              return;
                             }
+                            if (value === "") {
+                              if (activeId !== "") {
+                                activateImage.mutate({ imageId: activeId, active: false });
+                              }
+                              return;
+                            }
+                            activateImage.mutate({ imageId: value, active: true });
                           }}
                           className="gap-2"
                         >
@@ -226,6 +235,13 @@ export function PrintingDeskPrintingPage({ printingId }: { printingId: string })
                               landscape={getOrientation([printing.cardType]) === "landscape"}
                             />
                           ))}
+                          <label
+                            htmlFor={`active-none-${option.value}`}
+                            className="text-muted-foreground flex w-fit items-center gap-1.5 text-sm"
+                          >
+                            <RadioGroupItem id={`active-none-${option.value}`} value="" />
+                            None
+                          </label>
                         </RadioGroup>
                       </div>
                     );
@@ -500,15 +516,17 @@ function DeskImageRow({
             Active
           </label>
 
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            aria-label="Delete image"
-            onClick={() => deleteImage.mutate(image.printingImageId)}
-            disabled={deleteImage.isPending}
-          >
-            <Trash2Icon />
-          </Button>
+          {image.canDelete && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Delete image"
+              onClick={() => deleteImage.mutate(image.printingImageId)}
+              disabled={deleteImage.isPending}
+            >
+              <Trash2Icon />
+            </Button>
+          )}
         </span>
       </div>
     </div>
@@ -587,7 +605,7 @@ function CitationRow({
   onSave,
   onDelete,
 }: {
-  citation: { id: string; label: string; sourceUrl: string | null };
+  citation: AdminPrintingCitation;
   onSave: (sourceUrl: string | null) => void;
   onDelete: () => void;
 }) {
@@ -604,6 +622,7 @@ function CitationRow({
         className="min-w-48 flex-1"
         value={url}
         placeholder="https://…"
+        disabled={!citation.canEdit}
         onChange={(event) => setUrl(event.target.value)}
         onBlur={() => {
           const next = url.trim();
@@ -612,14 +631,16 @@ function CitationRow({
           }
         }}
       />
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        aria-label={`Remove ${citation.label}`}
-        onClick={onDelete}
-      >
-        <Trash2Icon />
-      </Button>
+      {citation.canEdit && (
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label={`Remove ${citation.label}`}
+          onClick={onDelete}
+        >
+          <Trash2Icon />
+        </Button>
+      )}
     </div>
   );
 }

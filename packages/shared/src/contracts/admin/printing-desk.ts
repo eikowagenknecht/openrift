@@ -65,7 +65,10 @@ export const deskPrintingRowSchema = z.object({
   createdByMe: z.boolean(),
 });
 
-/** `url` is the rehosted file when there is one, else the original source URL. */
+/**
+ * `url` is the rehosted file when there is one, else the original source URL.
+ * `canDelete` is false for an image someone else uploaded, unless the caller is an admin.
+ */
 export const deskImageSchema = z.object({
   printingImageId: z.string(),
   imageFileId: z.string(),
@@ -74,6 +77,7 @@ export const deskImageSchema = z.object({
   rotation: z.number(),
   face: z.enum(["front", "back"]),
   credit: z.string().nullable(),
+  canDelete: z.boolean(),
 });
 
 const deskUpdateImageInputSchema = z

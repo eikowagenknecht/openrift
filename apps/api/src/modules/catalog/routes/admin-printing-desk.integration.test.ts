@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   adminReq,
@@ -22,6 +22,10 @@ let cardUuid = "";
 let basePrintingId = "";
 let createdPrintingId = "";
 let grantPrintingId = "";
+let baseImageId = "";
+let baseImageFileId = "";
+let promoImageId = "";
+let promoImageFileId = "";
 
 if (adminCtx) {
   const { db } = adminCtx;
@@ -103,7 +107,14 @@ afterAll(async () => {
   const { db } = adminCtx;
   const printingIds = [basePrintingId, createdPrintingId, grantPrintingId].filter(Boolean);
   if (printingIds.length > 0) {
+    await db.deleteFrom("printingCitations").where("printingId", "in", printingIds).execute();
+    await db.deleteFrom("printingImages").where("printingId", "in", printingIds).execute();
+    await db
+      .deleteFrom("imageFiles")
+      .where("id", "in", [baseImageFileId, promoImageFileId].filter(Boolean))
+      .execute();
     await db.deleteFrom("adminEvents").where("entityId", "in", printingIds).execute();
+    await db.deleteFrom("adminEvents").where("actorUserId", "in", [ADMIN_ID, GRANT_ID]).execute();
     await db.deleteFrom("printingMarkers").where("printingId", "in", printingIds).execute();
     await db
       .deleteFrom("printingDistributionChannels")
@@ -137,6 +148,20 @@ function body(over: Record<string, unknown> = {}) {
     comment: null,
     ...over,
   };
+}
+
+async function seedImage(db: NonNullable<typeof adminCtx>["db"], printingId: string) {
+  const file = await db
+    .insertInto("imageFiles")
+    .values({ rehostedUrl: `/media/cards/pdk/${printingId.slice(-6)}` })
+    .returning("id")
+    .executeTakeFirstOrThrow();
+  const image = await db
+    .insertInto("printingImages")
+    .values({ printingId, face: "front", imageFileId: file.id, isActive: true })
+    .returning("id")
+    .executeTakeFirstOrThrow();
+  return { imageId: image.id, imageFileId: file.id };
 }
 
 describe.skipIf(!adminCtx)("Admin printing-desk routes (integration)", () => {
@@ -386,6 +411,155 @@ describe.skipIf(!adminCtx)("Admin printing-desk routes (integration)", () => {
         }),
       );
       expect(res.status).toBe(404);
+    });
+  });
+
+  describe("grant holder image scope", () => {
+    beforeAll(async () => {
+      ({ imageId: baseImageId, imageFileId: baseImageFileId } = await seedImage(
+        db,
+        basePrintingId,
+      ));
+      ({ imageId: promoImageId, imageFileId: promoImageFileId } = await seedImage(
+        db,
+        createdPrintingId,
+      ));
+    });
+
+    it("403s activating an image on a base-set printing", async () => {
+      const res = await grantApp.fetch(
+        adminReq("POST", `/cards/printing-images/${baseImageId}/activate`, { active: true }),
+      );
+      expect(res.status).toBe(403);
+    });
+
+    it("lets them activate an image on a promo", async () => {
+      const res = await grantApp.fetch(
+        adminReq("POST", `/cards/printing-images/${promoImageId}/activate`, { active: false }),
+      );
+      expect(res.status).toBe(204);
+    });
+
+    it("403s rotating an image on a base-set printing", async () => {
+      const res = await grantApp.fetch(
+        adminReq("POST", `/cards/printing-images/${baseImageId}/rotate`, { rotation: 90 }),
+      );
+      expect(res.status).toBe(403);
+    });
+
+    it("403s moving a base-set image to the other side", async () => {
+      const res = await grantApp.fetch(
+        adminReq("PATCH", `/printing-desk/printing-images/${baseImageId}`, { face: "back" }),
+      );
+      expect(res.status).toBe(403);
+    });
+
+    it("403s crediting a base-set image file", async () => {
+      const res = await grantApp.fetch(
+        adminReq("PATCH", `/printing-desk/images/${baseImageFileId}`, { credit: "Nope" }),
+      );
+      expect(res.status).toBe(403);
+    });
+
+    it("lets them credit a promo image file", async () => {
+      const res = await grantApp.fetch(
+        adminReq("PATCH", `/printing-desk/images/${promoImageFileId}`, { credit: "gamesnight" }),
+      );
+      expect(res.status).toBe(204);
+    });
+
+    it("403s uploading to a base-set printing", async () => {
+      const form = new FormData();
+      form.append("file", new File(["image-data"], "card.png", { type: "image/png" }));
+      const res = await grantApp.fetch(
+        new Request(`http://localhost/api/admin/v1/cards/printing/${basePrintingId}/upload-image`, {
+          method: "POST",
+          body: form,
+        }),
+      );
+      expect(res.status).toBe(403);
+    });
+
+    it("403s deleting a promo image somebody else uploaded", async () => {
+      const res = await grantApp.fetch(
+        adminReq("DELETE", `/cards/printing-images/${promoImageId}`),
+      );
+      expect(res.status).toBe(403);
+    });
+
+    it("reports the promo image as not deletable", async () => {
+      const res = await grantApp.fetch(
+        adminReq("GET", `/printing-desk/printings/${createdPrintingId}`),
+      );
+      expect(res.status).toBe(200);
+
+      const json = await readJson(res);
+      expect(json.images).toEqual([
+        expect.objectContaining({ printingImageId: promoImageId, canDelete: false }),
+      ]);
+    });
+  });
+
+  describe("grant holder citation scope", () => {
+    let adminCitationId = "";
+    let grantCitationId = "";
+
+    beforeAll(async () => {
+      const res = await app.fetch(
+        adminReq("POST", `/printings/${createdPrintingId}/citations`, {
+          label: "PDK launch stream",
+          sourceUrl: null,
+        }),
+      );
+      ({ id: adminCitationId } = await readJson(res));
+    });
+
+    it("403s adding a link to a base-set printing", async () => {
+      const res = await grantApp.fetch(
+        adminReq("POST", `/printings/${basePrintingId}/citations`, {
+          label: "PDK box art",
+          sourceUrl: null,
+        }),
+      );
+      expect(res.status).toBe(403);
+    });
+
+    it("lets them add a link to a promo", async () => {
+      const res = await grantApp.fetch(
+        adminReq("POST", `/printings/${createdPrintingId}/citations`, {
+          label: "PDK skirmish recap",
+          sourceUrl: null,
+        }),
+      );
+      expect(res.status).toBe(201);
+
+      const json = await readJson(res);
+      grantCitationId = json.id;
+      expect(json).toMatchObject({ canEdit: true });
+    });
+
+    it("403s deleting a link somebody else added", async () => {
+      const res = await grantApp.fetch(
+        adminReq("DELETE", `/printings/${createdPrintingId}/citations/${adminCitationId}`),
+      );
+      expect(res.status).toBe(403);
+    });
+
+    it("marks the other author's link as not editable", async () => {
+      const res = await grantApp.fetch(
+        adminReq("GET", `/printings/${createdPrintingId}/citations`),
+      );
+      const { citations } = await readJson(res);
+      expect(citations).toContainEqual(
+        expect.objectContaining({ id: adminCitationId, canEdit: false }),
+      );
+    });
+
+    it("lets them delete the link they added", async () => {
+      const res = await grantApp.fetch(
+        adminReq("DELETE", `/printings/${createdPrintingId}/citations/${grantCitationId}`),
+      );
+      expect(res.status).toBe(204);
     });
   });
 
