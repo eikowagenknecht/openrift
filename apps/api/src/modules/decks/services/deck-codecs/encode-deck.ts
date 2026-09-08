@@ -1,10 +1,11 @@
-import {
-  encodeText,
-  encodeTTS,
-  isPiltoverEncodable,
-  piltoverCodec,
-} from "@openrift/shared/deck-codecs";
-import type { DeckCodecCard, DeckCodeFormat, EncodeResult } from "@openrift/shared/deck-codecs";
+import { isPiltoverEncodable, piltoverCodec } from "@openrift/shared/deck-codecs/piltover";
+import { encodeText } from "@openrift/shared/deck-codecs/text";
+import { encodeTTS } from "@openrift/shared/deck-codecs/tts";
+import type {
+  DeckCodecCard,
+  DeckCodeFormat,
+  EncodeResult,
+} from "@openrift/shared/deck-codecs/types";
 import type { CardType, DeckZone, Domain, SuperType } from "@openrift/shared/types/enums";
 
 import type { canonicalPrintingsRepo } from "../../../catalog/repositories/canonical-printings.js";

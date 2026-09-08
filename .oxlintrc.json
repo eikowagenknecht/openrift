@@ -97,7 +97,7 @@
     "no-warning-comments": "off",
     "no-inline-comments": "off",
     "max-depth": "off",
-    "max-lines": "off",
+    "max-lines": ["error", { "max": 1000, "skipBlankLines": true, "skipComments": true }],
     "max-classes-per-file": "off",
     "no-lonely-if": "off",
     "import/max-dependencies": "off",
@@ -331,6 +331,13 @@
       "files": ["apps/web/src/routes/**/*.tsx"],
       "rules": {
         "max-lines": ["error", { "max": 300, "skipBlankLines": true, "skipComments": true }]
+      }
+    },
+    {
+      // Test files and the squashed core migration are as long as their subject.
+      "files": ["**/*.test.ts", "**/*.test.tsx", "**/db/migrations/**"],
+      "rules": {
+        "max-lines": "off"
       }
     },
     {

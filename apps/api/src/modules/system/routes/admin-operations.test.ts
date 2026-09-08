@@ -5,16 +5,18 @@ import type { Repos } from "../../../deps.js";
 import { registerRouterForTest } from "../../../test/mount-router.js";
 import { readJson } from "../../../test/read-json.js";
 import type { Variables } from "../../../types.js";
-import {
-  refreshCardmarketPrices,
-  refreshCardtraderPrices,
-  refreshTcgplayerPrices,
-} from "../../marketplace/services/price-refresh/index.js";
+import { refreshCardmarketPrices } from "../../marketplace/services/price-refresh/cardmarket.js";
+import { refreshCardtraderPrices } from "../../marketplace/services/price-refresh/cardtrader.js";
+import { refreshTcgplayerPrices } from "../../marketplace/services/price-refresh/tcgplayer.js";
 import { adminOperationsRouter } from "./admin-operations";
 
-vi.mock("../../marketplace/services/price-refresh/index.js", () => ({
+vi.mock("../../marketplace/services/price-refresh/tcgplayer.js", () => ({
   refreshTcgplayerPrices: vi.fn(),
+}));
+vi.mock("../../marketplace/services/price-refresh/cardmarket.js", () => ({
   refreshCardmarketPrices: vi.fn(),
+}));
+vi.mock("../../marketplace/services/price-refresh/cardtrader.js", () => ({
   refreshCardtraderPrices: vi.fn(),
 }));
 

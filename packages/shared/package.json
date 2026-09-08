@@ -5,7 +5,6 @@
   "type": "module",
   "exports": {
     "./contracts": "./src/contracts/index.ts",
-    "./deck-codecs": "./src/deck-codecs/index.ts",
     "./otel": "./src/otel/span.ts",
     "./otel-node": "./src/otel/tracing-node.ts",
     "./*": "./src/*.ts"

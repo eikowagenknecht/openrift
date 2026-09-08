@@ -43,7 +43,7 @@ vi.mock("@/components/ui/drawer", () => ({
 
 // The real CardDetail is lazy-loaded and heavy; this stub only exposes the
 // neighbor navigation the overlay wires up.
-vi.mock("@/features/cards/components/card-detail", () => ({
+vi.mock("@/features/cards/components/card-detail/card-detail", () => ({
   CardDetail: ({
     onPrevCard,
     onNextCard,

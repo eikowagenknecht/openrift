@@ -22,11 +22,9 @@ import {
   flushTradeStatusEmails,
   isTradeStatusFlushNoop,
 } from "./modules/groups/services/trade-status-notifications.js";
-import {
-  refreshCardmarketPrices,
-  refreshCardtraderPrices,
-  refreshTcgplayerPrices,
-} from "./modules/marketplace/services/price-refresh/index.js";
+import { refreshCardmarketPrices } from "./modules/marketplace/services/price-refresh/cardmarket.js";
+import { refreshCardtraderPrices } from "./modules/marketplace/services/price-refresh/cardtrader.js";
+import { refreshTcgplayerPrices } from "./modules/marketplace/services/price-refresh/tcgplayer.js";
 import {
   createMetaSyncDeps,
   createPlayloltcgSyncDeps,

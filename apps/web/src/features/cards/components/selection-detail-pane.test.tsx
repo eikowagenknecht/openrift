@@ -12,7 +12,7 @@ vi.mock("@/hooks/use-apply-tag-filter", () => ({
   useApplyTagFilter: () => null,
 }));
 
-vi.mock("@/features/cards/components/card-detail", () => ({
+vi.mock("@/features/cards/components/card-detail/card-detail", () => ({
   CardDetail: ({ actions, onClose }: { actions?: ReactNode; onClose?: () => void }) => (
     <div>
       <div>Card detail stub</div>

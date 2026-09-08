@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { printingFieldRules } from "./db-field-rules.js";
+import { candidateCardFieldRules, printingFieldRules } from "./db-field-rules.js";
 
 describe("printingFieldRules.language", () => {
   it("accepts the printed 2-letter uppercase codes", () => {
@@ -31,5 +31,53 @@ describe("printingFieldRules.language", () => {
     expect(printingFieldRules.language.optional().safeParse(undefined).success).toBe(true);
     expect(printingFieldRules.language.nullable().safeParse("en").success).toBe(false);
     expect(printingFieldRules.language.optional().safeParse("en").success).toBe(false);
+  });
+});
+
+describe("candidateCardFieldRules.extraData", () => {
+  it("passes for null", () => {
+    expect(candidateCardFieldRules.extraData.safeParse(null).success).toBe(true);
+  });
+
+  it("passes for undefined", () => {
+    expect(candidateCardFieldRules.extraData.safeParse(undefined).success).toBe(true);
+  });
+
+  it("fails for empty object", () => {
+    expect(candidateCardFieldRules.extraData.safeParse({}).success).toBe(false);
+  });
+
+  it("passes for non-empty object", () => {
+    expect(candidateCardFieldRules.extraData.safeParse({ key: "value" }).success).toBe(true);
+  });
+
+  it("fails for array", () => {
+    expect(candidateCardFieldRules.extraData.safeParse([1, 2]).success).toBe(false);
+  });
+
+  it("fails for empty array", () => {
+    expect(candidateCardFieldRules.extraData.safeParse([]).success).toBe(false);
+  });
+
+  it("passes for object with nested values", () => {
+    expect(candidateCardFieldRules.extraData.safeParse({ nested: { key: "value" } }).success).toBe(
+      true,
+    );
+  });
+
+  it("passes for object with single key", () => {
+    expect(candidateCardFieldRules.extraData.safeParse({ a: 1 }).success).toBe(true);
+  });
+
+  it("fails for a string value", () => {
+    expect(candidateCardFieldRules.extraData.safeParse("hello").success).toBe(false);
+  });
+
+  it("fails for a number value", () => {
+    expect(candidateCardFieldRules.extraData.safeParse(42).success).toBe(false);
+  });
+
+  it("fails for a boolean value", () => {
+    expect(candidateCardFieldRules.extraData.safeParse(true).success).toBe(false);
   });
 });

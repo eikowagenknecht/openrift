@@ -9,7 +9,7 @@ import type { CardViewerItem } from "@/lib/card-viewer-types";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
-const cardDetailImport = import("@/features/cards/components/card-detail");
+const cardDetailImport = import("@/features/cards/components/card-detail/card-detail");
 const CardDetail = lazy(async () => {
   const m = await cardDetailImport;
   return { default: m.CardDetail };

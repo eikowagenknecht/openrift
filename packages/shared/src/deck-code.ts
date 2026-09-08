@@ -38,7 +38,9 @@ function decodeDeckCodeFlexible(code: string): ReturnType<typeof getDeckFromCode
   }
 }
 
-/** Splits the chosen champion out of the main deck so it isn't double-counted. */
+/**
+ * Splits the chosen champion out of the main deck so it isn't double-counted.
+ */
 export function parsePiltoverDeckCode(code: string): DeckCodeParseResult {
   const warnings: string[] = [];
 

@@ -11,16 +11,18 @@ import type { ApiContext } from "../../../orpc/context.js";
 import { runJobAsync } from "../../system/services/run-job.js";
 import {
   REGENERATE_IMAGES_KIND,
+  rehostImages,
+  runRegenerateImagesJob,
+  unrehostImages,
+} from "../services/images/jobs.js";
+import {
   cleanupOrphanedFiles,
   clearAllRehosted,
   findBrokenImages,
   findLowResImages,
   getRehostStatus,
   migrateImageDirectories,
-  rehostImages,
-  runRegenerateImagesJob,
-  unrehostImages,
-} from "../services/images/index.js";
+} from "../services/images/maintenance.js";
 
 const log = createLogger("admin");
 

@@ -15,16 +15,14 @@ import {
   reviewableProviderScope,
 } from "../../candidates/services/card-review-scope.js";
 import { recordAdminEvent } from "../../system/services/record-admin-event.js";
+import { downloadImage } from "../services/images/download.js";
+import { rehostImageFile, rehostSingleImage } from "../services/images/jobs.js";
+import { CARD_MEDIA_DIR, imageRehostedUrl } from "../services/images/paths.js";
 import {
-  CARD_MEDIA_DIR,
   deleteRehostFiles,
-  downloadImage,
-  imageRehostedUrl,
   processAndSave,
   regenerateFromOrig,
-  rehostImageFile,
-  rehostSingleImage,
-} from "../services/images/index.js";
+} from "../services/images/variants.js";
 
 const os = implement(adminCardImagesContract).$context<ApiContext>().use(requireAuthedUser);
 

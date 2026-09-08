@@ -88,7 +88,7 @@ vi.mock("@/components/ui/drawer", () => ({
 }));
 
 // CardDetail is lazy-loaded and heavy; the stub surfaces id + navLabel instead.
-vi.mock("@/features/cards/components/card-detail", () => ({
+vi.mock("@/features/cards/components/card-detail/card-detail", () => ({
   CardDetail: ({ printing, navLabel }: { printing: Printing; navLabel?: string }) => (
     <div>
       <div>showing {printing.id}</div>

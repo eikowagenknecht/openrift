@@ -1,8 +1,8 @@
 import { browser } from "wxt/browser";
 import { defineBackground } from "wxt/utils/define-background";
 
-import type { PageExtract } from "../lib/deck-extract";
-import { deckImportUrl } from "../lib/openrift-url";
+import type { PageExtract } from "@/lib/deck-extract";
+import { deckImportUrl } from "@/lib/openrift-url";
 
 const BADGE_CLEAR_MS = 4000;
 

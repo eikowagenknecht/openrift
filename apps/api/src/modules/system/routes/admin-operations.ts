@@ -4,11 +4,9 @@ import { implement } from "@orpc/server";
 
 import { requireAuthedUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
-import {
-  refreshCardmarketPrices,
-  refreshCardtraderPrices,
-  refreshTcgplayerPrices,
-} from "../../marketplace/services/price-refresh/index.js";
+import { refreshCardmarketPrices } from "../../marketplace/services/price-refresh/cardmarket.js";
+import { refreshCardtraderPrices } from "../../marketplace/services/price-refresh/cardtrader.js";
+import { refreshTcgplayerPrices } from "../../marketplace/services/price-refresh/tcgplayer.js";
 import { runJobAsync } from "../services/run-job.js";
 
 const log = createLogger("admin");

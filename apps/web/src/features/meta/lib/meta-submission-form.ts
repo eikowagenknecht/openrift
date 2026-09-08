@@ -1,4 +1,4 @@
-import { encodeText } from "@openrift/shared/deck-codecs";
+import { encodeText } from "@openrift/shared/deck-codecs/text";
 import type { MetaSubmissionInput } from "@openrift/shared/types/api/meta";
 import type { Printing } from "@openrift/shared/types/catalog";
 import type { DeckZone } from "@openrift/shared/types/enums";

@@ -7,33 +7,42 @@ import { readJson } from "../../../test/read-json.js";
 import type { Variables } from "../../../types.js";
 import {
   REGENERATE_IMAGES_KIND,
+  rehostImages,
+  runRegenerateImagesJob,
+  unrehostImages,
+} from "../services/images/jobs.js";
+import {
   cleanupOrphanedFiles,
   clearAllRehosted,
   findBrokenImages,
   findLowResImages,
   getRehostStatus,
-  rehostImages,
-  runRegenerateImagesJob,
-  unrehostImages,
-} from "../services/images/index.js";
+} from "../services/images/maintenance.js";
 import { adminImagesRouter } from "./admin-images";
 
 const RUN_TEST = "019d4999-4219-72f6-b7bb-640000000001";
 const EARLIER_RUN = "019d4999-4219-72f6-b7bb-640000000002";
 const RUN_X = "019d4999-4219-72f6-b7bb-640000000003";
 
-vi.mock("../services/images/index.js", async (importActual) => {
+vi.mock("../services/images/jobs.js", async (importActual) => {
   const actual = (await importActual()) as Record<string, unknown>;
   return {
     ...actual,
     rehostImages: vi.fn(),
     runRegenerateImagesJob: vi.fn(),
+    unrehostImages: vi.fn(),
+  };
+});
+
+vi.mock("../services/images/maintenance.js", async (importActual) => {
+  const actual = (await importActual()) as Record<string, unknown>;
+  return {
+    ...actual,
     cleanupOrphanedFiles: vi.fn(),
     clearAllRehosted: vi.fn(),
     getRehostStatus: vi.fn(),
     findBrokenImages: vi.fn(),
     findLowResImages: vi.fn(),
-    unrehostImages: vi.fn(),
   };
 });
 

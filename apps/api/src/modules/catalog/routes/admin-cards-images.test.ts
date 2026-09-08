@@ -4,26 +4,34 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { registerRouterForTest } from "../../../test/mount-router.js";
 import { readJson } from "../../../test/read-json.js";
 import type { Variables } from "../../../types.js";
+import { downloadImage } from "../services/images/download.js";
+import { rehostImageFile, rehostSingleImage } from "../services/images/jobs.js";
+import { imageRehostedUrl } from "../services/images/paths.js";
 import {
   deleteRehostFiles,
-  downloadImage,
-  imageRehostedUrl,
   processAndSave,
   regenerateFromOrig,
-  rehostImageFile,
-  rehostSingleImage,
-} from "../services/images/index.js";
+} from "../services/images/variants.js";
 import { adminCardImagesRouter } from "./admin-cards-images";
 
-vi.mock("../services/images/index.js", () => ({
+vi.mock("../services/images/paths.js", () => ({
   CARD_MEDIA_DIR: "/mock/media/cards",
+  imageRehostedUrl: vi.fn(),
+}));
+
+vi.mock("../services/images/jobs.js", () => ({
   rehostSingleImage: vi.fn(),
   rehostImageFile: vi.fn(),
+}));
+
+vi.mock("../services/images/variants.js", () => ({
   deleteRehostFiles: vi.fn(),
-  downloadImage: vi.fn(),
   processAndSave: vi.fn(),
   regenerateFromOrig: vi.fn(),
-  imageRehostedUrl: vi.fn(),
+}));
+
+vi.mock("../services/images/download.js", () => ({
+  downloadImage: vi.fn(),
 }));
 
 vi.mock("uuid", () => ({

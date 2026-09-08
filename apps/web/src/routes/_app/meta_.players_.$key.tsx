@@ -5,8 +5,11 @@ import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message
 import { Skeleton } from "@/components/ui/skeleton";
 import { publicSetListQueryOptions } from "@/features/cards/hooks/use-public-sets";
 import { metaDecksQueryOptions, metaPlayerQueryOptions } from "@/features/meta/hooks/use-meta";
-import { metaPlayerSearchSchema } from "@/features/meta/lib/meta-player-search";
-import { deriveSetEras, metaScopeQueryFromScope } from "@/features/meta/lib/meta-scope";
+import {
+  deriveSetEras,
+  metaScopeQueryFromScope,
+  metaScopeSearchSchema,
+} from "@/features/meta/lib/meta-scope";
 import { initQueryOptions } from "@/hooks/use-init";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
@@ -22,7 +25,7 @@ import { PAGE_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
  * the source published under it.
  */
 export const Route = createFileRoute("/_app/meta_/players_/$key")({
-  validateSearch: metaPlayerSearchSchema,
+  validateSearch: metaScopeSearchSchema,
   head: ({ loaderData, params }) => {
     const siteUrl = getSiteUrl();
     const path = `/meta/players/${encodeURIComponent(params.key)}`;

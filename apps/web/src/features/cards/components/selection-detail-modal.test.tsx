@@ -57,7 +57,7 @@ vi.mock("@/components/ui/dialog", () => ({
 
 // The real CardDetail is lazy-loaded and heavy; the stub surfaces only what
 // these tests assert on.
-vi.mock("@/features/cards/components/card-detail", () => ({
+vi.mock("@/features/cards/components/card-detail/card-detail", () => ({
   CardDetail: ({
     navLabel,
     actions,

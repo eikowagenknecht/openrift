@@ -1,6 +1,6 @@
 import { isDeckCode } from "@openrift/shared/deck-code";
-import type { TextEncodableCard } from "@openrift/shared/deck-codecs";
-import { encodeText } from "@openrift/shared/deck-codecs";
+import type { TextEncodableCard } from "@openrift/shared/deck-codecs/text";
+import { encodeText } from "@openrift/shared/deck-codecs/text";
 import type { DeckZone } from "@openrift/shared/types/enums";
 
 /** What the content script found on the page, in order of preference. */

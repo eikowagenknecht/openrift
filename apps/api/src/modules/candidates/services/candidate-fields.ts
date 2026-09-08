@@ -4,11 +4,14 @@
  * the mapping lives here once.
  */
 import type { IngestCard, IngestPrinting } from "@openrift/shared/contracts/admin/card-mutations";
+import {
+  candidateCardFieldRules,
+  candidatePrintingFieldRules,
+} from "@openrift/shared/db-field-rules";
 import { emptyToNull } from "@openrift/shared/utils";
 import type { Insertable } from "kysely";
 import { z } from "zod";
 
-import { candidateCardFieldRules, candidatePrintingFieldRules } from "../../../db/schemas.js";
 import type {
   CandidateCardsTable,
   CandidatePrintingsTable,
