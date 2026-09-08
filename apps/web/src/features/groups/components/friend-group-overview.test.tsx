@@ -29,12 +29,15 @@ vi.mock("@/features/collections/hooks/use-collections", () => ({
 }));
 
 vi.mock("@/features/groups/hooks/use-friend-groups", () => ({
-  useAcceptFriendGroupInvite: () => ({ mutate: acceptMutate, isPending: false }),
-  useDeclineFriendGroupInvite: () => ({ mutate: declineMutate, isPending: false }),
   useFriendGroupMatches: () => ({
     data: { othersHaveYourWants: [], othersWantYourHaves: [] },
   }),
   useGroupBoxWants: () => buildBoxWantsLookup(currentBoxWantRows),
+}));
+
+vi.mock("@/features/groups/hooks/use-friend-group-mutations", () => ({
+  useAcceptFriendGroupInvite: () => ({ mutate: acceptMutate, isPending: false }),
+  useDeclineFriendGroupInvite: () => ({ mutate: declineMutate, isPending: false }),
 }));
 
 vi.mock("@/features/tournaments/hooks/use-tournaments", () => ({

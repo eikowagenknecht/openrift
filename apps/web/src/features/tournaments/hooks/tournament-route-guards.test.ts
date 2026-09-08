@@ -12,6 +12,9 @@ vi.mock("@/features/tournaments/hooks/use-tournaments", () => ({
   tournamentDetailQueryOptions: (userId: string, id: string) => ({
     queryKey: ["tournament-detail", userId, id],
   }),
+}));
+
+vi.mock("@/features/tournaments/hooks/use-tournament-run", () => ({
   tournamentRunStateQueryOptions: (userId: string, id: string) => ({
     queryKey: ["tournament-run-state", userId, id],
   }),

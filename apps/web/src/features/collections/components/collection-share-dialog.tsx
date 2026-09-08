@@ -9,10 +9,10 @@ import {
 } from "@/features/collections/hooks/use-collections";
 import { ShareDialog } from "@/features/groups/components/share-dialog";
 import {
-  useFriendGroups,
   useShareCollectionWithFriendGroup,
   useUnshareCollectionFromFriendGroup,
-} from "@/features/groups/hooks/use-friend-groups";
+} from "@/features/groups/hooks/use-friend-group-sharing";
+import { useFriendGroups } from "@/features/groups/hooks/use-friend-groups";
 import { collectionOwnerImageUrl } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
 

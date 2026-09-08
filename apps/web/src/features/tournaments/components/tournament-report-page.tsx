@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import {
   useSubmitTournamentReportPlayerResult,
   useSubmitTournamentReportResult,
-} from "@/features/tournaments/hooks/use-tournaments";
+} from "@/features/tournaments/hooks/use-tournament-run";
 import { useRegionLabel } from "@/hooks/use-region-label";
 
 import { PairingsView } from "./pairings-view";

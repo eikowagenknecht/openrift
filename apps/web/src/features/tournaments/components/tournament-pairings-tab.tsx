@@ -1,5 +1,5 @@
 import { PodPairingsSection } from "@/features/tournaments/components/pairings-section";
-import { useTournamentRunState } from "@/features/tournaments/hooks/use-tournaments";
+import { useTournamentRunState } from "@/features/tournaments/hooks/use-tournament-run";
 import { useRegionLabel } from "@/hooks/use-region-label";
 
 export function TournamentPairingsTab({ id }: { id: string }) {

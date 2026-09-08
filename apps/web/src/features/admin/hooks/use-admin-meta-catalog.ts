@@ -19,6 +19,7 @@ import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query"
 import { createServerFn } from "@tanstack/react-start";
 
 import { adminKeys } from "@/features/admin/lib/admin-query-keys";
+import type { MetaSyncTrigger } from "@/features/admin/lib/meta-admin-triggers";
 import { metaKeys } from "@/features/meta/lib/meta-query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -271,28 +272,6 @@ export function useMetaArchiveJobs() {
     refetchInterval: SYNC_STATUS_POLL_MS,
   });
 }
-
-const META_SYNC_TRIGGERS = [
-  "runSync",
-  "runBackfill",
-  "restartBackfill",
-  "runRecheck",
-  "runIdSweep",
-  "runAutoAccept",
-  "runRetier",
-  "runRepromote",
-  "runPlayloltcgSync",
-  "runPlayloltcgRecheck",
-  "runPlayloltcgAutoAccept",
-  "runPlayloltcgBackfill",
-  "restartPlayloltcgBackfill",
-  "runTopdeckSync",
-  "runTopdeckAutoAccept",
-  "runTopdeckBackfill",
-  "restartTopdeckBackfill",
-] as const;
-
-export type MetaSyncTrigger = (typeof META_SYNC_TRIGGERS)[number];
 
 const runMetaSyncFn = createServerFn({ method: "POST" })
   .validator((input: { trigger: MetaSyncTrigger }) => input)

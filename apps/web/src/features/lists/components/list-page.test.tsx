@@ -136,6 +136,9 @@ vi.mock("@/features/lists/hooks/use-lists", () => ({
 
 vi.mock("@/features/groups/hooks/use-friend-groups", () => ({
   useFriendGroupsList: () => ({ data: undefined }),
+}));
+
+vi.mock("@/features/groups/hooks/use-friend-group-sharing", () => ({
   useShareListWithFriendGroup: () => mutationStub(),
 }));
 

@@ -10,14 +10,20 @@ const declineMutate = vi.fn();
 let detailData: FriendGroupDetailResponse | undefined;
 
 vi.mock("@/features/groups/hooks/use-friend-groups", () => ({
+  useFriendGroupDetail: () => ({ data: detailData }),
+}));
+
+vi.mock("@/features/groups/hooks/use-friend-group-mutations", () => ({
   useAcceptFriendGroupInvite: () => ({ mutate: acceptMutate, isPending: false }),
   useDeclineFriendGroupInvite: () => ({ mutate: declineMutate, isPending: false }),
-  useFriendGroupDetail: () => ({ data: detailData }),
-  useFriendGroupShareableLists: () => ({ data: { items: [] } }),
   useKickFriendGroupMember: () => ({ mutate: vi.fn(), isPending: false }),
-  useShareListWithFriendGroup: () => ({ mutate: vi.fn(), isPending: false }),
   useTransferFriendGroupOwnership: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateFriendGroupRole: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
+vi.mock("@/features/groups/hooks/use-friend-group-sharing", () => ({
+  useFriendGroupShareableLists: () => ({ data: { items: [] } }),
+  useShareListWithFriendGroup: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock("@/lib/auth-session", () => ({

@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 
 import { PageTopBar, PageTopBarSticky, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
-import { useTournamentReport } from "@/features/tournaments/hooks/use-tournaments";
+import { useTournamentReport } from "@/features/tournaments/hooks/use-tournament-run";
 import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 
 const STATUS_LABEL: Record<PodTournamentStatus, string> = {

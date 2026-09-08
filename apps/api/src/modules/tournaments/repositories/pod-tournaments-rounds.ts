@@ -6,7 +6,7 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../../../db/tables.js";
 import type { Pod, PodRound } from "./pod-tournaments-shared.js";
-import type { Tournament } from "./tournaments.js";
+import type { Tournament } from "./tournaments-shared.js";
 
 export interface PodMemberRow {
   podId: string;

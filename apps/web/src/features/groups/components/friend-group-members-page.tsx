@@ -42,10 +42,10 @@ import {
 import { UserAvatar } from "@/components/user-avatar";
 import { SearchInput } from "@/features/cards/components/search-input";
 import {
-  useFriendGroupDetail,
   useKickFriendGroupMember,
   useUpdateFriendGroupRole,
-} from "@/features/groups/hooks/use-friend-groups";
+} from "@/features/groups/hooks/use-friend-group-mutations";
+import { useFriendGroupDetail } from "@/features/groups/hooks/use-friend-groups";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { getSiteUrl } from "@/lib/site-config";

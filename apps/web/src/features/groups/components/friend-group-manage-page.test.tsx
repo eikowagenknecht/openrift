@@ -6,24 +6,33 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const updateMutateAsync = vi.fn();
 
 vi.mock("@/features/groups/hooks/use-friend-groups", () => ({
-  useCreateFriendGroupDiscordLinkCode: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useFriendGroupDetail: () => ({ data: undefined }),
+}));
+
+vi.mock("@/features/groups/hooks/use-friend-group-mutations", () => ({
   useDeleteFriendGroup: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useDeleteFriendGroupDiscordLink: () => ({ mutate: vi.fn(), isPending: false }),
   useDisableFriendGroupCode: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useEnableFriendGroupCode: () => ({ mutate: vi.fn(), isPending: false }),
-  useFriendGroupDetail: () => ({ data: undefined }),
-  useFriendGroupDiscordLinks: () => ({ data: { items: [] } }),
-  useFriendGroupShareableCollections: () => ({ data: { items: [] } }),
-  useFriendGroupShareableLists: () => ({ data: { items: [] } }),
   useLeaveFriendGroup: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useRotateFriendGroupCode: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useShareCollectionWithFriendGroup: () => ({ mutate: vi.fn(), isPending: false }),
-  useShareListWithFriendGroup: () => ({ mutate: vi.fn(), isPending: false }),
   useTransferFriendGroupOwnership: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useUnshareCollectionFromFriendGroup: () => ({ mutate: vi.fn(), isPending: false }),
-  useUnshareListFromFriendGroup: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateFriendGroup: () => ({ mutateAsync: updateMutateAsync, isPending: false }),
   useUpdateGroupContactReveal: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
+vi.mock("@/features/groups/hooks/use-friend-group-sharing", () => ({
+  useFriendGroupShareableCollections: () => ({ data: { items: [] } }),
+  useFriendGroupShareableLists: () => ({ data: { items: [] } }),
+  useShareCollectionWithFriendGroup: () => ({ mutate: vi.fn(), isPending: false }),
+  useShareListWithFriendGroup: () => ({ mutate: vi.fn(), isPending: false }),
+  useUnshareCollectionFromFriendGroup: () => ({ mutate: vi.fn(), isPending: false }),
+  useUnshareListFromFriendGroup: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
+vi.mock("@/features/groups/hooks/use-friend-group-discord", () => ({
+  useCreateFriendGroupDiscordLinkCode: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteFriendGroupDiscordLink: () => ({ mutate: vi.fn(), isPending: false }),
+  useFriendGroupDiscordLinks: () => ({ data: { items: [] } }),
 }));
 
 vi.mock("@/lib/auth-session", () => ({ useRequiredUserId: () => "viewer-1" }));
@@ -33,7 +42,7 @@ vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children?: React.ReactNode }) => <a href="/">{children}</a>,
 }));
 
-const { AdminSettings } = await import("./friend-group-manage-page");
+const { AdminSettings } = await import("./friend-group-admin-settings");
 
 function makeDetail(
   group: Partial<FriendGroupDetailResponse["group"]> = {},

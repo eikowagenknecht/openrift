@@ -1,7 +1,7 @@
 import { RegionOverview } from "@/features/tournaments/components/region-overview";
 import { StandingsPodium } from "@/features/tournaments/components/standings-podium";
 import { StandingsTable } from "@/features/tournaments/components/standings-table";
-import { useTournamentRunState } from "@/features/tournaments/hooks/use-tournaments";
+import { useTournamentRunState } from "@/features/tournaments/hooks/use-tournament-run";
 import { useRegionLabel } from "@/hooks/use-region-label";
 
 export function TournamentStandingsTab({ id }: { id: string }) {

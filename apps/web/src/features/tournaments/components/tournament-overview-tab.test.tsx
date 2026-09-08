@@ -16,16 +16,22 @@ let participantsForbidden = false;
 let runState: PodTournamentDetailResponse | undefined;
 
 vi.mock("@/features/tournaments/hooks/use-tournaments", () => ({
-  tournamentRunStateQueryOptions: (userId: string, id: string) => ({
-    queryKey: ["run-state", userId, id],
-  }),
-  useParticipantAction: () => ({ mutateAsync: participantActionMutate, isPending: false }),
   useTournamentParticipants: () => {
     if (participantsForbidden) {
       throw new Error("Host or staff only");
     }
     return { data: { items: participants } };
   },
+}));
+
+vi.mock("@/features/tournaments/hooks/use-tournament-mutations", () => ({
+  useParticipantAction: () => ({ mutateAsync: participantActionMutate, isPending: false }),
+}));
+
+vi.mock("@/features/tournaments/hooks/use-tournament-run", () => ({
+  tournamentRunStateQueryOptions: (userId: string, id: string) => ({
+    queryKey: ["run-state", userId, id],
+  }),
 }));
 
 // The run-state query is the only `useQuery` the tab makes; the tab reads

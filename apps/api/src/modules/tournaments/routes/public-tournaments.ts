@@ -10,7 +10,7 @@ import type { Repos } from "../../../deps.js";
 import { isUniqueViolation } from "../../../lib/pg-errors.js";
 import { requireUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
-import type { Tournament } from "../repositories/tournaments.js";
+import type { Tournament } from "../repositories/tournaments-shared.js";
 
 async function hostDisplayName(repos: Repos, tournament: Tournament): Promise<string> {
   if (tournament.hostType === "user") {

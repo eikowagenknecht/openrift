@@ -4,10 +4,8 @@ import { act, render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type {
-  StageEditControls,
-  StageObsBoard,
-} from "@/features/stage/components/presentation-stage";
+import type { StageObsBoard } from "@/features/stage/components/stage-obs-keys";
+import type { StageEditControls } from "@/features/stage/components/stage-settings";
 import type { PresentationItem } from "@/features/stage/lib/presentation-queue";
 import { usePresentationStore } from "@/features/stage/stores/presentation-store";
 import { useTierListBuilderStore } from "@/features/stage/stores/tier-list-builder-store";

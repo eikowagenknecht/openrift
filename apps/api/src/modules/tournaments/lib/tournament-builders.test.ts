@@ -2,11 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Repos } from "../../../deps.js";
 import type { OrganizationMemberWithName } from "../repositories/organizations.js";
-import type {
-  Tournament,
-  TournamentParticipantWithUser,
-  TournamentStaffWithName,
-} from "../repositories/tournaments.js";
+import type { TournamentParticipantWithUser } from "../repositories/tournaments-participants.js";
+import type { Tournament } from "../repositories/tournaments-shared.js";
+import type { TournamentStaffWithName } from "../repositories/tournaments-staff.js";
 import { buildParticipantList, buildStaffList } from "./tournament-builders.js";
 
 /**

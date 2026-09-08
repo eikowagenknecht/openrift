@@ -30,11 +30,9 @@ import {
   standingRanks,
 } from "@/features/tournaments/components/standings-display";
 import { useTournamentDeckCheckEntries } from "@/features/tournaments/hooks/use-tournament-deck-check";
-import {
-  tournamentRunStateQueryOptions,
-  useParticipantAction,
-  useTournamentParticipants,
-} from "@/features/tournaments/hooks/use-tournaments";
+import { useParticipantAction } from "@/features/tournaments/hooks/use-tournament-mutations";
+import { tournamentRunStateQueryOptions } from "@/features/tournaments/hooks/use-tournament-run";
+import { useTournamentParticipants } from "@/features/tournaments/hooks/use-tournaments";
 import { collapseTeamStandings } from "@/features/tournaments/lib/team-display";
 import {
   canCheckDecks,

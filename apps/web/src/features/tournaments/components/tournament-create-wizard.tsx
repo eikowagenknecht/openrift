@@ -26,7 +26,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useFriendGroups } from "@/features/groups/hooks/use-friend-groups";
 import { useMyOrganizations } from "@/features/tournaments/hooks/use-organizations";
-import { useCreateTournament } from "@/features/tournaments/hooks/use-tournaments";
+import { useCreateTournament } from "@/features/tournaments/hooks/use-tournament-mutations";
 import type { TournamentRoundsChoice } from "@/features/tournaments/lib/tournament-display";
 import {
   combineLocalDateTimeToUtc,

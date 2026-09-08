@@ -5,11 +5,9 @@ import type {
   OrganizationMemberWithName,
   OrganizationSummary,
 } from "../repositories/organizations.js";
-import type {
-  Tournament,
-  TournamentParticipantWithUser,
-  TournamentStaffWithName,
-} from "../repositories/tournaments.js";
+import type { TournamentParticipantWithUser } from "../repositories/tournaments-participants.js";
+import type { Tournament } from "../repositories/tournaments-shared.js";
+import type { TournamentStaffWithName } from "../repositories/tournaments-staff.js";
 import {
   moduleFlags,
   toOrganizationMember,

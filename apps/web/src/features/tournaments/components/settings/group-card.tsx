@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useFriendGroups } from "@/features/groups/hooks/use-friend-groups";
-import { useUpdateTournament } from "@/features/tournaments/hooks/use-tournaments";
+import { useUpdateTournament } from "@/features/tournaments/hooks/use-tournament-mutations";
 
 export function GroupCard({
   detail,

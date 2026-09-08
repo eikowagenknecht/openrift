@@ -7,7 +7,7 @@ import type {
 
 import type { Repos } from "../../../deps.js";
 import { AppError } from "../../../errors.js";
-import type { Tournament } from "../repositories/tournaments.js";
+import type { Tournament } from "../repositories/tournaments-shared.js";
 
 /**
  * Callers must pass the effective post-merge values, not the raw update patch.

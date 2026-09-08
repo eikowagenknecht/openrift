@@ -20,10 +20,10 @@ import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useCreateTrade } from "@/features/groups/hooks/use-card-trades";
 import {
-  useFriendGroupMatches,
   useFriendGroupShareableLists,
   useShareListWithFriendGroup,
-} from "@/features/groups/hooks/use-friend-groups";
+} from "@/features/groups/hooks/use-friend-group-sharing";
+import { useFriendGroupMatches } from "@/features/groups/hooks/use-friend-groups";
 import { listTargetOptions, preferredListId } from "@/features/groups/lib/tradelist-exchange";
 import { useBulkAddListEntries, useCreateList } from "@/features/lists/hooks/use-lists";
 

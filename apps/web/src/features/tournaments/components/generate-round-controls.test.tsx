@@ -7,9 +7,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const generateMutate = vi.fn();
 const participantMutate = vi.fn();
 
-vi.mock("@/features/tournaments/hooks/use-tournaments", () => ({
-  useGenerateTournamentRound: () => ({ mutateAsync: generateMutate, isPending: false }),
+vi.mock("@/features/tournaments/hooks/use-tournament-mutations", () => ({
   useParticipantAction: () => ({ mutateAsync: participantMutate, isPending: false }),
+}));
+
+vi.mock("@/features/tournaments/hooks/use-tournament-run", () => ({
+  useGenerateTournamentRound: () => ({ mutateAsync: generateMutate, isPending: false }),
 }));
 
 vi.mock("@tanstack/react-router", () => ({

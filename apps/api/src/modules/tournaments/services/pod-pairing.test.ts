@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Repos } from "../../../deps.js";
 import { AppError } from "../../../errors.js";
-import type { Tournament } from "../repositories/tournaments.js";
+import type { Tournament } from "../repositories/tournaments-shared.js";
 import { pairNextRound, submitPodPlayerResult, submitPodResult } from "./pod-pairing.js";
 
 const TOURNAMENT = {

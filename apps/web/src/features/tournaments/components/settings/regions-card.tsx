@@ -3,7 +3,7 @@ import type { TournamentDetailResponse } from "@openrift/shared/types/api/tourna
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { useUpdateTournament } from "@/features/tournaments/hooks/use-tournaments";
+import { useUpdateTournament } from "@/features/tournaments/hooks/use-tournament-mutations";
 
 export function RegionsCard({
   detail,

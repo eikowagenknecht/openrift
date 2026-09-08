@@ -9,10 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SignedOutAuthButtons } from "@/features/account/components/signed-out-cta";
 import { PlayerSubmitDeckSection } from "@/features/tournaments/components/player-submit-page";
-import {
-  useRequestJoinTournament,
-  useTournamentSubmitLanding,
-} from "@/features/tournaments/hooks/use-tournaments";
+import { useRequestJoinTournament } from "@/features/tournaments/hooks/use-tournament-mutations";
+import { useTournamentSubmitLanding } from "@/features/tournaments/hooks/use-tournaments";
 import { useUserId } from "@/lib/auth-session";
 import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 

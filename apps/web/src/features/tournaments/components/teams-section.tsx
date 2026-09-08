@@ -16,7 +16,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { UserAvatar } from "@/components/user-avatar";
-import { useCreateTeam, useDissolveTeam } from "@/features/tournaments/hooks/use-tournaments";
+import {
+  useCreateTeam,
+  useDissolveTeam,
+} from "@/features/tournaments/hooks/use-tournament-mutations";
 import { teamDisplayName } from "@/features/tournaments/lib/team-display";
 
 /**

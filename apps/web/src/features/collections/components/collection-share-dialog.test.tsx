@@ -27,6 +27,9 @@ const { groupsMock, groupSharesMock } = vi.hoisted(() => ({
 
 vi.mock("@/features/groups/hooks/use-friend-groups", () => ({
   useFriendGroups: groupsMock,
+}));
+
+vi.mock("@/features/groups/hooks/use-friend-group-sharing", () => ({
   useShareCollectionWithFriendGroup: () => ({ mutate: vi.fn(), isPending: false }),
   useUnshareCollectionFromFriendGroup: () => ({ mutate: vi.fn(), isPending: false }),
 }));

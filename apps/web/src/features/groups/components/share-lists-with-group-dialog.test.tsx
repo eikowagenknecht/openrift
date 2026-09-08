@@ -17,7 +17,7 @@ let currentItems: MockListItem[] = [];
 
 const shareMutateAsync = vi.fn().mockResolvedValue(undefined);
 
-vi.mock("@/features/groups/hooks/use-friend-groups", () => ({
+vi.mock("@/features/groups/hooks/use-friend-group-sharing", () => ({
   useFriendGroupShareableLists: () => ({ data: { items: currentItems } }),
   useShareListWithFriendGroup: () => ({ mutateAsync: shareMutateAsync, isPending: false }),
 }));

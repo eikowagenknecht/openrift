@@ -52,8 +52,8 @@ import {
   useAddTournamentStaff,
   useRemoveTournamentStaff,
   useSetTournamentStaffInvite,
-  useTournamentStaffCandidates,
-} from "@/features/tournaments/hooks/use-tournaments";
+} from "@/features/tournaments/hooks/use-tournament-mutations";
+import { useTournamentStaffCandidates } from "@/features/tournaments/hooks/use-tournaments";
 import { isTournamentHost, STAFF_ROLE_LABEL } from "@/features/tournaments/lib/tournament-display";
 import { getSiteUrl } from "@/lib/site-config";
 

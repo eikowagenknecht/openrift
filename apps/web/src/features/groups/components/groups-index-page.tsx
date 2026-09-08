@@ -37,6 +37,8 @@ import { useTradeActionCounts, useUserTrades } from "@/features/groups/hooks/use
 import {
   useCreateFriendGroup,
   useDeclineFriendGroupInvite,
+} from "@/features/groups/hooks/use-friend-group-mutations";
+import {
   useFriendGroupMatchPanels,
   useFriendGroups,
 } from "@/features/groups/hooks/use-friend-groups";

@@ -11,10 +11,13 @@ const removeStaffMutateAsync = vi.fn();
 const setInviteMutateAsync = vi.fn();
 
 vi.mock("@/features/tournaments/hooks/use-tournaments", () => ({
+  useTournamentStaffCandidates: () => ({ data: { items: [] }, isLoading: false }),
+}));
+
+vi.mock("@/features/tournaments/hooks/use-tournament-mutations", () => ({
   useAddTournamentStaff: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useRemoveTournamentStaff: () => ({ mutateAsync: removeStaffMutateAsync, isPending: false }),
   useSetTournamentStaffInvite: () => ({ mutateAsync: setInviteMutateAsync, isPending: false }),
-  useTournamentStaffCandidates: () => ({ data: { items: [] }, isLoading: false }),
 }));
 
 vi.mock("@/lib/site-config", () => ({

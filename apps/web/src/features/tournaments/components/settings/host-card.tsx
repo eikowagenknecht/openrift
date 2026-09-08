@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useMyOrganizations } from "@/features/tournaments/hooks/use-organizations";
-import { useUpdateTournament } from "@/features/tournaments/hooks/use-tournaments";
+import { useUpdateTournament } from "@/features/tournaments/hooks/use-tournament-mutations";
 
 export function HostCard({
   detail,

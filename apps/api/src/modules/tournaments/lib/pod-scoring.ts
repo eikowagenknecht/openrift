@@ -1,5 +1,5 @@
 import type { PodScoring } from "../repositories/pod-tournaments-shared.js";
-import type { Tournament } from "../repositories/tournaments.js";
+import type { Tournament } from "../repositories/tournaments-shared.js";
 
 export function scoringOf(tournament: Tournament): PodScoring {
   return {

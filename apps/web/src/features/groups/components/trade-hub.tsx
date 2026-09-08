@@ -11,7 +11,7 @@ import { UserAvatar } from "@/components/user-avatar";
 import { CardArtThumbStack } from "@/features/cards/components/card-art-thumb-stack";
 import { useCards } from "@/features/cards/hooks/use-cards";
 import { frontImageId } from "@/features/cards/lib/card-meta";
-import { useFriendGroupShareableLists } from "@/features/groups/hooks/use-friend-groups";
+import { useFriendGroupShareableLists } from "@/features/groups/hooks/use-friend-group-sharing";
 import { distinctPrintingIds } from "@/features/groups/lib/friend-group-activity";
 import type { TradeHubCard } from "@/features/groups/lib/trade-hub";
 import {

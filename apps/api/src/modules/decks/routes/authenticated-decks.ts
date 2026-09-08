@@ -34,7 +34,7 @@ import type { FieldMapping } from "../../../patch.js";
 import { resolveFavoriteMarketplace } from "../../users/lib/preferences.js";
 import { assertKnownFormat, validateFormatConfig } from "../lib/deck-format-validation.js";
 import { toDeck, toDeckCard, toDeckPlan, toDeckSummary } from "../lib/deck-presenters.js";
-import type { DeckUpdateInput } from "../repositories/decks.js";
+import type { DeckUpdateInput } from "../repositories/decks-core.js";
 import { encodeDeck } from "../services/deck-codecs/encode-deck.js";
 
 /**

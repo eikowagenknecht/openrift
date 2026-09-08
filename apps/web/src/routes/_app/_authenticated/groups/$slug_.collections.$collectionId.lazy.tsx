@@ -3,10 +3,8 @@ import { createLazyFileRoute, Link } from "@tanstack/react-router";
 
 import { TopBarBreadcrumbTrail } from "@/components/layout/top-bar-breadcrumb";
 import { SharedCollectionView } from "@/features/collections/components/shared-collection-view";
-import {
-  useFriendGroupDetail,
-  useFriendGroupSharedCollection,
-} from "@/features/groups/hooks/use-friend-groups";
+import { useFriendGroupSharedCollection } from "@/features/groups/hooks/use-friend-group-sharing";
+import { useFriendGroupDetail } from "@/features/groups/hooks/use-friend-groups";
 
 export const Route = createLazyFileRoute(
   "/_app/_authenticated/groups/$slug_/collections/$collectionId",

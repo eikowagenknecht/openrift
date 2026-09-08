@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useUpdateTournament } from "@/features/tournaments/hooks/use-tournaments";
+import { useUpdateTournament } from "@/features/tournaments/hooks/use-tournament-mutations";
 import {
   localTimeZoneLabel,
   parseScheduleInput,

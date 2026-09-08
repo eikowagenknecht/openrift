@@ -7,7 +7,7 @@ import { requireUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
 import { scoringOf } from "../lib/pod-scoring.js";
 import { toRoundResponse } from "../lib/pod-tournament-presenters.js";
-import type { Tournament } from "../repositories/tournaments.js";
+import type { Tournament } from "../repositories/tournaments-shared.js";
 import { submitPodPlayerResult, submitPodResult } from "../services/pod-pairing.js";
 
 async function buildReport(

@@ -3,10 +3,8 @@ import { createLazyFileRoute, Link } from "@tanstack/react-router";
 
 import { TopBarBreadcrumbTrail } from "@/components/layout/top-bar-breadcrumb";
 import { FilterSearchProvider } from "@/features/cards/lib/search-schemas";
-import {
-  useFriendGroupDetail,
-  useFriendGroupSharedList,
-} from "@/features/groups/hooks/use-friend-groups";
+import { useFriendGroupSharedList } from "@/features/groups/hooks/use-friend-group-sharing";
+import { useFriendGroupDetail } from "@/features/groups/hooks/use-friend-groups";
 import type { ListExchangeContext } from "@/features/lists/components/shared-list-content";
 import { SharedListContent } from "@/features/lists/components/shared-list-content";
 import { useRequiredUserId } from "@/lib/auth-session";

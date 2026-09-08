@@ -16,7 +16,7 @@ import { DialogForm } from "@/components/ui/dialog-form";
 import {
   useFriendGroupShareableLists,
   useShareListWithFriendGroup,
-} from "@/features/groups/hooks/use-friend-groups";
+} from "@/features/groups/hooks/use-friend-group-sharing";
 
 export function ShareListsWithGroupDialog({
   slug,

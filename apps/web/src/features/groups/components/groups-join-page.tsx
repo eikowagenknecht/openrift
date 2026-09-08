@@ -7,10 +7,8 @@ import { MarkdownText } from "@/components/markdown-text";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SignedOutAuthButtons } from "@/features/account/components/signed-out-cta";
-import {
-  friendGroupJoinPreviewQueryOptions,
-  useJoinFriendGroupByCode,
-} from "@/features/groups/hooks/use-friend-groups";
+import { useJoinFriendGroupByCode } from "@/features/groups/hooks/use-friend-group-mutations";
+import { friendGroupJoinPreviewQueryOptions } from "@/features/groups/hooks/use-friend-groups";
 import { useUserId } from "@/lib/auth-session";
 import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 

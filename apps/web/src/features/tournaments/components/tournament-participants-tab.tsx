@@ -46,9 +46,9 @@ import { useTournamentDeckCheckEntries } from "@/features/tournaments/hooks/use-
 import {
   useAddParticipant,
   useParticipantAction,
-  useTournamentParticipants,
   useUpdateParticipant,
-} from "@/features/tournaments/hooks/use-tournaments";
+} from "@/features/tournaments/hooks/use-tournament-mutations";
+import { useTournamentParticipants } from "@/features/tournaments/hooks/use-tournaments";
 import { canCheckDecks, canManageTournament } from "@/features/tournaments/lib/tournament-display";
 import { useCustomTagList } from "@/hooks/use-enums";
 

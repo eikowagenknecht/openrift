@@ -12,10 +12,10 @@ import {
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
-  useFriendGroups,
   useShareListWithFriendGroup,
   useUnshareListFromFriendGroup,
-} from "@/features/groups/hooks/use-friend-groups";
+} from "@/features/groups/hooks/use-friend-group-sharing";
+import { useFriendGroups } from "@/features/groups/hooks/use-friend-groups";
 import { useListGroupShares } from "@/features/lists/hooks/use-list-group-shares";
 
 interface Props {

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const updateMutateAsync = vi.fn();
 
-vi.mock("@/features/tournaments/hooks/use-tournaments", () => ({
+vi.mock("@/features/tournaments/hooks/use-tournament-mutations", () => ({
   useUpdateTournament: () => ({ mutateAsync: updateMutateAsync, isPending: false }),
 }));
 

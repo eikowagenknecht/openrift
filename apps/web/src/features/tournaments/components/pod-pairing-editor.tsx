@@ -25,7 +25,7 @@ import { useState } from "react";
 import { Heading } from "@/components/heading";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useReplaceTournamentPairing } from "@/features/tournaments/hooks/use-tournaments";
+import { useReplaceTournamentPairing } from "@/features/tournaments/hooks/use-tournament-run";
 import {
   movePlayer,
   participantIds,

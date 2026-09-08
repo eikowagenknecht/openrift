@@ -25,10 +25,8 @@ import { CreateCollectionDialog } from "@/features/collections/components/create
 import { useCollections } from "@/features/collections/hooks/use-collections";
 import { deriveCollectionCovers } from "@/features/collections/lib/collection-cover-art";
 import { useCopiesCollection } from "@/features/collections/lib/copies-collection";
-import {
-  useFriendGroupDetail,
-  useFriendGroupShareableCollections,
-} from "@/features/groups/hooks/use-friend-groups";
+import { useFriendGroupShareableCollections } from "@/features/groups/hooks/use-friend-group-sharing";
+import { useFriendGroupDetail } from "@/features/groups/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
 
 import { ContactMethodChips } from "./contact-method-chips";

@@ -38,7 +38,7 @@ import {
   assertStatusTransition,
   assertValidRegion,
 } from "../lib/tournament-invariants.js";
-import type { TournamentParticipant } from "../repositories/tournaments.js";
+import type { TournamentParticipant } from "../repositories/tournaments-shared.js";
 import {
   finalizeRound as finalizeRoundEngine,
   pairNextRound,

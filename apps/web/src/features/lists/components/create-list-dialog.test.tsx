@@ -30,6 +30,9 @@ vi.mock("@/features/lists/hooks/use-lists", () => ({
 
 vi.mock("@/features/groups/hooks/use-friend-groups", () => ({
   useFriendGroupsList: () => ({ data: { items: currentGroups } }),
+}));
+
+vi.mock("@/features/groups/hooks/use-friend-group-sharing", () => ({
   useShareListWithFriendGroup: () => ({ mutateAsync: shareMutateAsync, isPending: false }),
   useUnshareListFromFriendGroup: () => ({ mutateAsync: unshareMutateAsync, isPending: false }),
 }));

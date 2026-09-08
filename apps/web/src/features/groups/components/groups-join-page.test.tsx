@@ -18,6 +18,9 @@ vi.mock("@tanstack/react-query", () => ({
 
 vi.mock("@/features/groups/hooks/use-friend-groups", () => ({
   friendGroupJoinPreviewQueryOptions: (code: string) => ({ code }),
+}));
+
+vi.mock("@/features/groups/hooks/use-friend-group-mutations", () => ({
   useJoinFriendGroupByCode: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 

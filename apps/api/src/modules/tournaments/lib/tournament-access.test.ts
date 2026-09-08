@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Repos } from "../../../deps.js";
 import { AppError } from "../../../errors.js";
 import type { Organization, OrganizationMember } from "../repositories/organizations.js";
-import type { Tournament, TournamentParticipant } from "../repositories/tournaments.js";
+import type { Tournament, TournamentParticipant } from "../repositories/tournaments-shared.js";
 import {
   isHost,
   loadParticipant,

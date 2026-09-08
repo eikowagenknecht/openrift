@@ -4,9 +4,9 @@ import { useEffect } from "react";
 
 import { useCards } from "@/features/cards/hooks/use-cards";
 import { CardStageMain } from "@/features/stage/components/card-stage-main";
-import type { StageEditControls } from "@/features/stage/components/presentation-stage";
 import { PresentationStage } from "@/features/stage/components/presentation-stage";
 import { StageRankBadge } from "@/features/stage/components/stage-rank-badge";
+import type { StageEditControls } from "@/features/stage/components/stage-settings";
 import { useChromaPlate } from "@/features/stage/components/stage-shell";
 import { TierBoardEditor } from "@/features/stage/components/tier-board-editor";
 import { TierListDndContext } from "@/features/stage/components/tier-list-dnd-context";

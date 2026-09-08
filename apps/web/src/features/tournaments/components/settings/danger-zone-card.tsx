@@ -16,7 +16,7 @@ import { DialogForm } from "@/components/ui/dialog-form";
 import {
   useCancelTournament,
   useDeleteTournament,
-} from "@/features/tournaments/hooks/use-tournaments";
+} from "@/features/tournaments/hooks/use-tournament-mutations";
 import { runReportedMutation } from "@/lib/run-reported-mutation";
 
 export function DangerZoneCard({ detail }: { detail: TournamentDetailResponse }) {

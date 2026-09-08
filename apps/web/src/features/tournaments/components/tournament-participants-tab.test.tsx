@@ -12,9 +12,12 @@ const updateParticipantMutateAsync = vi.fn();
 let participants: TournamentParticipantResponse[] = [];
 
 vi.mock("@/features/tournaments/hooks/use-tournaments", () => ({
+  useTournamentParticipants: () => ({ data: { items: participants } }),
+}));
+
+vi.mock("@/features/tournaments/hooks/use-tournament-mutations", () => ({
   useAddParticipant: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useParticipantAction: () => ({ mutateAsync: participantActionMutateAsync, isPending: false }),
-  useTournamentParticipants: () => ({ data: { items: participants } }),
   useUpdateParticipant: () => ({ mutateAsync: updateParticipantMutateAsync, isPending: false }),
 }));
 

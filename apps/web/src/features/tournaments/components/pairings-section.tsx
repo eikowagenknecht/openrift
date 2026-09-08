@@ -9,7 +9,7 @@ import {
   useFinalizeTournamentRound,
   useRerollTournamentRound,
   useSubmitTournamentResult,
-} from "@/features/tournaments/hooks/use-tournaments";
+} from "@/features/tournaments/hooks/use-tournament-run";
 
 import { GenerateRoundControls } from "./generate-round-controls";
 import { PairingsView } from "./pairings-view";

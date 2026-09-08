@@ -17,7 +17,8 @@ import type {
 
 import type { Repos } from "../../../deps.js";
 import { gravatarHashForEmail } from "../../../lib/gravatar.js";
-import type { Tournament, TournamentSummaryRow } from "../repositories/tournaments.js";
+import type { TournamentSummaryRow } from "../repositories/tournaments-core.js";
+import type { Tournament } from "../repositories/tournaments-shared.js";
 import { hasOrgRole } from "./org-access.js";
 import { isHost, loadTournament } from "./tournament-access.js";
 import { moduleFlags, toParticipant, toStaffMember } from "./tournament-presenters.js";

@@ -6,10 +6,8 @@ import { PageTopBar, PageTopBarSticky, PageTopBarTitle } from "@/components/layo
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SignedOutAuthButtons } from "@/features/account/components/signed-out-cta";
-import {
-  useClaimStaffInvite,
-  useTournamentStaffInviteLanding,
-} from "@/features/tournaments/hooks/use-tournaments";
+import { useClaimStaffInvite } from "@/features/tournaments/hooks/use-tournament-mutations";
+import { useTournamentStaffInviteLanding } from "@/features/tournaments/hooks/use-tournaments";
 import { STAFF_ROLE_LABEL } from "@/features/tournaments/lib/tournament-display";
 import { useUserId } from "@/lib/auth-session";
 import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";

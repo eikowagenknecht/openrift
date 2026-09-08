@@ -30,7 +30,8 @@ vi.mock("@/lib/auth-session", () => ({
   },
 }));
 
-const { useClaimStaffInvite, useRequestJoinTournament } = await import("./use-tournaments");
+const { useClaimStaffInvite, useRequestJoinTournament } =
+  await import("./use-tournament-mutations");
 
 function stubFetch(payload: unknown) {
   vi.stubGlobal(

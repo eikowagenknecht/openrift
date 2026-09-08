@@ -20,10 +20,8 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { UserAvatar } from "@/components/user-avatar";
-import {
-  useGenerateTournamentRound,
-  useParticipantAction,
-} from "@/features/tournaments/hooks/use-tournaments";
+import { useParticipantAction } from "@/features/tournaments/hooks/use-tournament-mutations";
+import { useGenerateTournamentRound } from "@/features/tournaments/hooks/use-tournament-run";
 import { teamDisplayName } from "@/features/tournaments/lib/team-display";
 
 export function GenerateRoundControls({

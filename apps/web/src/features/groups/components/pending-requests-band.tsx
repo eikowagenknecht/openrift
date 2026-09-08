@@ -8,7 +8,7 @@ import { UserAvatar } from "@/components/user-avatar";
 import {
   useAcceptFriendGroupInvite,
   useDeclineFriendGroupInvite,
-} from "@/features/groups/hooks/use-friend-groups";
+} from "@/features/groups/hooks/use-friend-group-mutations";
 
 export function PendingRequestsBand({
   slug,

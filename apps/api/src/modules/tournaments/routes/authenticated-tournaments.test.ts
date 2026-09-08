@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { registerRouterForTest } from "../../../test/mount-router.js";
 import type { Variables } from "../../../types.js";
-import type { Tournament } from "../repositories/tournaments.js";
+import type { Tournament } from "../repositories/tournaments-shared.js";
 import { tournamentsRouter } from "./authenticated-tournaments.js";
 
 // The cross-field invariants (lib/tournament-invariants.ts) are unit-tested

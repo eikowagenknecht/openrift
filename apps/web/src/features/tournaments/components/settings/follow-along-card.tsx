@@ -17,7 +17,7 @@ import { ShareLinkRow } from "@/features/groups/components/share-link-row";
 import {
   useSetTournamentFollowToken,
   useSetTournamentReportToken,
-} from "@/features/tournaments/hooks/use-tournaments";
+} from "@/features/tournaments/hooks/use-tournament-run";
 import { runReportedMutation } from "@/lib/run-reported-mutation";
 import { getSiteUrl } from "@/lib/site-config";
 

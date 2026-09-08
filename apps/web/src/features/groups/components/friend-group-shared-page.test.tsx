@@ -20,6 +20,9 @@ vi.mock("@/features/collections/hooks/use-collections", () => ({
 
 vi.mock("@/features/groups/hooks/use-friend-groups", () => ({
   useFriendGroupDetail: () => ({ data: undefined }),
+}));
+
+vi.mock("@/features/groups/hooks/use-friend-group-sharing", () => ({
   useFriendGroupShareableCollections: () => ({ data: { items: [] } }),
 }));
 

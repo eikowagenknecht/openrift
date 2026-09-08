@@ -18,10 +18,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Pressable } from "@/components/ui/pressable";
 import { TradePreferenceEditor } from "@/features/groups/components/trade-preference-editor";
-import {
-  useFriendGroupsList,
-  useShareListWithFriendGroup,
-} from "@/features/groups/hooks/use-friend-groups";
+import { useShareListWithFriendGroup } from "@/features/groups/hooks/use-friend-group-sharing";
+import { useFriendGroupsList } from "@/features/groups/hooks/use-friend-groups";
 import { useBulkAddListEntries, useCreateList } from "@/features/lists/hooks/use-lists";
 import type { InitialEntry } from "@/features/lists/lib/list-initial-entry";
 import { cn } from "@/lib/utils";

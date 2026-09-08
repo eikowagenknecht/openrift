@@ -3,7 +3,7 @@ import type { TournamentHostType } from "@openrift/shared/types/api/tournament";
 
 import type { Repos } from "../../../deps.js";
 import { AppError } from "../../../errors.js";
-import type { Tournament, TournamentParticipant } from "../repositories/tournaments.js";
+import type { Tournament, TournamentParticipant } from "../repositories/tournaments-shared.js";
 import { hasOrgRole, loadOrg, requireOrgRole } from "./org-access.js";
 
 /**
