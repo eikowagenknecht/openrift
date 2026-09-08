@@ -1,5 +1,5 @@
-/* oxlint-disable import/no-nodejs-modules -- reads tables.ts as text to check its declared types */
-import { readFileSync } from "node:fs";
+/* oxlint-disable import/no-nodejs-modules -- reads the table sources as text to check their declared types */
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { sql } from "kysely";
@@ -10,7 +10,7 @@ import { createDbContext } from "../test/integration-context.js";
 // A DEFAULTed column typed as a plain required field in tables.ts makes
 // Kysely demand a value at every insert, so the column silently gets whatever
 // the caller passes (decks.is_public, marketplace_products.norm_name). Types
-// don't exist at runtime, so this reads tables.ts as text; the parser asserts
+// don't exist at runtime, so this reads the table sources as text; the parser asserts
 // its own coverage below so a reformat that defeats it fails loudly.
 
 const ctx = createDbContext("column-defaults");
@@ -18,7 +18,16 @@ const ctx = createDbContext("column-defaults");
 /** Kysely's own bookkeeping tables, which `tables.ts` deliberately never types. */
 const UNTYPED_TABLES = new Set(["kysely_migration", "kysely_migration_lock"]);
 
-const TABLES_SRC = readFileSync(resolve(import.meta.dirname!, "tables.ts"), "utf-8");
+const TABLES_DIR = resolve(import.meta.dirname!, "tables");
+
+// The interfaces live in `tables/*.ts` and only the `Database` registry that
+// names them is left in `tables.ts`, so the parse below runs over both.
+const TABLES_SRC = [
+  ...readdirSync(TABLES_DIR)
+    .toSorted()
+    .map((file) => readFileSync(resolve(TABLES_DIR, file), "utf-8")),
+  readFileSync(resolve(import.meta.dirname!, "tables.ts"), "utf-8"),
+].join("\n");
 
 const toSnakeCase = (name: string): string =>
   name.replaceAll(/[A-Z]/gu, (char) => `_${char.toLowerCase()}`);

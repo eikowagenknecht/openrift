@@ -6,6 +6,12 @@ import { catalogRepo } from "./catalog.js";
 
 const ctx = createDbContext("a0000000-0041-4000-a000-000000000001");
 
+/**
+ * `printings_ordered` coalesces an unranked printing to this. Other parallel
+ * integration files insert printings after the once-per-run view refresh.
+ */
+const UNRANKED_SENTINEL = 2_147_483_647;
+
 describe.skipIf(!ctx)("catalogRepo (integration)", () => {
   const { db } = ctx!;
   const repo = catalogRepo(db);
@@ -81,8 +87,10 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
 
   it("printings are returned in canonical rank order", async () => {
     const printings = await repo.printings();
-    for (let i = 1; i < printings.length; i++) {
-      expect(printings[i]!.canonicalRank).toBeGreaterThan(printings[i - 1]!.canonicalRank);
+    const ranked = printings.filter((printing) => printing.canonicalRank !== UNRANKED_SENTINEL);
+    expect(ranked.length).toBeGreaterThan(0);
+    for (let i = 1; i < ranked.length; i++) {
+      expect(ranked[i]!.canonicalRank).toBeGreaterThan(ranked[i - 1]!.canonicalRank);
     }
   });
 
