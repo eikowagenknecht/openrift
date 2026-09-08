@@ -33,6 +33,7 @@ export const adminKeys = {
   grants: ["admin", "grants"] as const,
   siteSettings: ["admin", "site-settings"] as const,
   status: ["admin", "status"] as const,
+  dashboard: ["admin", "dashboard"] as const,
   jobRuns: ["admin", "job-runs"] as const,
   jobRunsList: (params: { page: number; kind?: string; trigger?: string; status?: string }) =>
     ["admin", "job-runs", "list", params] as const,

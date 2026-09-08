@@ -14,6 +14,7 @@ export * from "./admin/catalog.js";
 export * from "./admin/changelog.js";
 export * from "./admin/core.js";
 export * from "./admin/custom-tags.js";
+export * from "./admin/dashboard.js";
 export * from "./admin/deck-formats.js";
 export * from "./admin/deck-zones.js";
 export * from "./admin/distribution-channels.js";

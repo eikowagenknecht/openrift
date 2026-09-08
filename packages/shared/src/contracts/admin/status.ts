@@ -5,6 +5,17 @@ import { authedRoute } from "../_base.js";
 
 extendZodWithOpenApi(z);
 
+export const adminAppStatsSchema = z.object({
+  totalUsers: z.number(),
+  recentSignups7d: z.number(),
+  totalCards: z.number(),
+  totalPrintings: z.number(),
+  totalSets: z.number(),
+  totalCollections: z.number(),
+  totalDecks: z.number(),
+  totalCopies: z.number(),
+});
+
 export const adminStatusResponseSchema = z
   .object({
     server: z.object({
@@ -24,16 +35,7 @@ export const adminStatusResponseSchema = z
       latestMigration: z.string().nullable(),
       totalMigrations: z.number(),
     }),
-    app: z.object({
-      totalUsers: z.number(),
-      recentSignups7d: z.number(),
-      totalCards: z.number(),
-      totalPrintings: z.number(),
-      totalSets: z.number(),
-      totalCollections: z.number(),
-      totalDecks: z.number(),
-      totalCopies: z.number(),
-    }),
+    app: adminAppStatsSchema,
     pricing: z.object({
       totalPrices: z.number(),
       sources: z.array(

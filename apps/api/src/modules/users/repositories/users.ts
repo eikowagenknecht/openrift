@@ -1,6 +1,12 @@
 import type { Kysely } from "kysely";
+import { sql } from "kysely";
 
 import type { Database } from "../../../db/tables.js";
+
+interface SignupDay {
+  date: string;
+  count: number;
+}
 
 interface UserWithCounts {
   id: string;
@@ -102,6 +108,31 @@ export function usersRepo(db: Kysely<Database>) {
         .select(["id", "name", "image"])
         .where("email", "=", email)
         .executeTakeFirst();
+    },
+
+    /** One row per UTC day from the first signup to today, quiet days included as zero. */
+    async getSignupSeries(): Promise<SignupDay[]> {
+      const result = await sql<SignupDay>`
+        WITH bounds AS (
+          SELECT
+            date_trunc('day', min(created_at) AT TIME ZONE 'UTC') AS first_day,
+            date_trunc('day', now() AT TIME ZONE 'UTC') AS last_day
+          FROM users
+        ),
+        days AS (
+          SELECT generate_series(first_day, last_day, interval '1 day') AS day FROM bounds
+        ),
+        signups AS (
+          SELECT date_trunc('day', created_at AT TIME ZONE 'UTC') AS day, count(*)::int AS count
+          FROM users
+          GROUP BY 1
+        )
+        SELECT to_char(days.day, 'YYYY-MM-DD') AS date, coalesce(signups.count, 0) AS count
+        FROM days
+        LEFT JOIN signups ON signups.day = days.day
+        ORDER BY days.day
+      `.execute(db);
+      return result.rows;
     },
 
     findIdByEmail(email: string): Promise<{ id: string } | undefined> {

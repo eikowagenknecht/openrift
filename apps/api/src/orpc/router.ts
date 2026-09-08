@@ -83,6 +83,7 @@ import { adminAuditEventsRouter } from "../modules/system/routes/admin-audit-eve
 import { adminCacheRouter } from "../modules/system/routes/admin-cache.js";
 import { adminChangelogRouter } from "../modules/system/routes/admin-changelog.js";
 import { adminCoreRouter } from "../modules/system/routes/admin-core.js";
+import { adminDashboardRouter } from "../modules/system/routes/admin-dashboard.js";
 import { adminJobRunsRouter } from "../modules/system/routes/admin-job-runs.js";
 import { adminJobSchedulesRouter } from "../modules/system/routes/admin-job-schedules.js";
 import { adminOperationsRouter } from "../modules/system/routes/admin-operations.js";
@@ -128,6 +129,7 @@ const apiRouter = {
   adminChangelogRouter,
   adminCoreRouter,
   adminCustomTagsRouter,
+  adminDashboardRouter,
   adminDeckFormatsRouter,
   adminDeckZonesRouter,
   adminDistributionChannelsRouter,

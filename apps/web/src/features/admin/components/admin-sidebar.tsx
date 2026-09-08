@@ -52,6 +52,8 @@ import {
 import { useAdminAccess } from "@/features/admin/hooks/use-admin";
 import { adminSectionForPathname } from "@/features/admin/lib/admin-sections";
 
+const overviewPages = [{ to: "/admin" as const, icon: LayoutDashboardIcon, title: "Dashboard" }];
+
 const catalogPages = [
   { to: "/admin/sets" as const, icon: DatabaseIcon, title: "Sets" },
   { to: "/admin/cards" as const, icon: GalleryVerticalIcon, title: "Cards" },
@@ -112,6 +114,7 @@ const systemPages = [
 ];
 
 const groups = [
+  { label: "Overview", pages: overviewPages },
   { label: "Catalog", pages: catalogPages },
   { label: "Taxonomy", pages: taxonomyPages },
   { label: "Content", pages: contentPages },
@@ -119,6 +122,11 @@ const groups = [
   { label: "Marketplaces", pages: marketplacePages },
   { label: "System", pages: systemPages },
 ];
+
+// The dashboard is an index route, so its match reports "/admin/" while the link is "/admin".
+function isCurrent(currentPath: string | undefined, to: string): boolean {
+  return currentPath === to || currentPath === `${to}/`;
+}
 
 export function AdminSidebar() {
   const matches = useMatches();
@@ -150,7 +158,7 @@ export function AdminSidebar() {
               {group.pages.map((page) => (
                 <SidebarMenuItem key={page.to}>
                   <SidebarMenuButton
-                    isActive={currentPath === page.to}
+                    isActive={isCurrent(currentPath, page.to)}
                     render={<Link to={page.to} />}
                   >
                     <page.icon />

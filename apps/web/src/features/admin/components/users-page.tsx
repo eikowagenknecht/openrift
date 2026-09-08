@@ -6,6 +6,7 @@ import { EllipsisVerticalIcon } from "lucide-react";
 import { PageDescription } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -15,6 +16,8 @@ import {
 import { UserAvatar } from "@/components/user-avatar";
 import { AdminTable } from "@/features/admin/components/admin-table";
 import type { AdminCellSlotProps, AdminColumnDef } from "@/features/admin/components/admin-table";
+import { UserGrowthChart } from "@/features/admin/components/user-growth-chart";
+import { useAdminDashboard } from "@/features/admin/hooks/use-admin-dashboard";
 import {
   useAddAdminGrant,
   useAdminGrants,
@@ -229,20 +232,32 @@ const columns: AdminColumnDef<AdminUserResponse>[] = [
 
 export function UsersPage() {
   const { data } = useAdminUsers();
+  const { data: dashboard } = useAdminDashboard();
 
   return (
-    <AdminTable
-      columns={columns}
-      data={data.users}
-      getRowKey={(user) => user.id}
-      emptyText="No users yet."
-      defaultSort={{ column: "Joined", direction: "desc" }}
-      title="Users"
-      toolbar={
-        <PageDescription>
-          {data.users.length} registered {data.users.length === 1 ? "user" : "users"}
-        </PageDescription>
-      }
-    />
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>User growth</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <UserGrowthChart signups={dashboard.signups} />
+        </CardContent>
+      </Card>
+
+      <AdminTable
+        columns={columns}
+        data={data.users}
+        getRowKey={(user) => user.id}
+        emptyText="No users yet."
+        defaultSort={{ column: "Joined", direction: "desc" }}
+        title="Users"
+        toolbar={
+          <PageDescription>
+            {data.users.length} registered {data.users.length === 1 ? "user" : "users"}
+          </PageDescription>
+        }
+      />
+    </div>
   );
 }
