@@ -122,6 +122,33 @@ export function adminEventsRepo(db: Kysely<Database>) {
       return await query.execute();
     },
 
+    /** `admin_events` is the only record of who created a printing; `printings` has no author. */
+    async printingIdsCreatedBy(actorUserId: string): Promise<string[]> {
+      const rows = await db
+        .selectFrom("adminEvents")
+        .select("entityId")
+        .where("actorUserId", "=", actorUserId)
+        .where("action", "=", "printing.create")
+        .where("entityType", "=", "printing")
+        .where("entityId", "is not", null)
+        .distinct()
+        .execute();
+      return rows.map((row) => row.entityId).filter((id): id is string => id !== null);
+    },
+
+    async wasPrintingCreatedBy(printingId: string, actorUserId: string): Promise<boolean> {
+      const row = await db
+        .selectFrom("adminEvents")
+        .select("id")
+        .where("actorUserId", "=", actorUserId)
+        .where("action", "=", "printing.create")
+        .where("entityType", "=", "printing")
+        .where("entityId", "=", printingId)
+        .limit(1)
+        .executeTakeFirst();
+      return row !== undefined;
+    },
+
     /** Ordered by email; deleted users (null email) sort last. */
     async listActors(): Promise<{ userId: string; name: string | null; email: string | null }[]> {
       return await db

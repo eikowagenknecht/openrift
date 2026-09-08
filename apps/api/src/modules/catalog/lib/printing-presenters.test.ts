@@ -9,6 +9,7 @@ import {
   buildPrintingsResponse,
   resolveFallbackArt,
   resolveMarkers,
+  toCatalogPrintingImage,
 } from "./printing-presenters.js";
 
 describe("resolveFallbackArt", () => {
@@ -142,7 +143,7 @@ describe("buildPrintingsResponse", () => {
 
     const [printing] = buildPrintingsResponse(
       [printingRow("p-1")],
-      [{ printingId: "p-1", face: "front", imageId: "img-1" } as never],
+      [{ printingId: "p-1", face: "front", imageId: "img-1", credit: null } as never],
       {
         markerBySlug: MARKERS,
         channelsByPrinting: new Map([["p-1", [link]]]),
@@ -154,5 +155,24 @@ describe("buildPrintingsResponse", () => {
     expect(printing!.distributionChannels).toEqual([link]);
     expect(printing!.images).toEqual([{ face: "front", imageId: "img-1" }]);
     expect(printing!.citations).toEqual([citation("c-1")]);
+  });
+});
+
+describe("toCatalogPrintingImage", () => {
+  const row = { face: "front" as const, imageId: "img-1", credit: null };
+
+  it("omits the credit key for an uncredited file", () => {
+    const image = toCatalogPrintingImage(row);
+
+    expect(image).toEqual({ face: "front", imageId: "img-1" });
+    expect(Object.hasOwn(image, "credit")).toBe(false);
+  });
+
+  it("carries the credit when it is set", () => {
+    expect(toCatalogPrintingImage({ ...row, credit: "gamesnight" })).toEqual({
+      face: "front",
+      imageId: "img-1",
+      credit: "gamesnight",
+    });
   });
 });

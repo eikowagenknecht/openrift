@@ -37,7 +37,13 @@ function CitationEntry({ citation }: { citation: PrintingCitation }) {
   );
 }
 
-export function PrintingCitationList({ citations }: { citations: readonly PrintingCitation[] }) {
+export function PrintingCitationList({
+  citations,
+  bullets = true,
+}: {
+  citations: readonly PrintingCitation[];
+  bullets?: boolean;
+}) {
   const [first, ...rest] = citations;
   if (!first) {
     return null;
@@ -49,9 +55,11 @@ export function PrintingCitationList({ citations }: { citations: readonly Printi
     <ul className="space-y-1">
       {citations.map((citation) => (
         <li key={citation.id} className="flex gap-2">
-          <span aria-hidden className="text-muted-foreground/60 select-none">
-            &bull;
-          </span>
+          {bullets && (
+            <span aria-hidden className="text-muted-foreground/60 select-none">
+              &bull;
+            </span>
+          )}
           <CitationEntry citation={citation} />
         </li>
       ))}

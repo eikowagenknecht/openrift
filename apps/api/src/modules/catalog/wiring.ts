@@ -20,6 +20,7 @@ import { keywordsRepo } from "./repositories/keywords.js";
 import { languagesRepo } from "./repositories/languages.js";
 import { markersRepo } from "./repositories/markers.js";
 import { printingCitationsRepo } from "./repositories/printing-citations.js";
+import { printingDeskRepo } from "./repositories/printing-desk.js";
 import { printingEventsRepo } from "./repositories/printing-events.js";
 import { printingImagesRepo } from "./repositories/printing-images.js";
 import { raritiesRepo } from "./repositories/rarities.js";
@@ -48,6 +49,7 @@ export interface CatalogRepos {
   languages: ReturnType<typeof languagesRepo>;
   printingImages: ReturnType<typeof printingImagesRepo>;
   printingCitations: ReturnType<typeof printingCitationsRepo>;
+  printingDesk: ReturnType<typeof printingDeskRepo>;
   markers: ReturnType<typeof markersRepo>;
   distributionChannels: ReturnType<typeof distributionChannelsRepo>;
   rarities: ReturnType<typeof raritiesRepo>;
@@ -120,6 +122,7 @@ export function createCatalogRepos(
     languages: languagesRepo(db),
     printingImages: printingImagesRepo(db),
     printingCitations: printingCitationsRepo(db),
+    printingDesk: printingDeskRepo(db),
     markers: markersRepo(db),
     distributionChannels: distributionChannelsRepo(db),
     rarities: raritiesRepo(db),

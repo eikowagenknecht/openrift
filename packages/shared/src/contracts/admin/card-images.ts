@@ -1,3 +1,4 @@
+import { cardFaceSchema } from "@openrift/shared/response-schemas";
 import { z } from "zod";
 
 import { authedRoute } from "../_base.js";
@@ -116,7 +117,15 @@ export const adminCardImagesContract = {
       NOT_FOUND: { message: "Printing not found" },
       PAYLOAD_TOO_LARGE: { message: "File exceeds 50 MB limit" },
     })
-    .input(printingIdParam.extend({ file: z.instanceof(File), mode: modeSchema.optional() }))
+    // `face`, `mode` and `credit` ride the multipart body beside `file`.
+    .input(
+      printingIdParam.extend({
+        file: z.instanceof(File),
+        mode: modeSchema.optional(),
+        face: cardFaceSchema.optional(),
+        credit: z.string().trim().min(1).max(120).optional(),
+      }),
+    )
     .output(rehostedUrlOutput),
   setFallbackArt: authedRoute
     .route({

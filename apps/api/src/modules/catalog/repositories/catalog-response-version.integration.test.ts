@@ -108,6 +108,11 @@ describe.skipIf(!ctx)("catalogResponseVersion (integration)", () => {
       statements: [touch("distribution_channels")],
     },
     { table: "printing_images", why: "printing.images", statements: [touch("printing_images")] },
+    {
+      table: "image_files",
+      why: "printing.images credit",
+      statements: [touch("image_files")],
+    },
     { table: "card_bans", why: "card.bans", statements: [touch("card_bans", "created_at")] },
     { table: "card_errata", why: "card.errata", statements: [touch("card_errata", "created_at")] },
     { table: "copies", why: "totalCopies", statements: [dropOne("copies")] },

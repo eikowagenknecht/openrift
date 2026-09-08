@@ -18,6 +18,15 @@ export const adminKeys = {
   // citation write would refetch the whole candidate review payload.
   printingCitations: (printingId: string) =>
     ["admin", "printings", printingId, "citations"] as const,
+  printingDesk: {
+    all: ["admin", "printing-desk"] as const,
+    list: (mode: string) => ["admin", "printing-desk", "list", mode] as const,
+    cardPrintings: (cardSlug: string) => ["admin", "printing-desk", "card", cardSlug] as const,
+    printing: Object.assign(
+      (printingId: string) => ["admin", "printing-desk", "printing", printingId] as const,
+      { prefix: ["admin", "printing-desk", "printing"] as const },
+    ),
+  },
   marketplaceGroups: ["admin", "marketplace-groups"] as const,
   featureFlags: ["admin", "feature-flags"] as const,
   featureFlagOverrides: ["admin", "feature-flag-overrides"] as const,

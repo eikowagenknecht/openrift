@@ -87,6 +87,9 @@ export interface PrintingsTable {
   printedYear: number | null;
   fallbackArtMode: Generated<FallbackArtMode>;
   fallbackImageFileId: string | null;
+  announcedAt: string | null;
+  releasedAt: string | null;
+  releasePrecision: ReleasePrecision | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -101,6 +104,7 @@ export interface ImageFilesTable {
   rehostedUrl: string | null;
   rotation: Generated<0 | 90 | 180 | 270>;
   needsTrim: Generated<boolean>;
+  credit: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

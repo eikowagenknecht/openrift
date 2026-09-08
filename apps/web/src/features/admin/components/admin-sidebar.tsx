@@ -86,6 +86,10 @@ const contentPages = [
   { to: "/admin/meta" as const, icon: TrophyIcon, title: "Meta Archive" },
 ];
 
+const contributePages = [
+  { to: "/admin/printing-desk" as const, icon: CameraIcon, title: "Printing Desk" },
+];
+
 const marketplacePages = [
   { to: "/admin/marketplace-overview" as const, icon: LayoutDashboardIcon, title: "Overview" },
   { to: "/admin/marketplace-groups" as const, icon: LayersIcon, title: "Groups" },
@@ -111,6 +115,7 @@ const groups = [
   { label: "Catalog", pages: catalogPages },
   { label: "Taxonomy", pages: taxonomyPages },
   { label: "Content", pages: contentPages },
+  { label: "Contribute", pages: contributePages },
   { label: "Marketplaces", pages: marketplacePages },
   { label: "System", pages: systemPages },
 ];

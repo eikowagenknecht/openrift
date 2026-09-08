@@ -52,6 +52,22 @@ export function useCreatePrintingCitation() {
   });
 }
 
+type UpdatePrintingCitationInput = ContractInput<typeof adminPrintingCitationsContract, "update">;
+
+const updatePrintingCitationFn = createServerFn({ method: "POST" })
+  .validator((input: UpdatePrintingCitationInput) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    await apiOrpcClient(adminPrintingCitationsContract, context.cookie).update(data);
+  });
+
+export function useUpdatePrintingCitation() {
+  return useMutationWithInvalidation<void, UpdatePrintingCitationInput>({
+    mutationFn: (vars) => updatePrintingCitationFn({ data: vars }),
+    invalidates: (vars) => [adminKeys.printingCitations(vars.printingId), ...PUBLIC_CATALOG_KEYS],
+  });
+}
+
 const deletePrintingCitationFn = createServerFn({ method: "POST" })
   .validator((input: { printingId: string; citationId: string }) => input)
   .middleware([withCookies])

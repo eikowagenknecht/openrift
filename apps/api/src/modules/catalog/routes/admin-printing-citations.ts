@@ -8,6 +8,7 @@ import { assertFound } from "../../../lib/assertions.js";
 import { isUniqueViolationOn } from "../../../lib/pg-errors.js";
 import { requireAuthedUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
+import { recordAdminEvent } from "../../system/services/record-admin-event.js";
 
 const os = implement(adminPrintingCitationsContract).$context<ApiContext>().use(requireAuthedUser);
 
@@ -35,12 +36,11 @@ async function assertOwnedByPrinting(
   repo: ApiContext["repos"]["printingCitations"],
   printingId: string,
   citationId: string,
-): Promise<void> {
+): Promise<AdminPrintingCitation> {
   const rows = await repo.listForPrinting(printingId);
-  assertFound(
-    rows.find((row) => row.id === citationId),
-    "Citation not found",
-  );
+  const row = rows.find((candidate) => candidate.id === citationId);
+  assertFound(row, "Citation not found");
+  return toCitation(row);
 }
 
 /**
@@ -66,7 +66,16 @@ export const adminPrintingCitationsRouter = {
         label: input.label,
         sourceUrl: input.sourceUrl,
       });
-      return toCitation(row);
+      const citation = toCitation(row);
+      await recordAdminEvent(context.repos, context.userId, {
+        action: "citation.create",
+        entityType: "citation",
+        entityId: citation.id,
+        entityLabel: citation.label,
+        cardSlug: null,
+        newValues: { printingId: input.printingId, ...citation },
+      });
+      return citation;
     } catch (error) {
       throw asDuplicateLinkConflict(error);
     }
@@ -74,7 +83,11 @@ export const adminPrintingCitationsRouter = {
 
   update: os.update.handler(async ({ input, context }): Promise<void> => {
     const { printingCitations } = context.repos;
-    await assertOwnedByPrinting(printingCitations, input.printingId, input.citationId);
+    const before = await assertOwnedByPrinting(
+      printingCitations,
+      input.printingId,
+      input.citationId,
+    );
 
     // `sourceUrl` is read by key presence, not by value: the contract lets null
     // through to clear a link, so `input.sourceUrl ?? undefined` would silently
@@ -89,11 +102,32 @@ export const adminPrintingCitationsRouter = {
     } catch (error) {
       throw asDuplicateLinkConflict(error);
     }
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "citation.update",
+      entityType: "citation",
+      entityId: input.citationId,
+      entityLabel: patch.label ?? before.label,
+      cardSlug: null,
+      oldValues: { printingId: input.printingId, ...before },
+      newValues: patch,
+    });
   }),
 
   remove: os.remove.handler(async ({ input, context }): Promise<void> => {
     const { printingCitations } = context.repos;
-    await assertOwnedByPrinting(printingCitations, input.printingId, input.citationId);
+    const before = await assertOwnedByPrinting(
+      printingCitations,
+      input.printingId,
+      input.citationId,
+    );
     assertFound(await printingCitations.delete(input.citationId), "Citation not found");
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "citation.delete",
+      entityType: "citation",
+      entityId: input.citationId,
+      entityLabel: before.label,
+      cardSlug: null,
+      oldValues: { printingId: input.printingId, ...before },
+    });
   }),
 };

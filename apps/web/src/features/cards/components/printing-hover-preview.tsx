@@ -21,9 +21,27 @@ export function PrintingHoverPreview({
   anchorRef: RefObject<HTMLElement | null>;
 }) {
   const front = printing.images.find((image) => image.face === "front");
-  const thumbnail = front ? imageUrl(front.imageId, "400w") : null;
-  const fullUrl = front ? imageUrl(front.imageId, "full") : null;
-  const landscape = getOrientation(printing.card.types) === "landscape";
+  return (
+    <ImageHoverPreview
+      thumbnailUrl={front ? imageUrl(front.imageId, "400w") : null}
+      fullUrl={front ? imageUrl(front.imageId, "full") : null}
+      landscape={getOrientation(printing.card.types) === "landscape"}
+      anchorRef={anchorRef}
+    />
+  );
+}
+
+export function ImageHoverPreview({
+  thumbnailUrl: thumbnail,
+  fullUrl,
+  landscape,
+  anchorRef,
+}: {
+  thumbnailUrl: string | null;
+  fullUrl: string | null;
+  landscape: boolean;
+  anchorRef: RefObject<HTMLElement | null>;
+}) {
   const [fullLoaded, setFullLoaded] = useState(false);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);

@@ -1,9 +1,11 @@
-import { PlusIcon, SearchIcon } from "lucide-react";
+import { PlusIcon, SearchIcon, UploadIcon } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Dropzone } from "@/components/ui/dropzone";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
@@ -155,6 +157,22 @@ export function FormControlsSection() {
             <Kbd>Ctrl</Kbd>
             <Kbd>K</Kbd>
           </KbdGroup>
+        </Demo>
+        <Demo
+          name="Dropzone"
+          hint="Drag-and-drop file target over a hidden file input. The panel is the click target too."
+          spec="dashed border · primary tint while dragging"
+          className="sm:col-span-2"
+        >
+          <Dropzone
+            className="w-full"
+            multiple
+            accept="image/*"
+            icon={<UploadIcon className="text-muted-foreground size-5" />}
+            label="Drop photos here or click to choose"
+            hint="JPG, PNG or WebP, up to 50 MB each."
+            onFiles={(files) => toast.success(`${files.length} file(s) picked`)}
+          />
         </Demo>
         <Demo
           name="Control row"

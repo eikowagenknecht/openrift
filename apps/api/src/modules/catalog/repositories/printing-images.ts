@@ -1,5 +1,6 @@
-import type { FallbackArtMode } from "@openrift/shared/types/enums";
+import type { CardFace, FallbackArtMode } from "@openrift/shared/types/enums";
 import type { Kysely } from "kysely";
+import { sql } from "kysely";
 
 import type { Database } from "../../../db/tables.js";
 
@@ -49,7 +50,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
     getForActivate(imageId: string) {
       return db
         .selectFrom("printingImages")
-        .select(["printingImages.id", "printingImages.printingId"])
+        .select(["printingImages.id", "printingImages.printingId", "printingImages.face"])
         .where("printingImages.id", "=", imageId)
         .executeTakeFirst();
     },
@@ -120,12 +121,32 @@ export function printingImagesRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    async deactivateActiveFront(printingId: string): Promise<void> {
+    /** Keeps the active flag unless the target face already has an active image. */
+    async setFace(imageId: string, face: CardFace): Promise<void> {
+      await db
+        .updateTable("printingImages")
+        .set({
+          face,
+          isActive: sql<boolean>`is_active AND NOT EXISTS (
+            SELECT 1 FROM printing_images other
+            WHERE other.printing_id = printing_images.printing_id
+              AND other.face = ${face}
+              AND other.is_active
+              AND other.id <> printing_images.id
+          )`,
+        })
+        .where("id", "=", imageId)
+        .where("face", "!=", face)
+        .execute();
+    },
+
+    /** One active image per printing and face, which is what `idx_printing_images_active` enforces. */
+    async deactivateActiveFace(printingId: string, face: CardFace = "front"): Promise<void> {
       await db
         .updateTable("printingImages")
         .set({ isActive: false })
         .where("printingId", "=", printingId)
-        .where("face", "=", "front")
+        .where("face", "=", face)
         .where("isActive", "=", true)
         .execute();
     },
@@ -134,6 +155,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
       printingId: string,
       imageUrl: string | null,
       mode: "main" | "additional" = "main",
+      face: CardFace = "front",
     ): Promise<string | null> {
       if (!imageUrl) {
         return null;
@@ -142,14 +164,14 @@ export function printingImagesRepo(db: Kysely<Database>) {
       const imageFileId = await findOrCreateImageFile(imageUrl);
 
       if (mode === "main") {
-        await this.deactivateActiveFront(printingId);
+        await this.deactivateActiveFace(printingId, face);
       }
 
       const row = await db
         .insertInto("printingImages")
         .values({
           printingId,
-          face: "front",
+          face,
           imageFileId,
           isActive: mode === "main",
         })
@@ -163,16 +185,23 @@ export function printingImagesRepo(db: Kysely<Database>) {
       printingId: string;
       rehostedUrl: string;
       mode: "main" | "additional";
+      face?: CardFace;
+      credit?: string;
     }): Promise<void> {
+      const face = values.face ?? "front";
       if (values.mode === "main") {
-        await this.deactivateActiveFront(values.printingId);
+        await this.deactivateActiveFace(values.printingId, face);
       }
 
       // The image_files id must equal values.id (= the file path basename):
       // regenerateFromOrig derives the on-disk lookup path from image_file.id.
       await db
         .insertInto("imageFiles")
-        .values({ id: values.id, rehostedUrl: values.rehostedUrl })
+        .values({
+          id: values.id,
+          rehostedUrl: values.rehostedUrl,
+          credit: values.credit ?? null,
+        })
         .execute();
 
       await db
@@ -180,7 +209,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
         .values({
           id: values.id,
           printingId: values.printingId,
-          face: "front",
+          face,
           isActive: values.mode === "main",
           imageFileId: values.id,
         })

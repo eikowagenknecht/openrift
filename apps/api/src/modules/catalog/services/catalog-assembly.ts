@@ -12,6 +12,7 @@ import {
   resolveFallbackArt,
   resolveFoilTwin,
   resolveMarkers,
+  toCatalogPrintingImage,
 } from "../lib/printing-presenters.js";
 
 /**
@@ -98,10 +99,7 @@ export async function assembleCatalogResponse(repos: Repos): Promise<CatalogResp
       // Must be omitted, not an empty array (see `buildPrintingsResponse`):
       // every visitor downloads this bundle, so an uncited printing costs no bytes.
       ...(citations === undefined ? {} : { citations }),
-      images: (imagesByPrinting.get(id) ?? []).map((i) => ({
-        face: i.face,
-        imageId: i.imageId,
-      })),
+      images: (imagesByPrinting.get(id) ?? []).map((image) => toCatalogPrintingImage(image)),
     };
   }
 

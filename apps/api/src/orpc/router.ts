@@ -26,6 +26,7 @@ import { adminKeywordsRouter } from "../modules/catalog/routes/admin-keywords.js
 import { adminLanguagesRouter } from "../modules/catalog/routes/admin-languages.js";
 import { adminMarkersRouter } from "../modules/catalog/routes/admin-markers.js";
 import { adminPrintingCitationsRouter } from "../modules/catalog/routes/admin-printing-citations.js";
+import { adminPrintingDeskRouter } from "../modules/catalog/routes/admin-printing-desk.js";
 import { adminPrintingEventsRouter } from "../modules/catalog/routes/admin-printing-events.js";
 import { adminRaritiesRouter } from "../modules/catalog/routes/admin-rarities.js";
 import { adminRulesRouter } from "../modules/catalog/routes/admin-rules.js";
@@ -151,6 +152,7 @@ const apiRouter = {
   adminOperationsRouter,
   adminOrganizationsRouter,
   adminPrintingCitationsRouter,
+  adminPrintingDeskRouter,
   adminPrintingEventsRouter,
   adminScanRouter,
   adminProductsRouter,

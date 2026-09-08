@@ -72,7 +72,7 @@ const PILTOVER_HEADERS = [
   "Notes",
 ] as const;
 
-function escapeField(value: string): string {
+export function escapeCsvField(value: string): string {
   if (value.includes(",") || value.includes('"') || value.includes("\n")) {
     return `"${value.replaceAll('"', '""')}"`;
   }
@@ -159,7 +159,7 @@ export function generateExportCSV(
         copy?.notesPublic ?? "",
         copy?.notesPrivate ?? "",
         encodeLinks(copy),
-      ].map((field) => escapeField(field));
+      ].map((field) => escapeCsvField(field));
       lines.push(row.join(","));
     }
   }
@@ -237,7 +237,7 @@ export function generatePiltoverArchiveCSV(
         graded ? String(grade) : "",
         "",
         copy?.notesPublic ?? "",
-      ].map((field) => escapeField(field));
+      ].map((field) => escapeCsvField(field));
       lines.push(row.join(","));
     }
   }
@@ -359,7 +359,7 @@ export function generateRiftManaCSV(
         "",
         row.language,
       ]
-        .map((field) => escapeField(field))
+        .map((field) => escapeCsvField(field))
         .join(","),
     );
   }
@@ -458,7 +458,7 @@ export function generateRiftCoreCSV(stacks: StackedEntry[], labels: CsvExportLab
         "0",
         String(row.standardQty + row.foilQty),
       ]
-        .map((field) => escapeField(field))
+        .map((field) => escapeCsvField(field))
         .join(","),
     );
   }

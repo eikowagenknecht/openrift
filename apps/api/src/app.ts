@@ -27,6 +27,7 @@ import { otelRequestMiddleware } from "./middleware/otel-request.js";
 import { requireAdmin } from "./middleware/require-admin.js";
 import { versionHeadersMiddleware } from "./middleware/version-headers.js";
 import { mountCardSubmissionsMiddleware } from "./modules/candidates/routes/authenticated-card-submissions.js";
+import { mountAdminPrintingPostImage } from "./modules/catalog/routes/admin-printing-post-image.js";
 import { createPublicChatRoute } from "./modules/chat/routes/public-chat.js";
 import { collectionImageRoute } from "./modules/collections/routes/authenticated-collection-image.js";
 import { deckImageRoute } from "./modules/decks/routes/authenticated-deck-image.js";
@@ -367,6 +368,7 @@ export function createApp(deps: AppDeps) {
 
   // Registered before the oRPC catch-all so these plain-Hono routes win the path match.
   mountAdminSentryTest(app);
+  mountAdminPrintingPostImage(app);
   app
     .route("/api", healthRoute)
     .route("/api", swaggerAssetsRoute)

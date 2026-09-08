@@ -46,9 +46,16 @@ describe("printingImagesRepo", () => {
     await expect(printingImagesRepo(db).setActive("pi-1", true)).resolves.toBeUndefined();
   });
 
-  it("deactivateActiveFront deactivates front image", async () => {
+  it("deactivateActiveFace defaults to the front", async () => {
     const db = createMockDb([]);
-    await expect(printingImagesRepo(db).deactivateActiveFront("p-1")).resolves.toBeUndefined();
+    await expect(printingImagesRepo(db).deactivateActiveFace("p-1")).resolves.toBeUndefined();
+  });
+
+  it("deactivateActiveFace takes the face to clear", async () => {
+    const db = createMockDb([]);
+    await expect(
+      printingImagesRepo(db).deactivateActiveFace("p-1", "back"),
+    ).resolves.toBeUndefined();
   });
 
   it("insertImage returns null when no imageUrl", async () => {
@@ -78,6 +85,20 @@ describe("printingImagesRepo", () => {
         printingId: "p-1",
         rehostedUrl: "https://cdn.example.com/img.jpg",
         mode: "main",
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("insertUploadedImage stores a back face with its credit", async () => {
+    const db = createMockDb([]);
+    await expect(
+      printingImagesRepo(db).insertUploadedImage({
+        id: "pi-new",
+        printingId: "p-1",
+        rehostedUrl: "https://cdn.example.com/img.jpg",
+        mode: "main",
+        face: "back",
+        credit: "gamesnight",
       }),
     ).resolves.toBeUndefined();
   });

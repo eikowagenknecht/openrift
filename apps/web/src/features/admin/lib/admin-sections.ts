@@ -5,6 +5,7 @@ export const ADMIN_SECTION_ROUTES = {
   "card-review": "/admin/cards",
   "card-tags": "/admin/card-tags",
   "custom-tags": "/admin/custom-tags",
+  "printing-desk": "/admin/printing-desk",
   products: "/admin/products",
 } as const satisfies Record<AdminSectionSlug, `/admin/${string}`>;
 

@@ -286,6 +286,7 @@ export default defineConfig(({ mode, command }) => {
       // Dev only; nginx handles /api/* in production.
       proxy: {
         "/api/auth": { target: apiProxyTarget },
+        "/api/admin": { target: apiProxyTarget },
         "/api/v1": { target: apiProxyTarget },
         "/api/health": { target: apiProxyTarget },
         "/api/doc": { target: apiProxyTarget },

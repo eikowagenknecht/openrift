@@ -20,8 +20,18 @@ const CARD_REVIEW_GET_EXACT = new Set([
 ]);
 
 // GET /cards/{x} endpoints that share the card-detail path shape but must not
-// be readable by card-review grant holders.
-const CARD_REVIEW_CARD_SLUG_DENY = new Set(["export", "provider-stats", "provider-names"]);
+// be readable by a grant holder.
+const CARD_DETAIL_SLUG_DENY = new Set(["export", "provider-stats", "provider-names"]);
+
+const PRINTING_DESK_GET_EXACT = new Set([
+  `${BASE}/cards/all-cards`,
+  `${BASE}/cards/distinct-artists`,
+  `${BASE}/distribution-channels`,
+  `${BASE}/finishes`,
+  `${BASE}/languages`,
+  `${BASE}/markers`,
+  `${BASE}/sets`,
+]);
 
 /**
  * Provider scoping (only candidates from `helper_reviewable` providers) is
@@ -38,9 +48,7 @@ const SECTION_PATH_MATCHERS: Record<AdminSectionSlug, (method: string, path: str
         return true;
       }
       const detail = /^\/api\/admin\/v1\/cards\/(?<slug>[^/]+)$/u.exec(path);
-      return (
-        detail?.groups?.slug !== undefined && !CARD_REVIEW_CARD_SLUG_DENY.has(detail.groups.slug)
-      );
+      return detail?.groups?.slug !== undefined && !CARD_DETAIL_SLUG_DENY.has(detail.groups.slug);
     }
     if (method === "POST") {
       return (
@@ -66,6 +74,35 @@ const SECTION_PATH_MATCHERS: Record<AdminSectionSlug, (method: string, path: str
     underPrefix(path, `${BASE}/custom-tag-categories`) ||
     path === `${BASE}/cards/all-cards` ||
     /^\/api\/admin\/v1\/cards\/[^/]+\/custom-tags$/u.test(path),
+  // Citations and printing images carry no owner in their path; per-printing
+  // ownership is checked in the handler.
+  "printing-desk": (method, path) => {
+    if (underPrefix(path, `${BASE}/printing-desk`)) {
+      return true;
+    }
+    if (/^\/api\/admin\/v1\/printings\/[^/]+\/citations(?:\/[^/]+)?$/u.test(path)) {
+      return true;
+    }
+    if (method === "GET") {
+      if (PRINTING_DESK_GET_EXACT.has(path)) {
+        return true;
+      }
+      const detail = /^\/api\/admin\/v1\/cards\/(?<slug>[^/]+)$/u.exec(path);
+      return detail?.groups?.slug !== undefined && !CARD_DETAIL_SLUG_DENY.has(detail.groups.slug);
+    }
+    if (method === "POST") {
+      return (
+        path === `${BASE}/markers` ||
+        path === `${BASE}/distribution-channels` ||
+        /^\/api\/admin\/v1\/cards\/printing\/[^/]+\/upload-image$/u.test(path) ||
+        /^\/api\/admin\/v1\/cards\/printing-images\/[^/]+\/(?:activate|rotate)$/u.test(path)
+      );
+    }
+    if (method === "DELETE") {
+      return /^\/api\/admin\/v1\/cards\/printing-images\/[^/]+$/u.test(path);
+    }
+    return false;
+  },
   products: (_method, path) => underPrefix(path, `${BASE}/products`),
 };
 

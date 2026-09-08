@@ -220,6 +220,8 @@ const uploadPrintingImageFn = createServerFn({ method: "POST" })
       fileType: string;
       fileBase64: string;
       mode?: string;
+      face?: string;
+      credit?: string;
     }) => input,
   )
   .middleware([withCookies])
@@ -230,6 +232,12 @@ const uploadPrintingImageFn = createServerFn({ method: "POST" })
     formData.append("file", blob, data.fileName);
     if (data.mode) {
       formData.append("mode", data.mode);
+    }
+    if (data.face) {
+      formData.append("face", data.face);
+    }
+    if (data.credit) {
+      formData.append("credit", data.credit);
     }
     // FormData body — can't use fetchApi helper (it JSON.stringify's bodies).
     const res = await fetch(
@@ -266,10 +274,14 @@ export function useUploadPrintingImage(invalidates: Scope = defaultScope) {
       printingId,
       file,
       mode,
+      face,
+      credit,
     }: {
       printingId: string;
       file: File;
       mode?: "main" | "additional";
+      face?: "front" | "back";
+      credit?: string;
     }) =>
       uploadPrintingImageFn({
         data: {
@@ -278,6 +290,8 @@ export function useUploadPrintingImage(invalidates: Scope = defaultScope) {
           fileType: file.type,
           fileBase64: await toBase64(file),
           mode,
+          face,
+          credit,
         },
       }),
     invalidates,

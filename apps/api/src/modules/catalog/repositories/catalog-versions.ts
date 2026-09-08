@@ -3,7 +3,7 @@ import { sql } from "kysely";
 
 import type { Database } from "../../../db/tables.js";
 
-const CATALOG_SHAPE_VERSION = "2";
+const CATALOG_SHAPE_VERSION = "3";
 
 /**
  * Excludes the current date; only {@link catalogContentVersion} folds that in.
@@ -34,7 +34,9 @@ const STORED_CATALOG_AGGREGATES = sql<string>`
       coalesce((SELECT count(*) FROM custom_tags)::text, '') || ':' ||
       coalesce((SELECT max(updated_at) AT TIME ZONE 'UTC' FROM custom_tags)::text, '') || '|' ||
       coalesce((SELECT count(*) FROM set_releases)::text, '') || ':' ||
-      coalesce((SELECT max(updated_at) AT TIME ZONE 'UTC' FROM set_releases)::text, '')
+      coalesce((SELECT max(updated_at) AT TIME ZONE 'UTC' FROM set_releases)::text, '') || '|' ||
+      coalesce((SELECT count(*) FROM image_files)::text, '') || ':' ||
+      coalesce((SELECT max(updated_at) AT TIME ZONE 'UTC' FROM image_files)::text, '')
 `;
 
 async function hashedToken(db: Kysely<Database>, expression: RawBuilder<string>): Promise<string> {

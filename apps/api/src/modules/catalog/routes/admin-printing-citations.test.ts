@@ -15,6 +15,8 @@ const mockPrintingCitations = {
   delete: vi.fn(),
 };
 
+const mockAdminEvents = { insert: vi.fn() };
+
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const PRINTING_ID = "b0000000-0001-4000-a000-000000000001";
 const CITATION_ID = "c0000000-0001-4000-a000-000000000001";
@@ -25,6 +27,7 @@ const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
   c.set("repos", {
+    adminEvents: mockAdminEvents,
     catalog: mockCatalog,
     printingCitations: mockPrintingCitations,
   } as never);
@@ -281,6 +284,14 @@ describe("DELETE /printings/{printingId}/citations/{citationId}", () => {
 
     expect(res.status).toBe(204);
     expect(mockPrintingCitations.delete).toHaveBeenCalledWith(CITATION_ID);
+    expect(mockAdminEvents.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorUserId: USER_ID,
+        action: "citation.delete",
+        entityType: "citation",
+        entityId: CITATION_ID,
+      }),
+    );
   });
 
   it("404s a citation that belongs to a different printing", async () => {

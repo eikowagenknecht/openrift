@@ -73,6 +73,48 @@ describe("adminKeys.cards", () => {
   });
 });
 
+describe("adminKeys.printingDesk", () => {
+  it("all is the prefix every desk read sits under", () => {
+    expect(adminKeys.printingDesk.all).toEqual(["admin", "printing-desk"]);
+  });
+
+  it("list keys per mode", () => {
+    expect(adminKeys.printingDesk.list("mine")).toEqual(["admin", "printing-desk", "list", "mine"]);
+    expect(adminKeys.printingDesk.list("mine")).not.toEqual(adminKeys.printingDesk.list("all"));
+  });
+
+  it("cardPrintings keys per card slug", () => {
+    expect(adminKeys.printingDesk.cardPrintings("annie")).toEqual([
+      "admin",
+      "printing-desk",
+      "card",
+      "annie",
+    ]);
+  });
+
+  it("printing keys per id and exposes a prefix", () => {
+    expect(adminKeys.printingDesk.printing("p-1")).toEqual([
+      "admin",
+      "printing-desk",
+      "printing",
+      "p-1",
+    ]);
+    expect(adminKeys.printingDesk.printing.prefix).toEqual(["admin", "printing-desk", "printing"]);
+  });
+
+  it("every desk key starts with the desk prefix", () => {
+    const prefix = adminKeys.printingDesk.all;
+    for (const key of [
+      adminKeys.printingDesk.list("all"),
+      adminKeys.printingDesk.cardPrintings("annie"),
+      adminKeys.printingDesk.printing("p-1"),
+      adminKeys.printingDesk.printing.prefix,
+    ]) {
+      expect(key.slice(0, prefix.length)).toEqual(prefix);
+    }
+  });
+});
+
 describe("adminKeys.priceMappings", () => {
   it("bySource returns tuple with config source", () => {
     expect(adminKeys.priceMappings.bySource(mockConfig)).toEqual(["admin", "tcgplayer"]);

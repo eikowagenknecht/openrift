@@ -70,7 +70,7 @@ const mockPrintingImages = {
 
 const mockTrxPrintingImages = {
   insertImage: vi.fn(),
-  deactivateActiveFront: vi.fn(),
+  deactivateActiveFace: vi.fn(),
   setActive: vi.fn(),
   insertUploadedImage: vi.fn(),
   insertUnattachedImageFile: vi.fn(),
@@ -290,7 +290,10 @@ describe("POST /printing-images/:imageId/activate", () => {
   });
 
   it("returns 204 and deactivates current active when activating", async () => {
-    mockPrintingImages.getForActivate.mockResolvedValue({ printingId: "printing-1" });
+    mockPrintingImages.getForActivate.mockResolvedValue({
+      printingId: "printing-1",
+      face: "front",
+    });
 
     const res = await app.request(`/api/admin/v1/cards/printing-images/${IMAGE_ID}/activate`, {
       method: "POST",
@@ -298,12 +301,27 @@ describe("POST /printing-images/:imageId/activate", () => {
       body: JSON.stringify({ active: true }),
     });
     expect(res.status).toBe(204);
-    expect(mockTrxPrintingImages.deactivateActiveFront).toHaveBeenCalledWith("printing-1");
+    expect(mockTrxPrintingImages.deactivateActiveFace).toHaveBeenCalledWith("printing-1", "front");
     expect(mockTrxPrintingImages.setActive).toHaveBeenCalledWith(IMAGE_ID, true);
   });
 
+  it("activating a back image leaves the active front alone", async () => {
+    mockPrintingImages.getForActivate.mockResolvedValue({ printingId: "printing-1", face: "back" });
+
+    const res = await app.request(`/api/admin/v1/cards/printing-images/${IMAGE_ID}/activate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ active: true }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockTrxPrintingImages.deactivateActiveFace).toHaveBeenCalledWith("printing-1", "back");
+  });
+
   it("returns 204 without deactivating when setting inactive", async () => {
-    mockPrintingImages.getForActivate.mockResolvedValue({ printingId: "printing-1" });
+    mockPrintingImages.getForActivate.mockResolvedValue({
+      printingId: "printing-1",
+      face: "front",
+    });
 
     const res = await app.request(`/api/admin/v1/cards/printing-images/${IMAGE_ID}/activate`, {
       method: "POST",
@@ -311,7 +329,7 @@ describe("POST /printing-images/:imageId/activate", () => {
       body: JSON.stringify({ active: false }),
     });
     expect(res.status).toBe(204);
-    expect(mockTrxPrintingImages.deactivateActiveFront).not.toHaveBeenCalled();
+    expect(mockTrxPrintingImages.deactivateActiveFace).not.toHaveBeenCalled();
     expect(mockTrxPrintingImages.setActive).toHaveBeenCalledWith(IMAGE_ID, false);
   });
 
@@ -687,7 +705,30 @@ describe("POST /printing/:printingId/upload-image", () => {
       printingId: "printing-1",
       rehostedUrl: "/media/cards/v7/mock-uuid-v7",
       mode: "main",
+      face: "front",
+      credit: undefined,
     });
+  });
+
+  it("stores a back face with the image credit", async () => {
+    mockPrintingImages.getPrintingById.mockResolvedValue({ id: "printing-1" });
+    mockProcessAndSave.mockResolvedValue(undefined);
+    mockImageRehostedUrl.mockReturnValue("/media/cards/v7/mock-uuid-v7");
+    mockTrxPrintingImages.insertUploadedImage.mockResolvedValue(undefined);
+
+    const formData = new FormData();
+    formData.append("file", new File(["image-data"], "card.png", { type: "image/png" }));
+    formData.append("face", "back");
+    formData.append("credit", "gamesnight");
+
+    const res = await app.request(`/api/admin/v1/cards/printing/${PRINTING_ID}/upload-image`, {
+      method: "POST",
+      body: formData,
+    });
+    expect(res.status).toBe(200);
+    expect(mockTrxPrintingImages.insertUploadedImage).toHaveBeenCalledWith(
+      expect.objectContaining({ face: "back", credit: "gamesnight" }),
+    );
   });
 
   it("respects explicit mode", async () => {
@@ -705,12 +746,9 @@ describe("POST /printing/:printingId/upload-image", () => {
       body: formData,
     });
     expect(res.status).toBe(200);
-    expect(mockTrxPrintingImages.insertUploadedImage).toHaveBeenCalledWith({
-      id: "mock-uuid-v7",
-      printingId: "printing-1",
-      rehostedUrl: "/media/cards/v7/mock-uuid-v7",
-      mode: "additional",
-    });
+    expect(mockTrxPrintingImages.insertUploadedImage).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: "additional" }),
+    );
   });
 
   it("returns 404 when printing not found", async () => {

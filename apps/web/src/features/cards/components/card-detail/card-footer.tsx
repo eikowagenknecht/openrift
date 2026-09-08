@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { usePrices } from "@/features/cards/hooks/use-prices";
 import { useDisplayStore } from "@/stores/display-store";
 
+import { ImageCreditLine } from "./image-credit";
 import { PricingSection } from "./pricing";
 
 const PriceHistoryChart = lazy(async () => {
@@ -26,6 +27,7 @@ export function CardFooter({ printing }: { printing: Printing }) {
   const favorite = marketplaceOrder[0];
   const prices = usePrices();
   const hasPrice = prices.get(printing.id, favorite) !== undefined;
+  const frontImage = printing.images.find((image) => image.face === "front") ?? printing.images[0];
 
   return (
     <div className="mt-2 space-y-2">
@@ -33,6 +35,7 @@ export function CardFooter({ printing }: { printing: Printing }) {
         <img src="/images/artist.svg" alt="" className="size-3.5 brightness-0 dark:invert" />
         {printing.artist}
       </p>
+      {frontImage?.credit !== undefined && <ImageCreditLine credit={frontImage.credit} />}
       {hasPrice && (
         <Suspense fallback={<ChartSkeleton />}>
           <PriceHistoryChart printingId={printing.id} />

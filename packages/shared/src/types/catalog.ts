@@ -113,6 +113,8 @@ export interface Card {
 export interface PrintingImage {
   face: CardFace;
   imageId: string;
+  /** Omitted when the image maker is unrecorded, which is most of the catalogue. */
+  credit?: string;
 }
 
 export interface Printing {

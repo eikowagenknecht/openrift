@@ -129,6 +129,7 @@ export const imageIdSchema = z
 const printingImageSchema = z.object({
   face: cardFaceSchema,
   imageId: imageIdSchema,
+  credit: z.string().optional().openapi({ example: "gamesnight" }),
 });
 
 /** `sourceUrl` is nullable: some citations have no permalink at all. */

@@ -117,7 +117,7 @@ export const adminCardImagesRouter = {
 
     await transact(async (trxRepos) => {
       if (active) {
-        await trxRepos.printingImages.deactivateActiveFront(image.printingId);
+        await trxRepos.printingImages.deactivateActiveFace(image.printingId, image.face);
       }
 
       await trxRepos.printingImages.setActive(imageId, active);
@@ -127,7 +127,7 @@ export const adminCardImagesRouter = {
       action: "image.activate",
       entityType: "image",
       entityId: imageId,
-      newValues: { active, printingId: image.printingId },
+      newValues: { active, printingId: image.printingId, face: image.face },
     });
   }),
 
@@ -288,12 +288,13 @@ export const adminCardImagesRouter = {
 
   uploadImage: os.uploadImage.handler(async ({ input, context }) => {
     const { printingImages } = context.repos;
-    const { printingId, file, mode: rawMode } = input;
+    const { printingId, file, mode: rawMode, face: rawFace, credit } = input;
 
     const printing = await printingImages.getPrintingById(printingId);
     assertFound(printing, "Printing not found");
 
     const mode = rawMode === "additional" ? ("additional" as const) : ("main" as const);
+    const face = rawFace ?? "front";
 
     const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
     if (file.size > MAX_UPLOAD_BYTES) {
@@ -315,6 +316,8 @@ export const adminCardImagesRouter = {
         printingId: printing.id,
         rehostedUrl,
         mode,
+        face,
+        credit,
       }),
     );
 
@@ -322,7 +325,7 @@ export const adminCardImagesRouter = {
       action: "image.upload",
       entityType: "image",
       entityId: imageId,
-      newValues: { printingId: printing.id, mode, rehostedUrl },
+      newValues: { printingId: printing.id, mode, face, rehostedUrl, credit: credit ?? null },
     });
 
     return { rehostedUrl };

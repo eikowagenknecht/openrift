@@ -10,6 +10,7 @@ type PrintingCodeRow = Pick<Selectable<PrintingsTable>, "cardId" | "shortCode" |
 
 type CatalogPrintingImageRow = Pick<Selectable<PrintingImagesTable>, "printingId" | "face"> & {
   imageId: string;
+  credit: string | null;
 };
 
 /** One scanner bank reference: a front render plus its label identity. */
@@ -42,10 +43,18 @@ export interface ScanReferenceRow {
  * Clients sort by this integer and get language-first, set-order, shortCode,
  * non-promo-first, finish-sort-order semantics in one compare. User language
  * preference overrides the language axis post-query.
+ *
+ * The date columns are omitted on purpose: only the admin printing desk
+ * reads them, and this payload carries every printing of every card.
  */
 type CatalogPrintingRow = Omit<
   Selectable<PrintingsTable>,
-  "createdAt" | "updatedAt" | "fallbackImageFileId"
+  | "createdAt"
+  | "updatedAt"
+  | "fallbackImageFileId"
+  | "announcedAt"
+  | "releasedAt"
+  | "releasePrecision"
 > & {
   printedName: string | null;
   language: string;
@@ -95,7 +104,12 @@ function selectPrintingImages(db: Kysely<Database>) {
   return db
     .selectFrom("printingImages")
     .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
-    .select(["printingImages.printingId", "printingImages.face", imageId("ci").as("imageId")])
+    .select([
+      "printingImages.printingId",
+      "printingImages.face",
+      imageId("ci").as("imageId"),
+      "ci.credit",
+    ])
     .where("printingImages.isActive", "=", true)
     .where(sql`${imageId("ci")}`, "is not", null)
     .orderBy("printingImages.printingId")

@@ -9,7 +9,7 @@ import { useDisplayStore } from "@/stores/display-store";
 import { stubPrinting } from "@/test/factories";
 import { createStoreResetter } from "@/test/store-helpers";
 
-vi.mock("@/features/cards/hooks/use-price-history", () => ({
+vi.mock("@/hooks/use-price-history", () => ({
   usePriceHistory: () => ({ data: undefined }),
 }));
 
@@ -63,5 +63,50 @@ describe("CardFooter chart lazy boundary", () => {
     const text = container.textContent ?? "";
     expect(text).toContain("Buy on");
     expect(text.indexOf("CardTrader")).toBeLessThan(text.indexOf("Buy on"));
+  });
+});
+
+describe("CardFooter image credit", () => {
+  let resetDisplay: () => void;
+  beforeEach(() => {
+    resetDisplay = createStoreResetter(useDisplayStore);
+  });
+  afterEach(() => resetDisplay());
+
+  it("shows no credit line when the front image carries none", () => {
+    const printing = stubPrinting({ images: [{ face: "front", imageId: "img-1" }] });
+    render(<CardFooter printing={printing} />, { wrapper: makeWrapper({}) });
+
+    expect(screen.queryByText(/^Image credit:/u)).toBeNull();
+  });
+
+  it("credits the front image's maker", () => {
+    const printing = stubPrinting({
+      images: [{ face: "front", imageId: "img-1", credit: "Zaun Photo Club" }],
+    });
+    render(<CardFooter printing={printing} />, { wrapper: makeWrapper({}) });
+
+    expect(screen.getByText("Image credit: Zaun Photo Club")).toBeInTheDocument();
+  });
+
+  it("renders the credit as plain text, never a link", () => {
+    const printing = stubPrinting({
+      images: [{ face: "front", imageId: "img-1", credit: "Zaun Photo Club" }],
+    });
+    render(<CardFooter printing={printing} />, { wrapper: makeWrapper({}) });
+
+    expect(screen.queryByRole("link", { name: /Zaun Photo Club/u })).toBeNull();
+  });
+
+  it("ignores a credit that only the back image carries", () => {
+    const printing = stubPrinting({
+      images: [
+        { face: "front", imageId: "img-1" },
+        { face: "back", imageId: "img-2", credit: "Zaun Photo Club" },
+      ],
+    });
+    render(<CardFooter printing={printing} />, { wrapper: makeWrapper({}) });
+
+    expect(screen.queryByText(/^Image credit:/u)).toBeNull();
   });
 });

@@ -152,6 +152,95 @@ describe("sectionAllowsRequest", () => {
     });
   });
 
+  describe("printing-desk", () => {
+    it.each([
+      "/api/admin/v1/printing-desk/printings",
+      "/api/admin/v1/printing-desk/printings/some-printing-id",
+      "/api/admin/v1/printing-desk/printings/some-printing-id/post-image.png",
+      "/api/admin/v1/printing-desk/cards/some-card-slug",
+      "/api/admin/v1/printings/some-printing-id/citations",
+      "/api/admin/v1/printings/some-printing-id/citations/some-citation-id",
+    ])("allows every method on %s", (path) => {
+      for (const method of ["GET", "POST", "PATCH", "DELETE"]) {
+        expect(sectionAllowsRequest("printing-desk", method, path)).toBe(true);
+      }
+    });
+
+    it.each([
+      "/api/admin/v1/cards/all-cards",
+      "/api/admin/v1/cards/distinct-artists",
+      "/api/admin/v1/cards/some-card-slug",
+      "/api/admin/v1/sets",
+      "/api/admin/v1/markers",
+      "/api/admin/v1/languages",
+      "/api/admin/v1/finishes",
+      "/api/admin/v1/distribution-channels",
+    ])("allows GET %s", (path) => {
+      expect(sectionAllowsRequest("printing-desk", "GET", path)).toBe(true);
+    });
+
+    it.each([
+      "/api/admin/v1/markers",
+      "/api/admin/v1/distribution-channels",
+      "/api/admin/v1/cards/printing/some-printing-id/upload-image",
+      "/api/admin/v1/cards/printing-images/some-image-id/activate",
+      "/api/admin/v1/cards/printing-images/some-image-id/rotate",
+    ])("allows POST %s", (path) => {
+      expect(sectionAllowsRequest("printing-desk", "POST", path)).toBe(true);
+    });
+
+    it("allows deleting a printing image", () => {
+      const path = "/api/admin/v1/cards/printing-images/some-image-id";
+      expect(sectionAllowsRequest("printing-desk", "DELETE", path)).toBe(true);
+    });
+
+    it("allows creating markers and channels but not editing or deleting them", () => {
+      for (const path of ["/api/admin/v1/markers", "/api/admin/v1/distribution-channels"]) {
+        expect(sectionAllowsRequest("printing-desk", "POST", path)).toBe(true);
+        expect(sectionAllowsRequest("printing-desk", "PUT", `${path}/reorder`)).toBe(false);
+        expect(sectionAllowsRequest("printing-desk", "PATCH", `${path}/some-id`)).toBe(false);
+        expect(sectionAllowsRequest("printing-desk", "DELETE", `${path}/some-id`)).toBe(false);
+      }
+    });
+
+    it.each([
+      "/api/admin/v1/cards/export",
+      "/api/admin/v1/cards/provider-stats",
+      "/api/admin/v1/cards/provider-names",
+    ])("rejects GET %s despite matching the card-detail shape", (path) => {
+      expect(sectionAllowsRequest("printing-desk", "GET", path)).toBe(false);
+    });
+
+    it.each([
+      ["GET", "/api/admin/v1/printing-desk-evil"],
+      ["GET", "/api/admin/v1/printing-desk-evil/printings"],
+      ["GET", "/api/admin/v1/users"],
+      ["GET", "/api/admin/v1/admin-grants"],
+      ["GET", "/api/admin/v1/me"],
+      ["GET", "/api/admin/v1/feature-flags"],
+      ["GET", "/api/admin/v1/site-settings"],
+      ["GET", "/api/admin/v1/cards"],
+      ["GET", "/api/admin/v1/provider-settings"],
+      ["GET", "/api/admin/v1/custom-tags"],
+      ["POST", "/api/admin/v1/cards/some-card-id/printings"],
+      ["POST", "/api/admin/v1/cards/some-card-id/accept-field"],
+      ["POST", "/api/admin/v1/cards/printing-images/some-image-id/rehost"],
+      ["DELETE", "/api/admin/v1/cards/printing/some-printing-id"],
+      ["GET", "/api/admin/v1/printings/some-printing-id"],
+      ["GET", "/api/admin/v1/printings/some-printing-id/citations/some-id/extra"],
+    ])("rejects %s %s", (method, path) => {
+      expect(sectionAllowsRequest("printing-desk", method, path)).toBe(false);
+    });
+
+    it("does not leak printing-desk paths to other sections", () => {
+      for (const section of ["card-review", "card-tags", "custom-tags", "products"]) {
+        expect(sectionAllowsRequest(section, "GET", "/api/admin/v1/printing-desk/printings")).toBe(
+          false,
+        );
+      }
+    });
+  });
+
   it("fails closed for unknown section slugs", () => {
     expect(sectionAllowsRequest("not-a-section", "GET", "/api/admin/v1/custom-tags")).toBe(false);
     expect(sectionAllowsRequest("", "GET", "/api/admin/v1/custom-tags")).toBe(false);

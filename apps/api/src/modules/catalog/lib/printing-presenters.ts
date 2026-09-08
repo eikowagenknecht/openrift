@@ -7,6 +7,7 @@ import type {
   Marker,
   PrintingCitation,
   PrintingDistributionChannel,
+  PrintingImage,
 } from "@openrift/shared/types/catalog";
 
 import type { Repos } from "../../../deps.js";
@@ -111,6 +112,19 @@ export function resolveFallbackArt(row: {
   return {};
 }
 
+/** The credit key stays absent unless set: most of the catalogue is uncredited and every visitor downloads it. */
+export function toCatalogPrintingImage(row: {
+  face: PrintingImage["face"];
+  imageId: string;
+  credit: string | null;
+}): PrintingImage {
+  return {
+    face: row.face,
+    imageId: row.imageId,
+    ...(row.credit === null ? {} : { credit: row.credit }),
+  };
+}
+
 export function resolveFoilTwin(row: {
   hasFoilTwin: boolean;
 }): Pick<CatalogPrintingResponse, "hasFoilTwin"> {
@@ -181,10 +195,7 @@ export function buildPrintingsResponse(
         markers: resolveMarkers(markerSlugs, markerBySlug),
         distributionChannels: channelsByPrinting.get(rest.id) ?? [],
         ...(citations === undefined ? {} : { citations }),
-        images: (imagesByPrinting.get(rest.id) ?? []).map((i) => ({
-          face: i.face,
-          imageId: i.imageId,
-        })),
+        images: (imagesByPrinting.get(rest.id) ?? []).map((image) => toCatalogPrintingImage(image)),
       };
     },
   );
