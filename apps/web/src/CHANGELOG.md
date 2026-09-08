@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-09-08
+
+### Other
+
+- fix(Cards): **Contribute form field labels** — every field on the contribute form now carries its label for screen readers and focuses when the label is clicked.
+
 ## 2026-09-07
 
 ### Highlights

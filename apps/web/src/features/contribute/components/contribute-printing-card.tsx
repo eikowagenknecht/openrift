@@ -12,6 +12,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Switch } from "@/components/ui/switch";
 import { PrintingVariantLabel } from "@/features/cards/components/printing-label";
 import { CardTextInput } from "@/features/contribute/components/card-text-input";
+import type { LabelledControlProps } from "@/features/contribute/components/form-fields";
 import {
   FieldRow,
   MultiSelectDropdown,
@@ -269,20 +270,39 @@ export function PrintingCard({
             hint="Direct link to the best image you can find. A clear scan works too."
             error={errorAt(`printings[${index.toString()}].imageUrl`)}
           >
-            <InputGroup>
-              <InputGroupAddon>
-                <LinkIcon />
-              </InputGroupAddon>
-              <InputGroupInput
-                type="url"
-                value={printing.imageUrl ?? ""}
-                onChange={(e) => onChange("imageUrl", e.target.value || null)}
-                placeholder="https://..."
-              />
-            </InputGroup>
+            <ImageUrlInput
+              value={printing.imageUrl ?? ""}
+              onChange={(next) => onChange("imageUrl", next || null)}
+            />
           </FieldRow>
         </CardContent>
       )}
     </Card>
+  );
+}
+
+function ImageUrlInput({
+  value,
+  onChange,
+  id,
+  "aria-labelledby": ariaLabelledBy,
+}: LabelledControlProps & {
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  return (
+    <InputGroup>
+      <InputGroupAddon>
+        <LinkIcon />
+      </InputGroupAddon>
+      <InputGroupInput
+        id={id}
+        aria-labelledby={ariaLabelledBy}
+        type="url"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="https://..."
+      />
+    </InputGroup>
   );
 }

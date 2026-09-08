@@ -1,6 +1,6 @@
 import { InfoIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { cloneElement, isValidElement, useId, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +27,11 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
+export interface LabelledControlProps {
+  id?: string;
+  "aria-labelledby"?: string;
+}
+
 // Hint renders as an info button that opens on click, not always-on helper
 // text, so grid rows keep a uniform height.
 export function FieldRow({
@@ -42,16 +47,27 @@ export function FieldRow({
   required?: boolean;
   children: ReactNode;
 }) {
+  const generatedId = useId();
+  const labelId = useId();
+  const element = isValidElement<LabelledControlProps>(children) ? children : null;
+  const controlId = element?.props.id ?? generatedId;
+  const control = element
+    ? cloneElement(element, {
+        id: controlId,
+        "aria-labelledby": element.props["aria-labelledby"] ?? labelId,
+      })
+    : children;
+
   return (
     <Field data-invalid={error ? true : undefined}>
       <div className="flex items-center gap-1">
-        <FieldLabel>
+        <FieldLabel id={labelId} htmlFor={controlId}>
           {label}
           {required && <span className="text-destructive"> *</span>}
         </FieldLabel>
         {hint && <FieldHint label={label} hint={hint} />}
       </div>
-      {children}
+      {control}
       {error && <FieldError>{error}</FieldError>}
     </Field>
   );
@@ -82,12 +98,16 @@ function FieldHint({ label, hint }: { label: string; hint: string }) {
 export function NumberInput({
   value,
   onChange,
-}: {
+  id,
+  "aria-labelledby": ariaLabelledBy,
+}: LabelledControlProps & {
   value: number | null;
   onChange: (next: number | null) => void;
 }) {
   return (
     <Input
+      id={id}
+      aria-labelledby={ariaLabelledBy}
       type="number"
       min={0}
       value={value === null ? "" : value.toString()}
@@ -112,7 +132,9 @@ export function SingleSelect({
   options,
   labels,
   placeholder,
-}: {
+  id,
+  "aria-labelledby": ariaLabelledBy,
+}: LabelledControlProps & {
   value: string | null;
   onChange: (next: string | null) => void;
   options: readonly string[];
@@ -125,7 +147,7 @@ export function SingleSelect({
       onValueChange={(next: string | null) => onChange(next || null)}
       items={options.map((slug) => ({ value: slug, label: labels[slug] ?? slug }))}
     >
-      <SelectTrigger className="w-full">
+      <SelectTrigger id={id} aria-labelledby={ariaLabelledBy} className="w-full">
         <SelectValue placeholder={placeholder}>
           {(current: string) => labels[current] ?? current}
         </SelectValue>
@@ -145,7 +167,9 @@ export function ChipInput({
   value,
   onChange,
   placeholder,
-}: {
+  id,
+  "aria-labelledby": ariaLabelledBy,
+}: LabelledControlProps & {
   value: string[];
   onChange: (next: string[]) => void;
   placeholder: string;
@@ -172,6 +196,8 @@ export function ChipInput({
           <ComboboxChip key={chip}>{chip}</ComboboxChip>
         ))}
         <ComboboxChipsInput
+          id={id}
+          aria-labelledby={ariaLabelledBy}
           placeholder={value.length === 0 ? placeholder : ""}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === ",") {
@@ -191,7 +217,9 @@ export function MultiSelectDropdown({
   onChange,
   options,
   placeholder,
-}: {
+  id,
+  "aria-labelledby": ariaLabelledBy,
+}: LabelledControlProps & {
   value: string[];
   onChange: (next: string[]) => void;
   options: { slug: string; label: string }[];
@@ -209,6 +237,8 @@ export function MultiSelectDropdown({
       itemToStringLabel={labelFor}
     >
       <ComboboxTrigger
+        id={id}
+        aria-labelledby={ariaLabelledBy}
         render={<Button variant="outline" />}
         className={cn(
           "w-full justify-between font-normal",

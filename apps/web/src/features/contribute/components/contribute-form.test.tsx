@@ -1,7 +1,7 @@
 import type { SetListResponse } from "@openrift/shared/types/api/catalog";
 import type { InitResponse } from "@openrift/shared/types/api/init";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -85,20 +85,11 @@ function renderForm(initial: ContributeFormState, lockedSlug?: string) {
 }
 
 function cardNameInput(): HTMLElement {
-  return screen.getByPlaceholderText("Ahri, Alluring");
+  return screen.getByLabelText("Name *");
 }
 
 function openPrintingNameInput(): HTMLElement {
-  const labels = screen.getAllByText("Name");
-  const printingLabel = labels[1];
-  if (!printingLabel) {
-    throw new Error("no printing is currently open");
-  }
-  const group = printingLabel.closest('[role="group"]');
-  if (!group) {
-    throw new Error("printing Name field has no enclosing group");
-  }
-  return within(group as HTMLElement).getByRole("textbox");
+  return screen.getByLabelText("Name");
 }
 
 function printingHeaderCodes(container: HTMLElement): string[] {
