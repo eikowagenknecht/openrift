@@ -52,9 +52,12 @@ export const cardTradesRouter = {
   actionCounts: os.actionCounts.handler(
     async ({ context }): Promise<CardTradeActionCountsResponse> => {
       const { cardTrades } = context.repos;
-      const byGroup = await cardTrades.actionNeededCountsForUser(context.userId);
+      const [byGroup, people] = await Promise.all([
+        cardTrades.actionNeededCountsForUser(context.userId),
+        cardTrades.actionNeededPeopleForUser(context.userId),
+      ]);
       const total = byGroup.reduce((sum, entry) => sum + entry.count, 0);
-      return { total, byGroup };
+      return { total, people, byGroup };
     },
   ),
 

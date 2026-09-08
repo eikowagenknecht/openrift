@@ -10,6 +10,7 @@ import { cardTradesRouter } from "./authenticated-card-trades";
 const mockCardTradesRepo = {
   listDtoRowsForUser: vi.fn(() => Promise.resolve([] as object[])),
   actionNeededCountsForUser: vi.fn(() => Promise.resolve([] as object[])),
+  actionNeededPeopleForUser: vi.fn(() => Promise.resolve(0)),
   liveAnnotationsForUser: vi.fn(() => Promise.resolve([] as object[])),
 };
 
@@ -281,6 +282,18 @@ describe("GET /api/v1/trades/action-counts", () => {
     expect(json.byGroup).toHaveLength(2);
   });
 
+  it("reports distinct people waiting on the viewer separately from the card total", async () => {
+    mockCardTradesRepo.actionNeededCountsForUser.mockResolvedValue([
+      { groupId: "g1", groupSlug: "alpha", count: 9, respondCount: 0, settleCount: 9 },
+    ]);
+    mockCardTradesRepo.actionNeededPeopleForUser.mockResolvedValue(1);
+    const res = await app.request("/api/v1/trades/action-counts");
+    const json = await readJson(res);
+    expect(json.total).toBe(9);
+    expect(json.people).toBe(1);
+    expect(mockCardTradesRepo.actionNeededPeopleForUser).toHaveBeenCalledWith(USER_ID);
+  });
+
   it("carries each group's per-action-type split through to the response", async () => {
     mockCardTradesRepo.actionNeededCountsForUser.mockResolvedValue([
       { groupId: "g1", groupSlug: "alpha", count: 44, respondCount: 12, settleCount: 32 },
@@ -295,6 +308,7 @@ describe("GET /api/v1/trades/action-counts", () => {
     const res = await app.request("/api/v1/trades/action-counts");
     const json = await readJson(res);
     expect(json.total).toBe(0);
+    expect(json.people).toBe(0);
     expect(json.byGroup).toEqual([]);
   });
 });

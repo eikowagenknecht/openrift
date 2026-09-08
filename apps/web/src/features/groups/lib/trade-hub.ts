@@ -70,20 +70,49 @@ function compareExpiry(a: string | null, b: string | null): number {
   return a.localeCompare(b);
 }
 
+export function compareNeedsYou(a: CardTradeResponse, b: CardTradeResponse): number {
+  const byRank = needsYouRank(a) - needsYouRank(b);
+  if (byRank !== 0) {
+    return byRank;
+  }
+  if (needsYouRank(a) === 0) {
+    const byExpiry = compareExpiry(a.expiresAt, b.expiresAt);
+    if (byExpiry !== 0) {
+      return byExpiry;
+    }
+  }
+  return b.updatedAt.localeCompare(a.updatedAt);
+}
+
 export function sortNeedsYou(trades: readonly CardTradeResponse[]): CardTradeResponse[] {
-  return trades.toSorted((a, b) => {
-    const byRank = needsYouRank(a) - needsYouRank(b);
-    if (byRank !== 0) {
-      return byRank;
-    }
-    if (needsYouRank(a) === 0) {
-      const byExpiry = compareExpiry(a.expiresAt, b.expiresAt);
-      if (byExpiry !== 0) {
-        return byExpiry;
-      }
-    }
-    return b.updatedAt.localeCompare(a.updatedAt);
-  });
+  return trades.toSorted(compareNeedsYou);
+}
+
+export function needsYouLine(
+  needsYou: readonly CardTradeResponse[],
+  now: Date = new Date(),
+): string | null {
+  if (needsYou.length === 0) {
+    return null;
+  }
+  const { toAnswer, toHandOver, toReceive } = needsYouCounts(needsYou);
+  const acts: string[] = [];
+  if (toAnswer > 0) {
+    acts.push(`${toAnswer} to answer`);
+  }
+  if (toHandOver > 0) {
+    acts.push(`${toHandOver} to hand over`);
+  }
+  if (toReceive > 0) {
+    // Matches the overview band's "To confirm" label for the same stage.
+    acts.push(`${toReceive} to confirm`);
+  }
+  const parts = [acts.join(", ")];
+  const soon = expiringSoonCount(needsYou, now);
+  if (soon > 0) {
+    parts.push(`${soon} ${soon === 1 ? "expires" : "expire"} soon`);
+  }
+  return parts.join(" · ");
 }
 
 export interface TradeHubMember {

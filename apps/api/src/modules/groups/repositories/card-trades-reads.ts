@@ -13,6 +13,19 @@ import type { Database } from "../../../db/tables.js";
 import type { CardTrade, CardTradeDtoRow } from "./card-trades-shared.js";
 import { tradeDtoBaseQuery, withCounterpartyContacts } from "./card-trades-shared.js";
 
+function actionNeededPredicates(userId: string) {
+  const awaitingResponse = sql<boolean>`(t.status = 'pending' and (
+    (t.receiver_user_id = ${userId} and t.initiator = 'giver')
+    or (t.giver_user_id = ${userId} and t.initiator = 'receiver')
+  ))`;
+  // `completed` must stay: legacy rows can be completed with a side still outstanding.
+  const awaitingSettle = sql<boolean>`(t.status in ('reserved', 'completed') and (
+    (t.giver_user_id = ${userId} and t.giver_sync_applied_at is null)
+    or (t.receiver_user_id = ${userId} and t.receiver_sync_applied_at is null)
+  ))`;
+  return { awaitingResponse, awaitingSettle };
+}
+
 export interface TradeListFilters {
   groupId?: string;
   status?: CardTradeStatus;
@@ -264,15 +277,7 @@ export function cardTradeReadsRepo(db: Kysely<Database>) {
     async actionNeededCountsForUser(
       userId: string,
     ): Promise<CardTradeActionCountsResponse["byGroup"]> {
-      const awaitingResponse = sql<boolean>`(t.status = 'pending' and (
-        (t.receiver_user_id = ${userId} and t.initiator = 'giver')
-        or (t.giver_user_id = ${userId} and t.initiator = 'receiver')
-      ))`;
-      // `completed` must stay: legacy rows can be completed with a side still outstanding.
-      const awaitingSettle = sql<boolean>`(t.status in ('reserved', 'completed') and (
-        (t.giver_user_id = ${userId} and t.giver_sync_applied_at is null)
-        or (t.receiver_user_id = ${userId} and t.receiver_sync_applied_at is null)
-      ))`;
+      const { awaitingResponse, awaitingSettle } = actionNeededPredicates(userId);
       const rows = await db
         .selectFrom("cardTrades as t")
         .innerJoin("friendGroups as g", "g.id", "t.groupId")
@@ -298,6 +303,23 @@ export function cardTradeReadsRepo(db: Kysely<Database>) {
           settleCount,
         };
       });
+    },
+
+    async actionNeededPeopleForUser(userId: string): Promise<number> {
+      const { awaitingResponse, awaitingSettle } = actionNeededPredicates(userId);
+      const row = await db
+        .selectFrom("cardTrades as t")
+        .select(
+          sql<string>`count(distinct case when t.giver_user_id = ${userId} then t.receiver_user_id else t.giver_user_id end)`.as(
+            "people",
+          ),
+        )
+        .where((eb) =>
+          eb.or([eb("t.giverUserId", "=", userId), eb("t.receiverUserId", "=", userId)]),
+        )
+        .where(sql<boolean>`(${awaitingResponse} or ${awaitingSettle})`)
+        .executeTakeFirstOrThrow();
+      return Number(row.people);
     },
 
     /**

@@ -2,6 +2,11 @@
 
 ## 2026-09-08
 
+### Highlights
+
+- feat(Trades): **A Trades page in the menu** — More → Organize → Trades lists everyone you're trading with across all your groups, people waiting on you first, one click from their trade sheet.
+- fix(Trades): **Menu badge counts people, not cards** — the trade badge used to show one per card in flight, so a nine-card swap read as nine; it now counts the people waiting on you, and the Groups badge only counts join requests.
+
 ### Other
 
 - feat(Cards): **Marketplace icon on card grid prices** — the price shown on each card in a grid now carries the icon of the marketplace it came from.

@@ -137,21 +137,31 @@ export function TradeSheetPage({
   fromGroupSlug?: string;
 }) {
   const { data: sheet } = useTradeSheet(userId);
-  const anchorGroup = sheet.groups.find((group) => group.slug === fromGroupSlug) ?? sheet.groups[0];
+  const fromGroup = sheet.groups.find((group) => group.slug === fromGroupSlug);
+  const anchorGroup = fromGroup ?? sheet.groups[0];
   if (anchorGroup === undefined) {
     return null;
   }
-  return <TradeSheetBody userId={userId} sheet={sheet} anchorGroup={anchorGroup} />;
+  return (
+    <TradeSheetBody
+      userId={userId}
+      sheet={sheet}
+      anchorGroup={anchorGroup}
+      viaGroup={fromGroup !== undefined}
+    />
+  );
 }
 
 function TradeSheetBody({
   userId,
   sheet,
   anchorGroup,
+  viaGroup,
 }: {
   userId: string;
   sheet: CardTradeSheetResponse;
   anchorGroup: CardTradeSheetResponse["groups"][number];
+  viaGroup: boolean;
 }) {
   const { data: allTrades } = useUserTrades();
   const { printingsById } = useCards();
@@ -207,17 +217,21 @@ function TradeSheetBody({
   return (
     <CardDetailOverlayProvider>
       <TopBarBreadcrumbBar
-        segments={[
-          {
-            label: anchorGroup.name,
-            link: <Link to="/groups/$slug" params={{ slug: anchorGroup.slug }} />,
-          },
-          {
-            label: "Trades",
-            link: <Link to="/groups/$slug/trades" params={{ slug: anchorGroup.slug }} />,
-          },
-          { label: name },
-        ]}
+        segments={
+          viaGroup
+            ? [
+                {
+                  label: anchorGroup.name,
+                  link: <Link to="/groups/$slug" params={{ slug: anchorGroup.slug }} />,
+                },
+                {
+                  label: "Trades",
+                  link: <Link to="/groups/$slug/trades" params={{ slug: anchorGroup.slug }} />,
+                },
+                { label: name },
+              ]
+            : [{ label: "Trades", link: <Link to="/trades" /> }, { label: name }]
+        }
       />
 
       {/* px-safe matches the sticky bar's inner-column gutter, so content edges line up. */}

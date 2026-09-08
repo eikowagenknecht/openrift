@@ -52,6 +52,15 @@ describe("visibleMoreSections", () => {
     expect(play?.items.map((i) => i.to)).not.toContain("/glossary");
   });
 
+  it("lists Trades under Organize in both menus", () => {
+    const organize = (mobile: boolean) =>
+      visibleMoreSections({ flags: flagsOn, mobile })
+        .find((s) => s.label === "Organize")
+        ?.items.map((i) => i.to);
+    expect(organize(false)).toContain("/trades");
+    expect(organize(true)).toContain("/trades");
+  });
+
   it("splits Scan by platform", () => {
     const organize = (mobile: boolean) =>
       visibleMoreSections({ flags: flagsOn, mobile })

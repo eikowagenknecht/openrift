@@ -138,9 +138,11 @@ export const cardTradeLiveByPrintingResponseSchema = z
   .object({ annotations: z.array(cardTradeLiveAnnotationSchema) })
   .openapi("CardTradeLiveByPrintingResponse");
 
+/** `people` is distinct counterparties waiting on the viewer, pooled across groups. */
 export const cardTradeActionCountsResponseSchema = z
   .object({
     total: z.number().int().nonnegative(),
+    people: z.number().int().nonnegative(),
     byGroup: z.array(
       z.object({
         groupId: z.string(),

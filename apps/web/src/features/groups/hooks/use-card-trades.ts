@@ -147,11 +147,17 @@ export function useTradeActionCounts() {
   });
 }
 
+export function userTradesQueryOptions(userId: string) {
+  return queryOptions({
+    queryKey: tradesKeys.all(userId),
+    queryFn: () => fetchUserTrades({ data: {} }),
+  });
+}
+
 export function useUserTrades() {
   const userId = useUserId();
   return useQuery({
-    queryKey: tradesKeys.all(userId ?? ""),
-    queryFn: () => fetchUserTrades({ data: {} }),
+    ...userTradesQueryOptions(userId ?? ""),
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
     enabled: userId !== null,

@@ -185,6 +185,14 @@ export default function GroupsArticle() {
           </a>{" "}
           for how matches handle different printings of the same card.
         </p>
+        <p className="text-muted-foreground mt-2">
+          Once trades are underway, the{" "}
+          <a href="/trades" className="text-primary hover:underline">
+            Trades page
+          </a>{" "}
+          under More &rarr; Organize lists everyone you&apos;re trading with across all your groups,
+          with the people waiting on you first. Its badge in the menu counts people, not cards.
+        </p>
       </section>
 
       <section>

@@ -734,7 +734,8 @@ export function Header() {
   const { data: tradeActionCounts } = useTradeActionCounts();
   const { data: loanActionCounts } = useLoanActionCounts();
   const loansBadge = loanActionCounts?.total ?? 0;
-  const groupsBadge = (pendingRequestsData?.count ?? 0) + (tradeActionCounts?.total ?? 0);
+  const groupsBadge = pendingRequestsData?.count ?? 0;
+  const tradesBadge = tradeActionCounts?.people ?? 0;
 
   return (
     <header
@@ -758,7 +759,7 @@ export function Header() {
           <DesktopNav
             isLoggedIn={isLoggedIn}
             flags={navFlags}
-            badges={{ groups: groupsBadge, loans: loansBadge }}
+            badges={{ groups: groupsBadge, trades: tradesBadge, loans: loansBadge }}
             onLockedClick={setLockedFeature}
           />
         </div>
@@ -788,7 +789,7 @@ export function Header() {
         onOpenChange={setMobileMenuOpen}
         isLoggedIn={isLoggedIn}
         flags={navFlags}
-        badges={{ groups: groupsBadge, loans: loansBadge }}
+        badges={{ groups: groupsBadge, trades: tradesBadge, loans: loansBadge }}
         onLockedClick={setLockedFeature}
       />
 

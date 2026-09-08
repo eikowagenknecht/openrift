@@ -978,6 +978,34 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     });
   });
 
+  it("action-needed people counts each counterparty once across cards, stages and groups", async () => {
+    expect(await repos.cardTrades.actionNeededPeopleForUser(GIVER_ID)).toBe(0);
+
+    // Two groups, the same receiver: one reserved swap and one pending request.
+    const { group } = await setupMatch(3);
+    const reserved = await request(group, 1);
+    await acceptTrade(transact, reserved.id, GIVER_ID);
+    const { group: other } = await setupMatch(3);
+    await request(other, 1);
+    expect(await repos.cardTrades.actionNeededPeopleForUser(GIVER_ID)).toBe(1);
+
+    await groupsRepo.addMember(group.id, OUTSIDER_ID, "member");
+    await shareWish(group.id, OUTSIDER_ID, 1);
+    await createTrade(repos, {
+      callerUserId: OUTSIDER_ID,
+      groupSlug: group.slug,
+      counterpartyUserId: GIVER_ID,
+      role: "receiver",
+      printingId: PRINTING_1.id,
+      quantity: 1,
+    });
+    expect(await repos.cardTrades.actionNeededPeopleForUser(GIVER_ID)).toBe(2);
+
+    // The receiver owes only their half of the reserved swap; nobody waits on the outsider.
+    expect(await repos.cardTrades.actionNeededPeopleForUser(RECEIVER_ID)).toBe(1);
+    expect(await repos.cardTrades.actionNeededPeopleForUser(OUTSIDER_ID)).toBe(0);
+  });
+
   // An offer is a commitment, so it holds its copies from the moment it is made
   // (a request stays a bid). The committed sum is global, so these tests cancel
   // the offers they leave behind: this suite shares one DB and one giver, and a

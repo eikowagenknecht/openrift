@@ -4,6 +4,7 @@ export type LockedFeatureKey =
   | "collections"
   | "scan"
   | "groups"
+  | "trades"
   | "loans"
   | "tournaments"
   | "tierLists"
@@ -11,6 +12,7 @@ export type LockedFeatureKey =
 
 export interface NavBadgeCounts {
   groups: number;
+  trades: number;
   loans: number;
 }
 

@@ -6,6 +6,7 @@ import {
   GavelIcon,
   GiftIcon,
   HandHeartIcon,
+  HandshakeIcon,
   LayersIcon,
   LibraryIcon,
   ListOrderedIcon,
@@ -55,6 +56,13 @@ const LOCKED_FEATURES: Record<
       "Form a private group with friends or your local store, with shared collections and trade matching that shows who has the cards you want.",
     to: "/groups",
     icon: UsersIcon,
+  },
+  trades: {
+    title: "Trades",
+    description:
+      "Swap cards with people in your groups: matches from your wishlists and tradelists, requests, and swaps to confirm.",
+    to: "/trades",
+    icon: HandshakeIcon,
   },
   loans: {
     title: "Lending",
@@ -145,6 +153,14 @@ export const MORE_NAV_SECTIONS: NavSectionConfig[] = [
         icon: TrophyIcon,
         lockedKey: "tournaments",
         description: "Run pods, deck check, and judges under one event",
+      },
+      {
+        label: "Trades",
+        to: "/trades",
+        icon: HandshakeIcon,
+        lockedKey: "trades",
+        badge: "trades",
+        description: "Requests, swaps to confirm, and who you're trading with",
       },
       {
         label: "Lending",
@@ -239,9 +255,13 @@ export function visibleMoreSections(opts: {
 }
 
 export function badgeAriaLabel(badge: keyof NavBadgeCounts, count: number): string {
-  return badge === "loans"
-    ? `${count} loans need your confirmation`
-    : `${count} items need your attention`;
+  if (badge === "loans") {
+    return `${count} loans need your confirmation`;
+  }
+  if (badge === "trades") {
+    return `${count} ${count === 1 ? "person is" : "people are"} waiting on you to trade`;
+  }
+  return `${count} join ${count === 1 ? "request" : "requests"} to review`;
 }
 
 export function SignInRequiredDialog({

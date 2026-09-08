@@ -15,39 +15,13 @@ import { useFriendGroupShareableLists } from "@/features/groups/hooks/use-friend
 import { distinctPrintingIds } from "@/features/groups/lib/friend-group-activity";
 import type { TradeHubCard } from "@/features/groups/lib/trade-hub";
 import {
-  expiringSoonCount,
   isQuietTradeHubCard,
-  needsYouCounts,
+  needsYouLine,
   suggestionsLine,
 } from "@/features/groups/lib/trade-hub";
 import { cn } from "@/lib/utils";
 
 import { ShareListsWithGroupDialog } from "./share-lists-with-group-dialog";
-
-function actionLine(card: TradeHubCard<FriendGroupMemberResponse>): string | null {
-  if (card.needsYou.length === 0) {
-    return null;
-  }
-  const { toAnswer, toHandOver, toReceive } = needsYouCounts(card.needsYou);
-  const acts: string[] = [];
-  if (toAnswer > 0) {
-    acts.push(`${toAnswer} to answer`);
-  }
-  if (toHandOver > 0) {
-    acts.push(`${toHandOver} to hand over`);
-  }
-  if (toReceive > 0) {
-    // Matches the overview band's "To confirm" label for the same stage.
-    acts.push(`${toReceive} to confirm`);
-  }
-
-  const parts = [acts.join(", ")];
-  const soon = expiringSoonCount(card.needsYou);
-  if (soon > 0) {
-    parts.push(`${soon} ${soon === 1 ? "expires" : "expire"} soon`);
-  }
-  return parts.join(" · ");
-}
 
 function factsLine(card: TradeHubCard<FriendGroupMemberResponse>): string | null {
   return card.open.length > 0 ? `${card.open.length} waiting on them` : null;
@@ -77,7 +51,7 @@ export function TradeHubMemberCard({
   const { member } = card;
   const { printingsById } = useCards();
   const quiet = isQuietTradeHubCard(card);
-  const action = actionLine(card);
+  const action = needsYouLine(card.needsYou);
   const suggestions = suggestionsLine(card);
   const facts = factsLine(card);
   const footer = footerLine(card);

@@ -8,6 +8,7 @@ import {
   expiringSoonCount,
   isQuietTradeHubCard,
   needsYouCounts,
+  needsYouLine,
   sortNeedsYou,
   suggestionsLine,
 } from "./trade-hub";
@@ -81,6 +82,36 @@ describe("needsYouCounts", () => {
 
   it("counts nothing for no trades", () => {
     expect(needsYouCounts([])).toEqual({ toAnswer: 0, toHandOver: 0, toReceive: 0 });
+  });
+});
+
+describe("needsYouLine", () => {
+  const NOW = new Date("2026-08-01T12:00:00.000Z");
+
+  it("returns null when nothing needs the viewer", () => {
+    expect(needsYouLine([], NOW)).toBeNull();
+  });
+
+  it("lists each stage in order, then the expiry warning", () => {
+    const rows = [
+      stubTrade({
+        id: "a",
+        actionNeeded: "accept-or-decline",
+        expiresAt: "2026-08-02T12:00:00.000Z",
+      }),
+      stubTrade({ id: "b", actionNeeded: "settle", role: "giver" }),
+      stubTrade({ id: "c", actionNeeded: "settle", role: "receiver" }),
+      stubTrade({ id: "d", actionNeeded: "settle", role: "receiver" }),
+    ];
+    expect(needsYouLine(rows, NOW)).toBe(
+      "1 to answer, 1 to hand over, 2 to confirm · 1 expires soon",
+    );
+  });
+
+  it("omits the expiry warning for open-ended requests", () => {
+    expect(needsYouLine([stubTrade({ actionNeeded: "accept-or-decline" })], NOW)).toBe(
+      "1 to answer",
+    );
   });
 });
 
