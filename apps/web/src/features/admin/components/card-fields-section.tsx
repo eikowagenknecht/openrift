@@ -14,11 +14,11 @@ import { Heading } from "@/components/heading";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { ExpandToggle } from "@/components/ui/expand-toggle";
-import { CandidateSpreadsheet } from "@/features/admin/components/candidate-spreadsheet";
 import type {
   CandidateCardFieldKey,
   FieldDef,
-} from "@/features/admin/components/candidate-spreadsheet";
+} from "@/features/admin/components/candidate-field-defs";
+import { CandidateSpreadsheet } from "@/features/admin/components/candidate-spreadsheet";
 import { CardBanManager } from "@/features/admin/components/card-ban-manager";
 import { CardErrataManager } from "@/features/admin/components/card-errata-manager";
 import { SubmissionResolutionDialog } from "@/features/admin/components/submission-resolution-dialog";

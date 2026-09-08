@@ -8,12 +8,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { EnumLabels } from "@/lib/enum-labels";
 
-import type { FieldDef } from "./candidate-spreadsheet";
-import {
-  CandidateSpreadsheet,
-  buildCandidateCardFields,
-  buildNewCardFields,
-} from "./candidate-spreadsheet";
+import type { FieldDef } from "./candidate-field-defs";
+import { buildCandidateCardFields, buildNewCardFields } from "./candidate-field-defs";
+import { CandidateSpreadsheet } from "./candidate-spreadsheet";
 
 const markerField: FieldDef = {
   key: "markerSlugs",

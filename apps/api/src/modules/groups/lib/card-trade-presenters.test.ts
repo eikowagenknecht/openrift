@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
-import type { LiveTradeAnnotationRow } from "../repositories/card-trades.js";
+import type { LiveTradeAnnotationRow } from "../repositories/card-trades-reads.js";
 import type { MatchRow } from "../repositories/friend-group-matches-view.js";
 import type { CardTradeDtoRow, TradeCopyRow } from "./card-trade-presenters.js";
 import {

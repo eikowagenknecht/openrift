@@ -6,17 +6,10 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/compone
 import { Pressable } from "@/components/ui/pressable";
 import { PrintingLanguageTabs } from "@/features/cards/components/printing-language-tabs";
 import { PrintingRowContent } from "@/features/cards/components/printing-row";
+import type { PickerRequest } from "@/features/scan/lib/scan-resolve";
 import { useScanPrefsStore } from "@/features/scan/stores/scan-prefs-store";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { cn } from "@/lib/utils";
-
-/** One unresolved lock waiting for the user to name its printing. */
-export interface PickerRequest {
-  artKey: string;
-  label: string;
-  candidates: Printing[];
-  currentId?: string;
-}
 
 interface ScanPrintingPickerProps {
   request: PickerRequest | null;

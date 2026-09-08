@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   CandidateCardFieldKey,
   FieldDef,
-} from "@/features/admin/components/candidate-spreadsheet";
+} from "@/features/admin/components/candidate-field-defs";
 
 const captured = vi.hoisted(() => ({
   spreadsheet: null as {

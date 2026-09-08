@@ -12,6 +12,14 @@ export interface ScanPrintingIndex {
   keysByArtKey: Map<string, string[]>;
 }
 
+/** One unresolved lock waiting for the user to name its printing. */
+export interface PickerRequest {
+  artKey: string;
+  label: string;
+  candidates: Printing[];
+  currentId?: string;
+}
+
 /** Build once per catalog/bank pair, not per lock. */
 export function buildScanPrintingIndex(
   allPrintings: readonly Printing[],

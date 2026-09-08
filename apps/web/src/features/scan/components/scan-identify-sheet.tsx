@@ -4,14 +4,8 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
 import { Pressable } from "@/components/ui/pressable";
 import { CardMiniRow } from "@/features/cards/components/card-mini-row";
+import type { IdentifyCandidate } from "@/features/scan/lib/scan-identify";
 import { useIsMobile } from "@/hooks/use-is-mobile";
-
-export interface IdentifyCandidate {
-  key: string;
-  artKey: string;
-  label: string;
-  landscape: boolean;
-}
 
 interface ScanIdentifySheetProps {
   open: boolean;

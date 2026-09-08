@@ -14,12 +14,12 @@ import type {
   CandidatePrintingFieldKey,
   FieldDef,
   NewCardFieldKey,
-} from "@/features/admin/components/candidate-spreadsheet";
+} from "@/features/admin/components/candidate-field-defs";
 import {
   buildCandidateCardFields,
   buildCandidatePrintingFields,
   buildNewCardFields,
-} from "@/features/admin/components/candidate-spreadsheet";
+} from "@/features/admin/components/candidate-field-defs";
 import {
   useCheckAllCandidatePrintings,
   useCheckCandidateCard,

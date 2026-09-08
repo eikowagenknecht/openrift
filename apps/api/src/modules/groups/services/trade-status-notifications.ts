@@ -10,7 +10,7 @@ import type { TradeStatusUpdateGroup } from "../../../emails/trade-emails.js";
 import { buildTradeStatusUpdateEmail } from "../../../emails/trade-emails.js";
 import { buildUnsubscribeUrls } from "../../../emails/unsubscribe-token.js";
 import type { EmailNotificationContext } from "../../users/repositories/user-preferences.js";
-import type { QueuedStatusEmailRow } from "../repositories/card-trades.js";
+import type { QueuedStatusEmailRow } from "../repositories/card-trades-emails.js";
 import { isRequestGroupDue } from "./trade-notifications.js";
 
 type SendEmail = ReturnType<typeof createEmailSender>;

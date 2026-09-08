@@ -8,7 +8,9 @@ import { ScanVignette } from "@/features/marketing/components/scan-vignette";
 import type { LandingThumbnailCard } from "@/features/marketing/lib/landing-thumbnails";
 import { cn } from "@/lib/utils";
 
-import { GroupsVignette, ListsVignette, PricesVignette } from "./landing-vignettes";
+import { GroupsVignette } from "./groups-vignette";
+import { ListsVignette } from "./lists-vignette";
+import { PricesVignette } from "./prices-vignette";
 
 export function FeatureShowcase({
   scanCards,

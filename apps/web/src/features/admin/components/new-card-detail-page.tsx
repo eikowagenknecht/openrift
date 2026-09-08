@@ -35,8 +35,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { FieldDef, NewCardFieldKey } from "@/features/admin/components/candidate-field-defs";
 import { CandidateSpreadsheet } from "@/features/admin/components/candidate-spreadsheet";
-import type { FieldDef, NewCardFieldKey } from "@/features/admin/components/candidate-spreadsheet";
 import {
   buildPreseededActiveCard,
   buildSourceLabels,

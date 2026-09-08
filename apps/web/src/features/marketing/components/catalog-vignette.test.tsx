@@ -6,7 +6,7 @@ vi.mock("@tanstack/react-router", () => ({
   Link: ({ to, children }: { to: string; children?: ReactNode }) => <a href={to}>{children}</a>,
 }));
 
-const { CatalogVignette } = await import("./feature-vignettes");
+const { CatalogVignette } = await import("./catalog-vignette");
 
 const SAMPLE = [
   { url: "/a.webp", rarity: "common", domains: ["fury"] },

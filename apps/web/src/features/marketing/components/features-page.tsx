@@ -20,10 +20,14 @@ import { SOCIAL_LINKS } from "@/lib/social-links";
 import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 
 import { BoxVignette } from "./box-vignette";
+import { CatalogVignette } from "./catalog-vignette";
 import { ChapterDivider } from "./chapter-divider";
 import { ChatVignette } from "./chat-vignette";
 import { cornerClip } from "./clip-frame";
+import { CollectionsVignette } from "./collections-vignette";
+import { DecksVignette } from "./decks-vignette";
 import { DesignerVignette } from "./designer-vignette";
+import { DiscordVignette } from "./discord-vignette";
 import { FeatureCard } from "./feature-card";
 import {
   ActionArrow,
@@ -32,21 +36,14 @@ import {
   FeatureSection,
   SectionRule,
 } from "./feature-section";
-import {
-  CatalogVignette,
-  CollectionsVignette,
-  DecksVignette,
-  DiscordVignette,
-  GroupsVignette,
-  ImportVignette,
-  ListsVignette,
-  PricesVignette,
-  TournamentsVignette,
-} from "./feature-vignettes";
 import { FEATURE_CHAPTERS } from "./features-chapters";
 import { FeaturesHero } from "./features-hero";
 import { FeaturesChipNav, FeaturesRail } from "./features-nav";
+import { GroupsVignette } from "./groups-vignette";
+import { ImportVignette } from "./import-vignette";
+import { ListsVignette } from "./lists-vignette";
 import { LoansVignette } from "./loans-vignette";
+import { PricesVignette } from "./prices-vignette";
 import { PromosVignette } from "./promos-vignette";
 import { Reveal } from "./reveal";
 import { RulesVignette } from "./rules-vignette";
@@ -55,6 +52,7 @@ import { ShareVignette } from "./share-vignette";
 import { StageVignette } from "./stage-vignette";
 import { TestVignette } from "./test-vignette";
 import { TierListVignette } from "./tier-list-vignette";
+import { TournamentsVignette } from "./tournaments-vignette";
 import { TrackerVignette } from "./tracker-vignette";
 import {
   TradeArrivedVignette,

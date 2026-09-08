@@ -18,7 +18,7 @@ import type { CopyLink } from "@openrift/shared/types/api/collection";
 import type { ContactMethod } from "@openrift/shared/types/api/contact-method";
 
 import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
-import type { LiveTradeAnnotationRow } from "../repositories/card-trades.js";
+import type { LiveTradeAnnotationRow } from "../repositories/card-trades-reads.js";
 import type { MatchRow } from "../repositories/friend-group-matches-view.js";
 
 /**

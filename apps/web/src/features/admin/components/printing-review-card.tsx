@@ -25,11 +25,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CandidateSpreadsheet } from "@/features/admin/components/candidate-spreadsheet";
 import type {
   CandidatePrintingFieldKey,
   FieldDef,
-} from "@/features/admin/components/candidate-spreadsheet";
+} from "@/features/admin/components/candidate-field-defs";
+import { CandidateSpreadsheet } from "@/features/admin/components/candidate-spreadsheet";
 import {
   buildPrintingNormalizer,
   deduplicateSourceImages,

@@ -17,7 +17,7 @@ import {
 import { buildUnsubscribeUrls } from "../../../emails/unsubscribe-token.js";
 import type { EmailNotificationContext } from "../../users/repositories/user-preferences.js";
 import { toCardTradeResponse } from "../lib/card-trade-presenters.js";
-import type { LiveCardTrade } from "../repositories/card-trades.js";
+import type { LiveCardTrade } from "../repositories/card-trades-shared.js";
 
 type SendEmail = ReturnType<typeof createEmailSender>;
 

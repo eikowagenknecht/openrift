@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import type {
   CandidatePrintingFieldKey,
   FieldDef,
-} from "@/features/admin/components/candidate-spreadsheet";
+} from "@/features/admin/components/candidate-field-defs";
 import { CandidateSpreadsheet } from "@/features/admin/components/candidate-spreadsheet";
 import {
   buildPreseededActivePrinting,

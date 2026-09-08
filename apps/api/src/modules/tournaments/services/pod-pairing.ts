@@ -18,7 +18,7 @@ import { AppError } from "../../../errors.js";
 import { assertFound } from "../../../lib/assertions.js";
 import { isUniqueViolationOn } from "../../../lib/pg-errors.js";
 import { scoringOf } from "../lib/pod-scoring.js";
-import type { PodRound } from "../repositories/pod-tournaments.js";
+import type { PodRound } from "../repositories/pod-tournaments-shared.js";
 import type { Tournament } from "../repositories/tournaments.js";
 
 function roundAlreadyOpen(): AppError {

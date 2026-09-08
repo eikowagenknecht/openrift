@@ -15,9 +15,7 @@ interface LanguageItem {
   label: string;
 }
 
-interface ScanSettingsMenuProps {
-  trigger: ReactElement;
-  triggerContent?: ReactNode;
+export interface ScanSettingsProps {
   languageItems: LanguageItem[];
   language: string;
   onLanguageChange: (value: string) => void;
@@ -28,6 +26,11 @@ interface ScanSettingsMenuProps {
   tapToScan: boolean;
   onTapToScanChange: (value: boolean) => void;
   deviceTooSlow: boolean;
+}
+
+interface ScanSettingsMenuProps extends ScanSettingsProps {
+  trigger: ReactElement;
+  triggerContent?: ReactNode;
 }
 
 export function ScanSettingsMenu({

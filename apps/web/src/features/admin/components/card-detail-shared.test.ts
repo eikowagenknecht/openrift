@@ -7,7 +7,7 @@ import type {
 } from "@openrift/shared/types/api/admin";
 import { describe, expect, it } from "vitest";
 
-import type { FieldDef } from "@/features/admin/components/candidate-spreadsheet";
+import type { FieldDef } from "@/features/admin/components/candidate-field-defs";
 
 import {
   buildPreseededActiveCard,
