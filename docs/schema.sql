@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 5l1STjORQ5jPZFkuzvvmO5yzj9lR0bWzAIcm2EJ1BuEQygSzHw75pusjw7W32lm
+\restrict AneYzVuw8J0Pw4BCg6G1TErkN4MuYuxqcel45fzEyJuODBbrXHwou0UmnupokGl
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -1761,6 +1761,8 @@ CREATE TABLE public.image_files (
     updated_at timestamp with time zone DEFAULT now() CONSTRAINT card_images_updated_at_not_null NOT NULL,
     rotation smallint DEFAULT 0 NOT NULL,
     needs_trim boolean DEFAULT false NOT NULL,
+    credit text,
+    CONSTRAINT chk_image_files_credit CHECK ((credit <> ''::text)),
     CONSTRAINT chk_image_files_has_url CHECK (((original_url IS NOT NULL) OR (rehosted_url IS NOT NULL))),
     CONSTRAINT chk_image_files_original_url CHECK ((original_url <> ''::text)),
     CONSTRAINT chk_image_files_rehosted_url CHECK ((rehosted_url <> ''::text)),
@@ -2598,6 +2600,9 @@ CREATE TABLE public.printings (
     fallback_art_mode text DEFAULT 'auto'::text NOT NULL,
     fallback_image_file_id uuid,
     is_overnumbered boolean DEFAULT false NOT NULL,
+    released_at date,
+    release_precision public.release_precision,
+    announced_at date,
     CONSTRAINT chk_printings_artist_not_empty CHECK ((artist <> ''::text)),
     CONSTRAINT chk_printings_fallback_art_mode CHECK ((fallback_art_mode = ANY (ARRAY['auto'::text, 'pinned'::text, 'none'::text]))),
     CONSTRAINT chk_printings_fallback_pinned_has_image CHECK (((fallback_art_mode = 'pinned'::text) = (fallback_image_file_id IS NOT NULL))),
@@ -2607,6 +2612,8 @@ CREATE TABLE public.printings (
     CONSTRAINT chk_printings_no_empty_printed_name CHECK ((printed_name <> ''::text)),
     CONSTRAINT chk_printings_no_empty_printed_rules_text CHECK ((printed_rules_text <> ''::text)),
     CONSTRAINT chk_printings_public_code_not_empty CHECK ((public_code <> ''::text)),
+    CONSTRAINT chk_printings_release_period_start CHECK (((released_at IS NULL) OR (release_precision = 'day'::public.release_precision) OR ((release_precision = 'month'::public.release_precision) AND (EXTRACT(day FROM released_at) = (1)::numeric)) OR ((release_precision = 'quarter'::public.release_precision) AND (EXTRACT(day FROM released_at) = (1)::numeric) AND (EXTRACT(month FROM released_at) = ANY (ARRAY[(1)::numeric, (4)::numeric, (7)::numeric, (10)::numeric]))) OR ((release_precision = 'year'::public.release_precision) AND (EXTRACT(doy FROM released_at) = (1)::numeric)))),
+    CONSTRAINT chk_printings_release_precision CHECK (((released_at IS NULL) = (release_precision IS NULL))),
     CONSTRAINT chk_printings_short_code_not_empty CHECK ((short_code <> ''::text))
 );
 
@@ -3002,6 +3009,9 @@ CREATE VIEW public.printings_ordered AS
     p.fallback_art_mode,
     p.fallback_image_file_id,
     p.is_overnumbered,
+    p.released_at,
+    p.release_precision,
+    p.announced_at,
     COALESCE(r.canonical_rank, 2147483647) AS canonical_rank,
     (t.printing_id IS NOT NULL) AS has_foil_twin
    FROM ((public.printings p
@@ -9159,5 +9169,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 5l1STjORQ5jPZFkuzvvmO5yzj9lR0bWzAIcm2EJ1BuEQygSzHw75pusjw7W32lm
+\unrestrict AneYzVuw8J0Pw4BCg6G1TErkN4MuYuxqcel45fzEyJuODBbrXHwou0UmnupokGl
 
