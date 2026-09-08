@@ -448,9 +448,9 @@
       }
     },
     {
-      "files": ["apps/discord-bot/src/test/**", "scripts/**"],
+      "files": ["apps/discord-bot/src/test/**", "scripts/**", "apps/extension/scripts/**"],
       "rules": {
-        // Neither the bot package nor scripts/ has a "@/" path alias; they import
+        // The bot tests and the two scripts/ trees have no "@/" path alias; they import
         // production modules from the parent directory.
         "no-restricted-imports": "off"
       }
