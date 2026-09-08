@@ -1,4 +1,4 @@
-export type AdminEditingMode<TDraft> =
+type AdminEditingMode<TDraft> =
   | { kind: "idle" }
   | { kind: "adding"; underKey: string | null; draft: TDraft }
   | { kind: "editing"; key: string; draft: TDraft };
