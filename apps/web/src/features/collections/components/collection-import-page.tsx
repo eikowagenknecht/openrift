@@ -4,7 +4,6 @@ import { createPortal } from "react-dom";
 import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { TopBarSlotContext } from "@/components/layout/top-bar-slot";
 import { useSidebar } from "@/components/ui/sidebar";
-import { CollectionExportSection } from "@/features/collections/components/collection-export-section";
 import { CollectionImportInputStep } from "@/features/collections/components/collection-import-input-step";
 import { CollectionImportPreviewStep } from "@/features/collections/components/collection-import-preview-step";
 import { useCollections } from "@/features/collections/hooks/use-collections";
@@ -20,7 +19,7 @@ export function CollectionImportPage() {
     topBarSlot &&
     createPortal(
       <PageTopBar>
-        <PageTopBarTitle onToggleSidebar={toggleSidebar}>Import / Export</PageTopBarTitle>
+        <PageTopBarTitle onToggleSidebar={toggleSidebar}>Import</PageTopBarTitle>
       </PageTopBar>,
       topBarSlot,
     );
@@ -37,7 +36,6 @@ export function CollectionImportPage() {
           fileRef={flow.fileRef}
           parseErrors={flow.parseErrors}
         />
-        <CollectionExportSection />
       </div>
     );
   }

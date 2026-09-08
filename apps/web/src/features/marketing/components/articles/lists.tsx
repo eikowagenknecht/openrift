@@ -235,11 +235,12 @@ export default function ListsArticle() {
         <Heading className="mb-2">Filing a copy list into another collection</Heading>
         <p className="text-muted-foreground">
           Copy-kind lists sit on top of real copies, so you can move those copies into a different
-          collection without leaving the list. Use{" "}
-          <strong className="text-foreground">Move all to collection</strong> in the list&apos;s ⋮
-          menu to file the whole list at once, or right-click a single card and pick{" "}
-          <strong className="text-foreground">Move to collection</strong>. In select mode, the
-          right-click action covers everything you have selected.
+          collection without leaving the list. Right-click a single card and pick{" "}
+          <strong className="text-foreground">Move to collection…</strong> to move just that one. To
+          file the whole list at once, tap{" "}
+          <strong className="text-foreground">Manage copies</strong> in the top bar, then{" "}
+          <strong className="text-foreground">Select all</strong>, and pick the same action from any
+          selected card. In select mode it covers everything you have selected.
         </p>
         <p className="text-muted-foreground mt-2">
           This is the &quot;sorted out, now put it in the bulk box&quot; path: build an organize

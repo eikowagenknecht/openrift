@@ -2,12 +2,10 @@ import type { CollectionResponse } from "@openrift/shared/types/api/collection";
 import type { Marketplace } from "@openrift/shared/types/pricing";
 
 import { CollectionTopBar } from "@/features/collections/components/collection-top-bar";
-import { useSetCollectionDeckbuilding } from "@/features/collections/hooks/use-collections";
 import { aggregatePersonalCollectionValue } from "@/features/collections/lib/collection-value";
 import { isTempCopyId } from "@/features/collections/lib/temp-copy-id";
 import { useCollectionOverlayStore } from "@/features/collections/stores/collection-overlay-store";
 import { formatterForMarketplace } from "@/lib/format";
-import { getSiteUrl } from "@/lib/site-config";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 
 interface CollectionGridTopBarProps {
@@ -45,8 +43,6 @@ export function CollectionGridTopBar({
   onEnterSelect,
   onExitSelect,
 }: CollectionGridTopBarProps) {
-  const setDeckbuilding = useSetCollectionDeckbuilding();
-
   const formatValue = formatterForMarketplace(favoriteMarketplace);
   // Excludes shared group collections: their copies are communal, not the
   // viewer's own.
@@ -64,12 +60,6 @@ export function CollectionGridTopBar({
   const canDeleteCollection = Boolean(
     currentCollection && !currentCollection.isInbox && canAdminCollection,
   );
-  const canClearInbox = Boolean(currentCollection?.isInbox && canAdminCollection);
-
-  const collectionShareUrl =
-    currentCollection?.isPublic && currentCollection.shareToken
-      ? `${getSiteUrl()}/collections/share/${currentCollection.shareToken}`
-      : undefined;
 
   return (
     <CollectionTopBar
@@ -81,7 +71,6 @@ export function CollectionGridTopBar({
       unpricedCount={unpricedCount}
       formatValue={formatValue}
       addTarget={addTarget}
-      addActionsInBar={!currentCollection || currentCollection.isInbox}
       showAddActions={!isEmpty}
       onQuickAdd={() => useCommandPaletteStore.getState().openQuickAdd("add")}
       onSelectAll={onSelectAll}
@@ -92,24 +81,13 @@ export function CollectionGridTopBar({
       view={view}
       canEdit={Boolean(currentCollection) && canAdminCollection}
       canDelete={canDeleteCollection}
-      canClearInbox={canClearInbox}
       canShare={Boolean(currentCollection) && canAdminCollection}
-      canToggleDeckbuilding={Boolean(currentCollection)}
-      deckbuildingAvailable={currentCollection?.availableForDeckbuilding ?? false}
-      shareUrl={collectionShareUrl}
-      collectionName={currentCollection?.name}
+      canImport={Boolean(addTarget)}
       onEdit={() => useCollectionOverlayStore.getState().setEditOpen(true)}
       onDelete={() => useCollectionOverlayStore.getState().setDeleteOpen(true)}
-      onClearInbox={() => useCollectionOverlayStore.getState().setClearInboxOpen(true)}
       onShare={() => useCollectionOverlayStore.getState().setShareOpen(true)}
-      onToggleDeckbuilding={() => {
-        if (currentCollection) {
-          setDeckbuilding.mutate({
-            id: currentCollection.id,
-            available: !currentCollection.availableForDeckbuilding,
-          });
-        }
-      }}
+      onImport={() => useCollectionOverlayStore.getState().setImportOpen(true)}
+      onExport={() => useCollectionOverlayStore.getState().setExportOpen(true)}
     />
   );
 }

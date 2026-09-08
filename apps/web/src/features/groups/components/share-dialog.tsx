@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BinderSheetPanel } from "@/features/groups/components/binder-sheet-panel";
 import type { ShareImagePanelProps } from "@/features/groups/components/share-image-panel";
 import { ShareImagePanel } from "@/features/groups/components/share-image-panel";
 import { ShareLinkRow } from "@/features/groups/components/share-link-row";
@@ -27,6 +28,13 @@ interface ShareDialogLink {
   resetting?: boolean;
 }
 
+interface ShareDialogPrint {
+  shareUrl: string | null;
+  defaultTitle: string;
+  defaultSubtitle: string;
+  filenameHint?: string;
+}
+
 interface ShareDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -35,13 +43,15 @@ interface ShareDialogProps {
   link?: ShareDialogLink;
   noLinkNote?: ReactNode;
   image?: ShareImagePanelProps;
+  print?: ShareDialogPrint;
   children?: ReactNode;
 }
 
 /**
  * The app's one share dialog: a Link tab holding the share URL, its QR, any
- * surface-specific extras, and the create/stop lifecycle, plus an Image tab
- * hosting the {@link ShareImagePanel} when the surface has a server render.
+ * surface-specific extras, and the create/stop lifecycle, an Image tab
+ * hosting the {@link ShareImagePanel} when the surface has a server render,
+ * and a Print tab hosting the {@link BinderSheetPanel} once a link exists.
  */
 export function ShareDialog({
   open,
@@ -51,11 +61,12 @@ export function ShareDialog({
   link,
   noLinkNote,
   image,
+  print,
   children,
 }: ShareDialogProps) {
   const [tab, setTab] = useState("link");
   const hasLinkSection = link !== undefined;
-  const showTabs = hasLinkSection && image !== undefined;
+  const showTabs = hasLinkSection && (image !== undefined || print !== undefined);
   const sharing = link !== undefined && link.url !== null;
   const handleCreate = link?.onCreate;
   const handleStop = link?.onStop;
@@ -90,6 +101,21 @@ export function ShareDialog({
     </div>
   ) : null;
 
+  const printBody = print ? (
+    print.shareUrl === null ? (
+      <p className="text-muted-foreground text-sm">
+        Create a share link first. The binder sheet carries a QR code that opens it.
+      </p>
+    ) : (
+      <BinderSheetPanel
+        shareUrl={print.shareUrl}
+        defaultTitle={print.defaultTitle}
+        defaultSubtitle={print.defaultSubtitle}
+        filenameHint={print.filenameHint}
+      />
+    )
+  ) : null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -99,12 +125,18 @@ export function ShareDialog({
               <DialogTitle>{title}</DialogTitle>
               <TabsList>
                 <TabsTrigger value="link">Link</TabsTrigger>
-                <TabsTrigger value="image">Image</TabsTrigger>
+                {image ? <TabsTrigger value="image">Image</TabsTrigger> : null}
+                {print ? <TabsTrigger value="print">Print</TabsTrigger> : null}
               </TabsList>
               <DialogDescription>{description}</DialogDescription>
             </DialogHeader>
             <TabsContent value="link">{linkBody}</TabsContent>
-            <TabsContent value="image">{image ? <ShareImagePanel {...image} /> : null}</TabsContent>
+            {image ? (
+              <TabsContent value="image">
+                <ShareImagePanel {...image} />
+              </TabsContent>
+            ) : null}
+            {print ? <TabsContent value="print">{printBody}</TabsContent> : null}
             {tab === "link" ? lifecycle : null}
           </Tabs>
         ) : (

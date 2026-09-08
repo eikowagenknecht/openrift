@@ -1,21 +1,27 @@
 import type { ListIntent } from "@openrift/shared/types/api/list";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type * as ReactRouter from "@tanstack/react-router";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const shareMutate = vi.fn();
 const unshareMutate = vi.fn();
 
 // The dialog links to /profile#sharing; no router is mounted here, so render a
-// plain anchor carrying the resolved target.
-vi.mock("@tanstack/react-router", () => ({
-  Link: ({ to, hash, children }: { to: string; hash?: string; children?: ReactNode }) => (
-    <a href={hash ? `${to}#${hash}` : to}>{children}</a>
-  ),
-}));
+// plain anchor carrying the resolved target. CatchBoundary keeps its real
+// implementation so the group-share section's error handling still works.
+vi.mock("@tanstack/react-router", async (importOriginal) => {
+  const actual = await importOriginal<typeof ReactRouter>();
+  return {
+    ...actual,
+    Link: ({ to, hash, children }: { to: string; hash?: string; children?: ReactNode }) => (
+      <a href={hash ? `${to}#${hash}` : to}>{children}</a>
+    ),
+  };
+});
 
 vi.mock("@/features/lists/hooks/use-lists", () => ({
   useShareList: () => ({ mutate: shareMutate, isPending: false }),
@@ -30,17 +36,39 @@ vi.mock("@/lib/site-config", () => ({
   getSiteUrl: () => "https://openrift.test",
 }));
 
+const { groupsMock, groupSharesMock } = vi.hoisted(() => ({
+  groupsMock: vi.fn(
+    (): {
+      data: { items: { id: string; slug: string; name: string }[] };
+    } => ({ data: { items: [] } }),
+  ),
+  groupSharesMock: vi.fn((): { data: { items: { groupId: string }[] } } => ({
+    data: { items: [] },
+  })),
+}));
+
+vi.mock("@/features/groups/hooks/use-friend-groups", () => ({
+  useFriendGroups: groupsMock,
+}));
+
+vi.mock("@/features/groups/hooks/use-friend-group-sharing", () => ({
+  useShareListWithFriendGroup: () => ({ mutate: vi.fn(), isPending: false }),
+  useUnshareListFromFriendGroup: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
+vi.mock("@/features/lists/hooks/use-list-group-shares", () => ({
+  useListGroupShares: groupSharesMock,
+}));
+
 const { ListShareDialog } = await import("./list-share-dialog");
 
 const queryClient = new QueryClient();
 
 function Harness({
   shareToken,
-  onManageGroups = vi.fn(),
   intent = "wish",
 }: {
   shareToken: string | null;
-  onManageGroups?: () => void;
   intent?: ListIntent;
 }) {
   const [open, setOpen] = useState(true);
@@ -58,13 +86,19 @@ function Harness({
         entries={[]}
         open={open}
         onOpenChange={setOpen}
-        onManageGroups={onManageGroups}
       />
     </QueryClientProvider>
   );
 }
 
 describe("ListShareDialog", () => {
+  afterEach(() => {
+    groupsMock.mockReset();
+    groupsMock.mockReturnValue({ data: { items: [] } });
+    groupSharesMock.mockReset();
+    groupSharesMock.mockReturnValue({ data: { items: [] } });
+  });
+
   it("renders 'Create link' when the list is not yet shared", () => {
     render(<Harness shareToken={null} />);
     expect(screen.getByRole("button", { name: /create link/iu })).toBeInTheDocument();
@@ -142,5 +176,35 @@ describe("ListShareDialog", () => {
   it("omits the bundle cross-link for organize lists, which the bundle excludes", () => {
     render(<Harness shareToken={null} intent="organize" />);
     expect(screen.queryByRole("link", { name: /public sharing/iu })).not.toBeInTheDocument();
+  });
+
+  it("shows the friend-group visibility controls when the user has groups", () => {
+    groupsMock.mockReturnValue({
+      data: { items: [{ id: "g1", slug: "allerlei", name: "Allerlei Spielerei" }] },
+    });
+    render(<Harness shareToken={null} />);
+    expect(screen.getByText("Group visibility")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /only me/iu })).toBeInTheDocument();
+  });
+
+  it("shows the empty-state hint when the user has no friend groups", () => {
+    render(<Harness shareToken={null} />);
+    expect(screen.getByText(/not in any friend groups/iu)).toBeInTheDocument();
+  });
+
+  it("shows the binder sheet panel on the Print tab once shared", async () => {
+    const user = userEvent.setup();
+    render(<Harness shareToken="AbCdEfGhIjKl" />);
+    await user.click(screen.getByRole("tab", { name: "Print" }));
+    expect(screen.getByLabelText("Title")).toHaveValue("Holiday Targets");
+    expect(screen.getByRole("button", { name: /create pdf/iu })).toBeInTheDocument();
+  });
+
+  it("asks for a share link first on the Print tab before one exists", async () => {
+    const user = userEvent.setup();
+    render(<Harness shareToken={null} />);
+    await user.click(screen.getByRole("tab", { name: "Print" }));
+    expect(screen.getByText(/create a share link first/iu)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Title")).not.toBeInTheDocument();
   });
 });

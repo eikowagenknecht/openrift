@@ -19,9 +19,10 @@ export default function ImportExportArticle() {
   return (
     <div className="space-y-8">
       <p className="text-muted-foreground">
-        OpenRift can import cards from other collection tools and export your collection as a CSV
-        file. You&apos;ll find both under{" "}
-        <strong className="text-foreground">Import / Export</strong> in the{" "}
+        OpenRift can import cards from other collection tools and export a collection as a CSV file
+        or a Cardmarket want list. <strong className="text-foreground">Import…</strong> and{" "}
+        <strong className="text-foreground">Export…</strong> live in a collection&apos;s three-dot
+        menu, or start an import from <strong className="text-foreground">Import</strong> in the{" "}
         <a href="/collections" className="text-primary hover:underline">
           collection
         </a>{" "}
@@ -41,8 +42,8 @@ export default function ImportExportArticle() {
         <h3 className="mb-2 font-semibold">Step 1: Provide your data</h3>
         <p className="text-muted-foreground">
           Paste a CSV into the text area, or click the upload button to pick a <Code>.csv</Code>{" "}
-          file. Then click <strong className="text-foreground">Parse</strong>. OpenRift auto-detects
-          the source format for the supported tools listed below.
+          file, then move to the next step. OpenRift auto-detects the source format for the
+          supported tools listed below.
         </p>
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -206,15 +207,19 @@ export default function ImportExportArticle() {
       <section>
         <Heading className="mb-2">Exporting cards</Heading>
         <p className="text-muted-foreground">
-          Export downloads your collection as a CSV file. Pick a collection and a format from the
-          dropdowns, then click <strong className="text-foreground">Export</strong>. Choose{" "}
+          Open a collection&apos;s three-dot menu and pick{" "}
+          <strong className="text-foreground">Export…</strong> to download it (or{" "}
+          <strong className="text-foreground">All Cards</strong>) as a CSV file. Pick a format and
+          click <strong className="text-foreground">Export</strong>. Choose{" "}
           <strong className="text-foreground">OpenRift CSV</strong> for the columns shown below, or
           one of <strong className="text-foreground">Piltover Archive</strong>,{" "}
           <strong className="text-foreground">RiftMana</strong>, or{" "}
           <strong className="text-foreground">RiftCore</strong> to produce a file in that
           tool&apos;s own layout. Every format re-imports cleanly into OpenRift, though the other
           tools&apos; formats can&apos;t carry everything (RiftMana keeps conditions but not which
-          promo a card is, RiftCore has no languages or conditions at all).
+          promo a card is, RiftCore has no languages or conditions at all). The dialog also lists
+          your cards as a Cardmarket want list, ready to paste into Cardmarket&apos;s shopping
+          wizard.
         </p>
 
         <div className="mt-3 overflow-x-auto rounded-lg border text-sm">

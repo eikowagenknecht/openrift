@@ -23,9 +23,10 @@ describe("useCollectionOverlayStore", () => {
   it("starts with every overlay closed", () => {
     const state = useCollectionOverlayStore.getState();
     expect(state.deleteOpen).toBe(false);
-    expect(state.clearInboxOpen).toBe(false);
     expect(state.editOpen).toBe(false);
     expect(state.shareOpen).toBe(false);
+    expect(state.importOpen).toBe(false);
+    expect(state.exportOpen).toBe(false);
     expect(state.copyDetailsTarget).toBeNull();
     expect(state.takeConfirm).toBeNull();
     expect(state.takeFollowUp).toBeNull();
@@ -58,9 +59,10 @@ describe("useCollectionOverlayStore", () => {
   it("reset closes everything, so a collection switch can't leave a stale dialog", () => {
     const printing = stubPrinting();
     useCollectionOverlayStore.getState().setDeleteOpen(true);
-    useCollectionOverlayStore.getState().setClearInboxOpen(true);
     useCollectionOverlayStore.getState().setEditOpen(true);
     useCollectionOverlayStore.getState().setShareOpen(true);
+    useCollectionOverlayStore.getState().setImportOpen(true);
+    useCollectionOverlayStore.getState().setExportOpen(true);
     useCollectionOverlayStore
       .getState()
       .setTakeConfirm({ printing, availableCopyIds: ["copy-1"], initialQuantity: 1 });
@@ -72,9 +74,10 @@ describe("useCollectionOverlayStore", () => {
 
     const state = useCollectionOverlayStore.getState();
     expect(state.deleteOpen).toBe(false);
-    expect(state.clearInboxOpen).toBe(false);
     expect(state.editOpen).toBe(false);
     expect(state.shareOpen).toBe(false);
+    expect(state.importOpen).toBe(false);
+    expect(state.exportOpen).toBe(false);
     expect(state.copyDetailsTarget).toBeNull();
     expect(state.takeConfirm).toBeNull();
     expect(state.takeFollowUp).toBeNull();
@@ -85,9 +88,10 @@ describe("useCloseCollectionOverlaysOnUnmount", () => {
   function openEverything() {
     const printing = stubPrinting();
     useCollectionOverlayStore.getState().setDeleteOpen(true);
-    useCollectionOverlayStore.getState().setClearInboxOpen(true);
     useCollectionOverlayStore.getState().setEditOpen(true);
     useCollectionOverlayStore.getState().setShareOpen(true);
+    useCollectionOverlayStore.getState().setImportOpen(true);
+    useCollectionOverlayStore.getState().setExportOpen(true);
     useCollectionOverlayStore.getState().setCopyDetailsTarget({
       copyIds: ["copy-1"],
       cardName: "Yasuo",
@@ -111,9 +115,10 @@ describe("useCloseCollectionOverlaysOnUnmount", () => {
 
     const state = useCollectionOverlayStore.getState();
     expect(state.deleteOpen).toBe(false);
-    expect(state.clearInboxOpen).toBe(false);
     expect(state.editOpen).toBe(false);
     expect(state.shareOpen).toBe(false);
+    expect(state.importOpen).toBe(false);
+    expect(state.exportOpen).toBe(false);
     expect(state.copyDetailsTarget).toBeNull();
     expect(state.takeConfirm).toBeNull();
     expect(state.takeFollowUp).toBeNull();

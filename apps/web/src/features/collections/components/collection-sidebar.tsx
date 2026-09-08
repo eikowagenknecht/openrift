@@ -708,7 +708,7 @@ export function CollectionSidebar() {
                 render={<Link to="/collections/import" />}
               >
                 <ArrowLeftRightIcon />
-                <span>Import / Export</span>
+                <span>Import</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>

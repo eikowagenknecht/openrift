@@ -1,7 +1,6 @@
 import { collectionsContract } from "@openrift/shared/contracts/collections";
 import { publicCollectionsContract } from "@openrift/shared/contracts/public-collections";
 import type {
-  ClearCollectionResponse,
   CollectionResponse,
   CollectionShareResponse,
   PublicCollectionDetailResponse,
@@ -225,13 +224,6 @@ const deleteCollectionFn = createServerFn({ method: "POST" })
     await apiOrpcClient(collectionsContract, context.cookie).remove({ id: data.id });
   });
 
-const clearCollectionFn = createServerFn({ method: "POST" })
-  .validator((input: { id: string }) => input)
-  .middleware([withCookies])
-  .handler(({ context, data }): Promise<ClearCollectionResponse> =>
-    apiOrpcClient(collectionsContract, context.cookie).clear({ id: data.id }),
-  );
-
 const shareCollectionFn = createServerFn({ method: "POST" })
   .validator((input: string) => input)
   .middleware([withCookies])
@@ -350,37 +342,6 @@ export function useDeleteCollection() {
           copiesCollection.utils.writeUpdate(
             affected.map((copy) => ({ id: copy.id, collectionId: inboxId, groupId: null })),
           );
-        }
-      }
-      void queryClient.invalidateQueries({ queryKey: collectionsKeys.all(userId) });
-      void queryClient.invalidateQueries({
-        queryKey: copiesKeys.all(userId),
-        refetchType: "none",
-      });
-    },
-  });
-}
-
-/** Copies pinned by a live trade or loan stay put; the server reports them as `keptCopyIds`. */
-export function useClearCollection() {
-  const userId = useRequiredUserId();
-  const queryClient = useQueryClient();
-  const copiesCollection = useCopiesCollection();
-
-  return useMutation({
-    mutationFn: async (id: string): Promise<ClearCollectionResponse & { id: string }> => {
-      const result = await clearCollectionFn({ data: { id } });
-      return { id, ...result };
-    },
-    onSuccess: ({ id, keptCopyIds }) => {
-      // Mirror the server-side clear in the synced copies collection, same as useDeleteCollection.
-      if (copiesCollection) {
-        const kept = new Set(keptCopyIds);
-        const removedIds = copiesCollection.toArray
-          .filter((copy) => copy.collectionId === id && !kept.has(copy.id))
-          .map((copy) => copy.id);
-        if (removedIds.length > 0) {
-          copiesCollection.utils.writeDelete(removedIds);
         }
       }
       void queryClient.invalidateQueries({ queryKey: collectionsKeys.all(userId) });

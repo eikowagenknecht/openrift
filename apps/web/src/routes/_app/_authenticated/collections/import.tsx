@@ -6,7 +6,7 @@ import { getSiteUrl } from "@/lib/site-config";
 
 export const Route = createFileRoute("/_app/_authenticated/collections/import")({
   ssr: "data-only",
-  head: () => seoHead({ siteUrl: getSiteUrl(), title: "Import / Export", noIndex: true }),
+  head: () => seoHead({ siteUrl: getSiteUrl(), title: "Import", noIndex: true }),
   loader: async ({ context }) => {
     await context.queryClient.query({
       ...collectionsQueryOptions(context.userId),

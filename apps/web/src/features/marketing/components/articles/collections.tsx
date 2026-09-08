@@ -105,9 +105,9 @@ export default function CollectionsArticle() {
           <AlertDescription>
             <p>
               Each collection has an &quot;available for deck building&quot; toggle. Open a
-              collection, hit the three-dot menu, and pick <em>Edit collection</em> to change it.
-              When turned off, copies in that collection don&apos;t count toward owned cards in the
-              deck builder or the shopping list.
+              collection, hit the three-dot menu, and pick <em>Edit</em> to change it. When turned
+              off, copies in that collection don&apos;t count toward owned cards in the deck builder
+              or the shopping list.
             </p>
             <p>
               This is useful for cards you don&apos;t want to cannibalise: a high-value card you
@@ -221,9 +221,9 @@ export default function CollectionsArticle() {
           <strong className="text-foreground">All Cards</strong> shows everything you own across all
           collections in one view, including your total collection value from your preferred
           marketplace. Below your collections are links to{" "}
-          <strong className="text-foreground">Import / Export</strong> and{" "}
-          <strong className="text-foreground">Activity</strong> (a log of all additions, moves, and
-          removals).
+          <strong className="text-foreground">Import</strong> (bring cards in from a CSV or plain
+          list) and <strong className="text-foreground">Activity</strong> (a log of all additions,
+          moves, and removals). Export sits in each collection&apos;s three-dot menu.
         </p>
         <p className="text-muted-foreground mt-2">
           Right-click a collection or a list for its actions: rename, share, delete, and{" "}

@@ -5,17 +5,25 @@ import type {
 } from "@openrift/shared/types/api/list";
 import type { Currency, TradePreference } from "@openrift/shared/types/api/trade-preferences";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { CatchBoundary, Link } from "@tanstack/react-router";
+import { Suspense } from "react";
 
 import { Button } from "@/components/ui/button";
 import { ensurePriceLookup } from "@/features/cards/hooks/use-prices";
 import { CopyTextButton } from "@/features/groups/components/copy-text-button";
 import { ShareDialog } from "@/features/groups/components/share-dialog";
+import { ListGroupShareSection } from "@/features/lists/components/list-group-share-section";
 import { useShareList, useUnshareList } from "@/features/lists/hooks/use-lists";
 import { formatListShareText } from "@/features/lists/lib/list-export";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { listOwnerImageUrl, shareImageVersion } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
+
+const BINDER_SUBTITLES: Record<ListIntent, string> = {
+  wish: "Scan to see my wishlist",
+  trade: "Scan to see my trades",
+  organize: "Scan to see this list",
+};
 
 interface ListShareDialogProps {
   listId: string;
@@ -29,7 +37,6 @@ interface ListShareDialogProps {
   entries: readonly ListEntryDetailResponse[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onManageGroups: () => void;
 }
 
 export function ListShareDialog({
@@ -108,7 +115,19 @@ export function ListShareDialog({
         qr: sharing ? "available" : "requires-share",
         qrLabel: "Include a QR code to the list",
       }}
+      print={{
+        shareUrl,
+        defaultTitle: listName,
+        defaultSubtitle: BINDER_SUBTITLES[intent],
+        filenameHint: listName,
+      }}
     >
+      <CatchBoundary getResetKey={() => listId} errorComponent={() => null}>
+        <Suspense fallback={null}>
+          <ListGroupShareSection listId={listId} intent={intent} />
+        </Suspense>
+      </CatchBoundary>
+
       <div className="flex flex-col gap-2 border-t pt-4">
         <div>
           <h3 className="font-medium">Post to a chat</h3>

@@ -6,7 +6,8 @@ import { useCollectionOverlayStore } from "@/features/collections/stores/collect
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 
 import { AnnotatedDisposeDialog } from "./annotated-dispose-dialog";
-import { ClearInboxDialog } from "./clear-inbox-dialog";
+import { CollectionExportDialog } from "./collection-export-dialog";
+import { CollectionImportDialog } from "./collection-import-dialog";
 import { CollectionShareDialog } from "./collection-share-dialog";
 import { CopyDetailsDialog } from "./copy-details-dialog";
 import { DeleteCollectionDialog } from "./delete-collection-dialog";
@@ -24,8 +25,6 @@ interface CollectionGridOverlaysProps {
   collections?: CollectionResponse[];
   onDeleteCollection: () => void;
   deleteIsPending: boolean;
-  onClearInbox: () => void;
-  clearInboxIsPending: boolean;
   pendingAnnotatedDispose: PendingAnnotatedDispose | null;
   confirmAnnotatedDispose: () => Promise<void>;
   cancelAnnotatedDispose: () => void;
@@ -47,8 +46,6 @@ export function CollectionGridOverlays({
   collections,
   onDeleteCollection: handleDeleteCollection,
   deleteIsPending,
-  onClearInbox: handleClearInbox,
-  clearInboxIsPending,
   pendingAnnotatedDispose,
   confirmAnnotatedDispose,
   cancelAnnotatedDispose,
@@ -58,18 +55,20 @@ export function CollectionGridOverlays({
 }: CollectionGridOverlaysProps) {
   const quickAddOpen = useCommandPaletteStore((state) => state.quickAddOpen);
   const deleteOpen = useCollectionOverlayStore((state) => state.deleteOpen);
-  const clearInboxOpen = useCollectionOverlayStore((state) => state.clearInboxOpen);
   const editOpen = useCollectionOverlayStore((state) => state.editOpen);
   const shareOpen = useCollectionOverlayStore((state) => state.shareOpen);
+  const importOpen = useCollectionOverlayStore((state) => state.importOpen);
+  const exportOpen = useCollectionOverlayStore((state) => state.exportOpen);
   const copyDetailsTarget = useCollectionOverlayStore((state) => state.copyDetailsTarget);
   const takeConfirm = useCollectionOverlayStore((state) => state.takeConfirm);
   const takeFollowUp = useCollectionOverlayStore((state) => state.takeFollowUp);
 
   const setQuickAddOpen = useCommandPaletteStore((state) => state.setQuickAddOpen);
   const setDeleteOpen = useCollectionOverlayStore((state) => state.setDeleteOpen);
-  const setClearInboxOpen = useCollectionOverlayStore((state) => state.setClearInboxOpen);
   const setEditOpen = useCollectionOverlayStore((state) => state.setEditOpen);
   const setShareOpen = useCollectionOverlayStore((state) => state.setShareOpen);
+  const setImportOpen = useCollectionOverlayStore((state) => state.setImportOpen);
+  const setExportOpen = useCollectionOverlayStore((state) => state.setExportOpen);
   const setCopyDetailsTarget = useCollectionOverlayStore((state) => state.setCopyDetailsTarget);
   const setTakeConfirm = useCollectionOverlayStore((state) => state.setTakeConfirm);
   const setTakeFollowUp = useCollectionOverlayStore((state) => state.setTakeFollowUp);
@@ -98,15 +97,6 @@ export function CollectionGridOverlays({
           isPending={deleteIsPending}
         />
       )}
-      {currentCollection?.isInbox && (
-        <ClearInboxDialog
-          open={clearInboxOpen}
-          onOpenChange={setClearInboxOpen}
-          copyCount={currentCollection.copyCount}
-          onConfirm={handleClearInbox}
-          isPending={clearInboxIsPending}
-        />
-      )}
       {currentCollection && (
         <EditCollectionDialog
           open={editOpen}
@@ -114,6 +104,7 @@ export function CollectionGridOverlays({
           collectionId={currentCollection.id}
           currentName={currentCollection.name}
           isInbox={currentCollection.isInbox}
+          availableForDeckbuilding={currentCollection.availableForDeckbuilding}
         />
       )}
       {currentCollection && (
@@ -125,6 +116,19 @@ export function CollectionGridOverlays({
           isPublic={currentCollection.isPublic}
           shareToken={currentCollection.shareToken}
           isGroupCollection={currentCollection.groupId !== null}
+        />
+      )}
+      <CollectionImportDialog
+        collectionId={addTarget}
+        open={importOpen}
+        onOpenChange={setImportOpen}
+      />
+      {exportOpen && (
+        <CollectionExportDialog
+          collectionId={currentCollection?.id}
+          collectionName={currentCollection?.name ?? "All cards"}
+          open
+          onOpenChange={setExportOpen}
         />
       )}
       <AnnotatedDisposeDialog

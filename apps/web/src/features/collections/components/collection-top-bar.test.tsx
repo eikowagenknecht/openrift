@@ -27,18 +27,24 @@ vi.mock("@/features/cards/components/select-mode-actions", () => ({
 const { CollectionTopBar } = await import("./collection-top-bar");
 
 // Renders the bar for a collection the viewer administers, so the ⋮ menu is
-// present in every case and only the placement of the add actions varies.
-function renderTopBar(overrides: {
-  addActionsInBar: boolean;
-  hasCards?: boolean;
-  showAddActions?: boolean;
-  homeDecks?: { id: string; name: string }[];
-  canShare?: boolean;
-  mode?: "browse" | "select";
-  shareUrl?: string;
-  collectionName?: string;
-  onShare?: () => void;
-}) {
+// present in every case and only optional pieces vary per test.
+function renderTopBar(
+  overrides: {
+    hasCards?: boolean;
+    showAddActions?: boolean;
+    homeDecks?: { id: string; name: string }[];
+    canShare?: boolean;
+    canEdit?: boolean;
+    canDelete?: boolean;
+    canImport?: boolean;
+    mode?: "browse" | "select";
+    onEdit?: () => void;
+    onDelete?: () => void;
+    onShare?: () => void;
+    onImport?: () => void;
+    onExport?: () => void;
+  } = {},
+) {
   render(
     <CollectionTopBar
       title="Binder"
@@ -59,100 +65,131 @@ function renderTopBar(overrides: {
       view="cards"
       canEdit
       canDelete
-      canClearInbox={false}
       canShare
-      canToggleDeckbuilding
-      deckbuildingAvailable
+      canImport
       onEdit={() => {}}
       onDelete={() => {}}
-      onClearInbox={() => {}}
       onShare={() => {}}
-      onToggleDeckbuilding={() => {}}
+      onImport={() => {}}
+      onExport={() => {}}
       {...overrides}
     />,
   );
 }
 
 describe("CollectionTopBar", () => {
-  // Both breakpoint variants of each action are in the DOM; CSS picks one.
-  it("keeps Scan and Quick add in the bar where adding is the point", () => {
-    renderTopBar({ addActionsInBar: true });
+  it("keeps Scan and Quick add in the bar whenever adding is available", () => {
+    renderTopBar();
 
     expect(screen.getAllByRole("button", { name: /scan/iu }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: "Quick add" }).length).toBeGreaterThan(0);
   });
 
-  it("folds them into the actions menu on a single collection", async () => {
-    const user = userEvent.setup();
-    renderTopBar({ addActionsInBar: false });
-
-    expect(screen.queryByRole("button", { name: /scan/iu })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Quick add" })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Collection actions" }));
-
-    expect(await screen.findByRole("menuitem", { name: "Scan cards" })).toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: "Quick add" })).toBeInTheDocument();
-
-    await user.keyboard("{Escape}");
-    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
-  });
-
   it("still offers both actions on a collection holding no cards", () => {
-    renderTopBar({ addActionsInBar: true, hasCards: false });
+    renderTopBar({ hasCards: false });
 
     expect(screen.getAllByRole("button", { name: /scan/iu }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: "Quick add" }).length).toBeGreaterThan(0);
   });
 
   it("drops both while the empty state carries its own", () => {
-    renderTopBar({ addActionsInBar: true, showAddActions: false });
+    renderTopBar({ showAddActions: false });
 
     expect(screen.queryByRole("button", { name: /scan/iu })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Quick add" })).not.toBeInTheDocument();
   });
 
-  it("puts Share in the bar on a named collection, and keeps the menu entry", async () => {
+  it("never puts Scan or Quick add in the actions menu", async () => {
     const user = userEvent.setup();
-    renderTopBar({ addActionsInBar: false });
-
-    expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument();
+    renderTopBar();
 
     await user.click(screen.getByRole("button", { name: "Collection actions" }));
-    expect(await screen.findByRole("menuitem", { name: "Share" })).toBeInTheDocument();
+
+    expect(screen.queryByRole("menuitem", { name: /scan/iu })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Quick add" })).not.toBeInTheDocument();
   });
 
-  it("leaves Share menu-only where the bar carries the add actions", () => {
-    renderTopBar({ addActionsInBar: true });
+  it("puts Share in the bar and never in the menu", async () => {
+    const user = userEvent.setup();
+    renderTopBar();
+
+    expect(screen.getAllByRole("button", { name: "Share" }).length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole("button", { name: "Collection actions" }));
+    expect(screen.queryByRole("menuitem", { name: "Share" })).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+  });
+
+  it("hides Share when the viewer can't share", () => {
+    renderTopBar({ canShare: false });
 
     expect(screen.queryByRole("button", { name: "Share" })).not.toBeInTheDocument();
   });
 
-  it("withholds the binder sheet until the collection has a share link", async () => {
+  it("lists Edit, Import, Export, and Delete in that order", async () => {
     const user = userEvent.setup();
-    renderTopBar({ addActionsInBar: false });
+    renderTopBar();
 
     await user.click(screen.getByRole("button", { name: "Collection actions" }));
-    expect(await screen.findByRole("menuitem", { name: "Share" })).toBeInTheDocument();
-    expect(
-      screen.queryByRole("menuitem", { name: /print binder sheet/iu }),
-    ).not.toBeInTheDocument();
+
+    const items = await screen.findAllByRole("menuitem");
+    expect(items.map((item) => item.textContent)).toEqual([
+      "Edit",
+      "Import…",
+      "Export…",
+      "Delete collection",
+    ]);
   });
 
-  it("opens the binder sheet dialog from the actions menu", async () => {
+  it("omits Edit when the viewer can't edit", async () => {
     const user = userEvent.setup();
-    renderTopBar({
-      addActionsInBar: false,
-      shareUrl: "https://openrift.test/collections/share/AbCdEfGhIjKl",
-      collectionName: "Main binder",
-    });
+    renderTopBar({ canEdit: false });
 
     await user.click(screen.getByRole("button", { name: "Collection actions" }));
-    await user.click(await screen.findByRole("menuitem", { name: /print binder sheet/iu }));
 
-    expect(
-      await screen.findByRole("dialog", { name: "Print for your binder" }),
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText("Title")).toHaveValue("Main binder");
+    expect(screen.queryByRole("menuitem", { name: "Edit" })).not.toBeInTheDocument();
+  });
+
+  it("omits Import when the viewer can't add", async () => {
+    const user = userEvent.setup();
+    renderTopBar({ canImport: false });
+
+    await user.click(screen.getByRole("button", { name: "Collection actions" }));
+
+    expect(screen.queryByRole("menuitem", { name: "Import…" })).not.toBeInTheDocument();
+  });
+
+  it("always offers Export, even without edit, delete, or import rights", async () => {
+    const user = userEvent.setup();
+    renderTopBar({ canEdit: false, canDelete: false, canImport: false, canShare: false });
+
+    await user.click(screen.getByRole("button", { name: "Collection actions" }));
+
+    expect(await screen.findByRole("menuitem", { name: "Export…" })).toBeInTheDocument();
+  });
+
+  it("omits Delete when the viewer can't delete", async () => {
+    const user = userEvent.setup();
+    renderTopBar({ canDelete: false });
+
+    await user.click(screen.getByRole("button", { name: "Collection actions" }));
+
+    expect(screen.queryByRole("menuitem", { name: "Delete collection" })).not.toBeInTheDocument();
+  });
+
+  it("calls onImport and onExport from the menu", async () => {
+    const user = userEvent.setup();
+    const onImport = vi.fn();
+    const onExport = vi.fn();
+    renderTopBar({ onImport, onExport });
+
+    await user.click(screen.getByRole("button", { name: "Collection actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Import…" }));
+    expect(onImport).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("button", { name: "Collection actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Export…" }));
+    expect(onExport).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,13 +1,10 @@
-import type { ListIntent } from "@openrift/shared/types/api/list";
 import type { Currency, TradePreference } from "@openrift/shared/types/api/trade-preferences";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
-  BookOpenIcon,
   DownloadIcon,
   EllipsisVerticalIcon,
   LibraryBigIcon,
   PencilIcon,
-  PrinterIcon,
   Share2Icon,
   SparklesIcon,
   Trash2Icon,
@@ -30,18 +27,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useLibraryToggle } from "@/features/cards/stores/library-toggle-store";
-import { BinderSheetDialog } from "@/features/groups/components/binder-sheet-dialog";
 import { LIST_KIND_ICON } from "@/features/lists/components/create-list-dialog";
 import { DeleteListDialog } from "@/features/lists/components/delete-list-dialog";
 import { ListEditDialog } from "@/features/lists/components/list-edit-dialog";
 import { ListEntryBrowser } from "@/features/lists/components/list-entry-browser";
 import { ListExportDialog } from "@/features/lists/components/list-export-dialog";
-import { ListGroupVisibilityDialog } from "@/features/lists/components/list-group-visibility-dialog";
 import { ListHeader } from "@/features/lists/components/list-header";
 import { ListImportDialog } from "@/features/lists/components/list-import-dialog";
 import { ListShareDialog } from "@/features/lists/components/list-share-dialog";
-import { ListVisibilityMenuItem } from "@/features/lists/components/list-visibility-menu-item";
-import { MoveCopiesToCollectionDialog } from "@/features/lists/components/move-copies-to-collection-dialog";
 import { RuleEditorDialog } from "@/features/lists/components/rule-editor-dialog";
 import {
   useDeleteList,
@@ -50,18 +43,11 @@ import {
   useUpdateList,
   useUpdateListEntry,
 } from "@/features/lists/hooks/use-lists";
-import { emptyStateCopy, listCopyIds } from "@/features/lists/lib/list-entries";
-import { getSiteUrl } from "@/lib/site-config";
+import { emptyStateCopy } from "@/features/lists/lib/list-entries";
 
 interface ListPageProps {
   listId: string;
 }
-
-const BINDER_SUBTITLES: Record<ListIntent, string> = {
-  wish: "Scan to see my wishlist",
-  trade: "Scan to see my trades",
-  organize: "Scan to see this list",
-};
 
 export function ListPage({ listId }: ListPageProps) {
   const navigate = useNavigate();
@@ -72,12 +58,9 @@ export function ListPage({ listId }: ListPageProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const [visibilityOpen, setVisibilityOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [ruleOpen, setRuleOpen] = useState(false);
-  const [moveAllOpen, setMoveAllOpen] = useState(false);
-  const [binderSheetOpen, setBinderSheetOpen] = useState(false);
 
   const deleteList = useDeleteList();
   const removeEntry = useRemoveListEntry();
@@ -130,14 +113,6 @@ export function ListPage({ listId }: ListPageProps) {
   const entriesCount = data.entries.length;
   const activeRuleCount = data.list.rules.length;
 
-  // Targets every copy on the list; rule-produced entries can't be selected,
-  // so the current filter/selection can't be used here.
-  const allCopyIds = listCopyIds(data.entries);
-
-  const shareUrl = data.list.shareToken
-    ? `${getSiteUrl()}/lists/share/${data.list.shareToken}`
-    : null;
-
   // Assembled here since it belongs to the page, but rendered by the browser,
   // which owns select mode - hence the callback.
   const renderTopBar = (selectActions: ReactNode = null) => {
@@ -150,7 +125,14 @@ export function ListPage({ listId }: ListPageProps) {
         actions={
           <>
             {selectActions}
-            <PageTopBarButton onClick={() => setShareOpen(true)}>
+            <PageTopBarIconButton
+              onClick={() => setShareOpen(true)}
+              aria-label="Share"
+              className="sm:hidden"
+            >
+              <Share2Icon className="size-4" />
+            </PageTopBarIconButton>
+            <PageTopBarButton onClick={() => setShareOpen(true)} className="hidden sm:flex">
               <Share2Icon className="size-4" />
               Share
             </PageTopBarButton>
@@ -171,11 +153,6 @@ export function ListPage({ listId }: ListPageProps) {
                     <span className="text-primary ml-auto pl-3 text-xs">{activeRuleCount}</span>
                   ) : null}
                 </DropdownMenuItem>
-                <ListVisibilityMenuItem
-                  listId={data.list.id}
-                  intent={data.list.intent}
-                  onManageVisibility={() => setVisibilityOpen(true)}
-                />
                 {(data.list.kind === "card" || data.list.kind === "printing") && (
                   <DropdownMenuItem onClick={() => setImportOpen(true)}>
                     <UploadIcon className="size-4" />
@@ -186,18 +163,6 @@ export function ListPage({ listId }: ListPageProps) {
                   <DownloadIcon className="size-4" />
                   Export…
                 </DropdownMenuItem>
-                {shareUrl !== null && (
-                  <DropdownMenuItem onClick={() => setBinderSheetOpen(true)}>
-                    <PrinterIcon className="size-4" />
-                    Print binder sheet…
-                  </DropdownMenuItem>
-                )}
-                {allCopyIds.length > 0 && (
-                  <DropdownMenuItem onClick={() => setMoveAllOpen(true)}>
-                    <BookOpenIcon className="size-4" />
-                    Move all to collection
-                  </DropdownMenuItem>
-                )}
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
                   onClick={() => setDeleteOpen(true)}
@@ -252,34 +217,6 @@ export function ListPage({ listId }: ListPageProps) {
       entries={data.entries}
       open={shareOpen}
       onOpenChange={setShareOpen}
-      onManageGroups={() => {
-        setShareOpen(false);
-        setVisibilityOpen(true);
-      }}
-    />
-  );
-
-  const binderSheetDialog = shareUrl !== null && (
-    <BinderSheetDialog
-      open={binderSheetOpen}
-      onOpenChange={setBinderSheetOpen}
-      shareUrl={shareUrl}
-      defaultTitle={data.list.name}
-      defaultSubtitle={BINDER_SUBTITLES[data.list.intent]}
-      filenameHint={data.list.name}
-    />
-  );
-
-  const visibilityDialog = (
-    <ListGroupVisibilityDialog
-      listId={listId}
-      intent={data.list.intent}
-      open={visibilityOpen}
-      onOpenChange={setVisibilityOpen}
-      onManagePublicLink={() => {
-        setVisibilityOpen(false);
-        setShareOpen(true);
-      }}
     />
   );
 
@@ -306,15 +243,6 @@ export function ListPage({ listId }: ListPageProps) {
         onOpenChange={setImportOpen}
       />
     );
-
-  const moveAllDialog = moveAllOpen && (
-    <MoveCopiesToCollectionDialog
-      listId={listId}
-      copyIds={allCopyIds}
-      open={moveAllOpen}
-      onOpenChange={setMoveAllOpen}
-    />
-  );
 
   // Mounted only while open so its catalog/collections queries are paid on
   // demand, not on every list view.
@@ -371,12 +299,9 @@ export function ListPage({ listId }: ListPageProps) {
         {editDialog}
         {deleteDialog}
         {shareDialog}
-        {binderSheetDialog}
-        {visibilityDialog}
         {exportDialog}
         {importDialog}
         {ruleDialog}
-        {moveAllDialog}
       </>
     );
   }
@@ -407,12 +332,9 @@ export function ListPage({ listId }: ListPageProps) {
       {editDialog}
       {deleteDialog}
       {shareDialog}
-      {binderSheetDialog}
-      {visibilityDialog}
       {exportDialog}
       {importDialog}
       {ruleDialog}
-      {moveAllDialog}
     </>
   );
 }

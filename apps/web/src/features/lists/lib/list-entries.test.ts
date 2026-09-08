@@ -7,7 +7,6 @@ import { EMPTY_TRADE_PREFERENCE, stubPrinting } from "@/test/factories";
 import {
   collectListPrintings,
   kindToView,
-  listCopyIds,
   resolveCopyMoveTarget,
   resolveEntryPrinting,
   selectableEntryIds,
@@ -137,22 +136,6 @@ describe("collectListPrintings", () => {
     );
     expect(listPrintings).toEqual([printingA]);
     expect(entriesByPrintingId.size).toBe(1);
-  });
-});
-
-describe("listCopyIds", () => {
-  it("returns the copy ids of copy entries in list order", () => {
-    const entries = [
-      copyEntry("e1", "copy-1", "pa"),
-      copyEntry(null, "copy-2", "pb"),
-      copyEntry("e3", "copy-3", "pa"),
-    ];
-    expect(listCopyIds(entries)).toEqual(["copy-1", "copy-2", "copy-3"]);
-  });
-
-  it("returns nothing for lists without copies behind their entries", () => {
-    expect(listCopyIds([cardEntry("e1", "ca"), printingEntry("e2", "pa")])).toEqual([]);
-    expect(listCopyIds([])).toEqual([]);
   });
 });
 

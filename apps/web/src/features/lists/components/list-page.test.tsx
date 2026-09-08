@@ -54,11 +54,6 @@ const ruleDrivenListDetail = {
 
 const emptyListDetail = { ...cardKindListDetail, entries: [] };
 
-const sharedListDetail = {
-  ...cardKindListDetail,
-  list: { ...cardKindListDetail.list, shareToken: "AbCdEfGhIjKl" },
-};
-
 const copyKindListDetail = {
   list: { ...cardKindListDetail.list, kind: "copy", intent: "organize" },
   entries: [
@@ -82,8 +77,7 @@ const copyKindListDetail = {
 let listDetail:
   | typeof cardKindListDetail
   | typeof printingKindListDetail
-  | typeof copyKindListDetail
-  | typeof sharedListDetail = cardKindListDetail;
+  | typeof copyKindListDetail = cardKindListDetail;
 
 function mutationStub() {
   return { mutate: vi.fn(), isPending: false, variables: undefined };
@@ -259,29 +253,15 @@ vi.mock("@/features/lists/components/list-header", () => ({
   ListHeader: ({ actions }: { actions?: unknown }) => <div>{actions as never}</div>,
 }));
 
-vi.mock("@/features/lists/components/list-visibility-menu-item", async () => {
-  const { DropdownMenuItem } = await import("@/components/ui/dropdown-menu");
-  return {
-    ListVisibilityMenuItem: ({ onManageVisibility }: { onManageVisibility?: () => void }) => (
-      <DropdownMenuItem onClick={onManageVisibility}>Group visibility</DropdownMenuItem>
-    ),
-  };
-});
-
-vi.mock("@/features/lists/components/list-group-visibility-dialog", () => ({
-  ListGroupVisibilityDialog: ({ open }: { open: boolean }) =>
-    open ? <div role="dialog" aria-label="Group visibility" /> : null,
-}));
-
 vi.mock("@/features/lists/components/list-edit-dialog", () => ({ ListEditDialog: () => null }));
 vi.mock("@/features/lists/components/delete-list-dialog", () => ({ DeleteListDialog: () => null }));
-vi.mock("@/features/lists/components/list-share-dialog", () => ({ ListShareDialog: () => null }));
+vi.mock("@/features/lists/components/list-share-dialog", () => ({
+  ListShareDialog: ({ open }: { open: boolean }) =>
+    open ? <div role="dialog" aria-label="Share list" /> : null,
+}));
 vi.mock("@/features/lists/components/list-export-dialog", () => ({ ListExportDialog: () => null }));
 vi.mock("@/features/lists/components/list-import-dialog", () => ({ ListImportDialog: () => null }));
 vi.mock("@/features/lists/components/rule-editor-dialog", () => ({ RuleEditorDialog: () => null }));
-vi.mock("@/features/groups/components/binder-sheet-dialog", () => ({
-  BinderSheetDialog: () => null,
-}));
 
 const { ListPage } = await import("./list-page");
 const { TopBarSlotContext } = await import("@/components/layout/top-bar-slot");
@@ -332,49 +312,55 @@ describe("ListPage", () => {
     document.body.innerHTML = "";
   });
 
-  it("opens the group-visibility dialog from the actions menu on a list with entries", async () => {
-    const user = userEvent.setup();
-    renderListPage();
-
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "List actions" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Group visibility" }));
-    expect(await screen.findByRole("dialog", { name: "Group visibility" })).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
-  });
-
   it("offers Share from the top bar, not the actions menu", async () => {
     const user = userEvent.setup();
     renderListPage();
 
-    expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Share" })[0]).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "List actions" }));
     expect(await screen.findByRole("menuitem", { name: "Export…" })).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Share" })).not.toBeInTheDocument();
     await closeOpenMenu(user);
   });
 
-  it("offers the binder sheet once the list has a share link", async () => {
-    listDetail = sharedListDetail;
+  it("opens the share dialog from the mobile Share icon button", async () => {
+    const user = userEvent.setup();
+    renderListPage();
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await user.click(screen.getAllByRole("button", { name: "Share" })[0]!);
+    expect(await screen.findByRole("dialog", { name: "Share list" })).toBeInTheDocument();
+  });
+
+  it("lists the actions menu in a fixed order for a card list", async () => {
     const user = userEvent.setup();
     renderListPage();
 
     await user.click(screen.getByRole("button", { name: "List actions" }));
-    expect(
-      await screen.findByRole("menuitem", { name: "Print binder sheet…" }),
-    ).toBeInTheDocument();
+    const items = await screen.findAllByRole("menuitem");
+    expect(items.map((item) => item.textContent)).toEqual([
+      "Edit",
+      "Dynamic rules",
+      "Import…",
+      "Export…",
+      "Delete list",
+    ]);
     await closeOpenMenu(user);
   });
 
-  it("hides the binder sheet on a list with no share link to print", async () => {
+  it("omits Import… from the actions menu for a copy list", async () => {
+    listDetail = copyKindListDetail;
     const user = userEvent.setup();
     renderListPage();
 
     await user.click(screen.getByRole("button", { name: "List actions" }));
-    // Wait for the menu itself before asserting the absence, or the negative
-    // would pass against a menu that simply hadn't opened yet.
-    expect(await screen.findByRole("menuitem", { name: "Export…" })).toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: "Print binder sheet…" })).not.toBeInTheDocument();
+    const items = await screen.findAllByRole("menuitem");
+    expect(items.map((item) => item.textContent)).toEqual([
+      "Edit",
+      "Dynamic rules",
+      "Export…",
+      "Delete list",
+    ]);
     await closeOpenMenu(user);
   });
 
@@ -402,32 +388,6 @@ describe("ListPage", () => {
 
     expect(screen.getByRole("button", { name: "Edit dynamic rules" })).toBeInTheDocument();
     expect(screen.getByText(/nothing matches this list's rules yet/iu)).toBeInTheDocument();
-  });
-
-  it("offers 'Move all to collection' on a rule-driven copy list", async () => {
-    listDetail = copyKindListDetail;
-    const user = userEvent.setup();
-    renderListPage();
-
-    await user.click(screen.getByRole("button", { name: "List actions" }));
-    expect(
-      await screen.findByRole("menuitem", { name: "Move all to collection" }),
-    ).toBeInTheDocument();
-    await closeOpenMenu(user);
-  });
-
-  it("hides 'Move all to collection' on a list with no copies behind it", async () => {
-    const user = userEvent.setup();
-    renderListPage();
-
-    await user.click(screen.getByRole("button", { name: "List actions" }));
-    // Wait for the menu itself before asserting the absence, or the negative
-    // would pass against a menu that simply hadn't opened yet.
-    expect(await screen.findByRole("menuitem", { name: "Export…" })).toBeInTheDocument();
-    expect(
-      screen.queryByRole("menuitem", { name: "Move all to collection" }),
-    ).not.toBeInTheDocument();
-    await closeOpenMenu(user);
   });
 
   it("manages the selection from the top bar, like a collection does", async () => {

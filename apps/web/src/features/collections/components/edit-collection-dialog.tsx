@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -12,12 +13,16 @@ import {
 import { DialogForm } from "@/components/ui/dialog-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useUpdateCollection } from "@/features/collections/hooks/use-collections";
+import {
+  useSetCollectionDeckbuilding,
+  useUpdateCollection,
+} from "@/features/collections/hooks/use-collections";
 
 interface EditCollectionDialogProps {
   collectionId: string;
   currentName: string;
   isInbox: boolean;
+  availableForDeckbuilding: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -26,38 +31,59 @@ export function EditCollectionDialog({
   collectionId,
   currentName,
   isInbox,
+  availableForDeckbuilding,
   open,
   onOpenChange,
 }: EditCollectionDialogProps) {
   const [name, setName] = useState(currentName);
+  const [deckbuildingAvailable, setDeckbuildingAvailable] = useState(availableForDeckbuilding);
   const updateCollection = useUpdateCollection();
+  const setDeckbuilding = useSetCollectionDeckbuilding();
 
   // BaseUI's Dialog only fires onOpenChange for user-initiated changes, not
   // when the parent toggles the controlled `open` prop, so seed on both.
-  const [seed, setSeed] = useState({ open, currentName });
-  if (seed.open !== open || seed.currentName !== currentName) {
-    setSeed({ open, currentName });
+  const [seed, setSeed] = useState({ open, currentName, availableForDeckbuilding });
+  if (
+    seed.open !== open ||
+    seed.currentName !== currentName ||
+    seed.availableForDeckbuilding !== availableForDeckbuilding
+  ) {
+    setSeed({ open, currentName, availableForDeckbuilding });
     if (open) {
       setName(currentName);
+      setDeckbuildingAvailable(availableForDeckbuilding);
     }
   }
 
-  const handleSubmit = () => {
+  const isPending = updateCollection.isPending || setDeckbuilding.isPending;
+
+  const handleSubmit = async () => {
     const trimmed = name.trim();
-    if (!trimmed || trimmed === currentName) {
+    const nameChanged = trimmed.length > 0 && trimmed !== currentName;
+    const deckbuildingChanged = deckbuildingAvailable !== availableForDeckbuilding;
+
+    if (!nameChanged && !deckbuildingChanged) {
       onOpenChange(false);
       return;
     }
-    updateCollection.mutate(
-      { id: collectionId, name: trimmed },
-      { onSuccess: () => onOpenChange(false) },
-    );
+
+    const pending: Promise<unknown>[] = [];
+    if (nameChanged) {
+      pending.push(updateCollection.mutateAsync({ id: collectionId, name: trimmed }));
+    }
+    if (deckbuildingChanged) {
+      pending.push(
+        setDeckbuilding.mutateAsync({ id: collectionId, available: deckbuildingAvailable }),
+      );
+    }
+    await Promise.allSettled(pending);
+    onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogForm onSubmit={handleSubmit}>
+        <DialogForm onSubmit={() => void handleSubmit()}>
           <DialogHeader>
             <DialogTitle>Edit collection</DialogTitle>
             <DialogDescription>Rename this collection.</DialogDescription>
@@ -80,17 +106,26 @@ export function EditCollectionDialog({
                 </p>
               )}
             </div>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="collection-deckbuilding"
+                  checked={deckbuildingAvailable}
+                  onCheckedChange={(checked) => setDeckbuildingAvailable(checked === true)}
+                />
+                <Label htmlFor="collection-deckbuilding">Available for deck building</Label>
+              </div>
+              <p className="text-muted-foreground text-xs">
+                Cards here count toward decks you build.
+              </p>
+            </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="ghost"
-              onClick={() => onOpenChange(false)}
-              disabled={updateCollection.isPending}
-            >
+            <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!name.trim() || updateCollection.isPending}>
-              {updateCollection.isPending ? "Saving..." : "Save"}
+            <Button type="submit" disabled={!name.trim() || isPending}>
+              {isPending ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
         </DialogForm>

@@ -129,10 +129,6 @@ export function selectableEntryIds(
   });
 }
 
-export function listCopyIds(entries: readonly ListEntryDetailResponse[]): string[] {
-  return entries.flatMap((entry) => (entry.kind === "copy" ? [entry.copyId] : []));
-}
-
 export function resolveCopyMoveTarget(
   entries: readonly ListEntryDetailResponse[],
   selected: ReadonlySet<string>,

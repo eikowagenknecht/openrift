@@ -167,6 +167,22 @@ describe("CollectionShareDialog", () => {
     );
   });
 
+  it("shows the binder sheet panel on the Print tab once shared", async () => {
+    const user = userEvent.setup();
+    render(<Harness isPublic shareToken="AbCdEfGhIjKl" />);
+    await user.click(screen.getByRole("tab", { name: "Print" }));
+    expect(screen.getByLabelText("Title")).toHaveValue("Main binder");
+    expect(screen.getByRole("button", { name: /create pdf/iu })).toBeInTheDocument();
+  });
+
+  it("asks for a share link first on the Print tab before one exists", async () => {
+    const user = userEvent.setup();
+    render(<Harness isPublic={false} shareToken={null} />);
+    await user.click(screen.getByRole("tab", { name: "Print" }));
+    expect(screen.getByText(/create a share link first/iu)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Title")).not.toBeInTheDocument();
+  });
+
   it("keeps the share link usable when the friend-group panel throws", () => {
     // The render error is expected; keep it out of the test output.
     vi.spyOn(console, "error").mockImplementation(() => {});

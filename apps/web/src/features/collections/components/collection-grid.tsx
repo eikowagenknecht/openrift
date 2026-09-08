@@ -241,7 +241,7 @@ export function CollectionGrid({
 
   useCloseCollectionOverlaysOnUnmount();
 
-  const admin = useCollectionAdminActions(collectionId, currentCollection);
+  const admin = useCollectionAdminActions(collectionId);
 
   const { items, stackByItemId } = buildCollectionGridItems(
     renderedCards,
@@ -365,8 +365,6 @@ export function CollectionGrid({
       collections={collections}
       onDeleteCollection={admin.handleDeleteCollection}
       deleteIsPending={admin.deleteIsPending}
-      onClearInbox={admin.handleClearInbox}
-      clearInboxIsPending={admin.clearInboxIsPending}
       pendingAnnotatedDispose={quickAdd.pendingAnnotatedDispose}
       confirmAnnotatedDispose={quickAdd.confirmAnnotatedDispose}
       cancelAnnotatedDispose={quickAdd.cancelAnnotatedDispose}

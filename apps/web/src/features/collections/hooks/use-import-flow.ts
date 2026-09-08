@@ -1,6 +1,6 @@
 import type { ListKind } from "@openrift/shared/types/api/list";
 import { useNavigate } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useCards } from "@/features/cards/hooks/use-cards";
@@ -20,6 +20,7 @@ import type { MatchedEntry } from "@/features/collections/lib/import-matcher";
 import { matchEntries } from "@/features/collections/lib/import-matcher";
 import type { ImportCopyMetadata } from "@/features/collections/lib/import-parsers";
 import { copyIdsInCollection, LIST_TARGET_PREFIX } from "@/features/collections/lib/import-replace";
+import { useImportHandoffStore } from "@/features/collections/stores/import-handoff-store";
 import type { ImportableListKind } from "@/features/lists/hooks/use-list-import-flow";
 import { buildListImportPayload } from "@/features/lists/hooks/use-list-import-flow";
 import { useBulkAddListEntries, useLists } from "@/features/lists/hooks/use-lists";
@@ -96,6 +97,19 @@ export function useImportFlow() {
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     void handleImportFileUpload(event, fileRef, setRawText, handleParse);
   };
+
+  useEffect(() => {
+    const handoff = useImportHandoffStore.getState().takeHandoff();
+    if (!handoff) {
+      return;
+    }
+    setRawText(handoff.rawText);
+    if (handoff.collectionId) {
+      setCollectionId(handoff.collectionId);
+    }
+    handleParse(handoff.rawText);
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount to consume a one-shot handoff
+  }, []);
 
   const { handleResolve, handleSkip, handleUnskip, handleToggleExpand } = createImportEntryHandlers(
     setMatchedEntries,

@@ -117,6 +117,7 @@ export function CollectionRowMenu({ collection, isActive, children }: Collection
           collectionId={collection.id}
           currentName={collection.name}
           isInbox={collection.isInbox}
+          availableForDeckbuilding={collection.availableForDeckbuilding}
           open
           onOpenChange={setEditOpen}
         />

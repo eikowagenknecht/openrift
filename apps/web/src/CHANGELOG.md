@@ -5,12 +5,17 @@
 ### Highlights
 
 - feat(Trades): **A Trades page in the menu** — More → Organize → Trades lists everyone you're trading with across all your groups, people waiting on you first, one click from their trade sheet.
+- feat(Collection): **One menu for collections and lists** — collections, wishlists and tradelists now share the same top bar and three-dot menu, with Scan, Quick add and Share always in the bar and Edit, Import, Export and Delete in the menu.
+- feat(Collection): **Export any collection** — the three-dot menu on a collection now opens an export dialog with CSV formats and a Cardmarket wants list, which tradelists also gained.
 - fix(Trades): **Menu badge counts people, not cards** — the trade badge used to show one per card in flight, so a nine-card swap read as nine; it now counts the people waiting on you, and the Groups badge only counts join requests.
 
 ### Other
 
 - feat(App): **Landing page says what OpenRift does** — the hero now opens with the job: track your collection, build decks, and trade with friends.
 - feat(Cards): **Marketplace icon on card grid prices** — the price shown on each card in a grid now carries the icon of the marketplace it came from.
+- feat(Collection): **Import from the collection page** — Import in the three-dot menu opens a paste-or-upload dialog and lands on the preview with that collection preselected.
+- feat(Groups): **Binder sheet and group visibility in Share** — the share dialog now carries a Print tab for the binder sheet and, on lists, the friend-group visibility controls.
+- feat(Collection): **Deck-building availability in Edit** — the include/exclude toggle moved from the collection menu into the Edit dialog.
 - feat(Cards): **A readable link for each printing** — picking a printing on a card page now names it in the address bar, so a shared link opens on that exact printing instead of carrying an id.
 - fix(App): **Mobile menu scrolls and folds** — the mobile navigation menu no longer clips off-screen on tall menus, and the Play, Organize, Create and Explore sections now collapse behind their heading, folded by default.
 - fix(Cards): **Contribute form field labels** — every field on the contribute form now carries its label for screen readers and focuses when the label is clicked.

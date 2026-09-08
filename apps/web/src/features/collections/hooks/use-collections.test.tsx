@@ -45,12 +45,8 @@ vi.mock("@/features/collections/lib/copies-collection", () => ({
   useCopiesCollection: () => copiesCollectionHolder.current,
 }));
 
-const {
-  useClearCollection,
-  useDeleteCollection,
-  useReorderCollections,
-  useSetCollectionSidebarHidden,
-} = await import("./use-collections");
+const { useDeleteCollection, useReorderCollections, useSetCollectionSidebarHidden } =
+  await import("./use-collections");
 
 function wrap(client: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {
@@ -201,67 +197,6 @@ describe("useDeleteCollection", () => {
       expect(writeUpdate).toHaveBeenCalledWith([
         { id: "copy-1", collectionId: "inbox-1", groupId: null },
       ]);
-    });
-  });
-});
-
-describe("useClearCollection", () => {
-  beforeEach(() => {
-    serverFnImpl.mockReset();
-    serverFnImpl.mockResolvedValue({ removedCount: 0, keptCopyIds: [] });
-    copiesCollectionHolder.current = null;
-  });
-
-  it("mirrors the server clear in the synced store, keeping pinned copies", async () => {
-    serverFnImpl.mockResolvedValue({ removedCount: 1, keptCopyIds: ["copy-kept"] });
-    const writeDelete = vi.fn();
-    copiesCollectionHolder.current = {
-      toArray: [
-        { id: "copy-1", collectionId: "inbox-1" },
-        { id: "copy-kept", collectionId: "inbox-1" },
-        { id: "copy-other", collectionId: "col-2" },
-      ],
-      utils: { writeDelete },
-    };
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    seedSession(client, "user-1");
-
-    const { result } = renderHook(() => useClearCollection(), { wrapper: wrap(client) });
-    const res = await result.current.mutateAsync("inbox-1");
-
-    expect(res).toEqual({ id: "inbox-1", removedCount: 1, keptCopyIds: ["copy-kept"] });
-    await waitFor(() => {
-      expect(writeDelete).toHaveBeenCalledWith(["copy-1"]);
-    });
-  });
-
-  it("skips the store write when the collection had nothing to remove", async () => {
-    const writeDelete = vi.fn();
-    copiesCollectionHolder.current = {
-      toArray: [{ id: "copy-other", collectionId: "col-2" }],
-      utils: { writeDelete },
-    };
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    seedSession(client, "user-1");
-
-    const { result } = renderHook(() => useClearCollection(), { wrapper: wrap(client) });
-    await result.current.mutateAsync("inbox-1");
-
-    expect(writeDelete).not.toHaveBeenCalled();
-  });
-
-  it("invalidates the collections and copies queries", async () => {
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    seedSession(client, "user-1");
-    const invalidateSpy = vi.spyOn(client, "invalidateQueries");
-
-    const { result } = renderHook(() => useClearCollection(), { wrapper: wrap(client) });
-    await result.current.mutateAsync("inbox-1");
-
-    await waitFor(() => {
-      const calls = invalidateSpy.mock.calls.map(([arg]) => arg?.queryKey);
-      expect(calls).toContainEqual(["collections", "user-1"]);
-      expect(calls).toContainEqual(["copies", "user-1"]);
     });
   });
 });

@@ -23,17 +23,19 @@ interface TakeFollowUpTarget {
  */
 interface CollectionOverlayState {
   deleteOpen: boolean;
-  clearInboxOpen: boolean;
   editOpen: boolean;
   shareOpen: boolean;
+  importOpen: boolean;
+  exportOpen: boolean;
   copyDetailsTarget: CopyDetailsTarget | null;
   takeConfirm: TakeConfirmTarget | null;
   takeFollowUp: TakeFollowUpTarget | null;
 
   setDeleteOpen: (open: boolean) => void;
-  setClearInboxOpen: (open: boolean) => void;
   setEditOpen: (open: boolean) => void;
   setShareOpen: (open: boolean) => void;
+  setImportOpen: (open: boolean) => void;
+  setExportOpen: (open: boolean) => void;
   setCopyDetailsTarget: (target: CopyDetailsTarget | null) => void;
   setTakeConfirm: (target: TakeConfirmTarget | null) => void;
   setTakeFollowUp: (target: TakeFollowUpTarget | null) => void;
@@ -42,9 +44,10 @@ interface CollectionOverlayState {
 
 const CLOSED = {
   deleteOpen: false,
-  clearInboxOpen: false,
   editOpen: false,
   shareOpen: false,
+  importOpen: false,
+  exportOpen: false,
   copyDetailsTarget: null,
   takeConfirm: null,
   takeFollowUp: null,
@@ -54,9 +57,10 @@ export const useCollectionOverlayStore = create<CollectionOverlayState>()((set) 
   ...CLOSED,
 
   setDeleteOpen: (open) => set({ deleteOpen: open }),
-  setClearInboxOpen: (open) => set({ clearInboxOpen: open }),
   setEditOpen: (open) => set({ editOpen: open }),
   setShareOpen: (open) => set({ shareOpen: open }),
+  setImportOpen: (open) => set({ importOpen: open }),
+  setExportOpen: (open) => set({ exportOpen: open }),
   setCopyDetailsTarget: (target) => set({ copyDetailsTarget: target }),
   setTakeConfirm: (target) => set({ takeConfirm: target }),
   setTakeFollowUp: (target) => set({ takeFollowUp: target }),

@@ -72,6 +72,12 @@ export function CollectionShareDialog({
         qr: sharing ? "available" : "requires-share",
         qrLabel: "Include a QR code to the collection",
       }}
+      print={{
+        shareUrl: sharing ? shareUrl : null,
+        defaultTitle: collectionName,
+        defaultSubtitle: "Scan to see my collection",
+        filenameHint: collectionName,
+      }}
     >
       {/* groupShares 404s for a pooled collection; the boundary keeps that
           contained to this optional panel instead of failing the dialog. */}
