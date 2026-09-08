@@ -1,6 +1,5 @@
 import type { ProductDetailResponse } from "@openrift/shared/contracts/products";
 import type { Printing } from "@openrift/shared/types/catalog";
-import type { Marketplace } from "@openrift/shared/types/pricing";
 import { Suspense, useState } from "react";
 
 import {
@@ -141,7 +140,7 @@ export function ProductDetailView({ data, search }: ProductDetailViewProps) {
 // Printings without a price are counted separately; they do not count as free.
 function ProductValue({ contents }: { contents: ProductDetailResponse["contents"] }) {
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
-  const marketplace = (marketplaceOrder[0] ?? "cardtrader") as Marketplace;
+  const marketplace = marketplaceOrder[0];
   const prices = usePrices();
 
   let total = 0;

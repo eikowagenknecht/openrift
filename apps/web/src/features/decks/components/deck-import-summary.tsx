@@ -61,7 +61,7 @@ export function DeckImportSummary({
   const championIdentifierTags = useChampionIdentifierTags();
   const customTagAssignments = useCustomTagAssignments();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
-  const marketplace: Marketplace = marketplaceOrder[0] ?? "cardtrader";
+  const marketplace: Marketplace = marketplaceOrder[0];
   const hydrated = useHydrated();
   const [ownershipData, setOwnershipData] = useState<DeckOwnershipData>();
   const [missingOpen, setMissingOpen] = useState(false);

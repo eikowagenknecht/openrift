@@ -151,7 +151,7 @@ function DeckEditorContent({
   // the user doesn't buy a copy that's already on its way.
   const { data: incomingCounts } = useIncomingTradeCounts(Boolean(session?.user));
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
-  const marketplace = marketplaceOrder[0] ?? "cardtrader";
+  const marketplace = marketplaceOrder[0];
   const editorViolations = useDeckViolations(deckId, data.deck.format, data.deck.formatConfig);
   // Ctrl+Z / Ctrl+Shift+Z over the whole editor; mounted here (not in a
   // conditional subtree) so the shortcuts survive zone and tab switches.

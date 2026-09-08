@@ -1,4 +1,5 @@
 import { PREFERENCE_DEFAULTS } from "@openrift/shared/types/api/preferences";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createStoreResetter } from "@/test/store-helpers";
@@ -81,7 +82,7 @@ describe("useDisplayStore", () => {
     });
 
     it("setMarketplaceOrder updates the order", () => {
-      const newOrder = ["cardmarket" as const, "tcgplayer" as const];
+      const newOrder: [Marketplace, ...Marketplace[]] = ["cardmarket", "tcgplayer"];
       useDisplayStore.getState().setMarketplaceOrder(newOrder);
 
       expect(useDisplayStore.getState().marketplaceOrder).toEqual(newOrder);

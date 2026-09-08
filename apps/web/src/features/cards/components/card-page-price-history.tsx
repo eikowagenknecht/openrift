@@ -33,7 +33,7 @@ export function PriceHistorySection({ printing }: { printing: Printing }) {
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const [range, setRange] = useState<TimeRange>("30d");
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
-  const [source, setSource] = useState<Marketplace>(marketplaceOrder[0] ?? "cardtrader");
+  const [source, setSource] = useState<Marketplace>(marketplaceOrder[0]);
   const { labels } = useEnumOrders();
 
   const { data: rangeData } = usePriceHistory(printing.id, range);

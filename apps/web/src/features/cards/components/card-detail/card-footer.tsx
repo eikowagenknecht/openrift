@@ -23,7 +23,7 @@ function ChartSkeleton() {
 
 export function CardFooter({ printing }: { printing: Printing }) {
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
-  const favorite = marketplaceOrder[0] ?? "cardtrader";
+  const favorite = marketplaceOrder[0];
   const prices = usePrices();
   const hasPrice = prices.get(printing.id, favorite) !== undefined;
 

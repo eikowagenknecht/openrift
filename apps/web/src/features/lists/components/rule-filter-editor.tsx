@@ -135,7 +135,7 @@ export function RuleFilterEditor({
   const prices = usePrices();
   const customTagAssignments = useCustomTagAssignments();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
-  const shownMarketplace = priceMarketplace ?? marketplaceOrder[0] ?? "cardtrader";
+  const shownMarketplace = priceMarketplace ?? marketplaceOrder[0];
   const available = getAvailableFilters(allPrintings, { orders, sets });
 
   const [shownKeys, setShownKeys] = useState<readonly string[]>([]);

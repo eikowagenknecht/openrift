@@ -30,11 +30,8 @@ import type { FilterSearch } from "@/features/cards/lib/search-schemas";
 import { serverCache } from "@/lib/server-cache";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
-// Matches the fallback in <CardBrowser> for users with no `marketplaceOrder`
-// preference.
+// Both match PREFERENCE_DEFAULTS from shared/types/api/preferences.ts.
 const SSR_MARKETPLACE: Marketplace = "cardtrader";
-
-// Matches PREFERENCE_DEFAULTS from shared/types/api/preferences.ts.
 const SSR_DEFAULT_VIEW = "cards";
 
 function readPricesFromServerCache(): Promise<PricesResponse> {

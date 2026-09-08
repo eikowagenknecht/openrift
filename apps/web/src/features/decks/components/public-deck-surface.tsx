@@ -87,7 +87,7 @@ function PublicDeckContent({
   topBarHeight,
 }: PublicDeckSurfaceProps & { topBarHeight: number }) {
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
-  const marketplace = marketplaceOrder[0] ?? "cardtrader";
+  const marketplace = marketplaceOrder[0];
   const isMobile = useIsMobile();
   const hydrated = useHydrated();
   const headerHeight = useHeaderHeight();

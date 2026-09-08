@@ -34,7 +34,7 @@ export function DeckMetaLine({
   className?: string;
 }) {
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
-  const priceFormatter = formatterForMarketplace(marketplaceOrder[0] ?? "cardtrader");
+  const priceFormatter = formatterForMarketplace(marketplaceOrder[0]);
   const box = useHomeCollection(item.deck.collectionId);
   const parts = deckMetaParts(item, (cents) => priceFormatter(cents / 100), box?.name);
 

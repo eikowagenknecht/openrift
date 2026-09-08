@@ -108,7 +108,7 @@ function PrintingList({
 }
 
 function PrintingPrices({ printing }: { printing: Printing }) {
-  const favorite = useDisplayStore((s) => s.marketplaceOrder[0] ?? "cardtrader");
+  const favorite = useDisplayStore((s) => s.marketplaceOrder[0]);
   const prices = usePrices();
   const inline = prices.get(printing.id, favorite) ?? null;
   // 30-day history is only a fallback; querying it unconditionally fans out into

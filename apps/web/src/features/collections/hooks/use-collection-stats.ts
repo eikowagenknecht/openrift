@@ -737,7 +737,7 @@ export function useCollectionStats(
   const prices = usePrices();
   const { orders } = useEnumOrders();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
-  const marketplace = marketplaceOrder[0] ?? "cardtrader";
+  const marketplace = marketplaceOrder[0];
   // Custom tags are assigned per card in the admin UI, not derived from the printing,
   // so the scope's custom-tag axes need this lookup.
   const customTagAssignments = useCustomTagAssignments();

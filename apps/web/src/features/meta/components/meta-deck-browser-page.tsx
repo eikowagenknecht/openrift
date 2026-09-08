@@ -92,7 +92,7 @@ function MetaDeckBrowser({ onCount }: { onCount: (shown: number, total: number) 
   const { data } = useMetaDecks(range);
   const { data: eventsData } = useMetaEvents();
   const { data: session } = useSession();
-  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
+  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0]);
   const view = useDisplayStore((state) => state.metaDeckView);
   const setView = useDisplayStore((state) => state.setMetaDeckView);
   const [costs, setCosts] = useState<ReadonlyMap<string, MetaDeckCost>>();

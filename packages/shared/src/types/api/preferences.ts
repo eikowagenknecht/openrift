@@ -173,7 +173,7 @@ export interface ResolvedPreferences {
   cardTilt: boolean;
   theme: Theme;
   palette: Palette;
-  marketplaceOrder: Marketplace[];
+  marketplaceOrder: [Marketplace, ...Marketplace[]];
   languages: string[];
   completionScope: CompletionScopePreference;
   defaultCardView: DefaultCardView;

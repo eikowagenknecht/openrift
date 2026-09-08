@@ -12,6 +12,11 @@ import { useDisplayStore } from "@/stores/display-store";
 
 import { ResetButton } from "./reset-button";
 
+function nonEmptyOrder(order: Marketplace[]): [Marketplace, ...Marketplace[]] | null {
+  const [first, ...rest] = order;
+  return first === undefined ? null : [first, ...rest];
+}
+
 export function MarketplacesSection() {
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const setMarketplaceOrder = useDisplayStore((s) => s.setMarketplaceOrder);
@@ -21,10 +26,13 @@ export function MarketplacesSection() {
   const enabledSet = new Set(marketplaceOrder);
 
   function toggleMarketplace(marketplace: Marketplace) {
-    if (enabledSet.has(marketplace)) {
-      setMarketplaceOrder(marketplaceOrder.filter((m) => m !== marketplace));
-    } else {
+    if (!enabledSet.has(marketplace)) {
       setMarketplaceOrder([...marketplaceOrder, marketplace]);
+      return;
+    }
+    const next = nonEmptyOrder(marketplaceOrder.filter((m) => m !== marketplace));
+    if (next !== null) {
+      setMarketplaceOrder(next);
     }
   }
 
@@ -37,10 +45,13 @@ export function MarketplacesSection() {
     if (newIndex < 0 || newIndex >= marketplaceOrder.length) {
       return;
     }
-    const next = [...marketplaceOrder];
-    next.splice(index, 1);
-    next.splice(newIndex, 0, marketplace);
-    setMarketplaceOrder(next);
+    const reordered = [...marketplaceOrder];
+    reordered.splice(index, 1);
+    reordered.splice(newIndex, 0, marketplace);
+    const next = nonEmptyOrder(reordered);
+    if (next !== null) {
+      setMarketplaceOrder(next);
+    }
   }
 
   return (
@@ -78,6 +89,7 @@ export function MarketplacesSection() {
                     <Switch
                       id={`pref-mp-${marketplace}`}
                       checked={enabled}
+                      disabled={enabled && marketplaceOrder.length === 1}
                       onCheckedChange={() => toggleMarketplace(marketplace)}
                     />
                     <Label htmlFor={`pref-mp-${marketplace}`} className="font-normal">

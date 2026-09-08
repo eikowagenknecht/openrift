@@ -6,7 +6,6 @@ import { isPoolOpenable } from "@openrift/shared/pack-opener/types";
 import type { SetListEntry } from "@openrift/shared/types/api/catalog";
 import type { Printing } from "@openrift/shared/types/catalog";
 import type { Marketplace } from "@openrift/shared/types/pricing";
-import { ALL_MARKETPLACES } from "@openrift/shared/types/pricing";
 import { WellKnown } from "@openrift/shared/well-known";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { PackagePlusIcon, SparklesIcon } from "lucide-react";
@@ -434,10 +433,6 @@ function ValueStats({ packs }: { packs: PackResult[] }) {
   const { data: session } = useSession();
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const isLoggedIn = Boolean(session?.user);
-  const [preferredMarketplace] = marketplaceOrder;
-  const [defaultMarketplace] = ALL_MARKETPLACES;
-  const marketplace: Marketplace | null = isLoggedIn
-    ? (preferredMarketplace ?? defaultMarketplace ?? null)
-    : null;
+  const marketplace: Marketplace | null = isLoggedIn ? marketplaceOrder[0] : null;
   return <PackStats packs={packs} prices={prices} marketplace={marketplace} />;
 }

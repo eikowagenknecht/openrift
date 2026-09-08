@@ -69,7 +69,7 @@ export function FilterRangeSections({
 }) {
   const { ranges, filterState } = useFilterValues();
   const { setRange, setOwnedCountRange } = useFilterActions();
-  const favoriteMarketplace = useDisplayStore((s) => s.marketplaceOrder[0] ?? "cardtrader");
+  const favoriteMarketplace = useDisplayStore((s) => s.marketplaceOrder[0]);
 
   // availableFilters[key] price already reflects the favourite marketplace via getAvailableFilters' getPrice.
   const priceSection: RangeSection = {

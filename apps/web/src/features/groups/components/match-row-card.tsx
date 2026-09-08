@@ -479,7 +479,7 @@ function MatchTradeRowGroup({
   // Cheapest per-copy price across variants, shown as "from X" when they vary.
   // Per-copy, never times the wish quantity: a wish can exceed any one variant's stock.
   const prices = usePrices();
-  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
+  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0]);
   const variantPrices = group.variants
     .map((variant) => prices.get(variant.printingId, marketplace))
     .filter((price) => price !== undefined);

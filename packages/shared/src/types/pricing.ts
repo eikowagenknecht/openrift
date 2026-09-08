@@ -9,7 +9,11 @@ export const marketplaceEnum = z.enum(["tcgplayer", "cardmarket", "cardtrader"])
 
 export type Marketplace = z.infer<typeof marketplaceEnum>;
 
-export const ALL_MARKETPLACES: readonly Marketplace[] = ["cardtrader", "tcgplayer", "cardmarket"];
+export const ALL_MARKETPLACES: readonly [Marketplace, ...Marketplace[]] = [
+  "cardtrader",
+  "tcgplayer",
+  "cardmarket",
+];
 
 export const EUR_MARKETPLACES: ReadonlySet<Marketplace> = new Set(["cardmarket", "cardtrader"]);
 

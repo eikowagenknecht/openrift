@@ -109,7 +109,7 @@ export function ScanSessionTray({
 
   // Streams in without suspending: a price fetch must never blank the camera page.
   const hydrated = useHydrated();
-  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
+  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0]);
   const { data: prices } = useQuery(pricesQueryOptions);
   const wish = useWishEntries(true);
   const { data: owned } = useOwnedCountsForPrintings(sequence, hydrated);

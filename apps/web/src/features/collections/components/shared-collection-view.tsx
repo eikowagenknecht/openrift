@@ -1,6 +1,5 @@
 import type { PublicCollectionDetailResponse } from "@openrift/shared/types/api/collection";
 import type { Printing } from "@openrift/shared/types/catalog";
-import type { Marketplace } from "@openrift/shared/types/pricing";
 import type { ReactNode } from "react";
 import { Suspense, useState } from "react";
 
@@ -84,7 +83,7 @@ export function SharedCollectionView({
   const topBarHeight = useMeasuredHeight(topBarSlot);
 
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
-  const marketplace = (marketplaceOrder[0] ?? "cardtrader") as Marketplace;
+  const marketplace = marketplaceOrder[0];
   const formatValue = formatterForMarketplace(marketplace);
 
   const { collection, owner } = data;

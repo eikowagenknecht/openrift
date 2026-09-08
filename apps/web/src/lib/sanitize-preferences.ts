@@ -4,7 +4,11 @@ import type {
   Palette,
   Theme,
 } from "@openrift/shared/types/api/preferences";
-import { DISPLAY_PREFERENCE_KEYS, PALETTES } from "@openrift/shared/types/api/preferences";
+import {
+  DISPLAY_PREFERENCE_KEYS,
+  PALETTES,
+  PREFERENCE_DEFAULTS,
+} from "@openrift/shared/types/api/preferences";
 import type { Currency } from "@openrift/shared/types/api/trade-preferences";
 import { CURRENCIES } from "@openrift/shared/types/api/trade-preferences";
 import type { Marketplace } from "@openrift/shared/types/pricing";
@@ -39,6 +43,20 @@ function sanitizeLanguageList(value: unknown): string[] | null {
     .filter((lang): lang is string => typeof lang === "string" && lang.length > 0)
     .map((lang) => RENAMED_LANGUAGES[lang] ?? lang);
   return [...new Set(cleaned)];
+}
+
+function sanitizeMarketplaceOrder(value: unknown): [Marketplace, ...Marketplace[]] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  const [first, ...rest] = value.filter(
+    (marketplace): marketplace is Marketplace =>
+      typeof marketplace === "string" && VALID_MARKETPLACES.has(marketplace),
+  );
+  if (first === undefined) {
+    return [...PREFERENCE_DEFAULTS.marketplaceOrder];
+  }
+  return [first, ...rest];
 }
 
 interface SanitizedOverrides {
@@ -98,12 +116,7 @@ export function sanitizeServerResponse(data: unknown): Partial<DisplayOverrides>
     result.cardTilt = typeof record.cardTilt === "boolean" ? record.cardTilt : null;
   }
   if ("marketplaceOrder" in record) {
-    result.marketplaceOrder = Array.isArray(record.marketplaceOrder)
-      ? record.marketplaceOrder.filter(
-          (marketplace): marketplace is Marketplace =>
-            typeof marketplace === "string" && VALID_MARKETPLACES.has(marketplace),
-        )
-      : null;
+    result.marketplaceOrder = sanitizeMarketplaceOrder(record.marketplaceOrder);
   }
   if ("languages" in record) {
     result.languages = sanitizeLanguageList(record.languages);
@@ -239,12 +252,7 @@ function sanitizeOverrideFields(record: Record<string, unknown>): DisplayOverrid
           : null;
   const cardTilt = typeof record.cardTilt === "boolean" ? record.cardTilt : (legacyRich ?? null);
 
-  const safeOrder = Array.isArray(record.marketplaceOrder)
-    ? record.marketplaceOrder.filter(
-        (marketplace): marketplace is Marketplace =>
-          typeof marketplace === "string" && VALID_MARKETPLACES.has(marketplace),
-      )
-    : null;
+  const safeOrder = sanitizeMarketplaceOrder(record.marketplaceOrder);
 
   const safeLanguages = sanitizeLanguageList(record.languages);
 

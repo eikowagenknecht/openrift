@@ -24,7 +24,7 @@ export function useFilteredListEntries(
   const { filters, hasActiveFilters } = useFilterValues();
   const keywordReverseMap = useKeywordReverseMap();
   const prices = usePrices();
-  const favoriteMarketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
+  const favoriteMarketplace = useDisplayStore((state) => state.marketplaceOrder[0]);
 
   const { listPrintings, entriesByPrintingId } = collectListPrintings(
     entries,

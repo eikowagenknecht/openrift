@@ -73,7 +73,7 @@ export function CardMetaLine({
 
 export function TradePerCopyPrice({ printingId }: { printingId: string }) {
   const prices = usePrices();
-  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
+  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0]);
   const unitPrice = prices.get(printingId, marketplace);
   if (unitPrice === undefined) {
     return null;
@@ -99,7 +99,7 @@ export function TradeEstimatedPrice({
   quantity: number;
 }) {
   const prices = usePrices();
-  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
+  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0]);
   const unitPrice = prices.get(printingId, marketplace);
   if (unitPrice === undefined) {
     return null;

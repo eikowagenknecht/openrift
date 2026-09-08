@@ -3,7 +3,7 @@ import type { Marketplace } from "@openrift/shared/types/pricing";
 
 import type { Repos } from "../../../deps.js";
 
-const [DEFAULT_MARKETPLACE = "cardtrader"] = PREFERENCE_DEFAULTS.marketplaceOrder;
+const DEFAULT_MARKETPLACE = PREFERENCE_DEFAULTS.marketplaceOrder[0];
 
 export function resolveFavoriteMarketplace(marketplaceOrder?: Marketplace[]): Marketplace {
   return marketplaceOrder?.[0] ?? DEFAULT_MARKETPLACE;

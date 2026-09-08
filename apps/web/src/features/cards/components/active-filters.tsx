@@ -74,7 +74,7 @@ export function ActiveFilters({
     full: "Full Playset",
     extra: "More than Full",
   };
-  const favoriteMarketplace = useDisplayStore((s) => s.marketplaceOrder[0] ?? "cardtrader");
+  const favoriteMarketplace = useDisplayStore((s) => s.marketplaceOrder[0]);
 
   const rangeBadgeSections: RangeBadgeSection[] = [
     ...STAT_RANGE_BADGE_SECTIONS,

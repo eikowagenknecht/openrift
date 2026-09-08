@@ -70,6 +70,7 @@ export const updatePreferencesSchema = z.object({
   palette: paletteEnum.nullable().optional(),
   marketplaceOrder: z
     .array(marketplaceEnum)
+    .min(1)
     .max(3)
     .refine((arr) => new Set(arr).size === arr.length, { message: "Duplicate marketplaces" })
     .nullable()
@@ -110,7 +111,10 @@ export const userPreferencesResponseSchema = z
     cardTilt: z.boolean().optional(),
     theme: z.enum(["light", "dark", "auto"]).optional(),
     palette: z.enum(["default", "minimal"]).optional(),
-    marketplaceOrder: z.array(z.enum(["tcgplayer", "cardmarket", "cardtrader"])).optional(),
+    marketplaceOrder: z
+      .array(z.enum(["tcgplayer", "cardmarket", "cardtrader"]))
+      .min(1)
+      .optional(),
     languages: z.array(z.string()).optional(),
     completionScope: completionScopePreferenceSchema.optional(),
     defaultCardView: z.enum(["cards", "printings"]).optional(),

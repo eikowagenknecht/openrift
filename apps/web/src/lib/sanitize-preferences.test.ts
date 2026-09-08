@@ -1,3 +1,4 @@
+import { PREFERENCE_DEFAULTS } from "@openrift/shared/types/api/preferences";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -11,6 +12,28 @@ import {
   sanitizeThemePreference,
   sanitizeTierTileStep,
 } from "./sanitize-preferences";
+
+describe("sanitize-preferences — marketplaceOrder from the server", () => {
+  it("keeps the known marketplaces in order", () => {
+    const result = sanitizeServerResponse({
+      marketplaceOrder: ["tcgplayer", "ebay", "cardmarket"],
+    });
+
+    expect(result.marketplaceOrder).toEqual(["tcgplayer", "cardmarket"]);
+  });
+
+  it("falls back to the default order when every entry is unknown", () => {
+    const result = sanitizeServerResponse({ marketplaceOrder: ["ebay"] });
+
+    expect(result.marketplaceOrder).toEqual(PREFERENCE_DEFAULTS.marketplaceOrder);
+  });
+
+  it("reads a non-array order as no override", () => {
+    const result = sanitizeServerResponse({ marketplaceOrder: "cardtrader" });
+
+    expect(result.marketplaceOrder).toBeNull();
+  });
+});
 
 describe("sanitize-preferences — topLevelFilters", () => {
   describe("sanitizeServerResponse", () => {
@@ -163,10 +186,24 @@ describe("sanitize-preferences — legacy flat persisted shape", () => {
     expect(sanitizeOverrides({ foilEffect: "animated" }).overrides.foilEffect).toBe(true);
   });
 
-  it("drops marketplaces that are not in the known set", () => {
-    const { overrides } = sanitizeOverrides({ marketplaceOrder: ["cardmarket", "ebay"] });
+  it("drops marketplaces that are not in the known set, keeping the stored order", () => {
+    const { overrides } = sanitizeOverrides({
+      marketplaceOrder: ["cardmarket", "ebay", "cardtrader"],
+    });
 
-    expect(overrides.marketplaceOrder).toEqual(["cardmarket"]);
+    expect(overrides.marketplaceOrder).toEqual(["cardmarket", "cardtrader"]);
+  });
+
+  it("falls back to the default order when no stored marketplace is known", () => {
+    const { overrides } = sanitizeOverrides({ marketplaceOrder: ["ebay", "abugames"] });
+
+    expect(overrides.marketplaceOrder).toEqual(PREFERENCE_DEFAULTS.marketplaceOrder);
+  });
+
+  it("falls back to the default order for an empty stored order", () => {
+    const { overrides } = sanitizeOverrides({ marketplaceOrder: [] });
+
+    expect(overrides.marketplaceOrder).toEqual(PREFERENCE_DEFAULTS.marketplaceOrder);
   });
 
   it("returns all-null overrides for a non-object blob", () => {

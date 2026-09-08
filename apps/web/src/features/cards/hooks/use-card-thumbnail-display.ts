@@ -38,7 +38,7 @@ export function useCardThumbnailDisplay(): CardThumbnailDisplay {
   const { labels } = useEnumOrders();
   const prices = usePrices();
   const getFallbackArt = useStandardArtFallback();
-  const favoriteMarketplace = marketplaceOrder[0] ?? "cardtrader";
+  const favoriteMarketplace = marketplaceOrder[0];
   return {
     fancyFan,
     gridFoil: foilEffect && hydrated,

@@ -21,7 +21,7 @@ export function useMetaDeckCosts(
   const { data: index } = useMetaDeckCards(options.range);
   const { printingsByCardId } = useCards();
   const prices = usePrices();
-  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
+  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0]);
   const languageOrder = useEffectiveLanguageOrder();
   const { data: ownedByPrinting } = useOwnedCount(options.withCollection);
 

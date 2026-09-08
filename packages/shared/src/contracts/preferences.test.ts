@@ -4,7 +4,11 @@ import {
   COMPLETION_SCOPE_ARRAY_KEYS,
   COMPLETION_SCOPE_SCALAR_KEYS,
 } from "../types/api/preferences.js";
-import { completionScopePreferenceSchema } from "./preferences.js";
+import {
+  completionScopePreferenceSchema,
+  updatePreferencesSchema,
+  userPreferencesResponseSchema,
+} from "./preferences.js";
 
 describe("completion scope key tuples cover every schema field exactly once", () => {
   const schemaKeys = Object.keys(completionScopePreferenceSchema.shape);
@@ -36,5 +40,28 @@ describe("completion scope key tuples cover every schema field exactly once", ()
   it("accepts a scope that sets every array axis at once", () => {
     const scope = Object.fromEntries(COMPLETION_SCOPE_ARRAY_KEYS.map((key) => [key, ["a"]]));
     expect(completionScopePreferenceSchema.safeParse(scope).success).toBe(true);
+  });
+});
+
+describe("marketplaceOrder is a non-empty order", () => {
+  it("rejects an empty order on update", () => {
+    expect(updatePreferencesSchema.safeParse({ marketplaceOrder: [] }).success).toBe(false);
+  });
+
+  it("accepts a one-marketplace order on update", () => {
+    expect(updatePreferencesSchema.safeParse({ marketplaceOrder: ["cardtrader"] }).success).toBe(
+      true,
+    );
+  });
+
+  it("still accepts null, which resets to the default order", () => {
+    expect(updatePreferencesSchema.safeParse({ marketplaceOrder: null }).success).toBe(true);
+  });
+
+  it("rejects an empty order in a stored response", () => {
+    expect(userPreferencesResponseSchema.safeParse({ marketplaceOrder: [] }).success).toBe(false);
+    expect(
+      userPreferencesResponseSchema.safeParse({ marketplaceOrder: ["cardmarket"] }).success,
+    ).toBe(true);
   });
 });

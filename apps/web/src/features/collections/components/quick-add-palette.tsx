@@ -130,7 +130,7 @@ function PaletteInner({
   const addedItems = useAddModeStore((s) => s.addedItems);
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const prices = usePrices();
-  const favoriteMarketplace = marketplaceOrder[0] ?? "cardtrader";
+  const favoriteMarketplace = marketplaceOrder[0];
   const compactFmt = compactFormatterForMarketplace(favoriteMarketplace);
 
   // Toast/refocus fire from onDisposed, which only runs once a removal lands.

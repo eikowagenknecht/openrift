@@ -18,7 +18,7 @@ const EVEN_THRESHOLD = 1;
 
 export function TradeBalanceBar({ trades }: { trades: readonly CardTradeResponse[] }) {
   const prices = usePrices();
-  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
+  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0]);
 
   if (trades.length === 0) {
     return null;

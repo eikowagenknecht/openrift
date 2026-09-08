@@ -398,7 +398,7 @@ export function CollectionActivityPage() {
   const { data, hasNextPage, fetchNextPage, isFetchingNextPage } = useCollectionEvents();
   const prices = usePrices();
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
-  const marketplace = marketplaceOrder[0] ?? "cardtrader";
+  const marketplace = marketplaceOrder[0];
   const formatPrice = compactFormatterForMarketplace(marketplace);
 
   const [actionFilter, setActionFilter] = useState<ActionFilter>("all");

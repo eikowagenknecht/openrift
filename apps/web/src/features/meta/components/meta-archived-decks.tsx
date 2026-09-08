@@ -28,7 +28,7 @@ export function MetaArchivedDecks({
   onShowAll?: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
+  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0]);
   const shown = expanded ? decks : decks.slice(0, DECK_GRID_LIMIT);
   // "Show all" is a one-shot: once it has run the grid holds everything the
   // scope left, even where that is fewer rows than `total` promised.
