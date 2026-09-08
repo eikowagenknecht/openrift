@@ -4,40 +4,14 @@ import type { DeckZone } from "@openrift/shared/types/enums";
 import { getOrientation } from "@openrift/shared/utils";
 import { WellKnown } from "@openrift/shared/well-known";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
-import {
-  BoxIcon,
-  CopyIcon,
-  CornerLeftUpIcon,
-  DownloadIcon,
-  EllipsisVerticalIcon,
-  FlaskConicalIcon,
-  GitBranchIcon,
-  GitCompareArrowsIcon,
-  ImageIcon,
-  PencilIcon,
-  PlayIcon,
-  PlusIcon,
-  PrinterIcon,
-  RefreshCwIcon,
-  Share2Icon,
-  Trash2Icon,
-  UploadIcon,
-  XIcon,
-} from "lucide-react";
+import { CornerLeftUpIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { Footer } from "@/components/layout/footer";
 import {
   PAGE_TOP_BAR_STICKY,
-  PageTopBar,
-  PageTopBarActions,
-  PageTopBarBack,
-  PageTopBarButton,
   PageTopBarHeightContext,
-  PageTopBarIconButton,
-  PageTopBarTitle,
   useMeasuredHeight,
   usePageTopBarHeight,
 } from "@/components/layout/page-top-bar";
@@ -46,35 +20,13 @@ import {
   SectionHeaderActions,
   SectionHeaderTitle,
 } from "@/components/section-header";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { DialogForm } from "@/components/ui/dialog-form";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   NestedSidebar,
   SidebarContent,
   SidebarProvider,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SelectionDetailOverlays } from "@/features/cards/components/selection-detail-overlays";
 import { SelectionDetailPane } from "@/features/cards/components/selection-detail-pane";
 import { useFilterActions } from "@/features/cards/hooks/use-card-filters";
@@ -83,61 +35,39 @@ import { usePreferredPrinting } from "@/features/cards/hooks/use-preferred-print
 import type { CardOpenTarget } from "@/features/cards/lib/card-row-interactions";
 import { useDeckBuildingCounts } from "@/features/collections/hooks/use-owned-count";
 import { DeckCardBrowser } from "@/features/decks/components/deck-card-browser";
-import { DeckCoverDialog } from "@/features/decks/components/deck-cover-dialog";
-import { DeckDetailsDialog } from "@/features/decks/components/deck-details-dialog";
 import { DeckDndContext } from "@/features/decks/components/deck-dnd-context";
-import { DeckExportDialog } from "@/features/decks/components/deck-export-dialog";
-import { DeckHomeCollectionDialog } from "@/features/decks/components/deck-home-collection-dialog";
-import { DeckMissingCardsDialog } from "@/features/decks/components/deck-missing-cards-dialog";
+import { DeckEditorDialogs } from "@/features/decks/components/deck-editor-dialogs";
+import { DeckEditorTopBar } from "@/features/decks/components/deck-editor-top-bar";
 import { DeckMobileDock } from "@/features/decks/components/deck-mobile-dock";
-import { DeckPrintDialog } from "@/features/decks/components/deck-print-dialog";
-import { DeckQuickAdd } from "@/features/decks/components/deck-quick-add";
-import { DeckRenameDialog } from "@/features/decks/components/deck-rename-dialog";
-import { DeckShareDialog } from "@/features/decks/components/deck-share-dialog";
-import {
-  DeckUndoControls,
-  useDeckUndoShortcuts,
-} from "@/features/decks/components/deck-undo-controls";
-import { DeckVariantCreateDialog } from "@/features/decks/components/deck-variant-create-dialog";
+import { useDeckUndoShortcuts } from "@/features/decks/components/deck-undo-controls";
 import { DeckVariantRail } from "@/features/decks/components/deck-variant-rail";
-import { DeckVariantsDialog } from "@/features/decks/components/deck-variants-dialog";
 import { DeckZonePanel } from "@/features/decks/components/deck-zone-panel";
 import { HoveredCardPreview } from "@/features/decks/components/hovered-card-preview";
 import type { HoverOrigin } from "@/features/decks/components/hovered-card-preview";
-import { LocalDeckBadge } from "@/features/decks/components/local-save-hint";
 import {
   hydrateDeckDraft,
   useDeckDraftHydrated,
   useDeckSaveStatus,
 } from "@/features/decks/hooks/deck-builder-collection";
 import { useDeckCards, useDeckViolations } from "@/features/decks/hooks/use-deck-builder";
+import { useDeckEditorDialogs } from "@/features/decks/hooks/use-deck-editor-dialogs";
 import { useDeckItems } from "@/features/decks/hooks/use-deck-items";
 import { useDeckOwnership } from "@/features/decks/hooks/use-deck-ownership";
-import {
-  useDeckDetail,
-  useDeleteDeck,
-  useEncodeDeckCards,
-  useExportDeck,
-  useUpdateDeck,
-  useUpdateDeckMeta,
-} from "@/features/decks/hooks/use-decks";
+import { useDeckDetail } from "@/features/decks/hooks/use-decks";
 import type { DeckBuilderCard } from "@/features/decks/lib/deck-builder-card";
 import { toDeckBuilderCard } from "@/features/decks/lib/deck-builder-card";
-import { toEncodeDeckCards } from "@/features/decks/lib/deck-encode-input";
 import { buildRunesByDomain } from "@/features/decks/lib/deck-runes-by-domain";
-import { requiredZoneProgress, ZONE_LABELS } from "@/features/decks/lib/deck-zone-labels";
+import { deckZoneFilterPreset } from "@/features/decks/lib/deck-zone-filters";
+import { requiredZoneProgress } from "@/features/decks/lib/deck-zone-labels";
 import { isLocalDeckId } from "@/features/decks/lib/local-deck";
 import { useDeckBuilderUiStore } from "@/features/decks/stores/deck-builder-ui-store";
-import { useLocalDecksStore } from "@/features/decks/stores/local-decks-store";
 import { useIncomingTradeCounts } from "@/features/groups/hooks/use-card-trades";
 import { useBorrowedCounts } from "@/features/groups/hooks/use-loans";
 import { useRegisterQuickAdd } from "@/hooks/use-command-palette";
-import { useDeckFormatList } from "@/hooks/use-enums";
 import { useHeaderHeight } from "@/hooks/use-header-height";
 import { useScopeEffect } from "@/hooks/use-scope-effect";
 import { useSession, useUserId } from "@/lib/auth-session";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
-import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
@@ -192,10 +122,9 @@ function DeckEditorContent({
   // deck works logged out; a server deck keys under its userId.
   const isLocal = isLocalDeckId(deckId);
   const scope = isLocal ? "local" : (userId ?? "");
-  const navigate = useNavigate();
   const { data } = useDeckDetail(deckId);
   const { cardsById, allPrintings } = useCards();
-  const { getPreferredPrinting, getPreferredFrontImage } = usePreferredPrinting();
+  const { getPreferredPrinting } = usePreferredPrinting();
   const hydrated = useDeckDraftHydrated(queryClient, scope, deckId);
   const deckCards = useDeckCards(deckId);
   const saveStatus = useDeckSaveStatus(queryClient, scope, deckId);
@@ -205,74 +134,7 @@ function DeckEditorContent({
   const setOverviewTab = useDeckBuilderUiStore((state) => state.setOverviewTab);
   const resetUi = useDeckBuilderUiStore((state) => state.reset);
   const setRunesByDomain = useDeckBuilderUiStore((state) => state.setRunesByDomain);
-  const [renameOpen, setRenameOpen] = useState(false);
-  const [coverOpen, setCoverOpen] = useState(false);
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const [homeCollectionOpen, setHomeCollectionOpen] = useState(false);
-  const [exportOpen, setExportOpen] = useState(false);
-  const [printOpen, setPrintOpen] = useState(false);
-  const [missingOpen, setMissingOpen] = useState(false);
-  const [shareOpen, setShareOpen] = useState(false);
-  const [variantsOpen, setVariantsOpen] = useState(false);
-  // One create dialog for both variant modes; the mode outlives the close so
-  // the dialog doesn't switch copy while it fades out.
-  const [variantCreateOpen, setVariantCreateOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const { update: updateDeckMeta } = useUpdateDeckMeta(deckId);
-  const updateDeck = useUpdateDeck();
-  const deleteDeck = useDeleteDeck();
-  const deleteLocalDeck = useLocalDecksStore((state) => state.deleteDeck);
-  const exportDeck = useExportDeck();
-  const encodeDeck = useEncodeDeckCards();
-  const { formats } = useDeckFormatList();
-  const otherFormats = formats.filter((entry) => entry.slug !== data.deck.format);
-  const handleFormatChange = (slug: string) => {
-    updateDeckMeta({ format: slug });
-  };
-  const handleDelete = () => {
-    setDeleteOpen(false);
-    // A local deck lives only in the store, so it never reaches the server
-    // mutation. Both paths land back on the list.
-    if (isLocal) {
-      deleteLocalDeck(deckId);
-      void navigate({ to: "/decks" });
-      return;
-    }
-    // Guard against double-submission: a second confirm while the first delete
-    // is still in flight would 404 on the server.
-    if (deleteDeck.isPending) {
-      return;
-    }
-    deleteDeck.mutate(deckId, {
-      onSuccess: () => {
-        void navigate({ to: "/decks" });
-      },
-      // Errors are reported by the global mutation error toast.
-    });
-  };
-  const handlePlayOnRiftAtlas = () => {
-    // Open the placeholder tab synchronously so it survives the popup blocker
-    // while we fetch the piltover deck code; navigate it once the code arrives.
-    const playTab = window.open("about:blank", "_blank");
-    if (!playTab) {
-      return;
-    }
-    playTab.opener = null;
-    const onSuccess = ({ code }: { code: string }) => {
-      playTab.location.href = `https://play.riftatlas.com/?deckCode=${encodeURIComponent(code)}`;
-    };
-    const onError = () => playTab.close();
-    // A local deck has no server row to export by id — encode its cards via the
-    // public endpoint instead.
-    if (isLocal) {
-      encodeDeck.mutate(
-        { format: "piltover", cards: toEncodeDeckCards(deckCards) },
-        { onSuccess, onError },
-      );
-      return;
-    }
-    exportDeck.mutate({ deckId, format: "piltover" }, { onSuccess, onError });
-  };
+  const dialogs = useDeckEditorDialogs();
 
   // Ownership data — split available vs locked so the deck builder respects
   // each collection's availableForDeckbuilding flag.
@@ -297,9 +159,6 @@ function DeckEditorContent({
 
   // Ctrl/Cmd+K reaches the quick-add omnibar through the command palette,
   // which resolves the chord to whichever quick-add the route registered.
-  const quickAddOpen = useCommandPaletteStore((state) => state.quickAddOpen);
-  const setQuickAddOpen = useCommandPaletteStore((state) => state.setQuickAddOpen);
-  const openQuickAdd = useCommandPaletteStore((state) => state.openQuickAdd);
   useRegisterQuickAdd({ key: `deck:${deckId}`, label: "Add cards to this deck" });
   const ownershipData = useDeckOwnership(
     deckCards,
@@ -407,106 +266,11 @@ function DeckEditorContent({
       return;
     }
 
-    setSearch("");
-
-    const legend = deckCards.find((card) => card.zone === WellKnown.deckZone.LEGEND);
-    const legendDomains = legend?.domains ?? [];
-    const domainsWithColorless =
-      legendDomains.length > 0 ? [...legendDomains, WellKnown.domain.COLORLESS] : [];
-    // Tag-locked formats re-apply their tag selection on every zone change,
-    // resetting any chips the user un-toggled within the previous zone.
-    const formatTagSlugs = Array.isArray(data.deck.formatConfig?.tagSlugs)
-      ? data.deck.formatConfig.tagSlugs
-      : [];
-    // Custom-Region drops both domain-match rules, so any-color cards are
-    // legal across every zone; skip the legend-domain prefilter.
-    const isCustomRegion = data.deck.format === WellKnown.deckFormat.CUSTOM_REGION;
-    const runesDomainFilter = isCustomRegion ? [] : legendDomains;
-    const mainDomainFilter = isCustomRegion ? [] : domainsWithColorless;
-
-    // Legends, runes, and battlefields have no energy / might / power, so a
-    // carried-over range filter would hide every card in these zones.
-    const clearStatRanges = () => {
+    const preset = deckZoneFilterPreset(zone, deckCards, data.deck.format, data.deck.formatConfig);
+    setSearch(preset.search);
+    setArrayFilters(preset.arrayFilters);
+    if (preset.clearStatRanges) {
       setRanges({ energy: null, might: null, power: null });
-    };
-
-    // Every token is colorless today, so excluding tokens keeps them from
-    // leaking into the main/sideboard browser through the colorless bucket.
-    const excludeTokens = [WellKnown.superType.TOKEN];
-
-    switch (zone) {
-      case WellKnown.deckZone.LEGEND: {
-        setArrayFilters({
-          types: [WellKnown.cardType.LEGEND],
-          superTypes: [],
-          superTypesEx: excludeTokens,
-          domains: [],
-          customTags: formatTagSlugs,
-        });
-        clearStatRanges();
-        break;
-      }
-      case WellKnown.deckZone.CHAMPION: {
-        setArrayFilters({
-          types: [WellKnown.cardType.UNIT],
-          superTypes: [WellKnown.superType.CHAMPION],
-          superTypesEx: excludeTokens,
-          domains: mainDomainFilter,
-          customTags: formatTagSlugs,
-        });
-        if (legend?.tags[0]) {
-          setSearch(`t:${legend.tags[0]}`);
-        }
-        break;
-      }
-      case WellKnown.deckZone.RUNES: {
-        setArrayFilters({
-          types: [WellKnown.cardType.RUNE],
-          superTypes: [],
-          superTypesEx: excludeTokens,
-          domains: runesDomainFilter,
-          customTags: formatTagSlugs,
-        });
-        clearStatRanges();
-        break;
-      }
-      case WellKnown.deckZone.BATTLEFIELD: {
-        setArrayFilters({
-          types: [WellKnown.cardType.BATTLEFIELD],
-          superTypes: [],
-          superTypesEx: excludeTokens,
-          domains: [],
-          customTags: formatTagSlugs,
-        });
-        clearStatRanges();
-        break;
-      }
-      case WellKnown.deckZone.MAIN:
-      case WellKnown.deckZone.SIDEBOARD: {
-        setArrayFilters({
-          types: [WellKnown.cardType.UNIT, "spell", WellKnown.cardType.GEAR],
-          superTypes: [],
-          superTypesEx: excludeTokens,
-          domains: mainDomainFilter,
-          customTags: formatTagSlugs,
-        });
-        break;
-      }
-      case WellKnown.deckZone.OVERFLOW: {
-        setArrayFilters({
-          types: [
-            WellKnown.cardType.UNIT,
-            "spell",
-            WellKnown.cardType.GEAR,
-            WellKnown.cardType.BATTLEFIELD,
-          ],
-          superTypes: [],
-          superTypesEx: excludeTokens,
-          domains: mainDomainFilter,
-          customTags: formatTagSlugs,
-        });
-        break;
-      }
     }
 
     setActiveZone(zone);
@@ -563,10 +327,6 @@ function DeckEditorContent({
     .filter((card) => card.zone === activeZone)
     .reduce((sum, card) => sum + card.quantity, 0);
   const totalCards = deckCards.reduce((sum, card) => sum + card.quantity, 0);
-
-  // While a zone browser fills the main area (the hero out of sight), the top
-  // bar carries the completion figure shared with the hero and sidebar header.
-  const inZoneView = activeZone !== null;
   const requiredCounts = requiredZoneProgress(deckCards, data.deck.format);
 
   if (!hydrated) {
@@ -577,312 +337,29 @@ function DeckEditorContent({
     <div className="flex min-w-0 flex-1 flex-col">
       {topBarSlot &&
         createPortal(
-          <PageTopBar>
-            <div className="hidden md:block">
-              <PageTopBarBack to="/decks" />
-            </div>
-            <div className="flex min-w-0 flex-1 items-baseline gap-2">
-              <PageTopBarTitle onToggleSidebar={toggleSidebar}>
-                <span className="md:hidden">
-                  {activeZone ? (
-                    <>
-                      {ZONE_LABELS[activeZone]}
-                      <span className="text-muted-foreground ml-1">({zoneCount})</span>
-                    </>
-                  ) : (
-                    "Zones"
-                  )}
-                </span>
-                <span className="hidden md:inline">{data.deck.name}</span>
-              </PageTopBarTitle>
-              {/* In editing mode the hero scrolls out of reach, so the bar
-                  carries the shared completion figure as a compact chip. */}
-              {inZoneView && data.deck.format !== WellKnown.deckFormat.FREEFORM && (
-                <span
-                  className={cn(
-                    "hidden shrink-0 text-xs tabular-nums md:inline",
-                    editorViolations.length > 0
-                      ? "text-destructive"
-                      : requiredCounts.progress === requiredCounts.total
-                        ? "text-success"
-                        : "text-muted-foreground",
-                  )}
-                >
-                  {requiredCounts.progress}/{requiredCounts.total}
-                </span>
-              )}
-              {isLocal && <LocalDeckBadge className="hidden shrink-0 sm:inline-flex" />}
-            </div>
-            <PageTopBarActions>
-              {/* No tooltip on the phone icon: no hover to open one and no
-                    Ctrl+K to advertise. */}
-              <PageTopBarIconButton
-                className="md:hidden"
-                aria-label="Add a card"
-                onClick={() => openQuickAdd("add")}
-              >
-                <PlusIcon className="size-4" />
-              </PageTopBarIconButton>
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <PageTopBarButton
-                      className="hidden md:inline-flex"
-                      aria-keyshortcuts="Control+K"
-                      onClick={() => openQuickAdd("add")}
-                    />
-                  }
-                >
-                  <PlusIcon className="size-4" />
-                  Add card
-                </TooltipTrigger>
-                <TooltipContent>Add a card (Ctrl+K)</TooltipContent>
-              </Tooltip>
-              <DeckUndoControls deckId={deckId} />
-              <div className="hidden md:flex md:items-center md:gap-1">
-                <PageTopBarButton onClick={() => setShareOpen(true)}>
-                  <Share2Icon className="size-4" />
-                  Share
-                </PageTopBarButton>
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger render={<PageTopBarIconButton />}>
-                  <EllipsisVerticalIcon className="size-4" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {/* Share has its own button in the bar from md up, so the
-                        entry here is the phone's only way to it. */}
-                  <div className="md:hidden">
-                    <DropdownMenuItem onClick={() => setShareOpen(true)}>
-                      <Share2Icon className="size-4" />
-                      Share…
-                    </DropdownMenuItem>
-                  </div>
-                  <DropdownMenuItem onClick={() => setExportOpen(true)}>
-                    <DownloadIcon className="size-4" />
-                    Export…
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setPrintOpen(true)}>
-                    <PrinterIcon className="size-4" />
-                    Print…
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() =>
-                      void navigate({
-                        to: "/decks/import",
-                        search: { replaceDeckId: deckId },
-                      })
-                    }
-                  >
-                    <UploadIcon className="size-4" />
-                    Import &amp; replace cards…
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  {/* Descriptions are a signed-in feature, so a local deck
-                        gets the name on its own. */}
-                  <DropdownMenuItem
-                    onClick={() => (isLocal ? setRenameOpen(true) : setDetailsOpen(true))}
-                  >
-                    <PencilIcon className="size-4" />
-                    {isLocal ? "Rename" : "Name & description"}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setCoverOpen(true)}>
-                    <ImageIcon className="size-4" />
-                    Change cover art
-                  </DropdownMenuItem>
-                  {/* A home collection points at a server collection, which
-                        a browser-local deck can't reference. */}
-                  {!isLocal && (
-                    <DropdownMenuItem onClick={() => setHomeCollectionOpen(true)}>
-                      <BoxIcon className="size-4" />
-                      Stored in…
-                    </DropdownMenuItem>
-                  )}
-                  {/* Opens the comparison page with this deck pinned as the
-                        left side and the other still to pick. */}
-                  <DropdownMenuItem
-                    render={<Link to="/decks/compare" search={{ from: deckId, to: undefined }} />}
-                  >
-                    <GitCompareArrowsIcon className="size-4" />
-                    Compare with another deck…
-                  </DropdownMenuItem>
-                  {/* Variants are server decks in a family, which a
-                        browser-local deck can't join until it's claimed. */}
-                  {!isLocal && (
-                    <DropdownMenuItem onClick={() => setVariantCreateOpen(true)}>
-                      <CopyIcon className="size-4" />
-                      New variant…
-                    </DropdownMenuItem>
-                  )}
-                  {/* Always available for a server deck: the dialog is also
-                        where a standalone deck gets linked to its first sibling. */}
-                  {!isLocal && (
-                    <DropdownMenuItem onClick={() => setVariantsOpen(true)}>
-                      <GitBranchIcon className="size-4" />
-                      Variants…
-                    </DropdownMenuItem>
-                  )}
-                  {!isLocal && (
-                    <DropdownMenuItem
-                      onClick={() => updateDeck.mutate({ deckId, isDraft: !data.deck.isDraft })}
-                    >
-                      <FlaskConicalIcon className="size-4" />
-                      {data.deck.isDraft ? "Remove draft mark" : "Mark as draft"}
-                    </DropdownMenuItem>
-                  )}
-                  {otherFormats.length > 0 && (
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>
-                        <RefreshCwIcon className="size-4" />
-                        Change format
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent>
-                        {otherFormats.map((entry) => (
-                          <DropdownMenuItem
-                            key={entry.slug}
-                            onClick={() => handleFormatChange(entry.slug)}
-                          >
-                            {entry.label}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  )}
-                  <DropdownMenuItem onClick={handlePlayOnRiftAtlas}>
-                    <PlayIcon className="size-4" />
-                    Play on RiftAtlas
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  {/* A variant is a deck of its own, so this is also how a
-                        single version of a family is deleted. */}
-                  <DropdownMenuItem
-                    onClick={() => setDeleteOpen(true)}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash2Icon className="size-4" />
-                    Delete deck
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </PageTopBarActions>
-          </PageTopBar>,
+          <DeckEditorTopBar
+            deckId={deckId}
+            deck={data.deck}
+            cards={deckCards}
+            isLocal={isLocal}
+            activeZone={activeZone}
+            zoneCount={zoneCount}
+            requiredProgress={requiredCounts}
+            hasViolations={editorViolations.length > 0}
+            onToggleSidebar={toggleSidebar}
+            openDialog={dialogs.openDialog}
+          />,
           topBarSlot,
         )}
-      {isLocal && (
-        <DeckRenameDialog
-          deckId={deckId}
-          currentName={data.deck.name}
-          open={renameOpen}
-          onOpenChange={setRenameOpen}
-        />
-      )}
-      {!isLocal && (
-        <DeckDetailsDialog
-          deckId={deckId}
-          currentName={data.deck.name}
-          currentDescription={data.deck.description ?? null}
-          currentLinks={data.deck.links}
-          open={detailsOpen}
-          onOpenChange={setDetailsOpen}
-        />
-      )}
-      {!isLocal && (
-        <DeckHomeCollectionDialog
-          deckId={deckId}
-          currentCollectionId={data.deck.collectionId}
-          open={homeCollectionOpen}
-          onOpenChange={setHomeCollectionOpen}
-        />
-      )}
-      {!isLocal && (
-        <DeckVariantCreateDialog
-          deckId={deckId}
-          deckName={data.deck.name}
-          open={variantCreateOpen}
-          onOpenChange={setVariantCreateOpen}
-        />
-      )}
-      {!isLocal && (
-        <DeckVariantsDialog
-          deckId={deckId}
-          deckName={data.deck.name}
-          open={variantsOpen}
-          onOpenChange={setVariantsOpen}
-        />
-      )}
-
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent>
-          <DialogForm onSubmit={handleDelete}>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete deck</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete &ldquo;{data.deck.name}&rdquo;?{" "}
-                {isLocal
-                  ? "It only exists on this device, so this cannot be undone."
-                  : "This cannot be undone."}
-                {data.deck.familyId !== null && " The other versions of it stay."}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction type="submit" disabled={deleteDeck.isPending}>
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </DialogForm>
-        </AlertDialogContent>
-      </AlertDialog>
-      <DeckShareDialog
+      <DeckEditorDialogs
         deckId={deckId}
-        deckName={data.deck.name}
-        isPublic={data.deck.isPublic}
-        shareToken={data.deck.shareToken}
-        isDirty={saveStatus.isDirty}
-        open={shareOpen}
-        onOpenChange={setShareOpen}
-      />
-      <DeckExportDialog
-        deckId={deckId}
-        isDirty={saveStatus.isDirty}
-        open={exportOpen}
-        onOpenChange={setExportOpen}
-      />
-      <DeckPrintDialog
-        open={printOpen}
-        onOpenChange={setPrintOpen}
-        deckId={deckId}
-        deckName={data.deck.name}
-      />
-      {ownershipData && (
-        <DeckMissingCardsDialog
-          open={missingOpen}
-          onOpenChange={setMissingOpen}
-          missingCards={ownershipData.missingCards}
-          totalMissingValue={ownershipData.missingValueCents}
-          marketplace={marketplace}
-          deckName={data.deck.name}
-        />
-      )}
-      <DeckQuickAdd
-        open={quickAddOpen}
-        onOpenChange={setQuickAddOpen}
-        deckId={deckId}
-        format={data.deck.format}
+        deck={data.deck}
         cards={deckCards}
-      />
-      <DeckCoverDialog
-        open={coverOpen}
-        onOpenChange={setCoverOpen}
-        deckId={deckId}
-        cards={deckCards}
-        coverCardId={data.deck.coverCardId}
-        coverPrintingId={data.deck.coverPrintingId}
-        coverPosition={data.deck.coverPosition}
-        getThumbnail={(cardId, preferredPrintingId) => {
-          const id = getPreferredFrontImage(cardId, preferredPrintingId)?.imageId;
-          return id ? imageUrl(id, "400w") : undefined;
-        }}
+        isLocal={isLocal}
+        isDirty={saveStatus.isDirty}
+        ownershipData={ownershipData}
+        marketplace={marketplace}
+        dialogs={dialogs}
       />
       <DeckDndContext deckId={deckId}>
         <div ref={containerRef} className={cn(PAGE_WIDTH.full, "px-safe relative flex gap-4")}>
@@ -945,10 +422,10 @@ function DeckEditorContent({
                   ownershipData={ownershipData}
                   marketplace={marketplace}
                   onZoneClick={handleZoneClick}
-                  onViewMissing={() => setMissingOpen(true)}
+                  onViewMissing={() => dialogs.openDialog("missing")}
                   onHoverCard={setHoveredMain}
                   onOverviewCardClick={handleOverviewCardClick}
-                  onEditDescription={isLocal ? undefined : () => setDetailsOpen(true)}
+                  onEditDescription={isLocal ? undefined : () => dialogs.openDialog("details")}
                   // Variant families are server-only, so a local deck gets no
                   // rail at all.
                   variantRailSlot={isLocal ? undefined : <DeckVariantRail deckId={deckId} />}

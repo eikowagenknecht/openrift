@@ -2,7 +2,7 @@ import type { FriendGroupRole } from "@openrift/shared/types/api/friend-group";
 import { describe, expect, it } from "vitest";
 
 import { AppError } from "../../../errors.js";
-import type { GroupMember } from "../repositories/friend-groups.js";
+import type { GroupMember } from "../repositories/friend-groups-shared.js";
 import { hasRole, requireRole, ROLE_RANK } from "./group-access.js";
 
 function membership(role: FriendGroupRole): GroupMember {

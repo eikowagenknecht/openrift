@@ -10,7 +10,11 @@ import type {
 } from "@openrift/shared/types/api/friend-group";
 
 import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
-import type { Group, MemberPreviewRow, MemberWithUser } from "../repositories/friend-groups.js";
+import type {
+  Group,
+  MemberPreviewRow,
+  MemberWithUser,
+} from "../repositories/friend-groups-shared.js";
 import { hasRole } from "./group-access.js";
 
 /** Max cover printings per shared collection (a CardFan holds four). */

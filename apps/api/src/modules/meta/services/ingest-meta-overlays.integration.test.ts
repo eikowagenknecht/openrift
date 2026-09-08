@@ -1,4 +1,4 @@
-import { metaUploadSchema } from "@openrift/shared/contracts/admin/meta";
+import { metaUploadSchema } from "@openrift/shared/contracts/admin/meta-uploads";
 import type { MetaIngestEvent } from "@openrift/shared/types/api/meta";
 import { afterAll, describe, expect, it } from "vitest";
 

@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
-import type { Group, MemberPreviewRow, MemberWithUser } from "../repositories/friend-groups.js";
+import type {
+  Group,
+  MemberPreviewRow,
+  MemberWithUser,
+} from "../repositories/friend-groups-shared.js";
 import type {
   CollectionCoverRow,
   CollectionShareRow,

@@ -4,24 +4,30 @@ import type {
   adminMetaEventListResponseSchema,
   adminMetaEventSchema,
   adminMetaEventSourceSchema,
-  adminMetaPlayerSchema,
+} from "../../contracts/admin/meta-events.js";
+import type {
   metaCrossSourceCitationSchema,
   metaCrossSourceReviewSchema,
   metaCrossSourceRowSchema,
+  metaEventMatchSuggestionSchema,
+  metaPlayerMatchSuggestionSchema,
+} from "../../contracts/admin/meta-matching.js";
+import type {
   metaEventDriftSchema,
-  metaOverlayDetailSchema,
   metaOverlayBulkAcceptResultSchema,
+  metaOverlayDetailSchema,
   metaOverlayMatchStateSchema,
   metaOverlayQueueRowSchema,
   metaOverlayReviewResultSchema,
   metaOverlayRowMatchSchema,
-  metaEventMatchSuggestionSchema,
-  metaPlayerMatchSuggestionSchema,
+} from "../../contracts/admin/meta-overlays.js";
+import type { adminMetaPlayerSchema } from "../../contracts/admin/meta-players.js";
+import type {
   metaUploadResponseSchema,
   metaUploadRevertResultSchema,
-  metaUploadSummarySchema,
   metaUploadSchema,
-} from "../../contracts/admin/meta.js";
+  metaUploadSummarySchema,
+} from "../../contracts/admin/meta-uploads.js";
 import type {
   metaCreditVisibilityResponseSchema,
   metaEventCorrectionInputSchema,

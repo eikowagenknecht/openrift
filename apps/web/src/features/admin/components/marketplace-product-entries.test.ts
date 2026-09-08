@@ -13,7 +13,7 @@ import {
   collectWeakMappings,
   displayedProductLanguage,
   isCardNameMismatch,
-} from "./marketplace-products-table";
+} from "./marketplace-product-entries";
 import type { ProductSuggestion } from "./suggest-mapping";
 import { productSuggestionKey } from "./suggest-mapping";
 

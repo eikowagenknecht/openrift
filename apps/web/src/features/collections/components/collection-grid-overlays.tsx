@@ -22,9 +22,9 @@ interface CollectionGridOverlaysProps {
   ownedCountByPrinting?: Record<string, number>;
   preferredLanguages?: readonly string[];
   collections?: CollectionResponse[];
-  handleDeleteCollection: () => void;
+  onDeleteCollection: () => void;
   deleteIsPending: boolean;
-  handleClearInbox: () => void;
+  onClearInbox: () => void;
   clearInboxIsPending: boolean;
   pendingAnnotatedDispose: PendingAnnotatedDispose | null;
   confirmAnnotatedDispose: () => Promise<void>;
@@ -45,9 +45,9 @@ export function CollectionGridOverlays({
   ownedCountByPrinting,
   preferredLanguages,
   collections,
-  handleDeleteCollection,
+  onDeleteCollection: handleDeleteCollection,
   deleteIsPending,
-  handleClearInbox,
+  onClearInbox: handleClearInbox,
   clearInboxIsPending,
   pendingAnnotatedDispose,
   confirmAnnotatedDispose,

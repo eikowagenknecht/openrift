@@ -30,7 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { displayedProductLanguage } from "@/features/admin/components/marketplace-products-table";
+import { displayedProductLanguage } from "@/features/admin/components/marketplace-product-entries";
 import {
   useUnifiedAssignToCard,
   useUnifiedIgnoreProducts,

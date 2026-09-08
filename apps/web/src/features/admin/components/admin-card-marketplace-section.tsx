@@ -19,12 +19,9 @@ import {
 } from "@/features/admin/hooks/use-unified-mappings";
 import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 
-import type { MarketplaceHandlers } from "./marketplace-products-table";
-import {
-  collectStrongMappings,
-  collectWeakMappings,
-  MarketplaceProductsTable,
-} from "./marketplace-products-table";
+import type { MarketplaceHandlers } from "./marketplace-product-entries";
+import { collectStrongMappings, collectWeakMappings } from "./marketplace-product-entries";
+import { MarketplaceProductsTable } from "./marketplace-products-table";
 import { computeProductSuggestions } from "./suggest-mapping";
 
 export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {

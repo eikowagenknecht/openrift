@@ -3,7 +3,7 @@ import type { FriendGroupRole } from "@openrift/shared/types/api/friend-group";
 
 import type { Repos } from "../../../deps.js";
 import { AppError } from "../../../errors.js";
-import type { Group, GroupMember } from "../repositories/friend-groups.js";
+import type { Group, GroupMember } from "../repositories/friend-groups-shared.js";
 
 export interface GroupContext {
   group: Group;

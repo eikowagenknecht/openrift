@@ -1,4 +1,4 @@
-import { RESERVED_META_EVENT_SLUGS } from "@openrift/shared/contracts/admin/meta";
+import { RESERVED_META_EVENT_SLUGS } from "@openrift/shared/contracts/admin/meta-events";
 import { afterAll, describe, expect, it } from "vitest";
 
 import {
