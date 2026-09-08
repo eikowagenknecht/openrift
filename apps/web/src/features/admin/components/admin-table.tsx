@@ -1,53 +1,22 @@
-import type { DragEndEvent, DragStartEvent, SensorDescriptor, SensorOptions } from "@dnd-kit/core";
-import {
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import type { ColumnDef, RowData, SortingState, Updater } from "@tanstack/react-table";
+import type {
+  ColumnDef,
+  RowData,
+  Row as TanStackRow,
+  Table as TanStackTable,
+} from "@tanstack/react-table";
 import {
   FlexRender,
   createSortedRowModel,
-  functionalUpdate,
   rowSortingFeature,
   tableFeatures,
   useTable,
 } from "@tanstack/react-table";
-import {
-  ArrowDownIcon,
-  ArrowUpIcon,
-  DownloadIcon,
-  GripVerticalIcon,
-  Trash2Icon,
-} from "lucide-react";
-import type { CSSProperties, ReactElement, ReactNode } from "react";
+import { DownloadIcon } from "lucide-react";
+import type { ReactElement, ReactNode } from "react";
 import { Fragment, cloneElement, useState } from "react";
 
 import { PageTopBarButton, PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { DialogForm } from "@/components/ui/dialog-form";
 import {
   Table,
   TableBody,
@@ -57,11 +26,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AdminPageTopBar } from "@/features/admin/components/admin-page-top-bar";
+import type { AdminDeleteConfig } from "@/features/admin/components/admin-table-delete-button";
+import { DeleteButton } from "@/features/admin/components/admin-table-delete-button";
+import {
+  ReorderProvider,
+  ReorderableRow,
+} from "@/features/admin/components/admin-table-reorder-row";
 import { SortHeaderButton, ariaSort } from "@/features/admin/components/sortable-header";
-import type { ReorderMoves } from "@/features/admin/lib/admin-reorder";
+import type { AdminReorderConfig } from "@/features/admin/hooks/use-admin-reorder";
+import { useAdminReorder } from "@/features/admin/hooks/use-admin-reorder";
+import { useAdminSorting } from "@/features/admin/hooks/use-admin-sorting";
+import { useAdminTableEditing } from "@/features/admin/hooks/use-admin-table-editing";
+import { columnId } from "@/features/admin/lib/admin-table-columns";
 import type { ServerSort } from "@/features/admin/lib/admin-table-types";
 import { downloadJSON } from "@/features/collections/lib/json-export";
-import { errorText } from "@/lib/error-text";
 import { cn } from "@/lib/utils";
 
 // The row model is registered unconditionally even on reorder tables, where
@@ -101,10 +79,13 @@ export interface AdminColumnDef<TData, TDraft = TData> {
   addCell?: ReactElement<AdminDraftSlotProps<TDraft>>;
 }
 
-interface AdminColumnMeta<TDraft> {
+interface AdminHeaderMeta {
   headerTitle?: string;
   width?: string;
   align?: "left" | "center" | "right";
+}
+
+interface AdminColumnMeta<TDraft> extends AdminHeaderMeta {
   editCell?: ReactElement<AdminDraftSlotProps<TDraft>>;
   addCell?: ReactElement<AdminDraftSlotProps<TDraft>>;
 }
@@ -139,16 +120,9 @@ interface AdminTableProps<TData, TDraft = TData> {
     validate?: (draft: TDraft) => string | null;
   };
 
-  delete?: {
-    onDelete: (row: TData) => Promise<unknown>;
-    confirm?: (row: TData) => { title: string; description: ReactNode };
-  };
+  delete?: AdminDeleteConfig<TData>;
 
-  reorder?: {
-    moves: ReorderMoves;
-    onReorder: (keys: string[]) => Promise<unknown> | void;
-    isPending?: boolean;
-  };
+  reorder?: AdminReorderConfig;
 
   export?: {
     filename: string;
@@ -164,10 +138,6 @@ function alignClass(align?: "left" | "center" | "right") {
   if (align) {
     return ALIGN_CLASSES[align];
   }
-}
-
-function columnId<TData, TDraft>(col: AdminColumnDef<TData, TDraft>): string {
-  return col.id ?? col.header;
 }
 
 function toTanStackColumns<TData extends RowData, TDraft>(
@@ -230,17 +200,6 @@ function toTanStackColumns<TData extends RowData, TDraft>(
   });
 }
 
-function serverSortingState<TData, TDraft>(
-  adminCols: AdminColumnDef<TData, TDraft>[],
-  serverSort: ServerSort,
-): SortingState {
-  const column = adminCols.find((col) => col.sortKey === serverSort.key);
-  if (column === undefined) {
-    return [];
-  }
-  return [{ id: columnId(column), desc: serverSort.direction === "desc" }];
-}
-
 export function AdminTable<TData extends RowData, TDraft = TData>({
   columns: adminColumns,
   data,
@@ -258,57 +217,34 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
   export: exportConfig,
   actions,
 }: AdminTableProps<TData, TDraft>) {
-  const [adding, setAdding] = useState(false);
-  const [addDraft, setAddDraft] = useState<TDraft | null>(null);
-  const [addError, setAddError] = useState("");
-  const [addPending, setAddPending] = useState(false);
-  const [addingUnderKey, setAddingUnderKey] = useState<string | null>(null);
-
-  const [editingKey, setEditingKey] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState<TDraft | null>(null);
-  const [editError, setEditError] = useState("");
-  const [editPending, setEditPending] = useState(false);
-
   const [deleteError, setDeleteError] = useState("");
 
-  const [pendingOrder, setPendingOrder] = useState<{ keys: string[]; from: string } | null>(null);
-  const [activeKey, setActiveKey] = useState<string | null>(null);
-
-  const sensors = useSensors(
-    // A distance threshold so a click on the handle isn't read as a drag.
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  const {
+    adding,
+    addDraft,
+    addingUnderKey,
+    editingKey,
+    editDraft,
+    error: draftError,
+    pending: draftPending,
+    startAdding,
+    startEditing,
+    updateDraft,
+    cancel: cancelDraft,
+    save: saveDraft,
+  } = useAdminTableEditing({ add, edit });
 
   const enableSort = !reorder;
-  const tanStackColumns = toTanStackColumns(adminColumns, enableSort, serverSort !== undefined);
-
-  const initialSorting: SortingState = defaultSort
-    ? [{ id: defaultSort.column, desc: defaultSort.direction === "desc" }]
-    : [];
-  const [localSorting, setLocalSorting] = useState<SortingState>(initialSorting);
-  const sorting =
-    serverSort === undefined ? localSorting : serverSortingState(adminColumns, serverSort);
-
-  function handleSortingChange(updater: Updater<SortingState>) {
-    const next = functionalUpdate(updater, sorting);
-    if (serverSort === undefined) {
-      setLocalSorting(next);
-      return;
-    }
-    const first = next[0];
-    if (first === undefined) {
-      serverSort.onChange({ key: null, direction: "asc" });
-      return;
-    }
-    const key = adminColumns.find((col) => columnId(col) === first.id)?.sortKey ?? null;
-    serverSort.onChange({ key, direction: first.desc ? "desc" : "asc" });
-  }
+  const { sorting, handleSortingChange } = useAdminSorting({
+    columns: adminColumns,
+    defaultSort,
+    serverSort,
+  });
 
   const table = useTable({
     features,
     data,
-    columns: tanStackColumns,
+    columns: toTanStackColumns(adminColumns, enableSort, serverSort !== undefined),
     state: { sorting },
     onSortingChange: handleSortingChange,
     manualSorting: serverSort !== undefined,
@@ -316,150 +252,40 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
     enableSorting: enableSort,
   });
 
+  const rows = table.getRowModel().rows;
+  const rowByKey = new Map(rows.map((row) => [row.id, row]));
+  const {
+    sensors,
+    activeKey,
+    orderedKeys,
+    locked: reorderLocked,
+    commitReorder,
+    handleDragStart,
+    handleDragEnd,
+    handleDragCancel,
+  } = useAdminReorder({ reorder, rowKeys: rows.map((row) => row.id) });
+
   const hasActions = Boolean(edit || del || actions || addChild);
   const totalCols = adminColumns.length + (reorder ? 1 : 0) + (hasActions ? 1 : 0);
 
-  const rows = table.getRowModel().rows;
-  const rowKeys = rows.map((row) => row.id);
-  // The reorder mutation only invalidates, so rows would snap back to the old
-  // order until the refetch lands. Keep the dropped order on screen until the
-  // underlying data actually changes.
-  const orderSignature = rowKeys.join("\u0000");
-  const showsPendingOrder = pendingOrder !== null && pendingOrder.from === orderSignature;
-  const orderedKeys = showsPendingOrder ? pendingOrder.keys : rowKeys;
-  // While the dropped order is unconfirmed, `reorder.moves` still describes the
-  // pre-move order, so a second move would compute from the wrong list.
-  const reorderLocked = Boolean(reorder?.isPending) || showsPendingOrder;
-
-  async function commitReorder(keys: string[] | null) {
-    if (!reorder || !keys) {
-      return;
-    }
-    setPendingOrder({ keys, from: orderSignature });
-    try {
-      await reorder.onReorder(keys);
-    } catch {
-      setPendingOrder(null);
-    }
-  }
-
-  function handleDragStart(event: DragStartEvent) {
-    setActiveKey(String(event.active.id));
-  }
-
-  function handleDragCancel() {
-    setActiveKey(null);
-  }
-
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    setActiveKey(null);
-    if (!reorder || !over || active.id === over.id) {
-      return;
-    }
-    void commitReorder(reorder.moves.moveTo(String(active.id), String(over.id)));
-  }
-
-  function startAdding(draft?: TDraft, underKey: string | null = null) {
-    if (!add) {
-      return;
-    }
-    setAddDraft(structuredClone(draft ?? add.emptyDraft));
-    setAddError("");
-    setAdding(true);
-    setAddingUnderKey(underKey);
-  }
-
-  function cancelAdding() {
-    setAdding(false);
-    setAddDraft(null);
-    setAddError("");
-    setAddingUnderKey(null);
-  }
-
-  async function saveAdd() {
-    if (!add || !addDraft) {
-      return;
-    }
-    if (add.validate) {
-      const err = add.validate(addDraft);
-      if (err) {
-        setAddError(err);
-        return;
-      }
-    }
-    setAddPending(true);
-    try {
-      await add.onSave(addDraft);
-      cancelAdding();
-      setAddPending(false);
-    } catch (error) {
-      setAddError(errorText(error, "Save failed"));
-      setAddPending(false);
-    }
-  }
-
-  function startEditing(row: TData) {
-    if (!edit) {
-      return;
-    }
-    setEditDraft(edit.toDraft(row));
-    setEditingKey(getRowKey(row));
-    setEditError("");
-  }
-
-  function cancelEditing() {
-    setEditingKey(null);
-    setEditDraft(null);
-    setEditError("");
-  }
-
-  async function saveEdit() {
-    if (!edit || !editDraft) {
-      return;
-    }
-    if (edit.validate) {
-      const err = edit.validate(editDraft);
-      if (err) {
-        setEditError(err);
-        return;
-      }
-    }
-    setEditPending(true);
-    try {
-      await edit.onSave(editDraft);
-      cancelEditing();
-      setEditPending(false);
-    } catch (error) {
-      setEditError(errorText(error, "Save failed"));
-      setEditPending(false);
-    }
-  }
-
-  const headerGroups = table.getHeaderGroups();
-  const rowByKey = new Map(rows.map((row) => [row.id, row]));
-
   const addRow =
-    adding && addDraft ? (
+    adding && addDraft !== null ? (
       <TableRow>
         {reorder && <TableCell />}
         {adminColumns.map((col) => (
           <TableCell key={col.header} className={alignClass(col.align)}>
             {col.addCell
-              ? cloneElement(col.addCell, {
-                  draft: addDraft,
-                  setDraft: (fn) => setAddDraft((prev) => (prev === null ? prev : fn(prev))),
-                })
+              ? cloneElement(col.addCell, { draft: addDraft, setDraft: updateDraft })
               : null}
           </TableCell>
         ))}
         {hasActions && (
           <TableCell className="text-right">
             <SaveCancelButtons
-              onSave={() => void saveAdd()}
-              onCancel={cancelAdding}
-              isPending={addPending}
-              error={addError}
+              onSave={() => void saveDraft()}
+              onCancel={cancelDraft}
+              isPending={draftPending}
+              error={draftError}
             />
           </TableCell>
         )}
@@ -475,51 +301,14 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
 
   return (
     <div className="space-y-4">
-      {title !== undefined && (
-        <AdminPageTopBar
-          title={title}
-          actions={
-            (exportConfig || add) && (
-              <>
-                {handleExport && (
-                  <PageTopBarButton onClick={handleExport}>
-                    <DownloadIcon />
-                    Export JSON
-                  </PageTopBarButton>
-                )}
-                {add && (
-                  <PageTopBarPrimaryButton onClick={() => startAdding()} disabled={adding}>
-                    {add.label ?? "Add"}
-                  </PageTopBarPrimaryButton>
-                )}
-              </>
-            )
-          }
-        />
-      )}
-      {/* A table without `title` has no top bar to host Export/Add, so they
-          render in this toolbar row instead; the two branches are mutually
-          exclusive. */}
-      {title === undefined
-        ? (toolbar || add || exportConfig) && (
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1">{toolbar}</div>
-              <div className="flex items-center gap-2">
-                {handleExport && (
-                  <Button variant="outline" onClick={handleExport}>
-                    <DownloadIcon className="h-4 w-4" />
-                    Export JSON
-                  </Button>
-                )}
-                {add && !adding && (
-                  <Button variant="outline" onClick={() => startAdding()}>
-                    {add.label ?? "Add"}
-                  </Button>
-                )}
-              </div>
-            </div>
-          )
-        : toolbar}
+      <AdminTableChrome
+        title={title}
+        toolbar={toolbar}
+        adding={adding}
+        addLabel={add?.label ?? "Add"}
+        onAdd={add ? () => startAdding() : undefined}
+        onExport={handleExport}
+      />
 
       <div className="overflow-x-auto">
         <ReorderProvider
@@ -531,40 +320,11 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
           onDragCancel={handleDragCancel}
         >
           <Table>
-            <TableHeader>
-              {headerGroups.map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {reorder && <TableHead className="w-24">Order</TableHead>}
-                  {headerGroup.headers.map((header) => {
-                    const meta = header.column.columnDef.meta as
-                      | AdminColumnMeta<TDraft>
-                      | undefined;
-                    const canSort = header.column.getCanSort();
-                    const sorted = header.column.getIsSorted();
-                    return (
-                      <TableHead
-                        key={header.id}
-                        className={cn(meta?.width, alignClass(meta?.align))}
-                        title={meta?.headerTitle}
-                        aria-sort={canSort ? ariaSort(sorted) : undefined}
-                      >
-                        {canSort ? (
-                          <SortHeaderButton
-                            sorted={sorted}
-                            onClick={header.column.getToggleSortingHandler()}
-                          >
-                            <FlexRender header={header} />
-                          </SortHeaderButton>
-                        ) : (
-                          <FlexRender header={header} />
-                        )}
-                      </TableHead>
-                    );
-                  })}
-                  {hasActions && <TableHead className="w-32 text-right">Actions</TableHead>}
-                </TableRow>
-              ))}
-            </TableHeader>
+            <AdminTableHead
+              table={table}
+              showOrderColumn={Boolean(reorder)}
+              hasActions={hasActions}
+            />
             <TableBody>
               {addingUnderKey === null && addRow}
 
@@ -582,76 +342,35 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
                   return null;
                 }
                 const original = row.original;
-                const index = row.index;
-                const isEditing = editingKey === row.id && editDraft !== null;
                 const childCfg = addChild;
                 const showAddChild =
                   childCfg && (childCfg.canAddChild ? childCfg.canAddChild(original) : true);
 
                 const cells = (
-                  <>
-                    {/* getAllCells, not getVisibleCells: pair with the same
-                      call in admin-card-table-shared.tsx if that ever
-                      registers columnVisibilityFeature. */}
-                    {row.getAllCells().map((cell) => {
-                      const meta = cell.column.columnDef.meta as
-                        | AdminColumnMeta<TDraft>
-                        | undefined;
-                      return (
-                        <TableCell key={cell.id} className={alignClass(meta?.align)}>
-                          {isEditing && meta?.editCell ? (
-                            cloneElement(meta.editCell, {
-                              draft: editDraft,
-                              setDraft: (fn) =>
-                                setEditDraft((prev) => (prev === null ? prev : fn(prev))),
-                            })
-                          ) : (
-                            <FlexRender cell={cell} />
-                          )}
-                        </TableCell>
-                      );
-                    })}
-
-                    {hasActions && (
-                      <TableCell className="text-right">
-                        {isEditing ? (
-                          <SaveCancelButtons
-                            onSave={() => void saveEdit()}
-                            onCancel={cancelEditing}
-                            isPending={editPending}
-                            error={editError}
-                          />
-                        ) : (
-                          <div className="flex items-center justify-end gap-1">
-                            {actions ? cloneElement(actions, { row: original, index }) : null}
-                            {showAddChild && childCfg && (
-                              <Button
-                                variant="ghost"
-                                onClick={() =>
-                                  startAdding(childCfg.toDraft(original), getRowKey(original))
-                                }
-                              >
-                                Add child
-                              </Button>
-                            )}
-                            {edit && (
-                              <Button variant="ghost" onClick={() => startEditing(original)}>
-                                Edit
-                              </Button>
-                            )}
-                            {del && (
-                              <DeleteButton
-                                row={original}
-                                config={del}
-                                deleteError={deleteError}
-                                setDeleteError={setDeleteError}
-                              />
-                            )}
-                          </div>
-                        )}
-                      </TableCell>
-                    )}
-                  </>
+                  <AdminRowCells
+                    row={row}
+                    hasActions={hasActions}
+                    editDraft={editingKey === row.id ? editDraft : null}
+                    updateDraft={updateDraft}
+                    onSave={() => void saveDraft()}
+                    onCancel={cancelDraft}
+                    pending={draftPending}
+                    error={draftError}
+                    actions={actions}
+                    onAddChild={
+                      showAddChild && childCfg
+                        ? () => startAdding(childCfg.toDraft(original), getRowKey(original))
+                        : undefined
+                    }
+                    onEdit={
+                      edit
+                        ? () => startEditing(getRowKey(original), edit.toDraft(original))
+                        : undefined
+                    }
+                    del={del}
+                    deleteError={deleteError}
+                    setDeleteError={setDeleteError}
+                  />
                 );
 
                 return (
@@ -686,140 +405,203 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
   );
 }
 
-/**
- * Puts the table inside a dnd-kit sortable context, or renders it untouched on
- * the tables that don't reorder.
- */
-function ReorderProvider({
-  enabled,
-  sensors,
-  items,
-  onDragStart,
-  onDragEnd,
-  onDragCancel,
-  children,
+function AdminRowCells<TData extends RowData, TDraft>({
+  row,
+  hasActions,
+  editDraft,
+  updateDraft,
+  onSave,
+  onCancel,
+  pending,
+  error,
+  actions,
+  onAddChild,
+  onEdit,
+  del,
+  deleteError,
+  setDeleteError,
 }: {
-  enabled: boolean;
-  sensors: SensorDescriptor<SensorOptions>[];
-  items: string[];
-  onDragStart: (event: DragStartEvent) => void;
-  onDragEnd: (event: DragEndEvent) => void;
-  onDragCancel: () => void;
-  children: ReactNode;
+  row: TanStackRow<AdminTableFeatures, TData>;
+  hasActions: boolean;
+  editDraft: TDraft | null;
+  updateDraft: (fn: (prev: TDraft) => TDraft) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  pending: boolean;
+  error: string;
+  actions?: ReactElement<AdminCellSlotProps<TData>>;
+  onAddChild?: () => void;
+  onEdit?: () => void;
+  del?: AdminDeleteConfig<TData>;
+  deleteError: string;
+  setDeleteError: (err: string) => void;
 }) {
-  if (!enabled) {
-    return children;
-  }
+  const isEditing = editDraft !== null;
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      // Rows only ever swap places in one column, so a drag has no business
-      // leaving the vertical axis.
-      modifiers={[restrictToVerticalAxis]}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      onDragCancel={onDragCancel}
-    >
-      <SortableContext items={items} strategy={verticalListSortingStrategy}>
-        {children}
-      </SortableContext>
-    </DndContext>
+    <>
+      {/* getAllCells, not getVisibleCells: pair with the same call in
+          admin-card-table-shared.tsx if that ever registers
+          columnVisibilityFeature. */}
+      {row.getAllCells().map((cell) => {
+        const meta = cell.column.columnDef.meta as AdminColumnMeta<TDraft> | undefined;
+        return (
+          <TableCell key={cell.id} className={alignClass(meta?.align)}>
+            {isEditing && meta?.editCell ? (
+              cloneElement(meta.editCell, { draft: editDraft, setDraft: updateDraft })
+            ) : (
+              <FlexRender cell={cell} />
+            )}
+          </TableCell>
+        );
+      })}
+
+      {hasActions && (
+        <TableCell className="text-right">
+          {isEditing ? (
+            <SaveCancelButtons
+              onSave={onSave}
+              onCancel={onCancel}
+              isPending={pending}
+              error={error}
+            />
+          ) : (
+            <div className="flex items-center justify-end gap-1">
+              {actions ? cloneElement(actions, { row: row.original, index: row.index }) : null}
+              {onAddChild && (
+                <Button variant="ghost" onClick={onAddChild}>
+                  Add child
+                </Button>
+              )}
+              {onEdit && (
+                <Button variant="ghost" onClick={onEdit}>
+                  Edit
+                </Button>
+              )}
+              {del && (
+                <DeleteButton
+                  row={row.original}
+                  config={del}
+                  deleteError={deleteError}
+                  setDeleteError={setDeleteError}
+                />
+              )}
+            </div>
+          )}
+        </TableCell>
+      )}
+    </>
   );
 }
 
-/**
- * A data row on a reorderable table: draggable by its grip, with the up/down
- * buttons beside it for single steps and keyboard use.
- */
-function ReorderableRow({
-  id,
-  locked,
-  droppable,
-  canMoveUp,
-  canMoveDown,
-  onMove,
-  children,
+function AdminTableChrome({
+  title,
+  toolbar,
+  adding,
+  addLabel,
+  onAdd,
+  onExport,
 }: {
-  id: string;
-  locked: boolean;
-  droppable: boolean;
-  canMoveUp: boolean;
-  canMoveDown: boolean;
-  onMove: (direction: -1 | 1) => void;
-  children: ReactNode;
+  title?: ReactNode;
+  toolbar?: ReactNode;
+  adding: boolean;
+  addLabel: string;
+  onAdd?: () => void;
+  onExport?: () => void;
 }) {
-  // Destructured into locals before the JSX: member access on the hook's return
-  // object in render makes the React Compiler bail. Matches SortableSidebarRow.
-  const {
-    setNodeRef,
-    setActivatorNodeRef,
-    listeners,
-    attributes,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id, disabled: locked ? true : { draggable: false, droppable: !droppable } });
+  if (title !== undefined) {
+    return (
+      <>
+        <AdminPageTopBar
+          title={title}
+          actions={
+            (onExport || onAdd) && (
+              <>
+                {onExport && (
+                  <PageTopBarButton onClick={onExport}>
+                    <DownloadIcon />
+                    Export JSON
+                  </PageTopBarButton>
+                )}
+                {onAdd && (
+                  <PageTopBarPrimaryButton onClick={onAdd} disabled={adding}>
+                    {addLabel}
+                  </PageTopBarPrimaryButton>
+                )}
+              </>
+            )
+          }
+        />
+        {toolbar}
+      </>
+    );
+  }
 
-  const style: CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
+  if (!toolbar && !onAdd && !onExport) {
+    return null;
+  }
 
   return (
-    <TableRow
-      ref={setNodeRef}
-      style={style}
-      // The dragged row is lifted out of the flow visually, so it needs its own
-      // background to stop the rows it passes showing through.
-      className={cn(isDragging && "bg-background relative z-10 shadow-lg")}
-    >
-      <TableCell>
-        <div className="flex items-center gap-0.5">
-          {/* oxlint-disable-next-line react/forbid-elements -- dnd-kit drag activator, sized to sit with the two icon buttons */}
-          <button
-            ref={setActivatorNodeRef}
-            {...attributes}
-            {...listeners}
-            type="button"
-            disabled={locked}
-            aria-label="Drag to reorder"
-            className={cn(
-              "text-muted-foreground hover:text-foreground flex h-6 w-5 items-center justify-center rounded-md",
-              // dnd-kit's PointerSensor needs the browser to keep sending
-              // pointer events; the default touch-action pans the page instead
-              // and the pointercancel that follows kills the drag.
-              "touch-none outline-hidden",
-              "focus-visible:ring-ring focus-visible:ring-2",
-              locked ? "cursor-not-allowed opacity-50" : "cursor-grab active:cursor-grabbing",
-            )}
-          >
-            <GripVerticalIcon className="h-3.5 w-3.5" />
-          </button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            aria-label="Move up"
-            disabled={!canMoveUp || locked}
-            onClick={() => onMove(-1)}
-          >
-            <ArrowUpIcon className="h-3.5 w-3.5" />
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex-1">{toolbar}</div>
+      <div className="flex items-center gap-2">
+        {onExport && (
+          <Button variant="outline" onClick={onExport}>
+            <DownloadIcon className="h-4 w-4" />
+            Export JSON
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            aria-label="Move down"
-            disabled={!canMoveDown || locked}
-            onClick={() => onMove(1)}
-          >
-            <ArrowDownIcon className="h-3.5 w-3.5" />
+        )}
+        {onAdd && !adding && (
+          <Button variant="outline" onClick={onAdd}>
+            {addLabel}
           </Button>
-        </div>
-      </TableCell>
-      {children}
-    </TableRow>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AdminTableHead<TData extends RowData>({
+  table,
+  showOrderColumn,
+  hasActions,
+}: {
+  table: TanStackTable<AdminTableFeatures, TData>;
+  showOrderColumn: boolean;
+  hasActions: boolean;
+}) {
+  return (
+    <TableHeader>
+      {table.getHeaderGroups().map((headerGroup) => (
+        <TableRow key={headerGroup.id}>
+          {showOrderColumn && <TableHead className="w-24">Order</TableHead>}
+          {headerGroup.headers.map((header) => {
+            const meta = header.column.columnDef.meta as AdminHeaderMeta | undefined;
+            const canSort = header.column.getCanSort();
+            const sorted = header.column.getIsSorted();
+            return (
+              <TableHead
+                key={header.id}
+                className={cn(meta?.width, alignClass(meta?.align))}
+                title={meta?.headerTitle}
+                aria-sort={canSort ? ariaSort(sorted) : undefined}
+              >
+                {canSort ? (
+                  <SortHeaderButton
+                    sorted={sorted}
+                    onClick={header.column.getToggleSortingHandler()}
+                  >
+                    <FlexRender header={header} />
+                  </SortHeaderButton>
+                ) : (
+                  <FlexRender header={header} />
+                )}
+              </TableHead>
+            );
+          })}
+          {hasActions && <TableHead className="w-32 text-right">Actions</TableHead>}
+        </TableRow>
+      ))}
+    </TableHeader>
   );
 }
 
@@ -846,92 +628,5 @@ function SaveCancelButtons({
       </div>
       {error && <p className="text-destructive mt-1">{error}</p>}
     </>
-  );
-}
-
-function DeleteButton<TData>({
-  row,
-  config,
-  deleteError,
-  setDeleteError,
-}: {
-  row: TData;
-  config: NonNullable<AdminTableProps<TData>["delete"]>;
-  deleteError: string;
-  setDeleteError: (err: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [deletePending, setDeletePending] = useState(false);
-
-  async function handleConfirmedDelete() {
-    if (deletePending) {
-      return;
-    }
-    setDeleteError("");
-    setDeletePending(true);
-    // React Compiler can lower neither a `finally` clause nor a conditional
-    // inside a try/catch, so the reset runs on both paths and the message
-    // comes from a plain helper.
-    try {
-      await config.onDelete(row);
-      setOpen(false);
-    } catch (error) {
-      setDeleteError(errorText(error, "Delete failed"));
-    }
-    setDeletePending(false);
-  }
-
-  async function handleDelete() {
-    try {
-      await config.onDelete(row);
-    } catch (error) {
-      setDeleteError(errorText(error, "Delete failed"));
-    }
-  }
-
-  if (config.confirm) {
-    const { title, description } = config.confirm(row);
-    return (
-      <AlertDialog
-        open={open}
-        onOpenChange={(nextOpen) => {
-          setOpen(nextOpen);
-          if (!nextOpen) {
-            setDeleteError("");
-          }
-        }}
-      >
-        <AlertDialogTrigger
-          render={<Button variant="ghost" size="icon" className="text-destructive" />}
-        >
-          <Trash2Icon className="h-4 w-4" />
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <DialogForm onSubmit={() => void handleConfirmedDelete()}>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{title}</AlertDialogTitle>
-              <AlertDialogDescription>{description}</AlertDialogDescription>
-            </AlertDialogHeader>
-            {deleteError && <p className="text-destructive text-sm">{deleteError}</p>}
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction type="submit" variant="destructive" disabled={deletePending}>
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </DialogForm>
-        </AlertDialogContent>
-      </AlertDialog>
-    );
-  }
-
-  return (
-    <Button
-      variant="ghost"
-      className="text-destructive hover:text-destructive"
-      onClick={() => void handleDelete()}
-    >
-      Delete
-    </Button>
   );
 }

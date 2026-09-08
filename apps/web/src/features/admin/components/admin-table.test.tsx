@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { flatReorder } from "@/features/admin/lib/admin-reorder";
 
-import type { AdminCellSlotProps, AdminColumnDef } from "./admin-table";
+import type { AdminCellSlotProps, AdminColumnDef, AdminDraftSlotProps } from "./admin-table";
 import { AdminTable } from "./admin-table";
 
 interface Row {
@@ -19,10 +19,35 @@ function LabelCell({ row }: AdminCellSlotProps<Row>) {
   return <span>{row.label}</span>;
 }
 
+function DraftInput({ draft, setDraft }: AdminDraftSlotProps<Row>) {
+  if (!draft || !setDraft) {
+    return null;
+  }
+  return (
+    <input
+      aria-label="Label"
+      value={draft.label}
+      onChange={(event) => {
+        const { value } = event.target;
+        setDraft((prev) => ({ ...prev, label: value }));
+      }}
+    />
+  );
+}
+
 const columns: AdminColumnDef<Row>[] = [
   {
     header: "Label",
     cell: <LabelCell />,
+  },
+];
+
+const draftColumns: AdminColumnDef<Row>[] = [
+  {
+    header: "Label",
+    cell: <LabelCell />,
+    editCell: <DraftInput />,
+    addCell: <DraftInput />,
   },
 ];
 
@@ -96,6 +121,31 @@ describe("AdminTable delete confirmation", () => {
     await vi.waitFor(() => {
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     });
+  });
+
+  it("clears the delete error once a later delete on the same row succeeds", async () => {
+    const user = userEvent.setup();
+    const onDelete = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Set still has printings"))
+      .mockResolvedValueOnce(undefined);
+    renderTable(onDelete);
+
+    await user.click(screen.getByRole("button"));
+    let dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("Set still has printings")).toBeInTheDocument();
+    });
+
+    dialog = screen.getByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    });
+    expect(screen.queryByText("Set still has printings")).not.toBeInTheDocument();
   });
 });
 
@@ -447,5 +497,337 @@ describe("AdminTable reorder", () => {
     await vi.waitFor(() => {
       expect(renderedLabels()).toEqual(["Alpha", "Beta", "Gamma"]);
     });
+  });
+
+  it("drops the pending order once the data prop lands in the order that was requested", async () => {
+    const user = userEvent.setup();
+    let settle = () => {};
+    // oxlint-disable-next-line promise/avoid-new -- a promise the test resolves by hand to hold the save open
+    const pending = new Promise<void>((resolve) => {
+      settle = resolve;
+    });
+    const onReorder = vi.fn().mockReturnValue(pending);
+    const { rerender } = renderReorder(onReorder);
+
+    await user.click(screen.getAllByRole("button", { name: "Move down" })[0]!);
+
+    expect(renderedLabels()).toEqual(["Beta", "Alpha", "Gamma"]);
+    expect(screen.getAllByRole("button", { name: "Move down" })[0]!).toBeDisabled();
+
+    const reordered: Row[] = [
+      { slug: "b", label: "Beta" },
+      { slug: "a", label: "Alpha" },
+      { slug: "c", label: "Gamma" },
+    ];
+    rerender(
+      <AdminTable
+        columns={columns}
+        data={reordered}
+        getRowKey={(r) => r.slug}
+        reorder={{ moves: flatReorder(reordered, (r) => r.slug), onReorder }}
+      />,
+    );
+
+    expect(renderedLabels()).toEqual(["Beta", "Alpha", "Gamma"]);
+    expect(screen.getAllByRole("button", { name: "Move down" })[0]!).toBeEnabled();
+    settle();
+  });
+
+  it("drops the pending order when data changes to an order other than the one requested", async () => {
+    const user = userEvent.setup();
+    let settle = () => {};
+    // oxlint-disable-next-line promise/avoid-new -- a promise the test resolves by hand to hold the save open
+    const pending = new Promise<void>((resolve) => {
+      settle = resolve;
+    });
+    const onReorder = vi.fn().mockReturnValue(pending);
+    const { rerender } = renderReorder(onReorder);
+
+    await user.click(screen.getAllByRole("button", { name: "Move down" })[0]!);
+
+    expect(renderedLabels()).toEqual(["Beta", "Alpha", "Gamma"]);
+
+    const differentOrder: Row[] = [
+      { slug: "c", label: "Gamma" },
+      { slug: "a", label: "Alpha" },
+      { slug: "b", label: "Beta" },
+    ];
+    rerender(
+      <AdminTable
+        columns={columns}
+        data={differentOrder}
+        getRowKey={(r) => r.slug}
+        reorder={{ moves: flatReorder(differentOrder, (r) => r.slug), onReorder }}
+      />,
+    );
+
+    expect(renderedLabels()).toEqual(["Gamma", "Alpha", "Beta"]);
+    expect(screen.getAllByRole("button", { name: "Move down" })[0]!).toBeEnabled();
+    settle();
+  });
+});
+
+describe("AdminTable add", () => {
+  function renderAddTable(add: {
+    emptyDraft: Row;
+    onSave: (draft: Row) => Promise<unknown>;
+    validate?: (draft: Row) => string | null;
+  }) {
+    return render(
+      <AdminTable
+        columns={draftColumns}
+        data={[row]}
+        getRowKey={(r) => r.slug}
+        add={add}
+        delete={{ onDelete: vi.fn().mockResolvedValue(undefined) }}
+      />,
+    );
+  }
+
+  it("seeds the add row from emptyDraft when the add button is clicked", async () => {
+    const user = userEvent.setup();
+    renderAddTable({ emptyDraft: { slug: "", label: "" }, onSave: vi.fn() });
+
+    await user.click(screen.getByRole("button", { name: "Add" }));
+
+    expect(screen.getByLabelText("Label")).toHaveValue("");
+  });
+
+  it("updates the draft as the addCell input changes", async () => {
+    const user = userEvent.setup();
+    renderAddTable({ emptyDraft: { slug: "", label: "" }, onSave: vi.fn() });
+
+    await user.click(screen.getByRole("button", { name: "Add" }));
+    await user.type(screen.getByLabelText("Label"), "New Set");
+
+    expect(screen.getByLabelText("Label")).toHaveValue("New Set");
+  });
+
+  it("calls add.onSave with the edited draft and closes the row once it resolves", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderAddTable({ emptyDraft: { slug: "new-set", label: "" }, onSave });
+
+    await user.click(screen.getByRole("button", { name: "Add" }));
+    await user.type(screen.getByLabelText("Label"), "New Set");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(onSave).toHaveBeenCalledWith({ slug: "new-set", label: "New Set" });
+    await vi.waitFor(() => {
+      expect(screen.queryByLabelText("Label")).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows the validate error and does not call onSave", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const validate = vi.fn().mockReturnValue("Label is required");
+    renderAddTable({ emptyDraft: { slug: "new-set", label: "" }, onSave, validate });
+
+    await user.click(screen.getByRole("button", { name: "Add" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(screen.getByText("Label is required")).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("shows the rejection error and keeps the add row open", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockRejectedValue(new Error("Slug already exists"));
+    renderAddTable({ emptyDraft: { slug: "new-set", label: "" }, onSave });
+
+    await user.click(screen.getByRole("button", { name: "Add" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("Slug already exists")).toBeInTheDocument();
+    });
+    expect(screen.getByLabelText("Label")).toBeInTheDocument();
+  });
+
+  it("closes the add row without calling onSave on cancel", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderAddTable({ emptyDraft: { slug: "new-set", label: "" }, onSave });
+
+    await user.click(screen.getByRole("button", { name: "Add" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText("Label")).not.toBeInTheDocument();
+  });
+});
+
+describe("AdminTable add under a row (addChild)", () => {
+  const parentRows: Row[] = [
+    { slug: "a", label: "Alpha" },
+    { slug: "b", label: "Beta" },
+  ];
+
+  function renderChildTable(canAddChild?: (row: Row) => boolean) {
+    return render(
+      <AdminTable
+        columns={draftColumns}
+        data={parentRows}
+        getRowKey={(r) => r.slug}
+        add={{ emptyDraft: { slug: "", label: "" }, onSave: vi.fn() }}
+        addChild={{
+          toDraft: (r) => ({ slug: `${r.slug}-child`, label: `${r.label} child` }),
+          canAddChild,
+        }}
+      />,
+    );
+  }
+
+  it("opens an add row seeded from addChild.toDraft directly under the row it was started from", async () => {
+    const user = userEvent.setup();
+    renderChildTable();
+
+    const addChildButtons = screen.getAllByRole("button", { name: "Add child" });
+    await user.click(addChildButtons[1]!);
+
+    const inputs = screen.getAllByLabelText("Label");
+    expect(inputs).toHaveLength(1);
+    expect(inputs[0]).toHaveValue("Beta child");
+
+    const rows = screen.getAllByRole("row");
+    const betaRowIndex = rows.findIndex((r) => within(r).queryByText("Beta"));
+    const addRowIndex = rows.findIndex((r) => within(r).queryByLabelText("Label"));
+    expect(addRowIndex).toBe(betaRowIndex + 1);
+  });
+
+  it("hides the add-child action for a row when canAddChild returns false", () => {
+    renderChildTable((r) => r.slug !== "a");
+
+    expect(screen.getAllByRole("button", { name: "Add child" })).toHaveLength(1);
+  });
+});
+
+describe("AdminTable add/edit exclusivity", () => {
+  const exclusivityRows: Row[] = [{ slug: "a", label: "Alpha" }];
+
+  function renderBoth() {
+    render(
+      <AdminTable
+        columns={draftColumns}
+        data={exclusivityRows}
+        getRowKey={(r) => r.slug}
+        add={{ emptyDraft: { slug: "", label: "" }, onSave: vi.fn() }}
+        edit={{ toDraft: (r) => ({ ...r }), onSave: vi.fn() }}
+      />,
+    );
+  }
+
+  it("closes the open edit row when an add row is started", async () => {
+    const user = userEvent.setup();
+    renderBoth();
+
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    expect(screen.getByLabelText("Label")).toHaveValue("Alpha");
+
+    await user.click(screen.getByRole("button", { name: "Add" }));
+
+    const inputs = screen.getAllByLabelText("Label");
+    expect(inputs).toHaveLength(1);
+    expect(inputs[0]).toHaveValue("");
+    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+  });
+
+  it("closes the open add row when an edit row is started", async () => {
+    const user = userEvent.setup();
+    renderBoth();
+
+    await user.click(screen.getByRole("button", { name: "Add" }));
+    expect(screen.getByLabelText("Label")).toHaveValue("");
+
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+
+    const inputs = screen.getAllByLabelText("Label");
+    expect(inputs).toHaveLength(1);
+    expect(inputs[0]).toHaveValue("Alpha");
+  });
+});
+
+describe("AdminTable edit", () => {
+  const editRows: Row[] = [{ slug: "a", label: "Alpha" }];
+
+  function renderEditTable(edit: {
+    toDraft: (r: Row) => Row;
+    onSave: (draft: Row) => Promise<unknown>;
+    validate?: (draft: Row) => string | null;
+  }) {
+    return render(
+      <AdminTable columns={draftColumns} data={editRows} getRowKey={(r) => r.slug} edit={edit} />,
+    );
+  }
+
+  it("opens editCell seeded from edit.toDraft when Edit is clicked", async () => {
+    const user = userEvent.setup();
+    renderEditTable({ toDraft: (r) => ({ ...r }), onSave: vi.fn() });
+
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+
+    expect(screen.getByLabelText("Label")).toHaveValue("Alpha");
+  });
+
+  it("calls edit.onSave with the edited draft and returns to the read-only row once it resolves", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEditTable({ toDraft: (r) => ({ ...r }), onSave });
+
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.clear(screen.getByLabelText("Label"));
+    await user.type(screen.getByLabelText("Label"), "Alpha II");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(onSave).toHaveBeenCalledWith({ slug: "a", label: "Alpha II" });
+    await vi.waitFor(() => {
+      expect(screen.queryByLabelText("Label")).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+  });
+
+  it("shows the validate error and does not call onSave", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const validate = vi.fn().mockReturnValue("Label is required");
+    renderEditTable({ toDraft: (r) => ({ ...r }), onSave, validate });
+
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(screen.getByText("Label is required")).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("shows the rejection error and keeps the row in edit mode", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockRejectedValue(new Error("Name already taken"));
+    renderEditTable({ toDraft: (r) => ({ ...r }), onSave });
+
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("Name already taken")).toBeInTheDocument();
+    });
+    expect(screen.getByLabelText("Label")).toBeInTheDocument();
+  });
+
+  it("discards the draft on cancel, restoring the original values when edit reopens", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEditTable({ toDraft: (r) => ({ ...r }), onSave });
+
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.clear(screen.getByLabelText("Label"));
+    await user.type(screen.getByLabelText("Label"), "Discarded");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.getByText("Alpha")).toBeInTheDocument();
+    expect(screen.queryByText("Discarded")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    expect(screen.getByLabelText("Label")).toHaveValue("Alpha");
   });
 });
