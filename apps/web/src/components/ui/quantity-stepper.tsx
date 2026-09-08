@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useNumericDraft } from "@/hooks/use-numeric-draft";
 import { cn } from "@/lib/utils";
 
 // Hand-authored primitive (not shadcn-scaffolded).
@@ -25,8 +26,8 @@ interface QuantityStepperProps {
   /**
    * Show the value as a typable number field rather than static text. Turn it on
    * where the upper bound can be large enough that clicking to the target is
-   * tedious (lending, trade requests). Typing clamps on every keystroke, so an
-   * emptied field snaps back to `min` rather than sitting blank.
+   * tedious (lending, trade requests). The field may sit empty mid-edit; it
+   * clamps back to the committed value when it loses focus.
    */
   editable?: boolean;
   className?: string;
@@ -46,6 +47,16 @@ function QuantityStepper({
   className,
 }: QuantityStepperProps) {
   const clamp = (next: number) => Math.min(max, Math.max(min, next));
+  const { inputProps, resetDraft } = useNumericDraft({
+    display: String(value),
+    onCommit: (text) => {
+      // oxlint-disable-next-line unicorn/prefer-number-coercion -- lenient parse of an input value; Number() would yield NaN on trailing text
+      const parsed = Number.parseInt(text, 10);
+      if (!Number.isNaN(parsed)) {
+        onValueChange(clamp(parsed));
+      }
+    },
+  });
 
   return (
     <div data-slot="quantity-stepper" className={cn("flex items-center gap-3", className)}>
@@ -53,7 +64,10 @@ function QuantityStepper({
         variant="outline"
         size="icon"
         disabled={disabled || value <= min}
-        onClick={() => onValueChange(clamp(value - 1))}
+        onClick={() => {
+          resetDraft();
+          onValueChange(clamp(value - 1));
+        }}
         aria-label="One fewer"
       >
         <MinusIcon className="size-4" />
@@ -63,12 +77,11 @@ function QuantityStepper({
           type="number"
           min={min}
           max={max}
-          value={value}
           disabled={disabled}
           aria-label="Quantity"
           // Hide the native number spinners — the +/- buttons drive the value.
           className="w-16 [appearance:textfield] text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-          onChange={(event) => onValueChange(clamp(Number(event.target.value)))}
+          {...inputProps}
         />
       ) : (
         <span className="w-8 text-center text-lg font-medium tabular-nums">{value}</span>
@@ -77,7 +90,10 @@ function QuantityStepper({
         variant="outline"
         size="icon"
         disabled={disabled || value >= max}
-        onClick={() => onValueChange(clamp(value + 1))}
+        onClick={() => {
+          resetDraft();
+          onValueChange(clamp(value + 1));
+        }}
         aria-label="One more"
       >
         <PlusIcon className="size-4" />

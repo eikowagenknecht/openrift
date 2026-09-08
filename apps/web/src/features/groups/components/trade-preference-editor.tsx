@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useNumericDraft } from "@/hooks/use-numeric-draft";
 
 import {
   CURRENCY_SYMBOL,
@@ -101,7 +102,27 @@ export function TradePreferenceEditor({
     ...TRADE_TYPES.map((option) => ({ value: option, label: TRADE_TYPE_LABEL[option] })),
   ];
 
+  const handleAmountChange = (text: string) => {
+    // Empty input keeps the absolute pref but unsets the amount; the parent
+    // must treat that as a draft state and refuse to save.
+    if (text.trim() === "") {
+      onChange({ ...value, priceAbsoluteCents: null });
+      return;
+    }
+    const cents = parseAmountToCents(text);
+    if (cents === null) {
+      return;
+    }
+    onChange({ ...value, priceAbsoluteCents: cents });
+  };
+
+  const { inputProps: amountProps, resetDraft: resetAmountDraft } = useNumericDraft({
+    display: formatCentsForInput(value.priceAbsoluteCents),
+    onCommit: handleAmountChange,
+  });
+
   const handlePricePrefChange = (next: string) => {
+    resetAmountDraft();
     if (next === PRICE_PREF_NONE) {
       onChange({ ...value, pricePref: null, priceAbsoluteCents: null });
       return;
@@ -119,20 +140,6 @@ export function TradePreferenceEditor({
       pricePref: next as TradePricePref,
       priceAbsoluteCents: null,
     });
-  };
-
-  const handleAmountChange = (text: string) => {
-    // Empty input keeps the absolute pref but unsets the amount; the parent
-    // must treat that as a draft state and refuse to save.
-    if (text.trim() === "") {
-      onChange({ ...value, priceAbsoluteCents: null });
-      return;
-    }
-    const cents = parseAmountToCents(text);
-    if (cents === null) {
-      return;
-    }
-    onChange({ ...value, priceAbsoluteCents: cents });
   };
 
   const handleTradeTypeChange = (next: string) => {
@@ -209,8 +216,7 @@ export function TradePreferenceEditor({
               id={`${idPrefix}-amount`}
               inputMode="decimal"
               placeholder="e.g. 4 or 4.50"
-              value={formatCentsForInput(value.priceAbsoluteCents)}
-              onChange={(event) => handleAmountChange(event.target.value)}
+              {...amountProps}
             />
             <span className="text-muted-foreground text-sm">
               {currency ? CURRENCY_SYMBOL[currency] : "?"}

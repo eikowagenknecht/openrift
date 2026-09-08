@@ -22,6 +22,7 @@ import {
   useMatchTrackerStore,
 } from "@/features/match-tracker/stores/match-tracker-store";
 import { TEAM_LABELS } from "@/features/tournaments/lib/match-teams";
+import { useNumericDraft } from "@/hooks/use-numeric-draft";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 const PLAYER_COUNT_OPTIONS = Array.from(
@@ -146,6 +147,17 @@ export function SetupScreen() {
   const setPointsTarget = useMatchTrackerStore((state) => state.setPointsTarget);
   const startGame = useMatchTrackerStore((state) => state.startGame);
 
+  const { inputProps: pointsTargetProps, resetDraft: resetPointsTargetDraft } = useNumericDraft({
+    display: String(pointsTarget),
+    onCommit: (text) => {
+      // oxlint-disable-next-line unicorn/prefer-number-coercion -- lenient parse of an input value; Number() would yield NaN on trailing text
+      const parsed = Number.parseInt(text, 10);
+      if (!Number.isNaN(parsed)) {
+        setPointsTarget(parsed);
+      }
+    },
+  });
+
   const teamsActive = mode === "teams" && players.length === MAX_PLAYERS;
   const [teamOneCount, teamTwoCount] = teamMemberCounts(players);
   const teamsBalanced = teamOneCount === 2 && teamTwoCount === 2;
@@ -201,6 +213,7 @@ export function SetupScreen() {
               value={[mode]}
               onValueChange={([next]) => {
                 if (next === "ffa" || next === "teams") {
+                  resetPointsTargetDraft();
                   setMode(next);
                 }
               }}
@@ -247,8 +260,7 @@ export function SetupScreen() {
             id="points-target"
             type="number"
             min={1}
-            value={pointsTarget}
-            onChange={(event) => setPointsTarget(Number(event.target.value))}
+            {...pointsTargetProps}
             className={cn(
               "w-24 [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:m-0",
               "[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0",

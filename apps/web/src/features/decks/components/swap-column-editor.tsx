@@ -1,6 +1,7 @@
 import type { HoverHandler } from "@/features/cards/lib/card-row-interactions";
 import { CardChip, CardPicker } from "@/features/decks/components/deck-card-picker";
 import type { PlanSwapDraft, SwapDirection } from "@/features/decks/lib/deck-plan";
+import { useNumericDraft } from "@/hooks/use-numeric-draft";
 
 interface SwapCandidate {
   cardId: string;
@@ -22,16 +23,16 @@ function SwapQuantityField({
   available?: number;
   onChange: (raw: string) => void;
 }) {
+  const { inputProps } = useNumericDraft({ display: String(value), onCommit: onChange });
   return (
     <div className="border-input dark:bg-input/30 focus-within:border-ring focus-within:ring-ring/50 flex h-8 w-14 shrink-0 items-center justify-center rounded-lg border bg-transparent px-1 py-1 text-base transition-colors focus-within:ring-2 md:text-sm">
       <input
         type="number"
         min={1}
         max={max}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
         className="w-5 min-w-0 bg-transparent text-right tabular-nums outline-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none"
         aria-label="Quantity"
+        {...inputProps}
       />
       {available === undefined ? null : (
         <span className="text-muted-foreground shrink-0 tabular-nums">/{available}</span>

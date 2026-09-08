@@ -90,18 +90,30 @@ describe("QuantityStepper", () => {
     expect(field()).toHaveValue(12);
   });
 
-  it("clamps a typed value to the bounds", () => {
+  it("clamps a typed value to the bounds when it loses focus", () => {
     render(<Controlled initial={1} max={4} editable />);
 
     fireEvent.change(field(), { target: { value: "99" } });
+    fireEvent.blur(field());
     expect(field()).toHaveValue(4);
   });
 
-  it("snaps an emptied field back to the minimum", () => {
+  it("keeps an emptied field empty until it loses focus", () => {
     render(<Controlled initial={3} max={4} editable />);
 
     fireEvent.change(field(), { target: { value: "" } });
-    expect(field()).toHaveValue(1);
+    expect(field()).toHaveValue(null);
+
+    fireEvent.change(field(), { target: { value: "2" } });
+    expect(field()).toHaveValue(2);
+  });
+
+  it("restores the committed value when an emptied field loses focus", () => {
+    render(<Controlled initial={3} max={4} editable />);
+
+    fireEvent.change(field(), { target: { value: "" } });
+    fireEvent.blur(field());
+    expect(field()).toHaveValue(3);
   });
 
   it("keeps the buttons driving the editable value", () => {

@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useNumericDraft } from "@/hooks/use-numeric-draft";
 
 const QUANTITY_MODES = [
   { value: "fixed", label: "Fixed" },
@@ -23,14 +24,30 @@ export function QuantityControl({
   onChange: (next: RuleQuantity) => void;
 }) {
   const amount = value.mode === "fixed" ? value.n : value.multiplier;
+  const { inputProps, resetDraft } = useNumericDraft({
+    display: String(amount),
+    onCommit: (text) => {
+      // oxlint-disable-next-line unicorn/prefer-number-coercion -- lenient parse of an input value; Number() would yield NaN on trailing text
+      const parsed = Number.parseInt(text, 10);
+      if (Number.isNaN(parsed)) {
+        return;
+      }
+      onChange(
+        value.mode === "fixed"
+          ? { mode: "fixed", n: Math.max(0, parsed) }
+          : { mode: "playset", multiplier: Math.max(1, parsed) },
+      );
+    },
+  });
   return (
     <div className="flex items-center gap-2">
       <Select
         items={QUANTITY_MODES}
         value={value.mode}
-        onValueChange={(mode) =>
-          onChange(mode === "fixed" ? { mode: "fixed", n: 1 } : { mode: "playset", multiplier: 1 })
-        }
+        onValueChange={(mode) => {
+          resetDraft();
+          onChange(mode === "fixed" ? { mode: "fixed", n: 1 } : { mode: "playset", multiplier: 1 });
+        }}
       >
         <SelectTrigger className="w-36" aria-label="Quantity mode">
           <SelectValue />
@@ -49,18 +66,8 @@ export function QuantityControl({
         type="number"
         className="w-20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         min={value.mode === "fixed" ? 0 : 1}
-        value={amount}
-        onChange={(event) => {
-          // oxlint-disable-next-line unicorn/prefer-number-coercion -- lenient parse of an input value; Number() would yield NaN on trailing text
-          const parsed = Number.parseInt(event.target.value, 10);
-          const next = Number.isNaN(parsed) ? 0 : parsed;
-          onChange(
-            value.mode === "fixed"
-              ? { mode: "fixed", n: Math.max(0, next) }
-              : { mode: "playset", multiplier: Math.max(1, next) },
-          );
-        }}
         aria-label="Quantity amount"
+        {...inputProps}
       />
     </div>
   );

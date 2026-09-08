@@ -41,6 +41,7 @@ import { PackBulkGrid } from "@/features/decks/components/pack-bulk-grid";
 import { isBoosterEligible, toPackPrinting } from "@/features/decks/components/pack-opener-utils";
 import { PackReveal } from "@/features/decks/components/pack-reveal";
 import { PackStats } from "@/features/decks/components/pack-stats";
+import { useNumericDraft } from "@/hooks/use-numeric-draft";
 import { useSession } from "@/lib/auth-session";
 import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -270,6 +271,16 @@ function CountField({
   onChoiceChange: (value: string) => void;
   onCustomChange: (value: number) => void;
 }) {
+  const { inputProps } = useNumericDraft({
+    display: String(custom),
+    onCommit: (text) => {
+      // oxlint-disable-next-line unicorn/prefer-number-coercion -- lenient parse of an input value; Number() would yield NaN on trailing text
+      const parsed = Number.parseInt(text, 10);
+      if (!Number.isNaN(parsed)) {
+        onCustomChange(parsed);
+      }
+    },
+  });
   return (
     <div className="space-y-1">
       <Label>Packs</Label>
@@ -295,11 +306,10 @@ function CountField({
             type="number"
             min={1}
             max={500}
-            value={custom}
-            onChange={(e) => onCustomChange(Number(e.target.value))}
             // Hides the native up/down spinner (Firefox via -moz-appearance, others via the webkit selectors).
             className="w-20 [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none"
             aria-label="Custom pack count"
+            {...inputProps}
           />
         )}
       </div>
