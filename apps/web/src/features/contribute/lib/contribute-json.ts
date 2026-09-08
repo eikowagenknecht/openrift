@@ -41,7 +41,7 @@ function mapJsonPathToFormPath(path: readonly PropertyKey[]): string {
   return out;
 }
 
-interface ContributeFormCard {
+export interface ContributeFormCard {
   name: string;
   types: string[];
   superTypes: string[];
@@ -86,7 +86,7 @@ export interface ValidationError {
   message: string;
 }
 
-interface ValidationResult {
+export interface ValidationResult {
   ok: boolean;
   errors: ValidationError[];
 }
