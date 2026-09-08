@@ -4,6 +4,7 @@
 
 ### Other
 
+- fix(App): **Mobile menu scrolls and folds** — the mobile navigation menu no longer clips off-screen on tall menus, and the Play, Organize, Create and Explore sections now collapse behind their heading, folded by default.
 - fix(Cards): **Contribute form field labels** — every field on the contribute form now carries its label for screen readers and focuses when the label is clicked.
 
 ## 2026-09-07

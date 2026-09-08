@@ -17,7 +17,7 @@ import {
   SunIcon,
   UserIcon,
 } from "lucide-react";
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { siDiscord, siGithub } from "simple-icons";
 import { toast } from "sonner";
 
@@ -38,6 +38,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ExpandToggle } from "@/components/ui/expand-toggle";
 import { Kbd } from "@/components/ui/kbd";
 import {
   NavigationMenu,
@@ -480,6 +481,55 @@ function MobileNavItem({
   );
 }
 
+function MobileNavSection({
+  section,
+  isLoggedIn,
+  badges,
+  onLockedClick,
+}: {
+  section: { label: string; items: NavItemConfig[] };
+  isLoggedIn: boolean;
+  badges: NavBadgeCounts;
+  onLockedClick: (key: LockedFeatureKey) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const hiddenBadgeCount = expanded
+    ? 0
+    : section.items.reduce((sum, item) => sum + (item.badge ? badges[item.badge] : 0), 0);
+
+  return (
+    <div className="mt-2 flex flex-col gap-1">
+      <ExpandToggle
+        expanded={expanded}
+        chevronPosition="end"
+        chevronClassName="size-3.5"
+        onClick={() => setExpanded((prev) => !prev)}
+        className="text-muted-foreground hover:text-foreground w-full justify-between rounded-lg px-3 py-2 text-xs font-medium tracking-wide uppercase"
+      >
+        <span className="flex items-center gap-2">
+          {section.label}
+          {hiddenBadgeCount > 0 && (
+            <Badge variant="count" aria-label={`${section.label} needs your attention`}>
+              {hiddenBadgeCount > 9 ? "9+" : hiddenBadgeCount}
+            </Badge>
+          )}
+        </span>
+      </ExpandToggle>
+      {expanded &&
+        section.items.map((item) => (
+          <MobileNavItem
+            key={item.to}
+            item={item}
+            compact
+            isLoggedIn={isLoggedIn}
+            badges={badges}
+            onLockedClick={onLockedClick}
+          />
+        ))}
+    </div>
+  );
+}
+
 function MobileNav({
   open,
   onOpenChange,
@@ -510,7 +560,7 @@ function MobileNav({
             </Link>
           </SheetTitle>
         </SheetHeader>
-        <nav className="flex flex-col gap-1 px-2">
+        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain px-2">
           {PRIMARY_NAV_ITEMS.filter((item) => navItemVisible(item, { flags, mobile: true })).map(
             (item) => (
               <MobileNavItem
@@ -523,21 +573,13 @@ function MobileNav({
             ),
           )}
           {visibleMoreSections({ flags, mobile: true }).map((section) => (
-            <Fragment key={section.label}>
-              <div className="text-muted-foreground mt-3 px-3 pb-1 text-xs font-medium tracking-wide uppercase">
-                {section.label}
-              </div>
-              {section.items.map((item) => (
-                <MobileNavItem
-                  key={item.to}
-                  item={item}
-                  compact
-                  isLoggedIn={isLoggedIn}
-                  badges={badges}
-                  onLockedClick={onLockedClick}
-                />
-              ))}
-            </Fragment>
+            <MobileNavSection
+              key={section.label}
+              section={section}
+              isLoggedIn={isLoggedIn}
+              badges={badges}
+              onLockedClick={onLockedClick}
+            />
           ))}
         </nav>
         <SheetFooter className="border-t px-4 pt-4">
