@@ -1,15 +1,38 @@
-import type { LoanCounterparty } from "@openrift/shared/types/api/loan";
+import type { LoanCounterparty, LoanStatus } from "@openrift/shared/types/api/loan";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../../../db/tables.js";
 import type { LoansTable } from "../../../db/tables/loans.js";
+import { gravatarHashForEmail } from "../../../lib/gravatar.js";
 import { notPinnedToLoan, notReservedByTrade } from "../../../repositories/query-helpers.js";
-import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
-import type { LoanDtoRow } from "../lib/loan-presenters.js";
 
 /** Raw loan row, for the service layer's authorization / state checks. */
 export type Loan = Selectable<LoansTable>;
+
+/** Loans are personal records: no group column, no contact methods, unlike trades. */
+export interface LoanDtoRow {
+  id: string;
+  lenderUserId: string;
+  borrowerUserId: string | null;
+  borrowerName: string | null;
+  printingId: string;
+  cardId: string;
+  quantity: number;
+  returnedQuantity: number;
+  status: LoanStatus;
+  acknowledgedAt: Date | null;
+  rejectedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  closedAt: Date | null;
+  lenderName: string | null;
+  lenderImage: string | null;
+  lenderEmail: string;
+  borrowerUserName: string | null;
+  borrowerUserImage: string | null;
+  borrowerUserEmail: string | null;
+}
 
 /** Fields set at creation; status defaults to `active` in the DB. */
 export interface NewLoan {

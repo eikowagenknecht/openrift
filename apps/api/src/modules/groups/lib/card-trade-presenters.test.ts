@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
+import { gravatarHashForEmail } from "../../../lib/gravatar.js";
 import type { LiveTradeAnnotationRow } from "../repositories/card-trades-reads.js";
+import type { CardTradeDtoRow } from "../repositories/card-trades-shared.js";
 import type { MatchRow } from "../repositories/friend-group-matches-view.js";
-import type { CardTradeDtoRow, TradeCopyRow } from "./card-trade-presenters.js";
+import type { TradeCopyRow } from "./card-trade-presenters.js";
 import {
   cardTradeChoiceMatters,
   selectSplitPins,

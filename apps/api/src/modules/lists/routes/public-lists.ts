@@ -2,9 +2,9 @@ import { publicListsContract } from "@openrift/shared/contracts/public-lists";
 import type { PublicListDetailResponse } from "@openrift/shared/types/api/list";
 import { implement } from "@orpc/server";
 
+import { gravatarHashForEmail } from "../../../lib/gravatar.js";
 import { requireUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
-import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
 import { toListEntryDetail, toPublicList } from "../lib/list-presenters.js";
 
 const os = implement(publicListsContract).$context<ApiContext>().use(requireUser);

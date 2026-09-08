@@ -8,12 +8,12 @@ import type { Selectable } from "kysely";
 
 import type { DecksTable } from "../../../db/tables/decks.js";
 import type { Repos } from "../../../deps.js";
+import { gravatarHashForEmail } from "../../../lib/gravatar.js";
 import {
   buildCardsResponse,
   buildPrintingsResponse,
   loadPrintingDecorations,
 } from "../../catalog/lib/printing-presenters.js";
-import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
 import { isEmptyDeckPlan, toDeckPlan, toPublicDeck, toPublicDeckCard } from "./deck-presenters.js";
 
 async function catalogSubsetForCards(

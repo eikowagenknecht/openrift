@@ -6,81 +6,9 @@
  *
  * Printings are identified by `buildPrintingLinkKey`; do not hand-roll this key.
  */
-import { buildPrintingLinkKey } from "../../catalog/lib/printing-link-key.js";
-
-interface LiveCardSnapshot {
-  name: string;
-  type: string;
-  might: number | null;
-  energy: number | null;
-  power: number | null;
-  mightBonus: number | null;
-  tags: string[];
-}
-
-export interface LivePrintingSnapshot {
-  rarity: string | null;
-  artist: string | null;
-  artVariant: string | null;
-  size: string | null;
-  isSigned: boolean;
-  isOvernumbered: boolean;
-  flavorText: string | null;
-  printedRulesText: string | null;
-  printedEffectText: string | null;
-  printedName: string | null;
-  language: string | null;
-  hasImage: boolean;
-}
-
-/**
- * The proposed card values, in the shape `candidate_cards` stores them.
- * Optional properties throughout: the insertable column types allow `undefined`
- * for "not provided", which a sparse correction relies on.
- */
-export interface ProposedCard {
-  name: string;
-  types?: string[];
-  might?: number | null;
-  energy?: number | null;
-  power?: number | null;
-  mightBonus?: number | null;
-  tags?: string[];
-}
-
-/** The proposed printing values, in the shape `candidate_printings` stores them. */
-export interface ProposedPrinting {
-  shortCode: string;
-  /** Part of the printing's identity, not a compared field. */
-  finish?: string | null;
-  /** Part of the printing's identity, not a compared field. */
-  markerSlugs?: string[];
-  rarity?: string | null;
-  artist?: string | null;
-  artVariant?: string | null;
-  size?: string | null;
-  isSigned?: boolean | null;
-  isOvernumbered?: boolean | null;
-  flavorText?: string | null;
-  printedRulesText?: string | null;
-  printedEffectText?: string | null;
-  printedName?: string | null;
-  language?: string | null;
-  imageUrl?: string | null;
-}
-
-/** The live side of the comparison; `card` is null for a new-card submission. */
-export interface LiveSnapshot {
-  card: LiveCardSnapshot | null;
-  /**
-   * Keyed by {@link buildPrintingLinkKey}, **not** by short code. One short code
-   * covers every finish and language of a printing (a card with 4 languages ×
-   * 2 finishes has 8 rows all reading `OGN-002`), so a short-code map collapses
-   * them onto whichever row was written last and every proposed printing then
-   * compares against an arbitrary sibling.
-   */
-  printings: Map<string, LivePrintingSnapshot>;
-}
+import { buildPrintingLinkKey } from "../../../lib/printing-link-key.js";
+import type { ProposedCard, ProposedPrinting } from "../repositories/candidate-cards-review.js";
+import type { LiveSnapshot } from "../repositories/card-submissions.js";
 
 /** Blank-ish proposals say "I have nothing to offer here", not "make it empty". */
 function isEmpty(value: unknown): boolean {

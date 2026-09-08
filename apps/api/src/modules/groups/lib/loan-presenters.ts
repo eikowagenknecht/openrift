@@ -1,35 +1,7 @@
-import type {
-  LoanCounterparty,
-  LoanResponse,
-  LoanRole,
-  LoanStatus,
-} from "@openrift/shared/types/api/loan";
+import type { LoanCounterparty, LoanResponse, LoanRole } from "@openrift/shared/types/api/loan";
 
-import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
-
-/** Loans are personal records: no group column, no contact methods, unlike trades. */
-export interface LoanDtoRow {
-  id: string;
-  lenderUserId: string;
-  borrowerUserId: string | null;
-  borrowerName: string | null;
-  printingId: string;
-  cardId: string;
-  quantity: number;
-  returnedQuantity: number;
-  status: LoanStatus;
-  acknowledgedAt: Date | null;
-  rejectedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-  closedAt: Date | null;
-  lenderName: string | null;
-  lenderImage: string | null;
-  lenderEmail: string;
-  borrowerUserName: string | null;
-  borrowerUserImage: string | null;
-  borrowerUserEmail: string | null;
-}
+import { gravatarHashForEmail } from "../../../lib/gravatar.js";
+import type { LoanDtoRow } from "../repositories/loans.js";
 
 function isoOrNull(value: Date | null): string | null {
   return value === null ? null : value.toISOString();

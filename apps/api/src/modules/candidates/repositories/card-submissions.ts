@@ -8,11 +8,48 @@ import type {
   CardSubmissionStatus,
   CardSubmissionsTable,
 } from "../../../db/tables/candidates.js";
+import { buildPrintingLinkKey } from "../../../lib/printing-link-key.js";
 import { joinFrontImage, listOwnedByUser } from "../../../repositories/query-helpers.js";
-import { buildPrintingLinkKey } from "../../catalog/lib/printing-link-key.js";
-import type { LivePrintingSnapshot, LiveSnapshot } from "../lib/card-submission-diff.js";
 
 export type CardSubmissionRow = Selectable<CardSubmissionsTable>;
+
+interface LiveCardSnapshot {
+  name: string;
+  type: string;
+  might: number | null;
+  energy: number | null;
+  power: number | null;
+  mightBonus: number | null;
+  tags: string[];
+}
+
+export interface LivePrintingSnapshot {
+  rarity: string | null;
+  artist: string | null;
+  artVariant: string | null;
+  size: string | null;
+  isSigned: boolean;
+  isOvernumbered: boolean;
+  flavorText: string | null;
+  printedRulesText: string | null;
+  printedEffectText: string | null;
+  printedName: string | null;
+  language: string | null;
+  hasImage: boolean;
+}
+
+/** The live side of the comparison; `card` is null for a new-card submission. */
+export interface LiveSnapshot {
+  card: LiveCardSnapshot | null;
+  /**
+   * Keyed by {@link buildPrintingLinkKey}, **not** by short code. One short code
+   * covers every finish and language of a printing (a card with 4 languages ×
+   * 2 finishes has 8 rows all reading `OGN-002`), so a short-code map collapses
+   * them onto whichever row was written last and every proposed printing then
+   * compares against an arbitrary sibling.
+   */
+  printings: Map<string, LivePrintingSnapshot>;
+}
 
 /**
  * The durable outcome record for in-app card submissions. Separate from

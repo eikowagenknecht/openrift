@@ -1,13 +1,13 @@
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side hashing, never reaches the browser
 import { createHash } from "node:crypto";
 
+import { normalizeFormatKey } from "../../../lib/meta-providers.js";
+
 /**
  * Reads the official source's event listing into `uvsgames_events`. The
  * source publishes no schema and changes shape without notice; every field
  * is probed defensively. A row missing id, name, or start time is dropped.
  */
-
-export const UVSGAMES_PROVIDER = "uvsgames";
 
 /** The source's own page for an event, which becomes the citation's URL. */
 export function uvsgamesEventUrl(externalId: string): string {
@@ -31,15 +31,6 @@ const NOTABLE_EVENT_NAMES = [
 export function isNotableEventName(name: string): boolean {
   const haystack = name.toLowerCase();
   return NOTABLE_EVENT_NAMES.some((needle) => haystack.includes(needle));
-}
-
-/**
- * The lookup key both sides of a format mapping are compared on, so
- * "Constructed", "CONSTRUCTED" and "Standard Constructed" cannot each need
- * their own stored row.
- */
-export function normalizeFormatKey(value: string): string {
-  return value.toLowerCase().replaceAll(/[^a-z0-9]+/gu, "");
 }
 
 /**

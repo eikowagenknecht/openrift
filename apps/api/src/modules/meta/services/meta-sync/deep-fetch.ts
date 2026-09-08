@@ -1,5 +1,5 @@
+import { UVSGAMES_PROVIDER } from "../../../../lib/meta-providers.js";
 import { DECKLIST_PUBLISHED } from "../../lib/meta-recheck-schedule.js";
-import { UVSGAMES_PROVIDER } from "../../lib/uvsgames-catalog.js";
 import type { UvsDeepFetchResponses, UvsRoundMeta } from "../../lib/uvsgames-transform.js";
 import {
   completedRounds,

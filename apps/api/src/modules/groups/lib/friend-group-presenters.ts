@@ -9,7 +9,7 @@ import type {
   FriendGroupShareResponse,
 } from "@openrift/shared/types/api/friend-group";
 
-import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
+import { gravatarHashForEmail } from "../../../lib/gravatar.js";
 import type {
   Group,
   MemberPreviewRow,

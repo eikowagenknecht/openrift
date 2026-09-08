@@ -1,7 +1,42 @@
 import type { ExpressionBuilder, Kysely, UpdateResult } from "kysely";
 
 import type { Database } from "../../../db/tables.js";
-import type { ProposedCard, ProposedPrinting } from "../lib/card-submission-diff.js";
+
+/**
+ * The proposed card values, in the shape `candidate_cards` stores them.
+ * Optional properties throughout: the insertable column types allow `undefined`
+ * for "not provided", which a sparse correction relies on.
+ */
+export interface ProposedCard {
+  name: string;
+  types?: string[];
+  might?: number | null;
+  energy?: number | null;
+  power?: number | null;
+  mightBonus?: number | null;
+  tags?: string[];
+}
+
+/** The proposed printing values, in the shape `candidate_printings` stores them. */
+export interface ProposedPrinting {
+  shortCode: string;
+  /** Part of the printing's identity, not a compared field. */
+  finish?: string | null;
+  /** Part of the printing's identity, not a compared field. */
+  markerSlugs?: string[];
+  rarity?: string | null;
+  artist?: string | null;
+  artVariant?: string | null;
+  size?: string | null;
+  isSigned?: boolean | null;
+  isOvernumbered?: boolean | null;
+  flavorText?: string | null;
+  printedRulesText?: string | null;
+  printedEffectText?: string | null;
+  printedName?: string | null;
+  language?: string | null;
+  imageUrl?: string | null;
+}
 
 export function candidateReviewRepo(db: Kysely<Database>) {
   return {

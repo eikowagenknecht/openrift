@@ -1,11 +1,52 @@
+import type { CardTradeInitiator, CardTradeStatus } from "@openrift/shared/types/api/card-trade";
 import type { ContactMethod } from "@openrift/shared/types/api/contact-method";
 import type { Kysely, Selectable } from "kysely";
 
 import type { Database } from "../../../db/tables.js";
 import type { CardTradesTable } from "../../../db/tables/trades.js";
-import type { CardTradeDtoRow } from "../lib/card-trade-presenters.js";
 
 export type CardTrade = Selectable<CardTradesTable>;
+
+/**
+ * A trade as the DTO query reads it, with the counterparty's revealed contact
+ * methods already attached by the repository.
+ *
+ * Both parties and the group carry a live column and a snapshot: each join is
+ * outer, and a deleted account or friend group leaves its id NULL with its
+ * display name snapshotted on the trade row, so the trade stays readable to
+ * whoever else took part in it.
+ */
+export interface CardTradeDtoRow {
+  id: string;
+  groupId: string | null;
+  groupSlug: string | null;
+  groupLiveName: string | null;
+  groupSnapshotName: string | null;
+  giverUserId: string | null;
+  receiverUserId: string | null;
+  initiator: CardTradeInitiator;
+  printingId: string;
+  cardId: string;
+  quantity: number;
+  status: CardTradeStatus;
+  giverSyncAppliedAt: Date | null;
+  receiverSyncAppliedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  acceptedAt: Date | null;
+  completedAt: Date | null;
+  closedAt: Date | null;
+  expiresAt: Date | null;
+  giverName: string | null;
+  giverImage: string | null;
+  giverEmail: string | null;
+  giverSnapshotName: string | null;
+  receiverName: string | null;
+  receiverImage: string | null;
+  receiverEmail: string | null;
+  receiverSnapshotName: string | null;
+  counterpartyContacts: readonly ContactMethod[];
+}
 
 /**
  * A trade whose group and both of whose parties still exist.

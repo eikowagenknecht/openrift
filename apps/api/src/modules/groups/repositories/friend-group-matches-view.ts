@@ -4,10 +4,9 @@ import type { Finish, Rarity } from "@openrift/shared/types/enums";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../../db/tables.js";
+import { gravatarHashForEmail } from "../../../lib/gravatar.js";
 import { printingDetailsByIds } from "../../../repositories/query-helpers.js";
 import type { ListRuleProviders } from "../../lists/repositories/lists-rules.js";
-import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
-import { claimCopiesForOffers } from "../lib/trade-offer-claims.js";
 import {
   assembleDemand,
   buildRuleEvalContexts,
@@ -23,6 +22,7 @@ import {
 } from "./friend-group-matches-shared.js";
 import type { DemandEntry, SupplyEntry } from "./friend-group-matches-shared.js";
 import { resolveGiverPrintingSupply } from "./friend-group-matches-supply.js";
+import { claimCopiesForOffers } from "./trade-offer-claims.js";
 
 /**
  * One side of a match — a wish entry intersecting a trade entry. The row always

@@ -17,8 +17,9 @@ import type {
 import type { CopyLink } from "@openrift/shared/types/api/collection";
 import type { ContactMethod } from "@openrift/shared/types/api/contact-method";
 
-import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
+import { gravatarHashForEmail } from "../../../lib/gravatar.js";
 import type { LiveTradeAnnotationRow } from "../repositories/card-trades-reads.js";
+import type { CardTradeDtoRow } from "../repositories/card-trades-shared.js";
 import type { MatchRow } from "../repositories/friend-group-matches-view.js";
 
 /**
@@ -300,47 +301,6 @@ export function toCardTradeSheetRows(
     }
   }
   return pooled;
-}
-
-/**
- * A trade as the DTO query reads it, with the counterparty's revealed contact
- * methods already attached by the repository.
- *
- * Both parties and the group carry a live column and a snapshot: each join is
- * outer, and a deleted account or friend group leaves its id NULL with its
- * display name snapshotted on the trade row, so the trade stays readable to
- * whoever else took part in it.
- */
-export interface CardTradeDtoRow {
-  id: string;
-  groupId: string | null;
-  groupSlug: string | null;
-  groupLiveName: string | null;
-  groupSnapshotName: string | null;
-  giverUserId: string | null;
-  receiverUserId: string | null;
-  initiator: CardTradeInitiator;
-  printingId: string;
-  cardId: string;
-  quantity: number;
-  status: CardTradeStatus;
-  giverSyncAppliedAt: Date | null;
-  receiverSyncAppliedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-  acceptedAt: Date | null;
-  completedAt: Date | null;
-  closedAt: Date | null;
-  expiresAt: Date | null;
-  giverName: string | null;
-  giverImage: string | null;
-  giverEmail: string | null;
-  giverSnapshotName: string | null;
-  receiverName: string | null;
-  receiverImage: string | null;
-  receiverEmail: string | null;
-  receiverSnapshotName: string | null;
-  counterpartyContacts: readonly ContactMethod[];
 }
 
 function isoOrNull(value: Date | null): string | null {

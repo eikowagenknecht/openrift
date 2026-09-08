@@ -2,12 +2,14 @@ import type { DeckZone } from "@openrift/shared/types/enums";
 import { WellKnown } from "@openrift/shared/well-known";
 
 import type { Repos } from "../../../deps.js";
+import {
+  PLAYLOLTCG_PROVIDER,
+  TOPDECK_PROVIDER,
+  UVSGAMES_PROVIDER,
+} from "../../../lib/meta-providers.js";
 import type { CardNameIndex } from "../../candidates/services/candidate-links.js";
 import { resolveCardIdByName } from "../../candidates/services/candidate-links.js";
 import { defaultMetaDeckName } from "../lib/meta-event-naming.js";
-import { PLAYLOLTCG_PROVIDER } from "../lib/playloltcg-catalog.js";
-import { TOPDECK_PROVIDER } from "../lib/topdeck-catalog.js";
-import { UVSGAMES_PROVIDER } from "../lib/uvsgames-catalog.js";
 import { listStatusFor, withSingleChampion } from "../lib/uvsgames-transform.js";
 import type { MetaArchivedDeckInput, MetaDeckCardInput } from "../repositories/meta-decks.js";
 import { deckCardMergeKey, mergeDeckCards } from "../repositories/meta-decks.js";

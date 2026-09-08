@@ -10,8 +10,8 @@ import type { Kysely } from "kysely";
 import { describe, expect, it } from "vitest";
 
 import type { Database } from "../../../db/tables.js";
+import { gravatarHashForEmail } from "../../../lib/gravatar.js";
 import type { ListRuleProviders } from "../../lists/repositories/lists-rules.js";
-import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
 import { friendGroupMatchesRepo } from "./friend-group-matches.js";
 
 // The matcher expands at the app level, not in a single SQL join. This fake

@@ -1,12 +1,12 @@
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side hashing, never reaches the browser
 import { createHash } from "node:crypto";
 
+import { PLAYLOLTCG_STATUS_FINISHED } from "../../../lib/meta-providers.js";
+
 /**
  * The source publishes no schema and its lists nest differently per endpoint.
  * A row with no usable id or name is dropped, not guessed.
  */
-
-export const PLAYLOLTCG_PROVIDER = "playloltcg";
 
 export function playloltcgEventUrl(activityShopId: number): string {
   return `https://playloltcg.com/activity/${activityShopId}`;
@@ -106,7 +106,6 @@ export function projectShopRow(raw: unknown): PlayloltcgShopProjection | null {
 
 const PLAYLOLTCG_STATUS_REGISTRATION_OPEN = 1;
 export const PLAYLOLTCG_STATUS_IN_PROGRESS = 4;
-export const PLAYLOLTCG_STATUS_FINISHED = 5;
 
 function status(value: unknown): number | null {
   let n = Number.NaN;

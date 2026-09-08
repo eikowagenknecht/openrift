@@ -2,10 +2,10 @@ import { publicCollectionsContract } from "@openrift/shared/contracts/public-col
 import type { PublicCollectionDetailResponse } from "@openrift/shared/types/api/collection";
 import { implement } from "@orpc/server";
 
+import { gravatarHashForEmail } from "../../../lib/gravatar.js";
 import { keysetPage } from "../../../lib/keyset-cursor.js";
 import { requireUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
-import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
 import { getFavoriteMarketplace } from "../../users/lib/preferences.js";
 import { toPublicCollection } from "../lib/collection-presenters.js";
 import { clampCopiesLimit } from "../lib/copies-page-limit.js";

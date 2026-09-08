@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
+import { gravatarHashForEmail } from "../../../lib/gravatar.js";
 import type {
   Group,
   MemberPreviewRow,

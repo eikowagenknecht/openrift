@@ -3,10 +3,10 @@ import { inferZone } from "@openrift/shared/zone-inference";
 import type { Insertable } from "kysely";
 
 import type { PlayloltcgEventStandingsTable } from "../../../../db/tables/meta-sources.js";
+import { PLAYLOLTCG_PROVIDER } from "../../../../lib/meta-providers.js";
 import {
-  PLAYLOLTCG_PROVIDER,
-  projectDeckCard,
   normalizeCardNo,
+  projectDeckCard,
   referencedDeckIds,
 } from "../../lib/playloltcg-catalog.js";
 import type { PlayloltcgListRow } from "../../repositories/playloltcg-events.js";

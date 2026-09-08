@@ -5,7 +5,7 @@ import { sql } from "kysely";
 import type { Database } from "../../../db/tables.js";
 import type { UvsgamesEventsTable } from "../../../db/tables/meta-sources.js";
 import { keyBatches, rowBatches } from "../../../lib/bind-batches.js";
-import { normalizeFormatKey, UVSGAMES_PROVIDER } from "../lib/uvsgames-catalog.js";
+import { normalizeFormatKey, UVSGAMES_PROVIDER } from "../../../lib/meta-providers.js";
 
 /**
  * Owns one source's crawl bookkeeping; live archive tables stay in `metaRepo`.

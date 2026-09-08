@@ -17,7 +17,7 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../../../db/tables.js";
-import type { BoxWantDemand } from "../../collections/lib/box-want-allocation.js";
+import type { BoxWantDemand } from "../../../lib/box-want-allocation.js";
 import type { ListRuleProviders } from "../../lists/repositories/lists-rules.js";
 
 export interface SharedListRow {

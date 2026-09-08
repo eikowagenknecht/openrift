@@ -1,9 +1,5 @@
-import {
-  TOPDECK_PROVIDER,
-  topdeckEventUrl,
-  topdeckFormat,
-  topdeckLocalDay,
-} from "../../lib/topdeck-catalog.js";
+import { TOPDECK_PROVIDER } from "../../../../lib/meta-providers.js";
+import { topdeckEventUrl, topdeckFormat, topdeckLocalDay } from "../../lib/topdeck-catalog.js";
 import type { TopdeckListRow } from "../../repositories/topdeck-events.js";
 import { promoteNewEvent } from "../meta-promote.js";
 import { errorText } from "./deps.js";

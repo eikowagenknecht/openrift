@@ -19,7 +19,7 @@ import {
   selectShareState,
   updateShareRow,
 } from "../../../repositories/query-helpers.js";
-import { createsCycle } from "../lib/deck-lineage.js";
+import { createsCycle } from "./deck-lineage.js";
 
 /**
  * Locks every deck of the given families in id order (`FOR UPDATE`) before a

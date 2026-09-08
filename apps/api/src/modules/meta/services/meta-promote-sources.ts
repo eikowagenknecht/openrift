@@ -1,10 +1,14 @@
 import { WellKnown } from "@openrift/shared/well-known";
 
 import type { Repos } from "../../../deps.js";
+import {
+  PLAYLOLTCG_PROVIDER,
+  TOPDECK_PROVIDER,
+  UVSGAMES_PROVIDER,
+} from "../../../lib/meta-providers.js";
 import { classifyMetaEventTier, countryFromAddress } from "../lib/meta-event-classify.js";
-import { PLAYLOLTCG_PROVIDER } from "../lib/playloltcg-catalog.js";
-import { TOPDECK_PROVIDER, topdeckFormat, topdeckLocalDay } from "../lib/topdeck-catalog.js";
-import { mapSourceFormat, UVSGAMES_PROVIDER, venueLocalDay } from "../lib/uvsgames-catalog.js";
+import { topdeckFormat, topdeckLocalDay } from "../lib/topdeck-catalog.js";
+import { mapSourceFormat, venueLocalDay } from "../lib/uvsgames-catalog.js";
 import type {
   MetaPromotedEventFacts,
   MetaSourceContext,

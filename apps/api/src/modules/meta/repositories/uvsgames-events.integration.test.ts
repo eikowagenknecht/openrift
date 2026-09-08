@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 
+import { UVSGAMES_PROVIDER } from "../../../lib/meta-providers.js";
 import { createDbContext } from "../../../test/integration-context.js";
-import { UVSGAMES_PROVIDER } from "../lib/uvsgames-catalog.js";
 import type { UvsgamesUpsertInput } from "./uvsgames-events.js";
 import { uvsgamesEventsRepo } from "./uvsgames-events.js";
 

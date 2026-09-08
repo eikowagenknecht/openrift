@@ -13,6 +13,11 @@ import { createLogger } from "@openrift/shared/logger";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../../errors.js";
+import {
+  PLAYLOLTCG_PROVIDER,
+  TOPDECK_PROVIDER,
+  UVSGAMES_PROVIDER,
+} from "../../../lib/meta-providers.js";
 import { requireAuthedUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
 import type { JobRun } from "../../system/repositories/job-runs.js";
@@ -20,10 +25,7 @@ import { recordAdminEvent } from "../../system/services/record-admin-event.js";
 import { runJobAsync } from "../../system/services/run-job.js";
 import { toMetaCatalogRow, toMetaSourceTemplate } from "../lib/meta-catalog-presenters.js";
 import { toPlayloltcgCatalogRow } from "../lib/playloltcg-catalog-presenters.js";
-import { PLAYLOLTCG_PROVIDER } from "../lib/playloltcg-catalog.js";
 import { toTopdeckCatalogRow } from "../lib/topdeck-catalog-presenters.js";
-import { TOPDECK_PROVIDER } from "../lib/topdeck-catalog.js";
-import { UVSGAMES_PROVIDER } from "../lib/uvsgames-catalog.js";
 import type { UvsgamesListRow } from "../repositories/uvsgames-events.js";
 import { isRepromoteNoop, repromoteMetaEvents } from "../services/meta-repromote.js";
 import { isRetierNoop, retierMetaEvents } from "../services/meta-retier.js";

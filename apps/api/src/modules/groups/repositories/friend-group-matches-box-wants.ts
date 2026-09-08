@@ -1,12 +1,12 @@
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../../db/tables.js";
-import { allocateBoxWants } from "../../collections/lib/box-want-allocation.js";
+import { allocateBoxWants } from "../../../lib/box-want-allocation.js";
 import type {
   BoxAvailablePrinting,
   BoxCollectionAvailability,
   BoxWantRow,
-} from "../../collections/lib/box-want-allocation.js";
+} from "../../../lib/box-want-allocation.js";
 import type { ListRuleProviders } from "../../lists/repositories/lists-rules.js";
 import {
   assembleDemand,

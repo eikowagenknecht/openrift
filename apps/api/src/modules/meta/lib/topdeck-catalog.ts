@@ -13,8 +13,6 @@ import { countryFromAddress } from "./meta-event-classify.js";
  * unlike the other two sources there is nothing here to queue.
  */
 
-export const TOPDECK_PROVIDER = "topdeck";
-
 export function topdeckEventUrl(tid: string): string {
   return `https://topdeck.gg/event/${tid}`;
 }

@@ -1,5 +1,6 @@
+import { UVSGAMES_PROVIDER } from "../../../../lib/meta-providers.js";
 import { nextRecheck } from "../../lib/meta-recheck-schedule.js";
-import { projectCatalogRow, UVSGAMES_PROVIDER } from "../../lib/uvsgames-catalog.js";
+import { projectCatalogRow } from "../../lib/uvsgames-catalog.js";
 import type { UvsgamesListRow } from "../../repositories/uvsgames-events.js";
 import { runCancelRequested, writeRunHeartbeat } from "./crawl-checkpoint.js";
 import { deepFetchEvent } from "./deep-fetch.js";

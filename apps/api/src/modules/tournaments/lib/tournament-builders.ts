@@ -16,7 +16,7 @@ import type {
 } from "@openrift/shared/types/api/tournament";
 
 import type { Repos } from "../../../deps.js";
-import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
+import { gravatarHashForEmail } from "../../../lib/gravatar.js";
 import type { Tournament, TournamentSummaryRow } from "../repositories/tournaments.js";
 import { hasOrgRole } from "./org-access.js";
 import { isHost, loadTournament } from "./tournament-access.js";

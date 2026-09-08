@@ -4,7 +4,7 @@ import { sql } from "kysely";
 import type { Database } from "../../../db/tables.js";
 import type { TopdeckEventsTable } from "../../../db/tables/meta-sources.js";
 import { keyBatches, rowBatches } from "../../../lib/bind-batches.js";
-import { TOPDECK_PROVIDER } from "../lib/topdeck-catalog.js";
+import { TOPDECK_PROVIDER } from "../../../lib/meta-providers.js";
 
 type TopdeckEventRow = Selectable<TopdeckEventsTable>;
 

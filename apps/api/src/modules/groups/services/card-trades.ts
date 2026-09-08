@@ -18,8 +18,8 @@ import {
   toCardTradeCopyOptions,
   toCardTradeResponse,
 } from "../lib/card-trade-presenters.js";
-import { claimCopiesForOffers } from "../lib/trade-offer-claims.js";
 import type { CardTrade, LiveCardTrade } from "../repositories/card-trades-shared.js";
+import { claimCopiesForOffers } from "../repositories/trade-offer-claims.js";
 import type { TradeEmailDeps } from "./trade-notifications.js";
 import { sendTradeRequestEmail } from "./trade-notifications.js";
 

@@ -10,8 +10,7 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../../../db/tables.js";
-import type { CardTradeDtoRow } from "../lib/card-trade-presenters.js";
-import type { CardTrade } from "./card-trades-shared.js";
+import type { CardTrade, CardTradeDtoRow } from "./card-trades-shared.js";
 import { tradeDtoBaseQuery, withCounterpartyContacts } from "./card-trades-shared.js";
 
 export interface TradeListFilters {

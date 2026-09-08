@@ -1,14 +1,10 @@
 import { ERROR_CODES } from "@openrift/shared/error-codes";
 
 import { AppError } from "../../../../errors.js";
+import { UVSGAMES_PROVIDER } from "../../../../lib/meta-providers.js";
 import type { MetaAutoAcceptRule, MetaAutoAcceptSettings } from "../../lib/meta-auto-accept.js";
 import { autoAcceptRule } from "../../lib/meta-auto-accept.js";
-import {
-  mapSourceFormat,
-  UVSGAMES_PROVIDER,
-  uvsgamesEventUrl,
-  venueLocalDay,
-} from "../../lib/uvsgames-catalog.js";
+import { mapSourceFormat, uvsgamesEventUrl, venueLocalDay } from "../../lib/uvsgames-catalog.js";
 import type { UvsgamesListRow } from "../../repositories/uvsgames-events.js";
 import { promoteNewEvent } from "../meta-promote.js";
 import type { MetaSyncDeps } from "./deps.js";

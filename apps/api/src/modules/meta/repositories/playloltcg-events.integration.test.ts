@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 
+import { PLAYLOLTCG_PROVIDER } from "../../../lib/meta-providers.js";
 import { createDbContext } from "../../../test/integration-context.js";
-import { PLAYLOLTCG_PROVIDER } from "../lib/playloltcg-catalog.js";
 import type { PlayloltcgUpsertInput } from "./playloltcg-events.js";
 import { playloltcgEventsRepo } from "./playloltcg-events.js";
 

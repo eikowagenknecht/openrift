@@ -1,6 +1,7 @@
 import { WellKnown } from "@openrift/shared/well-known";
 
-import { PLAYLOLTCG_PROVIDER, playloltcgEventUrl } from "../../lib/playloltcg-catalog.js";
+import { PLAYLOLTCG_PROVIDER } from "../../../../lib/meta-providers.js";
+import { playloltcgEventUrl } from "../../lib/playloltcg-catalog.js";
 import type { PlayloltcgListRow } from "../../repositories/playloltcg-events.js";
 import { promoteNewEvent } from "../meta-promote.js";
 import { errorText } from "./deps.js";

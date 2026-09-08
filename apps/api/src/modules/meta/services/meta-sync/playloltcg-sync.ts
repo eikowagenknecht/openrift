@@ -1,6 +1,6 @@
+import { PLAYLOLTCG_STATUS_FINISHED } from "../../../../lib/meta-providers.js";
 import { DECKLIST_PUBLISHED, nextRecheck } from "../../lib/meta-recheck-schedule.js";
 import {
-  PLAYLOLTCG_STATUS_FINISHED,
   PLAYLOLTCG_STATUS_IN_PROGRESS,
   projectEventRow,
   projectShopRow,

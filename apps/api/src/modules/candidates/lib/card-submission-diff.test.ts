@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type {
-  LivePrintingSnapshot,
-  LiveSnapshot,
-  ProposedPrinting,
-} from "./card-submission-diff.js";
+import type { ProposedPrinting } from "../repositories/candidate-cards-review.js";
+import type { LivePrintingSnapshot, LiveSnapshot } from "../repositories/card-submissions.js";
 import { adoptedFields, computeProposedDiff } from "./card-submission-diff.js";
 
 const LIVE_CARD = {

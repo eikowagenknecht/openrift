@@ -1,5 +1,5 @@
 import type { Repos } from "../../../deps.js";
-import { UVSGAMES_PROVIDER } from "../lib/uvsgames-catalog.js";
+import { UVSGAMES_PROVIDER } from "../../../lib/meta-providers.js";
 import type {
   MetaEventMatchRow,
   MetaEventPhaseRow,

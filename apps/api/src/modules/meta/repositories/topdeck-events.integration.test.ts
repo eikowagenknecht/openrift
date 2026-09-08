@@ -1,8 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 
+import { PLAYLOLTCG_PROVIDER, TOPDECK_PROVIDER } from "../../../lib/meta-providers.js";
 import { createDbContext } from "../../../test/integration-context.js";
-import { PLAYLOLTCG_PROVIDER } from "../lib/playloltcg-catalog.js";
-import { TOPDECK_PROVIDER } from "../lib/topdeck-catalog.js";
 import { metaRepo } from "./meta.js";
 import type { TopdeckUpsertInput } from "./topdeck-events.js";
 import { topdeckEventsRepo } from "./topdeck-events.js";

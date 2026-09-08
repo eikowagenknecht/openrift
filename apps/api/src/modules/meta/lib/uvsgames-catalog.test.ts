@@ -4,7 +4,6 @@ import {
   catalogContentHash,
   isNotableEventName,
   mapSourceFormat,
-  normalizeFormatKey,
   projectCatalogRow,
   projectTemplateRows,
   uvsgamesEventUrl,
@@ -207,13 +206,6 @@ describe("mapSourceFormat", () => {
     expect(mapSourceFormat(mappings, null)).toBeNull();
     expect(mapSourceFormat(mappings, "  ")).toBeNull();
     expect(mapSourceFormat(new Map(), "CONSTRUCTED")).toBeNull();
-  });
-});
-
-describe("normalizeFormatKey", () => {
-  it("folds case and punctuation, so one stored row covers the variants", () => {
-    expect(normalizeFormatKey("Standard Constructed")).toBe("standardconstructed");
-    expect(normalizeFormatKey("riftbound-constructed")).toBe("riftboundconstructed");
   });
 });
 

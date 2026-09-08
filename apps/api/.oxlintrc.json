@@ -72,6 +72,35 @@
       }
     },
     {
+      // The top-level src/lib is the bottom layer: pure helpers every other layer,
+      // repositories included, may import. A module's lib/ is the domain layer above.
+      "files": ["src/lib/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "**/modules/**",
+                  "**/repositories/**",
+                  "**/services/**",
+                  "**/routes/**",
+                  "**/deps.js"
+                ],
+                "message": "src/lib/ is the bottom layer and imports nothing from modules, repositories, services, routes or deps. A helper that needs Repos belongs in the module's lib/."
+              },
+              {
+                "group": ["**/db/connect.js", "kysely"],
+                "allowTypeImports": true,
+                "message": "src/lib/ never touches db / Kysely."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "files": ["src/**/repositories/**"],
       "rules": {
         "no-restricted-imports": [
@@ -79,8 +108,8 @@
           {
             "patterns": [
               {
-                "group": ["**/routes/**", "**/services/**"],
-                "message": "repositories/ sits below services/ and routes/. Move what you need down into lib/."
+                "group": ["**/routes/**", "**/services/**", "**/modules/*/lib/**"],
+                "message": "repositories/ sits below a module's lib/, services/ and routes/. A pure helper a repository needs lives in the top-level src/lib/, the bottom layer."
               }
             ]
           }

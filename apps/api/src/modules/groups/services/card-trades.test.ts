@@ -2,8 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Repos, Transact } from "../../../deps.js";
 import { AppError } from "../../../errors.js";
-import type { CardTradeDtoRow } from "../lib/card-trade-presenters.js";
-import type { LiveCardTrade } from "../repositories/card-trades-shared.js";
+import type { CardTradeDtoRow, LiveCardTrade } from "../repositories/card-trades-shared.js";
 import {
   acceptTrade,
   autoCancelUnfillablePendingTrades,

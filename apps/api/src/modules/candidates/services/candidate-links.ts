@@ -6,7 +6,7 @@
  */
 import { normalizeNameForIdentity } from "@openrift/shared/utils";
 
-import { buildPrintingLinkKey } from "../../catalog/lib/printing-link-key.js";
+import { buildPrintingLinkKey } from "../../../lib/printing-link-key.js";
 import type { ingestRepo } from "../repositories/ingest.js";
 
 /** The live-catalog lookups that resolve a card *name* to a card id. */

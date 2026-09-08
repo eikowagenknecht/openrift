@@ -2,9 +2,9 @@ import { publicTierListsContract } from "@openrift/shared/contracts/public-tier-
 import type { PublicTierListDetailResponse } from "@openrift/shared/types/api/tier-list";
 import { implement } from "@orpc/server";
 
+import { gravatarHashForEmail } from "../../../lib/gravatar.js";
 import { requireUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
-import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
 import { toPublicTierList } from "../lib/tier-list-presenters.js";
 
 const os = implement(publicTierListsContract).$context<ApiContext>().use(requireUser);

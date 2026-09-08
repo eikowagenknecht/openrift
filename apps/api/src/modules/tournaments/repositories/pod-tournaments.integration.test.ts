@@ -2,7 +2,6 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createRepos } from "../../../deps.js";
 import { createDbContext } from "../../../test/integration-context.js";
-import type { PodScoring } from "../lib/pod-scoring.js";
 import { scoringOf } from "../lib/pod-scoring.js";
 import { toRoundResponse } from "../lib/pod-tournament-presenters.js";
 import {
@@ -13,6 +12,7 @@ import {
   submitPodPlayerResult,
   submitPodResult,
 } from "../services/pod-pairing.js";
+import type { PodScoring } from "./pod-tournaments-shared.js";
 
 const OWNER_ID = crypto.randomUUID();
 const ctx = createDbContext(OWNER_ID);

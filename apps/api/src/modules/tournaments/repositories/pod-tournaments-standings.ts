@@ -7,14 +7,8 @@ import type {
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../../db/tables.js";
-import type { PodScoring } from "../lib/pod-scoring.js";
-import {
-  podSizeOf,
-  pointsForPod,
-  pointsForTeamPod,
-  teamsOf,
-} from "../lib/pod-tournament-presenters.js";
-import type { PodRosterPlayer } from "./pod-tournaments-shared.js";
+import { podSizeOf, pointsForPod, pointsForTeamPod, teamsOf } from "./pod-points.js";
+import type { PodRosterPlayer, PodScoring } from "./pod-tournaments-shared.js";
 import { ROSTER_STATUSES } from "./pod-tournaments-shared.js";
 
 export type PairingSnapshotPlayer = PairingPlayer & { teamId: string | null };

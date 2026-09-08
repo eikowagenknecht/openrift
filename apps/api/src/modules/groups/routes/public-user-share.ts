@@ -3,6 +3,7 @@ import type { PublicListDetailResponse } from "@openrift/shared/types/api/list";
 import type { PublicUserBundleResponse } from "@openrift/shared/types/api/user-share";
 import { implement } from "@orpc/server";
 
+import { gravatarHashForEmail } from "../../../lib/gravatar.js";
 import { requireUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
 import { expandRuleListCounts } from "../../lists/lib/list-counts.js";
@@ -11,7 +12,6 @@ import {
   toListEntryDetail,
   toPublicList,
 } from "../../lists/lib/list-presenters.js";
-import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
 
 const os = implement(publicUserShareContract).$context<ApiContext>().use(requireUser);
 

@@ -33,7 +33,7 @@ Web: `lib` < `stores` < `hooks` < `components` < `routes`. API: `db` < `reposito
 - Good, because a violation fails pre-commit with a message that names the layer to move the definition to.
 - Good, because a component reaches a route through `getRouteApi()` and a hook never imports a component, so either can move into a feature folder without dragging the other along.
 - Good, because deleting the shared barrel removed 1,900 imports that each pulled 77 modules into the consumer's chunk.
-- Bad, because the API `lib` and `repositories` edge is two-way, which the lint cannot tell from a cycle; that edge is documented and not enforced.
+- Bad, because the API `lib` and `repositories` edge was two-way when this was decided, which the lint cannot tell from a cycle. Amended 2026-09-08: the top-level `src/lib/` became the pure bottom layer every layer may import, row types moved to the repositories that produce them, and a repository may no longer import a module's `lib/`; the edge is one-way and enforced.
 - Bad, because the base rule's `../*` pattern matches a single path segment, so a two-level relative parent import is not caught; the web app uses the `@/` alias everywhere and the API has its own config, so the gap is dormant.
 
 ### Confirmation

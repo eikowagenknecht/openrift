@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
-import type { LoanDtoRow } from "./loan-presenters.js";
+import { gravatarHashForEmail } from "../../../lib/gravatar.js";
+import type { LoanDtoRow } from "../repositories/loans.js";
 import { toLoanResponse } from "./loan-presenters.js";
 
 const LENDER_ID = "user-lender";

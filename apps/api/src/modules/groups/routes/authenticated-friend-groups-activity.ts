@@ -8,9 +8,9 @@ import type {
 import type { ListIntent, ListKind } from "@openrift/shared/types/api/list";
 import { implement } from "@orpc/server";
 
+import { gravatarHashForEmail } from "../../../lib/gravatar.js";
 import { requireAuthedUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
-import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
 import { loadGroupForMember } from "../lib/group-access.js";
 
 const os = implement(friendGroupsContract).$context<ApiContext>().use(requireAuthedUser);

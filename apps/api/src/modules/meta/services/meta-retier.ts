@@ -1,9 +1,9 @@
 import type { MetaEventTier } from "@openrift/shared/types/enums";
 
 import type { Repos } from "../../../deps.js";
+import { PLAYLOLTCG_PROVIDER, UVSGAMES_PROVIDER } from "../../../lib/meta-providers.js";
 import { classifyMetaEventTier } from "../lib/meta-event-classify.js";
-import { PLAYLOLTCG_PROVIDER } from "../lib/playloltcg-catalog.js";
-import { mapSourceFormat, UVSGAMES_PROVIDER } from "../lib/uvsgames-catalog.js";
+import { mapSourceFormat } from "../lib/uvsgames-catalog.js";
 import type { MetaEventSourceRow } from "../repositories/meta-sources.js";
 import { countOrNull } from "./meta-promote-sources.js";
 import type { MetaRepromoteResult } from "./meta-repromote.js";
