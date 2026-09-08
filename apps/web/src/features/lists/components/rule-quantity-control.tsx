@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export const QUANTITY_MODES = [
+const QUANTITY_MODES = [
   { value: "fixed", label: "Fixed" },
   { value: "playset", label: "Playset ×" },
 ] as const;

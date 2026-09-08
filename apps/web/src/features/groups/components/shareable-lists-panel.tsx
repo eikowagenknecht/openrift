@@ -76,7 +76,7 @@ export function ShareableListsPanel({ slug }: { slug: string }) {
   );
 }
 
-export function ShareableListRow({
+function ShareableListRow({
   slug,
   row,
   share,

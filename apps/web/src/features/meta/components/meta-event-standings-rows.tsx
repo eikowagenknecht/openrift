@@ -28,12 +28,12 @@ export interface RowProps extends RowSlot {
   onToggle: () => void;
 }
 
-export function ownsClick(event: React.SyntheticEvent<HTMLElement>): boolean {
+function ownsClick(event: React.SyntheticEvent<HTMLElement>): boolean {
   const target = event.target;
   return target instanceof Element && target.closest("a, button, [role=menu]") !== null;
 }
 
-export function rowToggleProps(token: string | null, expanded: boolean, onToggle: () => void) {
+function rowToggleProps(token: string | null, expanded: boolean, onToggle: () => void) {
   if (token === null) {
     return {};
   }

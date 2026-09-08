@@ -61,7 +61,7 @@ export interface MarketplaceHandlers {
   isUnmappingPrinting: boolean;
 }
 
-export interface AssignedPrinting {
+interface AssignedPrinting {
   printingId: string;
   shortCode: string;
   markerSlugs: string[];

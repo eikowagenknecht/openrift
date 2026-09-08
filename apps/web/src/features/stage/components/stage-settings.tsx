@@ -12,7 +12,7 @@ import { StagePresetSettings } from "@/features/stage/components/stage-preset-se
 import { StageTileSizeSlider } from "@/features/stage/components/stage-shell";
 import { usePresentationStore } from "@/features/stage/stores/presentation-store";
 
-export function StageToggleRow({
+function StageToggleRow({
   id,
   label,
   hotkey,
@@ -44,7 +44,7 @@ const PLATE_FIELDS: { key: keyof OverlayPlateFields; label: string }[] = [
   { key: "flavorText", label: "Flavor text" },
 ];
 
-export function PlateFieldSettings() {
+function PlateFieldSettings() {
   const plateFields = usePresentationStore((state) => state.plateFields);
   const togglePlateField = usePresentationStore((state) => state.togglePlateField);
 
@@ -73,7 +73,7 @@ function isGround(value: unknown): value is StageGround {
   return GROUNDS.some((option) => option.value === value);
 }
 
-export function GroundSettings() {
+function GroundSettings() {
   const ground = usePresentationStore((state) => state.ground);
   const setGround = usePresentationStore((state) => state.setGround);
 

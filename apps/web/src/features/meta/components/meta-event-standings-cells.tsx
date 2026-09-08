@@ -18,7 +18,7 @@ import type { MetaPlayerRound } from "@/features/meta/lib/meta-player-run";
 import { metaSubmitSearchForPlayer } from "@/features/meta/lib/meta-submit-link";
 import { cn } from "@/lib/utils";
 
-export function Rank({ player }: { player: MetaEventPlayer }) {
+function Rank({ player }: { player: MetaEventPlayer }) {
   if (player.rank <= MEDAL_RANKS) {
     return <Medal rank={player.rank} />;
   }
@@ -41,7 +41,7 @@ export function RankCell({ player, className }: { player: MetaEventPlayer; class
   );
 }
 
-export function MissingLine({ cost }: { cost: MetaDeckCost }) {
+function MissingLine({ cost }: { cost: MetaDeckCost }) {
   const format = useMetaPriceFormat();
   if (cost.owned === undefined || cost.needed === 0) {
     return null;

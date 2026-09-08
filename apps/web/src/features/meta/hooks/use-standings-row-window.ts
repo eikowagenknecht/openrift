@@ -5,12 +5,12 @@ import type { RowSlot } from "@/features/meta/lib/meta-event-standings";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
 
-export const ROWS_SHOWN = 16;
-export const ROW_HEIGHT = 66;
+const ROWS_SHOWN = 16;
+const ROW_HEIGHT = 66;
 
 // A row in the rendering the breakpoint hides measures zero, and those zeros
 // would survive in the cache until the viewport crosses back over 768px.
-export function measureRow(element: Element): number {
+function measureRow(element: Element): number {
   return element.getBoundingClientRect().height || ROW_HEIGHT;
 }
 
