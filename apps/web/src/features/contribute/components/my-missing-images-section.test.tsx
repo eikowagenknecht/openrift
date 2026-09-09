@@ -71,7 +71,7 @@ describe("MyMissingImagesSection", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Ahri, Alluring/u })).toHaveAttribute(
       "href",
-      "/contribute/card-1/image/printing-1",
+      "/contribute/card/card-1/printing/printing-1/image",
     );
   });
 });

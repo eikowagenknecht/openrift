@@ -84,7 +84,7 @@ export function MySubmissionsPage() {
           <PageTopBarBack to="/contribute" />
           <PageTopBarTitle>My submissions</PageTopBarTitle>
           <PageTopBarActions>
-            <PageTopBarPrimaryButton render={<Link to="/contribute" />}>
+            <PageTopBarPrimaryButton render={<Link to="/contribute/card" />}>
               Submit a card
             </PageTopBarPrimaryButton>
           </PageTopBarActions>
@@ -107,7 +107,7 @@ export function MySubmissionsPage() {
             title="Nothing sent in yet"
             description="Spotted a card we're missing, or something that looks wrong? Send it in and it shows up here with its review status. Help us fill in the gaps."
           >
-            <Button render={<Link to="/contribute" />}>Submit a card</Button>
+            <Button render={<Link to="/contribute/card" />}>Submit a card</Button>
           </EmptyState>
         ) : null}
 

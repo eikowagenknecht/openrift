@@ -25,6 +25,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { PlaceholderField } from "@/features/cards/lib/card-placeholder-regions";
+import { useFieldLink } from "@/features/contribute/components/contribute-field-focus";
 import { cn } from "@/lib/utils";
 
 export interface LabelledControlProps {
@@ -39,16 +41,19 @@ export function FieldRow({
   hint,
   error,
   required,
+  field,
   children,
 }: {
   label: string;
   hint?: string;
   error?: string;
   required?: boolean;
+  field?: PlaceholderField;
   children: ReactNode;
 }) {
   const generatedId = useId();
   const labelId = useId();
+  const link = useFieldLink(field);
   const element = isValidElement<LabelledControlProps>(children) ? children : null;
   const controlId = element?.props.id ?? generatedId;
   const control = element
@@ -59,7 +64,11 @@ export function FieldRow({
     : children;
 
   return (
-    <Field data-invalid={error ? true : undefined}>
+    <Field
+      data-invalid={error ? true : undefined}
+      {...link.props}
+      className={cn(link.active && "ring-primary/40 -m-1 rounded-md p-1 ring-2 transition-shadow")}
+    >
       <div className="flex items-center gap-1">
         <FieldLabel id={labelId} htmlFor={controlId}>
           {label}

@@ -83,8 +83,20 @@ describe("validateContribution", () => {
     const result = validateContribution(emptyFormState());
     expect(result.ok).toBe(false);
     const paths = result.errors.map((e) => e.path);
-    expect(paths).toContain("slug");
     expect(paths).toContain("card.name");
+  });
+
+  it("leaves the slug alone while the name it derives from is still missing", () => {
+    const result = validateContribution(emptyFormState());
+    expect(result.errors.map((e) => e.path)).not.toContain("slug");
+  });
+
+  it("reports a name that yields no slug", () => {
+    const state = emptyFormState();
+    state.card.name = "???";
+    state.slug = "";
+    const result = validateContribution(state);
+    expect(result.errors.find((e) => e.path === "slug")).toBeDefined();
   });
 
   it("rejects a slug with uppercase letters", () => {
@@ -304,6 +316,41 @@ describe("buildSubmissionPayload", () => {
       const payload = buildSubmissionPayload(edited, null, baseline);
       expect(payload.printings).toEqual([]);
       expect(payload.card.energy).toBe(9);
+    });
+
+    it("drops card fields the contributor left alone", () => {
+      const baseline = fullState();
+      const edited = fullState();
+      edited.card = { ...edited.card, energy: 9 };
+
+      const payload = buildSubmissionPayload(edited, null, baseline);
+      expect(payload.card.energy).toBe(9);
+      expect(payload.card.might).toBeUndefined();
+      expect(payload.card.domains).toBeUndefined();
+    });
+
+    it("keeps the name even when it is unchanged", () => {
+      const baseline = fullState();
+      const edited = fullState();
+      edited.card = { ...edited.card, power: 4 };
+
+      const payload = buildSubmissionPayload(edited, null, baseline);
+      expect(payload.card.name).toBe(baseline.card.name);
+    });
+
+    it("reads a reordered domain list as unchanged", () => {
+      const baseline = fullState();
+      const edited = fullState();
+      edited.card = { ...edited.card, domains: [...edited.card.domains].toReversed() };
+
+      const payload = buildSubmissionPayload(edited, null, baseline);
+      expect(payload.card.domains).toBeUndefined();
+    });
+
+    it("sends every card field when there is no baseline", () => {
+      const payload = buildSubmissionPayload(fullState(), null);
+      expect(payload.card.domains).toBeDefined();
+      expect(payload.card.might).toBeDefined();
     });
 
     it("sends a printing the contributor added", () => {

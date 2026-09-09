@@ -58,7 +58,7 @@ describe("MissingImagesList", () => {
     expect(screen.getByText("Origins · OGN-1 · Foil · German")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Ahri, Alluring/u })).toHaveAttribute(
       "href",
-      "/contribute/card-1/image/printing-1",
+      "/contribute/card/card-1/printing/printing-1/image",
     );
     expect(screen.getByTitle("2 in your collections")).toHaveTextContent("2");
   });

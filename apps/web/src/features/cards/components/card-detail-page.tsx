@@ -78,7 +78,7 @@ export function CardDetailPage() {
           <PageTopBarActions>
             <PageTopBarButton
               aria-label="Suggest a correction"
-              render={<Link to="/contribute/$cardSlug" params={{ cardSlug }} />}
+              render={<Link to="/contribute/card/$cardSlug" params={{ cardSlug }} />}
             >
               <PencilLineIcon className="size-4" />
               <span className="hidden sm:inline">Suggest a correction</span>

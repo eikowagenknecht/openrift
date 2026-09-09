@@ -37,7 +37,7 @@ export function CollectionMissingImagesCallout() {
             size="sm"
             render={
               <Link
-                to="/contribute/$cardSlug/image/$printingId"
+                to="/contribute/card/$cardSlug/printing/$printingId/image"
                 params={{ cardSlug: first.cardSlug, printingId: first.printingId }}
               />
             }

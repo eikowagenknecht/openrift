@@ -163,7 +163,7 @@ describe("ImageSuggestForm", () => {
 
     expect(screen.getByRole("link", { name: /Yasuo, Windchaser/u })).toHaveAttribute(
       "href",
-      "/contribute/yasuo-windchaser/image/printing-2",
+      "/contribute/card/yasuo-windchaser/printing/printing-2/image",
     );
   });
 

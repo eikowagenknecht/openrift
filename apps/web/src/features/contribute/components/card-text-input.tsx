@@ -17,7 +17,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { CardText } from "@/features/cards/components/card-text";
+import type { PlaceholderField } from "@/features/cards/lib/card-placeholder-regions";
+import { useFieldLink } from "@/features/contribute/components/contribute-field-focus";
 import { useKeywordStyles } from "@/hooks/use-keyword-styles";
+import { cn } from "@/lib/utils";
 
 const ENERGY_GLYPHS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 
@@ -74,6 +77,7 @@ export type CardTextVariant = "rules" | "flavor";
 
 interface CardTextInputProps {
   label: string;
+  field?: PlaceholderField;
   value: string;
   onChange: (next: string) => void;
   rows?: number;
@@ -85,6 +89,7 @@ interface CardTextInputProps {
 
 export function CardTextInput({
   label,
+  field,
   value,
   onChange,
   rows = 2,
@@ -94,6 +99,7 @@ export function CardTextInput({
 }: CardTextInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const id = useId();
+  const link = useFieldLink(field);
 
   const insert = (token: string) => {
     const ta = textareaRef.current;
@@ -128,7 +134,13 @@ export function CardTextInput({
   };
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div
+      {...link.props}
+      className={cn(
+        "flex flex-col gap-1.5",
+        link.active && "ring-primary/40 -m-1 rounded-md p-1 ring-2 transition-shadow",
+      )}
+    >
       <div className="flex items-center justify-between gap-2">
         <Label htmlFor={id}>{label}</Label>
         {variant === "rules" && <SyntaxHelpPopover />}

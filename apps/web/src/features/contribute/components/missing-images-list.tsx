@@ -27,7 +27,7 @@ export function MissingImagesList({ items }: MissingImagesListProps) {
         {visible.map((item) => (
           <li key={item.printingId}>
             <Link
-              to="/contribute/$cardSlug/image/$printingId"
+              to="/contribute/card/$cardSlug/printing/$printingId/image"
               params={{ cardSlug: item.cardSlug, printingId: item.printingId }}
               className="hover:bg-muted flex items-center justify-between gap-3 rounded-md px-3 py-2"
             >

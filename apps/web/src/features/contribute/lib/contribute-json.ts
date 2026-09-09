@@ -145,10 +145,11 @@ export function nameToSlug(name: string): string {
 export function validateContribution(state: ContributeFormState): ValidationResult {
   const errors: ValidationError[] = [];
 
-  if (!state.slug || !SLUG_PATTERN.test(state.slug)) {
+  // A missing name already reports itself, and the slug it derives from is empty for the same reason.
+  if (state.card.name.trim() !== "" && (!state.slug || !SLUG_PATTERN.test(state.slug))) {
     errors.push({
       path: "slug",
-      message: "Slug must be lowercase letters, digits, and hyphens.",
+      message: "The name has to contain letters or digits.",
     });
   }
 
@@ -289,6 +290,24 @@ function printingFingerprint(printing: ContributeFormPrinting): string {
   });
 }
 
+// Slug arrays are picker-ordered, so a reordering must not read as an edit.
+function sameCardValue(a: unknown, b: unknown): boolean {
+  const normalize = (v: unknown) =>
+    JSON.stringify(Array.isArray(v) ? [...(v as unknown[])].toSorted() : v);
+  return normalize(a) === normalize(b);
+}
+
+// Name identifies the card downstream, so it stays even when unchanged.
+function stripUnchangedCardFields(card: SnakeCardJson, baseline: SnakeCardJson): SnakeCardJson {
+  const out: SnakeCardJson = {};
+  for (const [key, value] of Object.entries(card)) {
+    if (key === "name" || !sameCardValue(value, baseline[key])) {
+      out[key] = value;
+    }
+  }
+  return out;
+}
+
 // Printings unchanged from `baseline` are left out, since the correction flow prefills every
 // printing and a one-field fix would otherwise bury the edit among rows proposing nothing.
 export function buildSubmissionPayload(
@@ -297,8 +316,9 @@ export function buildSubmissionPayload(
   baseline?: ContributeFormState,
 ): CardSubmissionInput {
   const cardName = state.card.name.trim();
-  const card = buildCardJson(state.card, "");
-  delete card.external_id;
+  const built = buildCardJson(state.card, "");
+  delete built.external_id;
+  const card = baseline ? stripUnchangedCardFields(built, buildCardJson(baseline.card, "")) : built;
   const untouched = new Set(baseline?.printings.map((p) => printingFingerprint(p)));
   const printings = state.printings
     .filter((printing) => !untouched.has(printingFingerprint(printing)))
@@ -390,4 +410,13 @@ export function prefillFromCard(
       printedYear: p.printedYear,
     })),
   };
+}
+
+export function prefillForNewPrinting(
+  card: Card,
+  setSlugById: Map<string, string>,
+  setNameById: Map<string, string>,
+): ContributeFormState {
+  const base = prefillFromCard(card, [], setSlugById, setNameById);
+  return { ...base, printings: [{ ...emptyPrinting(), printedName: card.name }] };
 }

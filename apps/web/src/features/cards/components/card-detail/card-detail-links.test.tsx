@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { stubCard } from "@/test/factories";
+import { stubCard, stubPrinting } from "@/test/factories";
 
 const { isAdminMock } = vi.hoisted(() => ({ isAdminMock: vi.fn(() => false) }));
 
@@ -17,14 +17,14 @@ vi.mock("@tanstack/react-router", async () => {
       children,
     }: {
       to: string;
-      params?: { cardSlug: string };
+      params?: { cardSlug: string; printingId?: string };
       children: ReactNode;
     }) => (
       <a
-        href={(params ? to.replace("$cardSlug", params.cardSlug) : to).replaceAll(
-          /\/\{-\$[^}]+\}/gu,
-          "",
-        )}
+        href={(params
+          ? to.replace("$cardSlug", params.cardSlug).replace("$printingId", params.printingId ?? "")
+          : to
+        ).replaceAll(/\/\{-\$[^}]+\}/gu, "")}
       >
         {children}
       </a>
@@ -49,7 +49,23 @@ describe("CardDetailLinks", () => {
     );
     expect(screen.getByRole("link", { name: "Suggest a correction" })).toHaveAttribute(
       "href",
-      "/contribute/yasuo",
+      "/contribute/card/yasuo",
+    );
+  });
+
+  it("links to the printing correction form only when given a printing", () => {
+    render(<CardDetailLinks card={stubCard({ slug: "yasuo" })} />);
+    expect(screen.queryByRole("link", { name: "Fix this printing" })).not.toBeInTheDocument();
+
+    render(
+      <CardDetailLinks
+        card={stubCard({ slug: "yasuo" })}
+        printing={stubPrinting({ id: "p1", card: { slug: "yasuo" } })}
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Fix this printing" })).toHaveAttribute(
+      "href",
+      "/contribute/card/yasuo/printing/p1",
     );
   });
 

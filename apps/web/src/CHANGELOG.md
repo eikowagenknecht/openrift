@@ -4,6 +4,8 @@
 
 ### Highlights
 
+- feat(Cards): **Contribute in smaller steps** — the contribute page now asks what you want to add first, and each form opens with just the fields it needs.
+- feat(Cards): **The preview card is the map of the form** — every spot the card shows is marked on the preview, and picking one jumps to the field that fills it.
 - feat(App): **First-visit guides for lists, tier lists and the Stage** — a dismissable guide on a wishlist or tradelist, the tier list builder and the Stage explains what the page does and how to start, as collections and decks already had.
 - feat(Trades): **See who you could trade with** — the Trades page now has a Could trade section for people you share matching wishlists and tradelists with but haven't traded yet.
 - feat(Cards): **Upload a photo for a missing card image** — the suggest-image page now takes a photo straight from your phone or a file, no image host needed, and shows the rest of your cards without a photo so you can pick the next one.
@@ -12,6 +14,8 @@
 
 ### Other
 
+- feat(Cards): **Set filled in from the printed code** — a code like OGN-066/298 names its own set, so the picker only appears when the set is new to us.
+- feat(Cards): **Correct a single printing** — a fix to one printing now opens that printing on its own, with the card's own details shown as a summary.
 - feat(App): **Empty pages say what they're for** — Tournaments, Lending, Activity, trade sheets, group pages, tier lists, the deck comparison and the submission pages now explain the feature and the first step in place of a bare "nothing yet".
 - feat(Cards): **"No image yet" filter** — the card browser and your collection can now show only printings without a picture.
 - fix(Cards): **Contribute form rejected repeat card names** — submitting a card whose name someone had already sent in failed with a server error; now everyone's submissions for that name are kept.

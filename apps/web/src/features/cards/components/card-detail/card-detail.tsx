@@ -149,7 +149,7 @@ export function CardDetail({
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t pt-3">
-          <CardDetailLinks card={card} />
+          <CardDetailLinks card={card} printing={printing} />
           {footerSlot}
         </div>
       </div>
@@ -254,7 +254,7 @@ export function CardDetail({
 
         {actions}
 
-        {onClose && <CardDetailLinks card={card} />}
+        {onClose && <CardDetailLinks card={card} printing={printing} />}
       </div>
     </div>
   );

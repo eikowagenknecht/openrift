@@ -16,7 +16,9 @@ import { ImageSuggestForm } from "@/features/contribute/components/image-suggest
 import { useEnumOrders } from "@/hooks/use-enums";
 import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
-export const Route = createLazyFileRoute("/_app/contribute_/$cardSlug_/image/$printingId")({
+export const Route = createLazyFileRoute(
+  "/_app/contribute_/card_/$cardSlug_/printing_/$printingId_/image",
+)({
   component: ImageSuggestPage,
 });
 

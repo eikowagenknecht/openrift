@@ -9,7 +9,7 @@ export function SuggestImageNotice({ printing }: { printing: Printing }) {
   return (
     <div className="@container pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
       <Link
-        to="/contribute/$cardSlug/image/$printingId"
+        to="/contribute/card/$cardSlug/printing/$printingId/image"
         params={{ cardSlug: printing.card.slug, printingId: printing.id }}
         title="This printing has no image yet. Card art may be shown from its standard printing."
         className="bg-background/90 hover:bg-primary group/notice pointer-events-auto flex flex-col items-center rounded-[2cqi] px-[5cqi] py-[2cqi] text-center shadow-md transition-colors"
