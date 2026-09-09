@@ -31,8 +31,9 @@ const siblingLanguageGuard =
       );
 
 /**
- * Sibling rows a language-aggregate product should have but doesn't, per
- * migration 107's printing identity — a different one here re-maps live prices.
+ * Sibling rows a language-aggregate product should have but doesn't. Migration
+ * 107's identity plus `size`, which it omitted: an oversized demo card of the
+ * same short code is a separate SKU, never a language sibling.
  */
 const missingSiblingVariants = sql`
   SELECT DISTINCT mpv.marketplace_product_id, sibling.id AS printing_id
@@ -46,6 +47,7 @@ const missingSiblingVariants = sql`
     AND sibling.art_variant = source.art_variant
     AND sibling.is_signed = source.is_signed
     AND sibling.marker_slugs = source.marker_slugs
+    AND sibling.size = source.size
     AND sibling.id <> source.id
   WHERE mp.language IS NULL
     AND ${siblingLanguageGuard}

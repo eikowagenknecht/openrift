@@ -1,4 +1,5 @@
 import type { Marketplace } from "@openrift/shared/types/pricing";
+import { sql } from "kysely";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { PRINTINGS } from "../../../test/fixtures/constants.js";
@@ -192,6 +193,19 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
           return rows.map((r) => r.printingId).toSorted();
         };
 
+        // Same identity as the English printing but a different physical
+        // product, so no marketplace SKU may reach it.
+        const oversized = await sql<{ id: string }>`
+          INSERT INTO printings (card_id, set_id, short_code, rarity, art_variant, is_signed,
+            is_overnumbered, marker_slugs, finish, size, artist, public_code, language)
+          SELECT card_id, set_id, short_code, rarity, art_variant, is_signed,
+            is_overnumbered, marker_slugs, finish, 'oversized', artist, public_code, language
+          FROM printings WHERE id = ${enPrintingId}
+          RETURNING id
+        `.execute(trx);
+        const oversizedId = oversized.rows[0]?.id;
+        expect(oversizedId).toBeDefined();
+
         await bindEnglishOnly("cardmarket");
         await bindEnglishOnly("tcgplayer");
         expect(await boundPrintingIds("cardmarket")).toEqual([enPrintingId]);
@@ -206,6 +220,8 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
         // TCGplayer products are language-aggregate too, but it sells English
         // stock only, so its SKU must not reach the SC sibling.
         expect(await boundPrintingIds("tcgplayer")).toEqual([enPrintingId]);
+
+        expect(await boundPrintingIds("cardmarket")).not.toContain(oversizedId);
 
         // Scoped to these products: other files commit into the shared database
         // while this runs, so the global count is not stable enough to assert.
