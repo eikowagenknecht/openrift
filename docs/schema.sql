@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict oEXeYwwqgH080b98yrJOzko7KuHUsNeOcXRFXIfFWgm4IqE4ulP9aA2XodOAy6e
+\restrict 9Upfex8hKsVRC7aYEL76cSVxaTf8IC6tugxPyrejQjYX1LgheZnabg9CQ4jpjYI
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -1115,6 +1115,25 @@ CREATE TABLE public.card_types (
 
 
 --
+-- Name: cardmarket_sync_state; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cardmarket_sync_state (
+    user_id text NOT NULL,
+    printing_id uuid NOT NULL,
+    condition text NOT NULL,
+    is_altered boolean NOT NULL,
+    intent_base integer DEFAULT 0 NOT NULL,
+    observed_base integer DEFAULT 0 NOT NULL,
+    unmanaged integer DEFAULT 0 NOT NULL,
+    last_seen_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_cardmarket_sync_state_counts CHECK (((intent_base >= 0) AND (observed_base >= 0) AND (unmanaged >= 0)))
+);
+
+
+--
 -- Name: cards; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1980,6 +1999,8 @@ CREATE TABLE public.lists (
     rules jsonb DEFAULT '[]'::jsonb NOT NULL,
     rule_combine text,
     sidebar_hidden boolean DEFAULT false NOT NULL,
+    cardmarket_sync boolean DEFAULT false NOT NULL,
+    CONSTRAINT chk_lists_cardmarket_sync_trade_only CHECK (((intent = 'trade'::text) OR (cardmarket_sync = false))),
     CONSTRAINT chk_lists_currency CHECK (((currency IS NULL) OR (currency = ANY (ARRAY['EUR'::text, 'USD'::text])))),
     CONSTRAINT chk_lists_default_absolute_positive CHECK (((default_price_absolute_cents IS NULL) OR (default_price_absolute_cents > 0))),
     CONSTRAINT chk_lists_default_absolute_shape CHECK (((default_price_pref = 'absolute'::text) = (default_price_absolute_cents IS NOT NULL))),
@@ -4028,6 +4049,14 @@ ALTER TABLE ONLY public.card_types
 
 
 --
+-- Name: cardmarket_sync_state cardmarket_sync_state_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cardmarket_sync_state
+    ADD CONSTRAINT cardmarket_sync_state_pkey PRIMARY KEY (user_id, printing_id, condition, is_altered);
+
+
+--
 -- Name: cards cards_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5645,6 +5674,13 @@ CREATE INDEX idx_card_trades_request_email_pending ON public.card_trades USING b
 --
 
 CREATE INDEX idx_card_trades_reserved_email_pending ON public.card_trades USING btree (updated_at) WHERE ((reserved_email_sent_at IS NULL) AND (status = 'reserved'::text));
+
+
+--
+-- Name: idx_cardmarket_sync_state_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_cardmarket_sync_state_user ON public.cardmarket_sync_state USING btree (user_id);
 
 
 --
@@ -7725,6 +7761,30 @@ ALTER TABLE ONLY public.card_trades
 
 
 --
+-- Name: cardmarket_sync_state cardmarket_sync_state_condition_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cardmarket_sync_state
+    ADD CONSTRAINT cardmarket_sync_state_condition_fkey FOREIGN KEY (condition) REFERENCES public.conditions(slug);
+
+
+--
+-- Name: cardmarket_sync_state cardmarket_sync_state_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cardmarket_sync_state
+    ADD CONSTRAINT cardmarket_sync_state_printing_id_fkey FOREIGN KEY (printing_id) REFERENCES public.printings(id) ON DELETE CASCADE;
+
+
+--
+-- Name: cardmarket_sync_state cardmarket_sync_state_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cardmarket_sync_state
+    ADD CONSTRAINT cardmarket_sync_state_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: collection_events collection_events_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9280,5 +9340,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict oEXeYwwqgH080b98yrJOzko7KuHUsNeOcXRFXIfFWgm4IqE4ulP9aA2XodOAy6e
+\unrestrict 9Upfex8hKsVRC7aYEL76cSVxaTf8IC6tugxPyrejQjYX1LgheZnabg9CQ4jpjYI
 
