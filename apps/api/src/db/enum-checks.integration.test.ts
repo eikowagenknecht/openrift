@@ -48,6 +48,7 @@ import {
   metaSubmissionStatusSchema,
   podResultStatusSchema,
   podRoundStatusSchema,
+  tournamentFormatSchema,
   tradeTypeResponseSchema,
 } from "@openrift/shared/response-schemas";
 import { CONTACT_METHOD_TYPES } from "@openrift/shared/types/api/contact-method";
@@ -134,6 +135,7 @@ const ENUM_CHECKS: Record<string, readonly string[]> = {
   chk_tournament_staff_role: tournamentStaffRoleSchema.options,
   chk_tournaments_deck_phase: tournamentDeckPhaseSchema.options,
   chk_tournaments_deck_submission: tournamentDeckSubmissionSchema.options,
+  chk_tournaments_format: tournamentFormatSchema.options,
   chk_tournaments_list_lock_mode: tournamentListLockModeSchema.options,
   chk_tournaments_match_format: tournamentMatchFormatSchema.options,
   chk_tournaments_pairing_style: tournamentPairingStyleSchema.options,

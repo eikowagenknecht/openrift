@@ -84,6 +84,7 @@ describe.skipIf(!ctx)("printingImagesRepo (integration)", () => {
       rehostedUrl: "https://cdn.example.com/rehosted.jpg",
       rotation: 0,
       needsTrim: false,
+      quad: null,
     });
   });
 
