@@ -1,18 +1,19 @@
-import { formatDayTimeLocal } from "@openrift/shared/format-date";
+import { dateLeafParts, formatDayTimeLocal, formatTimeLocal } from "@openrift/shared/format-date";
 import type { FriendGroupDetailResponse } from "@openrift/shared/types/api/friend-group";
 import { capitalize } from "@openrift/shared/utils";
 import { Link } from "@tanstack/react-router";
 import {
   ChevronRightIcon,
+  ExternalLinkIcon,
   FolderIcon,
   HeartIcon,
-  StoreIcon,
   TrophyIcon,
   UsersIcon,
 } from "lucide-react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
 
 import { CardList } from "@/components/ui/card-list";
+import { DateLeaf } from "@/components/ui/date-leaf";
 import { IconChip } from "@/components/ui/icon-chip";
 import { SectionHeading } from "@/components/ui/section-heading";
 import type { StatTileTone } from "@/components/ui/stat-tile";
@@ -21,6 +22,7 @@ import { UserAvatarStack } from "@/components/user-avatar-stack";
 import { useCollections } from "@/features/collections/hooks/use-collections";
 import { useFriendGroupShopEvents } from "@/features/groups/hooks/use-friend-group-shops";
 import { useGroupBoxWants } from "@/features/groups/hooks/use-friend-groups";
+import { filterShopEventsByRange } from "@/features/groups/lib/shop-events";
 import { useGroupTournaments } from "@/features/tournaments/hooks/use-tournaments";
 import {
   compareTournamentsForList,
@@ -209,28 +211,44 @@ function OverviewRail({ slug, data }: { slug: string; data: FriendGroupDetailRes
 function ShopNextUp({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
   const { data: feed } = useFriendGroupShopEvents(slug);
   const admin = isAdmin(data.viewerRole);
+  const upcoming = filterShopEventsByRange(feed.items, "upcoming");
 
   if (feed.shops.length === 0 && !admin) {
     return null;
   }
   return (
     <section className="flex flex-col gap-3">
-      <SectionHeading>Next at your shops</SectionHeading>
-      {feed.items.length > 0 ? (
+      <div className="flex items-baseline justify-between gap-3">
+        <SectionHeading>Next at your shops</SectionHeading>
+        {feed.shops.length > 0 ? (
+          <Link
+            to="/groups/$slug/shops"
+            params={{ slug }}
+            className="text-primary shrink-0 text-xs font-medium hover:underline"
+          >
+            Show all
+          </Link>
+        ) : null}
+      </div>
+      {upcoming.length > 0 ? (
         <CardList>
-          {feed.items.slice(0, 3).map((event) => (
-            <li key={event.externalId}>
-              <Link to="/groups/$slug/shops" params={{ slug }} className={HOVER_ROW_CLASS}>
-                <IconChip icon={StoreIcon} tone="info" size="sm" shape="round" />
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-sm font-medium">{event.name}</span>
-                  <span className="text-muted-foreground truncate text-xs">
-                    {formatDayTimeLocal(event.startAt)} · {event.storeName}
+          {upcoming.slice(0, 3).map((event) => {
+            const leaf = dateLeafParts(event.startAt);
+            return (
+              <li key={event.externalId}>
+                <a href={event.url} target="_blank" rel="noreferrer" className={HOVER_ROW_CLASS}>
+                  <DateLeaf month={leaf.month} day={leaf.day} size="sm" />
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate text-sm font-medium">{event.name}</span>
+                    <span className="text-muted-foreground truncate text-xs">
+                      {formatTimeLocal(event.startAt)} · {event.storeName}
+                    </span>
                   </span>
-                </span>
-              </Link>
-            </li>
-          ))}
+                  <ExternalLinkIcon className="text-muted-foreground/40 size-4 shrink-0" />
+                </a>
+              </li>
+            );
+          })}
         </CardList>
       ) : (
         <div className="flex flex-col gap-2 rounded-lg border border-dashed p-4">

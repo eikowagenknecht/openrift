@@ -160,6 +160,7 @@ export const friendGroupShopEventsResponseSchema = z
     items: z.array(friendGroupShopEventResponseSchema),
     shops: z.array(z.object({ storeId: z.number().int(), name: z.string() })),
     horizonDays: z.number().int(),
+    pastDays: z.number().int(),
   })
   .openapi("FriendGroupShopEventsResponse");
 

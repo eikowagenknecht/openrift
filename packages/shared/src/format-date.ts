@@ -116,6 +116,12 @@ export function formatDayTimeLocal(input: Date | string): string {
   return `${formatDayLocal(date)} ${formatTimeLocal(date)}`;
 }
 
+/** `Thursday` on the viewer's clock. Same SSR constraint as the other `…Local` functions. */
+export function formatWeekdayLocal(input: Date | string): string {
+  const date = toDate(input);
+  return date === null ? "" : (WEEKDAY_NAMES[date.getDay()] ?? "");
+}
+
 /** `Thursday, 11 September` on the viewer's clock. Same SSR constraint as the other `…Local` functions. */
 export function formatWeekdayDayLocal(input: Date | string): string {
   const date = toDate(input);

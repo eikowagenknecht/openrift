@@ -8,7 +8,7 @@
 - feat(Trades): **See who you could trade with** — the Trades page now has a Could trade section for people you share matching wishlists and tradelists with but haven't traded yet.
 - feat(Cards): **Upload a photo for a missing card image** — the suggest-image page now takes a photo straight from your phone or a file, no image host needed, and shows the rest of your cards without a photo so you can pick the next one.
 - feat(Collection): **Your cards without a photo** — a nudge on your collection, a tile on Stats and a list on Contribute point at the cards you own that the catalogue has no picture for.
-- feat(Groups): **Upcoming events at your local shops** — link the stores your group plays at and the group gets a Shop events page with the next two weeks of Riftbound events at each of them.
+- feat(Groups): **Upcoming events at your local shops** — link the stores your group plays at and the group gets a Shop events page with the next two weeks of Riftbound events at each of them, filterable by current, past or all.
 
 ### Other
 

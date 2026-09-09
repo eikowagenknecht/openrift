@@ -13,6 +13,7 @@ import {
   formatRelativeDay,
   formatRelativeTime,
   formatWeekdayDayLocal,
+  formatWeekdayLocal,
 } from "./format-date.js";
 
 const NOW = new Date("2026-06-08T12:00:00.000Z");
@@ -117,6 +118,16 @@ describe("formatDayTimeLocal", () => {
 
   it("returns an empty string for unparseable input", () => {
     expect(formatDayTimeLocal("nope")).toBe("");
+  });
+});
+
+describe("formatWeekdayLocal", () => {
+  it("names the weekday in the running timezone", () => {
+    expect(formatWeekdayLocal(new Date(2026, 8, 11, 19, 0))).toBe("Friday");
+  });
+
+  it("returns an empty string for unparseable input", () => {
+    expect(formatWeekdayLocal("nope")).toBe("");
   });
 });
 

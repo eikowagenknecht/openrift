@@ -45,7 +45,7 @@ function makeApp(overrides: {
     linkShop: vi.fn(() => Promise.resolve()),
     unlinkShop: vi.fn(() => Promise.resolve(true)),
     storeExists: vi.fn(() => Promise.resolve(true)),
-    listUpcomingEvents: vi.fn(() => Promise.resolve([])),
+    listEventsInWindow: vi.fn(() => Promise.resolve([])),
     ...overrides.friendGroupShops,
   };
 
@@ -103,7 +103,7 @@ describe("friend-group shops route", () => {
   it("GET /shop-events links every row back to the source listing", async () => {
     const { app } = makeApp({
       friendGroupShops: {
-        listUpcomingEvents: vi.fn(() =>
+        listEventsInWindow: vi.fn(() =>
           Promise.resolve([
             {
               externalId: "9911",
@@ -135,11 +135,13 @@ describe("friend-group shops route", () => {
       items: { url: string; startAt: string }[];
       shops: { storeId: number }[];
       horizonDays: number;
+      pastDays: number;
     };
     expect(body.items[0]?.url).toBe("https://locator.riftbound.uvsgames.com/events/9911");
     expect(body.items[0]?.startAt).toBe("2026-09-11T15:00:00.000Z");
     expect(body.shops).toEqual([{ storeId: 42, name: "FUNtainment Berlin" }]);
     expect(body.horizonDays).toBe(14);
+    expect(body.pastDays).toBe(30);
   });
 
   it("GET /shop-search marks the shops already linked", async () => {

@@ -21,6 +21,8 @@ const MAX_SHOPS_PER_GROUP = 10;
 
 const SHOP_EVENT_HORIZON_DAYS = 14;
 
+const SHOP_EVENT_PAST_DAYS = 30;
+
 const os = implement(friendGroupsContract).$context<ApiContext>().use(requireAuthedUser);
 
 export const friendGroupsShopsRouter = {
@@ -83,13 +85,18 @@ export const friendGroupsShopsRouter = {
       const ctx = await loadGroupForMember(context.repos, input.slug, context.userId);
 
       const [events, shops] = await Promise.all([
-        context.repos.friendGroupShops.listUpcomingEvents(ctx.group.id, SHOP_EVENT_HORIZON_DAYS),
+        context.repos.friendGroupShops.listEventsInWindow(
+          ctx.group.id,
+          SHOP_EVENT_PAST_DAYS,
+          SHOP_EVENT_HORIZON_DAYS,
+        ),
         context.repos.friendGroupShops.listShops(ctx.group.id),
       ]);
       return {
         items: events.map((event) => presentShopEvent(event)),
         shops: shops.map((shop) => ({ storeId: shop.storeId, name: shop.name })),
         horizonDays: SHOP_EVENT_HORIZON_DAYS,
+        pastDays: SHOP_EVENT_PAST_DAYS,
       };
     },
   ),

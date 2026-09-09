@@ -166,7 +166,11 @@ export function friendGroupShopsRepo(db: Kysely<Database>) {
         .then((row) => row !== undefined);
     },
 
-    listUpcomingEvents(groupId: string, horizonDays: number): Promise<ShopEventRow[]> {
+    listEventsInWindow(
+      groupId: string,
+      pastDays: number,
+      horizonDays: number,
+    ): Promise<ShopEventRow[]> {
       return db
         .selectFrom("friendGroupShops as fgs")
         .innerJoin("uvsgamesStores as s", "s.id", "fgs.uvsgamesStoreId")
@@ -181,7 +185,7 @@ export function friendGroupShopsRepo(db: Kysely<Database>) {
         ])
         .where("fgs.groupId", "=", groupId)
         .where("e.missingSince", "is", null)
-        .where(sql<SqlBool>`e.start_at >= now()`)
+        .where(sql<SqlBool>`e.start_at >= now() - make_interval(days => ${pastDays})`)
         .where(sql<SqlBool>`e.start_at < now() + make_interval(days => ${horizonDays})`)
         .orderBy("e.startAt", "asc")
         .orderBy("e.externalId", "asc")
