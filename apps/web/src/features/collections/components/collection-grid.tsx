@@ -26,6 +26,7 @@ import { CollectionGridOverlays } from "@/features/collections/components/collec
 import { CollectionGridToolbar } from "@/features/collections/components/collection-grid-toolbar";
 import { CollectionGridTopBar } from "@/features/collections/components/collection-grid-top-bar";
 import { CollectionIntroBanner } from "@/features/collections/components/collection-intro-banner";
+import { CollectionMissingImagesCallout } from "@/features/collections/components/collection-missing-images-callout";
 import { CollectionSelectionBar } from "@/features/collections/components/collection-selection-bar";
 import {
   CollectionActionsCell,
@@ -433,9 +434,12 @@ export function CollectionGrid({
               />
             }
             banner={
-              showIntroBanner ? (
-                <CollectionIntroBanner showLibrary={showLibrary} onDismiss={dismissIntro} />
-              ) : undefined
+              <>
+                {showIntroBanner && (
+                  <CollectionIntroBanner showLibrary={showLibrary} onDismiss={dismissIntro} />
+                )}
+                <CollectionMissingImagesCallout />
+              </>
             }
             rightPane={
               <CollectionDetailPane

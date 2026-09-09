@@ -82,8 +82,50 @@ export const cardSubmissionListResponseSchema = z
   })
   .openapi("CardSubmissionListResponse");
 
-/** `list` is the contributor's own history, always scoped to the session user, never a user id from the client. */
+export const cardSubmissionImageUploadResponseSchema = z
+  .object({ url: z.string() })
+  .openapi("CardSubmissionImageUploadResponse");
+
+export const missingImagePrintingSchema = z
+  .object({
+    printingId: z.string(),
+    cardSlug: z.string(),
+    cardName: z.string(),
+    setSlug: z.string(),
+    setName: z.string(),
+    publicCode: z.string(),
+    finish: z.string(),
+    language: z.string(),
+    copies: z.number().int(),
+  })
+  .openapi("MissingImagePrinting");
+
+export const missingImagesResponseSchema = z
+  .object({ items: z.array(missingImagePrintingSchema) })
+  .openapi("MissingImagesResponse");
+
+/** Always scoped to the session user, never a user id from the client; `uploadImage` reads its `File` from the multipart body. */
 export const cardSubmissionsContract = {
+  uploadImage: authedRoute
+    .route({
+      method: "POST",
+      path: "/api/v1/card-submissions/images",
+      tags: ["Card Submissions"],
+    })
+    .errors({
+      PAYLOAD_TOO_LARGE: { message: "File exceeds 20 MB limit" },
+      BAD_REQUEST: { message: "File is not an image" },
+      TOO_MANY_REQUESTS: { message: "Daily upload limit reached" },
+    })
+    .input(z.object({ file: z.instanceof(File) }))
+    .output(cardSubmissionImageUploadResponseSchema),
+  missingImages: authedRoute
+    .route({
+      method: "GET",
+      path: "/api/v1/card-submissions/missing-images",
+      tags: ["Card Submissions"],
+    })
+    .output(missingImagesResponseSchema),
   submit: authedRoute
     .route({ method: "POST", path: "/api/v1/card-submissions", tags: ["Card Submissions"] })
     .errors({
@@ -105,3 +147,5 @@ export type CardSubmissionStatus = z.infer<typeof cardSubmissionStatusSchema>;
 export type CardSubmissionReason = z.infer<typeof cardSubmissionReasonSchema>;
 export type CardSubmissionStatusResponse = z.infer<typeof cardSubmissionStatusResponseSchema>;
 export type CardSubmissionListResponse = z.infer<typeof cardSubmissionListResponseSchema>;
+export type MissingImagePrinting = z.infer<typeof missingImagePrintingSchema>;
+export type MissingImagesResponse = z.infer<typeof missingImagesResponseSchema>;

@@ -21,6 +21,7 @@ export interface AvailableFilters {
   hasNonStandard: boolean;
   hasBanned: boolean;
   hasErrata: boolean;
+  hasNoImage: boolean;
   hasNullEnergy: boolean;
   hasNullMight: boolean;
   hasNullPower: boolean;
@@ -81,6 +82,7 @@ export function getAvailableFilters(
   let hasNonStandard = false;
   let hasBanned = false;
   let hasErrata = false;
+  let hasNoImage = false;
   let hasNullEnergy = false;
   let hasNullMight = false;
   let hasNullPower = false;
@@ -127,6 +129,9 @@ export function getAvailableFilters(
     }
     if (card.errata !== null) {
       hasErrata = true;
+    }
+    if (printing.images.length === 0) {
+      hasNoImage = true;
     }
     if (card.energy === null) {
       hasNullEnergy = true;
@@ -180,6 +185,7 @@ export function getAvailableFilters(
     hasNonStandard,
     hasBanned,
     hasErrata,
+    hasNoImage,
     hasNullEnergy,
     hasNullMight,
     hasNullPower,

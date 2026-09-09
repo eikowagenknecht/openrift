@@ -1,3 +1,4 @@
+import type { MissingImagePrinting } from "@openrift/shared/contracts/card-submissions";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
@@ -321,6 +322,79 @@ export function cardSubmissionsRepo(db: Kysely<Database>) {
       }
 
       return { snapshot: { card, printings }, cardSlug: cardRow?.slug ?? null };
+    },
+
+    // Group collections drop out on their own: `collections.user_id` is null on them.
+    async missingImagesForUser(userId: string): Promise<MissingImagePrinting[]> {
+      const rows = await db
+        .selectFrom("copies as cp")
+        .innerJoin("collections as col", "col.id", "cp.collectionId")
+        .innerJoin("printings as p", "p.id", "cp.printingId")
+        .innerJoin("cards as c", "c.id", "p.cardId")
+        .innerJoin("sets as s", "s.id", "p.setId")
+        .select((eb) => [
+          "p.id as printingId",
+          "c.slug as cardSlug",
+          "c.name as cardName",
+          "s.slug as setSlug",
+          "s.name as setName",
+          "p.publicCode",
+          "p.finish",
+          "p.language",
+          eb.fn.countAll<string>().as("copies"),
+        ])
+        .where("col.userId", "=", userId)
+        .where((eb) =>
+          eb.not(
+            eb.exists(
+              eb
+                .selectFrom("printingImages as pi")
+                .select("pi.id")
+                .whereRef("pi.printingId", "=", "p.id")
+                .where("pi.isActive", "=", true)
+                .where("pi.face", "=", "front"),
+            ),
+          ),
+        )
+        .where((eb) =>
+          eb.not(
+            eb.exists(
+              eb
+                .selectFrom("candidatePrintings as cnp")
+                .innerJoin("cardSubmissions as cs", "cs.candidateCardId", "cnp.candidateCardId")
+                .select("cnp.id")
+                .whereRef("cnp.printingId", "=", "p.id")
+                .where("cs.kind", "=", "image")
+                .where("cs.status", "=", "pending"),
+            ),
+          ),
+        )
+        .groupBy([
+          "p.id",
+          "c.slug",
+          "c.name",
+          "s.slug",
+          "s.name",
+          "s.sortOrder",
+          "p.publicCode",
+          "p.finish",
+          "p.language",
+        ])
+        .orderBy("s.sortOrder", "asc")
+        .orderBy("p.publicCode", "asc")
+        .execute();
+
+      return rows.map((row) => ({ ...row, copies: Number(row.copies) }));
+    },
+
+    async candidatePrintingImageUrls(candidateCardId: string): Promise<string[]> {
+      const rows = await db
+        .selectFrom("candidatePrintings")
+        .select("imageUrl")
+        .where("candidateCardId", "=", candidateCardId)
+        .where("imageUrl", "is not", null)
+        .execute();
+      return rows.map((row) => row.imageUrl as string);
     },
 
     // Counts the submissions ledger, not `candidate_cards`: purging staging must not reset a user's daily cap.

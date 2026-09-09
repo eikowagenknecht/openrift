@@ -76,6 +76,7 @@ const EMPTY_FACETS: AvailableFiltersWire = {
   hasNonStandard: false,
   hasBanned: false,
   hasErrata: false,
+  hasNoImage: false,
   hasNullEnergy: false,
   hasNullMight: false,
   hasNullPower: false,

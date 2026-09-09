@@ -53,6 +53,13 @@ describe("filterSearchSchema enum params", () => {
     expect(parsed.tagsEx).toEqual(["Poro"]);
     expect(parsed.tagsPresence).toBe("none");
   });
+
+  it("keeps both states of the noImage flag and drops a non-boolean", () => {
+    expect(filterSearchSchema.parse({ noImage: true }).noImage).toBe(true);
+    expect(filterSearchSchema.parse({ noImage: false }).noImage).toBe(false);
+    expect(filterSearchSchema.parse({ noImage: "yes" }).noImage).toBeUndefined();
+    expect(filterSearchSchema.parse({}).noImage).toBeUndefined();
+  });
 });
 
 describe("cleanedSearchForRedirect", () => {

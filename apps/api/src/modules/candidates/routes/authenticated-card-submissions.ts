@@ -12,14 +12,45 @@ import { orpcErrorResponse } from "../../../orpc/error-body.js";
 import type { Variables } from "../../../types.js";
 import { toCardSubmissionStatus } from "../lib/card-submission-presenters.js";
 import { buildUserSubmissionCard } from "../services/ingest-user-submission.js";
+import { saveSubmissionUpload } from "../services/submission-uploads.js";
 
 const MAX_BODY_BYTES = 256 * 1024;
+
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
 const DEFAULT_LIST_LIMIT = 25;
 
 const os = implement(cardSubmissionsContract).$context<ApiContext>().use(requireAuthedUser);
 
 export const cardSubmissionsRouter = {
+  uploadImage: os.uploadImage.handler(async ({ input, context, errors }) => {
+    if (input.file.size > MAX_UPLOAD_BYTES) {
+      throw errors.PAYLOAD_TOO_LARGE();
+    }
+
+    const result = await saveSubmissionUpload(context.io, {
+      userId: context.userId,
+      buffer: Buffer.from(await input.file.arrayBuffer()),
+      now: new Date(),
+    });
+
+    if (result.status === "rate_limited") {
+      throw errors.TOO_MANY_REQUESTS({
+        message: `You can upload up to ${result.limit} photos per day. Please try again later.`,
+      });
+    }
+    if (result.status === "not_an_image") {
+      throw errors.BAD_REQUEST();
+    }
+
+    return { url: result.url };
+  }),
+
+  missingImages: os.missingImages.handler(async ({ context }) => {
+    const items = await context.repos.cardSubmissions.missingImagesForUser(context.userId);
+    return { items };
+  }),
+
   submit: os.submit.handler(async ({ input, context, errors }): Promise<{ ok: true }> => {
     const now = new Date();
     const dateStamp = formatCompactUtcStamp(now);
@@ -64,7 +95,7 @@ export const cardSubmissionsRouter = {
   }),
 };
 
-/** The per-user rate limit is a DB-backed daily cap enforced in the service, not here. */
+// Hono matches a `use` path exactly, so the upload path needs its own body limit.
 export function mountCardSubmissionsMiddleware(app: Hono<{ Variables: Variables }>): void {
   app.use(
     "/api/v1/card-submissions",
@@ -74,6 +105,13 @@ export function mountCardSubmissionsMiddleware(app: Hono<{ Variables: Variables 
       // than thrown as an AppError, keeping the 413 envelope shape consistent.
       onError: (c) =>
         orpcErrorResponse(c, ERROR_CODES.PAYLOAD_TOO_LARGE, "Submission exceeds 256 KB"),
+    }),
+  );
+  app.use(
+    "/api/v1/card-submissions/images",
+    bodyLimit({
+      maxSize: MAX_UPLOAD_BYTES,
+      onError: (c) => orpcErrorResponse(c, ERROR_CODES.PAYLOAD_TOO_LARGE, "File exceeds 20 MB"),
     }),
   );
 }

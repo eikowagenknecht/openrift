@@ -75,6 +75,7 @@ export function toFilterState(
     tagsPresence: raw.tagsPresence ?? null,
     banned: raw.banned ?? null,
     errata: raw.errata ?? null,
+    noImage: raw.noImage ?? null,
     sort: raw.sort ?? defaultSort,
     sortDir: raw.sortDir ?? defaultSortDir,
     view: raw.view ?? defaultView,
@@ -345,6 +346,14 @@ export const FILTER_DIMENSIONS: readonly FilterDimension[] = [
     hasContent: ({ availableFilters }) => availableFilters.hasErrata,
     activeCount: (s) => setCount(s.errata),
     activeLabels: (s) => flagLabels(s.errata, "Errata"),
+  },
+  {
+    key: "noImage",
+    unit: "noImage",
+    section: "noImage",
+    hasContent: ({ availableFilters }) => availableFilters.hasNoImage,
+    activeCount: (s) => setCount(s.noImage),
+    activeLabels: (s) => flagLabels(s.noImage, "No image yet"),
   },
   {
     key: "owned",

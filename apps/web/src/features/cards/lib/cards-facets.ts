@@ -137,6 +137,7 @@ export function searchToFilters(search: FilterSearch) {
     customTagSlugs: [] as string[],
     isBanned: search.banned ?? null,
     hasErrata: search.errata ?? null,
+    hasNoImage: search.noImage ?? null,
     setsExclude: search.setsEx ?? [],
     languagesExclude: search.languagesEx ?? [],
     raritiesExclude: (search.raritiesEx ?? []) as Rarity[],
@@ -226,6 +227,7 @@ export interface FilterCountsWire {
     overnumbered: number;
     banned: number;
     errata: number;
+    noImage: number;
     standard: number;
     // `owned` is omitted on purpose: it requires the user's collection
     // counts, which the SSR layer doesn't have.
@@ -254,6 +256,7 @@ function toWireFilterCounts(counts: FilterCounts): FilterCountsWire {
       overnumbered: counts.flags.overnumbered,
       banned: counts.flags.banned,
       errata: counts.flags.errata,
+      noImage: counts.flags.noImage,
       standard: counts.flags.standard,
     },
     presence: counts.presence,

@@ -32,6 +32,7 @@ function makeAvailable(overrides: Partial<AvailableFilters> = {}): AvailableFilt
     hasNonStandard: false,
     hasBanned: false,
     hasErrata: false,
+    hasNoImage: false,
     keywords: [],
     tags: [],
     hasNullEnergy: false,
@@ -97,6 +98,7 @@ const EMPTY_STATE = {
   keywordsPresence: null,
   banned: null,
   errata: null,
+  noImage: null,
   owned: [],
   ownedCountMin: null,
   ownedCountMax: null,
@@ -189,6 +191,11 @@ describe("countActiveFilterDimensions", () => {
   it("splits the Owned unit into its buckets and its Copies range", () => {
     const active = state({ owned: ["full"], ownedCountMin: 2 });
     expect(countActiveFilterDimensions(active, (unit) => unit === "owned")).toBe(2);
+  });
+
+  it("counts the no-image flag under its own unit", () => {
+    const active = state({ noImage: true });
+    expect(countActiveFilterDimensions(active, (unit) => unit === "noImage")).toBe(1);
   });
 
   it("ignores units outside the requested scope", () => {

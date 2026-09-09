@@ -15,8 +15,8 @@ import {
   reviewableProviderScope,
 } from "../../candidates/services/card-review-scope.js";
 import { recordAdminEvent } from "../../system/services/record-admin-event.js";
-import { downloadImage } from "../services/images/download.js";
 import { rehostImageFile, rehostSingleImage } from "../services/images/jobs.js";
+import { fetchOriginalImage } from "../services/images/original-source.js";
 import { CARD_MEDIA_DIR, imageRehostedUrl } from "../services/images/paths.js";
 import {
   deleteRehostFiles,
@@ -192,7 +192,7 @@ export const adminCardImagesRouter = {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Image has no original URL to rehost");
     }
 
-    const { buffer, ext } = await downloadImage(context.io, image.originalUrl);
+    const { buffer, ext } = await fetchOriginalImage(context.io, image.originalUrl);
     const rehostedUrl = imageRehostedUrl(image.imageFileId);
     const outputDir = join(CARD_MEDIA_DIR, image.imageFileId.slice(-2));
 

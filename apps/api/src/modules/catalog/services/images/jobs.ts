@@ -12,7 +12,7 @@ import type {
 import type { Io } from "../../../../io.js";
 import type { jobRunsRepo } from "../../../system/repositories/job-runs.js";
 import type { printingImagesRepo } from "../../repositories/printing-images.js";
-import { downloadImage } from "./download.js";
+import { fetchOriginalImage } from "./original-source.js";
 import { CARD_MEDIA_DIR, imageRehostedUrl } from "./paths.js";
 import { deleteRehostFiles, generateWebpVariants, processAndSave } from "./variants.js";
 
@@ -53,7 +53,7 @@ export async function rehostImageFile(
   }
 
   try {
-    const { buffer, ext } = await downloadImage(io, file.originalUrl);
+    const { buffer, ext } = await fetchOriginalImage(io, file.originalUrl);
     const rehostedUrl = imageRehostedUrl(file.id);
     const outputDir = join(CARD_MEDIA_DIR, file.id.slice(-2));
     await processAndSave(io, buffer, ext, outputDir, file.id, file.rotation, file.needsTrim, true);
@@ -94,7 +94,7 @@ export async function rehostImages(
         return "skipped" as const;
       }
 
-      const { buffer, ext } = await downloadImage(io, img.originalUrl);
+      const { buffer, ext } = await fetchOriginalImage(io, img.originalUrl);
       const selfHostedPath = imageRehostedUrl(img.imageId);
       const outputDir = join(CARD_MEDIA_DIR, img.imageId.slice(-2));
       await processAndSave(

@@ -5,7 +5,13 @@ import { z } from "zod";
 import { cardFieldRules, printingFieldRules } from "./db-field-rules.js";
 
 export const COMMUNITY_ID_PATTERN = /^community:[A-Za-z0-9][A-Za-z0-9:_-]*$/u;
-export const HTTPS_URL_PATTERN = /^https:\/\//u;
+/** Wire form of an in-app photo upload's `image_url`. */
+export const SUBMISSION_UPLOAD_URL_PATTERN =
+  /^\/media\/submissions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(?:jpg|png)$/u;
+
+export function isSubmissionUploadUrl(url: string): boolean {
+  return SUBMISSION_UPLOAD_URL_PATTERN.test(url);
+}
 
 const communityId = z.string().regex(COMMUNITY_ID_PATTERN, {
   message: "Must start with 'community:' to namespace from official providers.",
@@ -13,7 +19,9 @@ const communityId = z.string().regex(COMMUNITY_ID_PATTERN, {
 
 const imageUrl = z
   .string()
-  .regex(HTTPS_URL_PATTERN, { message: "Image URL must start with https://." })
+  .refine((value) => value.startsWith("https://") || isSubmissionUploadUrl(value), {
+    message: "Image URL must start with https://.",
+  })
   .nullable();
 
 const languageCode = printingFieldRules.language.nullable();

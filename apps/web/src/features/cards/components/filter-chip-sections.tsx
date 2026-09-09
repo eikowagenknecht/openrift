@@ -52,6 +52,7 @@ export function FilterChipSections({
     cyclePresence,
     toggleBanned,
     toggleErrata,
+    toggleNoImage,
     toggleStandard,
   } = useFilterActions();
   const { byCategory: customTagsByCategory } = useCustomTagList();
@@ -81,8 +82,9 @@ export function FilterChipSections({
   const showOvernumbered = shows("overnumbered") && !shows("artVariants");
   const showBanned = shows("banned");
   const showErrata = shows("errata");
+  const showNoImage = shows("noImage");
   const showStandard = shows("standard");
-  const showFlags = showOvernumbered || showSigned || showBanned || showErrata;
+  const showFlags = showOvernumbered || showSigned || showBanned || showErrata || showNoImage;
 
   if (
     !showStandard &&
@@ -281,6 +283,15 @@ export function FilterChipSections({
               state={filterState.errata}
               count={filterCounts?.flags.errata}
               onClick={toggleErrata}
+              triggerStyle={triggerStyle}
+            />
+          )}
+          {showNoImage && (
+            <FlagBadge
+              label="No image yet"
+              state={filterState.noImage}
+              count={filterCounts?.flags.noImage}
+              onClick={toggleNoImage}
               triggerStyle={triggerStyle}
             />
           )}

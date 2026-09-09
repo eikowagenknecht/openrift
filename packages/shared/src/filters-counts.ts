@@ -37,6 +37,7 @@ export interface FilterCounts {
     overnumbered: number;
     banned: number;
     errata: number;
+    noImage: number;
     standard: number;
   };
   presence: Record<PresenceDimension, { any: number; none: number }>;
@@ -145,7 +146,13 @@ const NO_VALUES = (): readonly string[] => EMPTY_STRINGS;
 
 interface FlagDimension {
   key: keyof FilterCounts["flags"];
-  filterField: "isSigned" | "isOvernumbered" | "isBanned" | "hasErrata" | "isStandard";
+  filterField:
+    | "isSigned"
+    | "isOvernumbered"
+    | "isBanned"
+    | "hasErrata"
+    | "hasNoImage"
+    | "isStandard";
 }
 
 const FLAG_DIMENSIONS: readonly FlagDimension[] = [
@@ -153,6 +160,7 @@ const FLAG_DIMENSIONS: readonly FlagDimension[] = [
   { key: "overnumbered", filterField: "isOvernumbered" },
   { key: "banned", filterField: "isBanned" },
   { key: "errata", filterField: "hasErrata" },
+  { key: "noImage", filterField: "hasNoImage" },
   { key: "standard", filterField: "isStandard" },
 ];
 
@@ -190,6 +198,7 @@ const ATOM = {
   power: 1 << 26,
   price: 1 << 27,
   isOvernumbered: 1 << 28,
+  hasNoImage: 1 << 29,
 } as const;
 
 const DIMENSION_CLEARS: Record<CountableDimension["key"], number> = {
@@ -224,6 +233,7 @@ const FLAG_CLEARS: Record<FlagDimension["key"], number> = {
   overnumbered: ATOM.isOvernumbered,
   banned: ATOM.isBanned,
   errata: ATOM.hasErrata,
+  noImage: ATOM.hasNoImage,
 };
 
 /** Cards are identified by a small first-seen integer, cheaper to hash than a UUID. */
@@ -292,6 +302,7 @@ export function computeFilterCounts(
     overnumbered: makeCounter(byCard),
     banned: makeCounter(byCard),
     errata: makeCounter(byCard),
+    noImage: makeCounter(byCard),
     standard: makeCounter(byCard),
   };
   // Each flag chip cycles null → true → false → null; the count reflects
@@ -302,6 +313,7 @@ export function computeFilterCounts(
     overnumbered: filters.isOvernumbered !== false,
     banned: filters.isBanned !== false,
     errata: filters.hasErrata !== false,
+    noImage: filters.hasNoImage !== false,
   };
   const presenceCounters = Object.fromEntries(
     PRESENCE_DIMENSIONS.map((d) => [d, { any: makeCounter(byCard), none: makeCounter(byCard) }]),
@@ -364,6 +376,7 @@ export function computeFilterCounts(
     const isStandard = isStandardPrinting(printing);
     const isBanned = card.bans.length > 0;
     const hasErrata = card.errata !== null;
+    const hasNoImage = printing.images.length === 0;
 
     let fail = 0;
     if (
@@ -494,6 +507,9 @@ export function computeFilterCounts(
     if (filters.hasErrata !== null && filters.hasErrata !== hasErrata) {
       fail |= ATOM.hasErrata;
     }
+    if (filters.hasNoImage !== null && filters.hasNoImage !== hasNoImage) {
+      fail |= ATOM.hasNoImage;
+    }
     if (energyActive && !matchesRange(card.energy, filters.energy)) {
       fail |= ATOM.energy;
     }
@@ -567,7 +583,9 @@ export function computeFilterCounts(
                 ? printing.isOvernumbered
                 : key === "banned"
                   ? isBanned
-                  : hasErrata;
+                  : key === "errata"
+                    ? hasErrata
+                    : hasNoImage;
         if (actual === flagTargets[key]) {
           bumpCounter(flagCounters[key], cardIndex);
         }
@@ -625,6 +643,7 @@ export function computeFilterCounts(
       overnumbered: readCounter(flagCounters.overnumbered),
       banned: readCounter(flagCounters.banned),
       errata: readCounter(flagCounters.errata),
+      noImage: readCounter(flagCounters.noImage),
       standard: readCounter(flagCounters.standard),
     },
     presence: Object.fromEntries(

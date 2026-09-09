@@ -33,6 +33,20 @@ describe("useOnboardingStore", () => {
     expect(useOnboardingStore.getState().collectionIntroDismissed).toBe(true);
   });
 
+  it("starts with the missing-images nudge un-dismissed", () => {
+    expect(useOnboardingStore.getState().missingImagesNudgeDismissed).toBe(false);
+  });
+
+  it("dismisses the missing-images nudge when called", () => {
+    useOnboardingStore.getState().dismissMissingImagesNudge();
+    expect(useOnboardingStore.getState().missingImagesNudgeDismissed).toBe(true);
+  });
+
+  it("keeps the missing-images nudge separate from the collection intro", () => {
+    useOnboardingStore.getState().dismissMissingImagesNudge();
+    expect(useOnboardingStore.getState().collectionIntroDismissed).toBe(false);
+  });
+
   it("keeps the intros independent", () => {
     useOnboardingStore.getState().dismissCollectionIntro();
     expect(useOnboardingStore.getState().deckBuilderIntroDismissed).toBe(false);
@@ -99,6 +113,41 @@ describe("useOnboardingStore", () => {
       if (result) {
         expect(result.deckBuilderIntroDismissed).toBe(current.deckBuilderIntroDismissed);
         expect(result.collectionIntroDismissed).toBe(current.collectionIntroDismissed);
+        expect(result.missingImagesNudgeDismissed).toBe(current.missingImagesNudgeDismissed);
+      }
+    });
+
+    it("keeps the missing-images nudge when an older persisted blob omits it", () => {
+      const store = useOnboardingStore;
+      const current = store.getState();
+      const persisted = { collectionIntroDismissed: true, dismissedGroupNudges: [] };
+      const merge = store.persist?.getOptions()?.merge;
+      const result = merge?.(persisted, current);
+      if (result) {
+        expect(result.collectionIntroDismissed).toBe(true);
+        expect(result.missingImagesNudgeDismissed).toBe(false);
+      }
+    });
+
+    it("accepts a persisted missing-images dismissal", () => {
+      const store = useOnboardingStore;
+      const current = store.getState();
+      const persisted = { missingImagesNudgeDismissed: true };
+      const merge = store.persist?.getOptions()?.merge;
+      const result = merge?.(persisted, current);
+      if (result) {
+        expect(result.missingImagesNudgeDismissed).toBe(true);
+      }
+    });
+
+    it("rejects a non-boolean missing-images value and keeps current", () => {
+      const store = useOnboardingStore;
+      const current = store.getState();
+      const persisted = { missingImagesNudgeDismissed: "yes" };
+      const merge = store.persist?.getOptions()?.merge;
+      const result = merge?.(persisted, current);
+      if (result) {
+        expect(result.missingImagesNudgeDismissed).toBe(current.missingImagesNudgeDismissed);
       }
     });
 

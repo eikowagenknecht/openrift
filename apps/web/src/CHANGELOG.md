@@ -5,6 +5,12 @@
 ### Highlights
 
 - feat(Trades): **See who you could trade with** — the Trades page now has a Could trade section for people you share matching wishlists and tradelists with but haven't traded yet.
+- feat(Cards): **Upload a photo for a missing card image** — the suggest-image page now takes a photo straight from your phone or a file, no image host needed, and walks you to the next card you own that has none.
+- feat(Collection): **Your cards without a photo** — a nudge on your collection, a tile on Stats and a list on Contribute point at the cards you own that the catalogue has no picture for.
+
+### Other
+
+- feat(Cards): **"No image yet" filter** — the card browser and your collection can now show only printings without a picture.
 
 ## 2026-09-08
 

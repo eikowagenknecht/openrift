@@ -6,6 +6,7 @@ import { useFilterValues } from "@/features/cards/hooks/use-card-filters";
 // or a chip the scope ignores looks live and does nothing.
 export const HIDDEN_FILTER_SECTIONS = new Set([
   "owned",
+  "noImage",
   "superTypes",
   "markers",
   "channels",

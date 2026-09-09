@@ -395,6 +395,41 @@ describe("useCardFilters", () => {
     expect(result.current.hasActiveFilters).toBe(true);
   });
 
+  it("toggleNoImage cycles null → true → false → null", () => {
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.toggleNoImage());
+    expect(lastNavigateSearch()).toMatchObject({ noImage: true });
+
+    mockSearch = { noImage: true };
+    mockNavigate.mockClear();
+    const { result: r2 } = renderHook(() => useCardFilters(), { wrapper });
+    act(() => r2.current.toggleNoImage());
+    expect(lastNavigateSearch()).toMatchObject({ noImage: false });
+
+    mockSearch = { noImage: false };
+    mockNavigate.mockClear();
+    const { result: r3 } = renderHook(() => useCardFilters(), { wrapper });
+    act(() => r3.current.toggleNoImage());
+    expect(lastNavigateSearch()).not.toHaveProperty("noImage");
+  });
+
+  it("clearNoImage removes noImage from search", () => {
+    mockSearch = { noImage: true };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.clearNoImage());
+
+    expect(lastNavigateSearch()).not.toHaveProperty("noImage");
+  });
+
+  it("maps the noImage param onto the hasNoImage filter", () => {
+    mockSearch = { noImage: true };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+    expect(result.current.filters.hasNoImage).toBe(true);
+    expect(result.current.hasActiveFilters).toBe(true);
+  });
+
   it("cyclePresence('markers') cycles null → any → none → null", () => {
     const { result } = renderHook(() => useCardFilters(), { wrapper });
 

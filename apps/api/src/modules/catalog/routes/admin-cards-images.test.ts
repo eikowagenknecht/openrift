@@ -15,6 +15,7 @@ import {
 import { adminCardImagesRouter } from "./admin-cards-images";
 
 vi.mock("../services/images/paths.js", () => ({
+  MEDIA_DIR: "/mock/media",
   CARD_MEDIA_DIR: "/mock/media/cards",
   imageRehostedUrl: vi.fn(),
 }));

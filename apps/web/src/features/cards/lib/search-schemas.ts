@@ -74,6 +74,7 @@ export const filterSearchSchema = z.object({
   tagsPresence: presenceField(),
   banned: boolFlag(),
   errata: boolFlag(),
+  noImage: boolFlag(),
   sort: z.enum(SORT_OPTIONS).optional().catch(undefined),
   sortDir: z.enum(SORT_DIRECTIONS).optional().catch(undefined),
   view: z.enum(["cards", "printings", "copies"]).optional().catch(undefined),

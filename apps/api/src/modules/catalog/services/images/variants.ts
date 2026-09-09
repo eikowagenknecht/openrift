@@ -5,7 +5,7 @@ import { ERROR_CODES } from "@openrift/shared/error-codes";
 
 import { AppError } from "../../../../errors.js";
 import type { Io } from "../../../../io.js";
-import { downloadImage } from "./download.js";
+import { fetchOriginalImage } from "./original-source.js";
 import { CARD_MEDIA_DIR } from "./paths.js";
 import { computeScanCropBox, computeScanLevels } from "./scan-analysis.js";
 
@@ -240,6 +240,6 @@ export async function regenerateFromOrig(
   if (!originalUrl) {
     throw new Error(`No orig file on disk and no originalUrl for image ${imageFileId}`);
   }
-  const { buffer, ext } = await downloadImage(io, originalUrl);
+  const { buffer, ext } = await fetchOriginalImage(io, originalUrl);
   await processAndSave(io, buffer, ext, outputDir, imageFileId, rotation, needsTrim, true);
 }

@@ -175,6 +175,16 @@ describe("getAvailableFilters", () => {
     expect(result.hasOvernumbered).toBe(false);
   });
 
+  it("computes hasNoImage when a printing has no image", () => {
+    const result = getAvailableFilters([makePrinting({ images: [] }), makePrinting({})]);
+    expect(result.hasNoImage).toBe(true);
+  });
+
+  it("computes hasNoImage false when every printing has an image", () => {
+    const result = getAvailableFilters([makePrinting({})]);
+    expect(result.hasNoImage).toBe(false);
+  });
+
   it("computes hasNonStandard true when a non-standard printing exists", () => {
     const result = getAvailableFilters([
       makePrinting({ rarity: "common", finish: "normal", card: { slug: "a" } }),

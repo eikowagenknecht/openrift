@@ -6,7 +6,9 @@ import { normalizeNameForIdentity } from "@openrift/shared/utils";
 
 import type { CardSubmissionStatus } from "../../../db/tables/candidates.js";
 import type { Repos } from "../../../deps.js";
+import type { Io } from "../../../io.js";
 import { adoptedFields, computeProposedDiff } from "../lib/card-submission-diff.js";
+import { discardSubmissionUploads } from "./submission-uploads.js";
 
 export function outcomeForCheckedSubmission(
   proposedDiffSize: number,
@@ -20,9 +22,9 @@ export function outcomeForCheckedSubmission(
 
 export async function resolveCheckedSubmissions(
   repos: Repos,
-  args: { candidateCardIds: string[]; adminUserId: string; now: Date },
+  args: { candidateCardIds: string[]; adminUserId: string; now: Date; io: Io },
 ): Promise<number> {
-  const { candidateCardIds, adminUserId, now } = args;
+  const { candidateCardIds, adminUserId, now, io } = args;
   if (candidateCardIds.length === 0) {
     return 0;
   }
@@ -74,6 +76,9 @@ export async function resolveCheckedSubmissions(
       resolvedByUserId: adminUserId,
       acceptedCardId: status === "accepted" ? (liveCard?.id ?? null) : null,
     });
+    if (status !== "accepted") {
+      await discardSubmissionUploads(io, repos, candidateCardId);
+    }
     resolved += 1;
   }
 
@@ -83,7 +88,7 @@ export async function resolveCheckedSubmissions(
 /** No-ops for candidates from scraped providers, which have no ledger row. */
 export async function rejectIgnoredSubmission(
   repos: Repos,
-  args: { provider: string; externalId: string; adminUserId: string; now: Date },
+  args: { provider: string; externalId: string; adminUserId: string; now: Date; io: Io },
 ): Promise<void> {
   const submission = await repos.cardSubmissions.findByExternalId(args.provider, args.externalId);
   if (!submission || submission.status === "rejected") {
@@ -94,6 +99,9 @@ export async function rejectIgnoredSubmission(
     resolvedAt: args.now,
     resolvedByUserId: args.adminUserId,
   });
+  if (submission.candidateCardId) {
+    await discardSubmissionUploads(args.io, repos, submission.candidateCardId);
+  }
 }
 
 export async function reopenUnignoredSubmission(

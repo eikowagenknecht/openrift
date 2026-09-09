@@ -88,6 +88,7 @@ const REF_FLAGS = [
   { key: "overnumbered", filterField: "isOvernumbered" },
   { key: "banned", filterField: "isBanned" },
   { key: "errata", filterField: "hasErrata" },
+  { key: "noImage", filterField: "hasNoImage" },
   { key: "standard", filterField: "isStandard" },
 ] as const;
 
@@ -139,7 +140,7 @@ function referenceComputeFilterCounts(
   options: RefOptions,
 ): FilterCounts {
   const result = {
-    flags: { signed: 0, overnumbered: 0, banned: 0, errata: 0, standard: 0 },
+    flags: { signed: 0, overnumbered: 0, banned: 0, errata: 0, noImage: 0, standard: 0 },
     presence: {
       markers: { any: 0, none: 0 },
       superTypes: { any: 0, none: 0 },
@@ -332,7 +333,7 @@ function buildCatalog(count: number): { printings: Printing[]; prices: WeakMap<P
       distributionChannels: pickOne(CHANNELS, r),
       finish: pickOne(FINISHES, r),
       size: pickOne(SIZES, r),
-      images: [],
+      images: r() > 0.85 ? [] : [{ face: "front" as const, imageId: `image-${i}` }],
       artist: "Artist",
       publicCode: `pub-${i}`,
       printedRulesText: null,
@@ -403,6 +404,8 @@ const SCENARIOS: Record<string, CardFilters> = {
     hasErrata: false,
     isBanned: false,
   }),
+  "no image": makeFilters({ hasNoImage: true }),
+  "no image false": makeFilters({ hasNoImage: false }),
   ranges: makeFilters({ energy: { min: 2, max: 6 }, might: { min: 0, max: 5 } }),
   "range with NONE sentinel": makeFilters({ power: { min: NONE, max: NONE } }),
   "price range": makeFilters({ price: { min: 1, max: 30 } }),

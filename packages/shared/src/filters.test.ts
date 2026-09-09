@@ -396,6 +396,32 @@ describe("filterCards", () => {
     expect(result.map((p) => p.shortCode)).toEqual(["OGN-007"]);
   });
 
+  it("filters by hasNoImage to the printings with no image", () => {
+    const mixed = [
+      makePrinting({ shortCode: "OGN-001", images: [] }),
+      makePrinting({ shortCode: "OGN-002" }),
+    ];
+    const result = filterCards(mixed, emptyFilters({ hasNoImage: true }));
+    expect(result.map((p) => p.shortCode)).toEqual(["OGN-001"]);
+  });
+
+  it("filters by hasNoImage=false to the printings that have an image", () => {
+    const mixed = [
+      makePrinting({ shortCode: "OGN-001", images: [] }),
+      makePrinting({ shortCode: "OGN-002" }),
+    ];
+    const result = filterCards(mixed, emptyFilters({ hasNoImage: false }));
+    expect(result.map((p) => p.shortCode)).toEqual(["OGN-002"]);
+  });
+
+  it("ignores hasNoImage when unset", () => {
+    const mixed = [
+      makePrinting({ shortCode: "OGN-001", images: [] }),
+      makePrinting({ shortCode: "OGN-002" }),
+    ];
+    expect(filterCards(mixed, emptyFilters())).toHaveLength(2);
+  });
+
   it("filters by presence.markers=any", () => {
     const withPromo = [
       makePrinting({

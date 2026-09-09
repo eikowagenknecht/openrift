@@ -4,6 +4,7 @@ import { MarketplaceLink } from "@/components/marketplace-link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardLink } from "@/components/ui/card-link";
 import { MARKETPLACE_META } from "@/features/cards/lib/marketplace-meta";
+import { CollectionMissingImagesTile } from "@/features/collections/components/collection-missing-images-tile";
 import type { CollectionStats } from "@/features/collections/hooks/use-collection-stats";
 
 export function StatsHeroStats({ stats }: { stats: CollectionStats }) {
@@ -83,6 +84,7 @@ export function StatsHeroStats({ stats }: { stats: CollectionStats }) {
           </div>
         </CardContent>
       </CardLink>
+      <CollectionMissingImagesTile />
     </div>
   );
 }

@@ -1,19 +1,26 @@
 import type { Card, Printing } from "@openrift/shared/types/catalog";
-import { CheckCircle2Icon, ChevronRightIcon, SendIcon } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { ArrowRightIcon, CheckCircle2Icon, ImageUpIcon, SendIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dropzone } from "@/components/ui/dropzone";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSubmitCard } from "@/features/contribute/hooks/use-card-submission";
+import { useMyMissingImages } from "@/features/contribute/hooks/use-missing-images";
+import { useUploadSubmissionImage } from "@/features/contribute/hooks/use-upload-submission-image";
 import type { ValidationError } from "@/features/contribute/lib/contribute-json";
 import {
   buildImagePatchState,
   buildSubmissionPayload,
   validateContribution,
 } from "@/features/contribute/lib/contribute-json";
+import {
+  nextMissingImage,
+  remainingMissingImagesLine,
+} from "@/features/contribute/lib/missing-images";
 
 interface ImageSuggestFormProps {
   card: Card;
@@ -24,15 +31,37 @@ interface ImageSuggestFormProps {
 
 export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSuggestFormProps) {
   const [imageUrl, setImageUrl] = useState("");
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [submitted, setSubmitted] = useState(false);
 
+  const upload = useUploadSubmissionImage();
   const submit = useSubmitCard();
 
-  const trimmedUrl = imageUrl.trim();
+  const chosenUrl = uploadedUrl ?? imageUrl.trim();
   const urlError = submitted
     ? errors.find((e) => e.path === "printings[0].imageUrl")?.message
     : undefined;
+
+  function handleFiles(files: File[]) {
+    const file = files[0];
+    if (file === undefined) {
+      return;
+    }
+    upload.mutate(file, {
+      onSuccess: (url) => {
+        setUploadedUrl(url);
+        setImageUrl("");
+      },
+    });
+  }
+
+  function handleUrlChange(value: string) {
+    setImageUrl(value);
+    if (value.trim() !== "") {
+      setUploadedUrl(null);
+    }
+  }
 
   function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -43,7 +72,7 @@ export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSugg
       printing,
       setSlug,
       setName,
-      imageUrl: trimmedUrl,
+      imageUrl: chosenUrl,
     });
     const result = validateContribution(state);
     setErrors(result.errors);
@@ -55,23 +84,51 @@ export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSugg
 
   if (submit.isSuccess) {
     return (
-      <Alert>
-        <CheckCircle2Icon className="size-4" />
-        <AlertTitle>Thanks! Your image suggestion is in the review queue.</AlertTitle>
-        <AlertDescription>I check every submission before it goes live.</AlertDescription>
-      </Alert>
+      <div className="flex flex-col gap-6">
+        <Alert>
+          <CheckCircle2Icon className="size-4" />
+          <AlertTitle>Thanks! Your image suggestion is in the review queue.</AlertTitle>
+          <AlertDescription>I check every submission before it goes live.</AlertDescription>
+        </Alert>
+        <NextCardAction currentPrintingId={printing.id} />
+      </div>
     );
   }
 
+  const dropzoneLabel = upload.isPending
+    ? "Uploading your photo…"
+    : uploadedUrl === null
+      ? "Take a photo or choose one"
+      : "Choose a different photo";
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+      <div className="flex flex-col gap-3">
+        {uploadedUrl === null ? null : (
+          <img
+            src={uploadedUrl}
+            alt={card.name}
+            className="ring-border max-h-80 w-fit rounded-lg object-contain ring-1"
+          />
+        )}
+        <Dropzone
+          accept="image/*"
+          disabled={upload.isPending}
+          icon={<ImageUpIcon className="text-muted-foreground size-5" />}
+          label={dropzoneLabel}
+          hint="JPG or PNG, up to 20 MB. Lay the card flat and fill the frame."
+          onFiles={handleFiles}
+        />
+        {upload.isError && <p className="text-destructive text-sm">{errorMessage(upload.error)}</p>}
+      </div>
+
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="image-url">Image URL</Label>
+        <Label htmlFor="image-url">Or paste a link to an image</Label>
         <Input
           id="image-url"
           type="url"
           value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
+          onChange={(e) => handleUrlChange(e.target.value)}
           placeholder="https://..."
         />
         {urlError ? (
@@ -81,23 +138,12 @@ export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSugg
             Any image format works (.png, .jpg, .webp, .avif, ...).
           </p>
         )}
-        <Collapsible className="text-muted-foreground text-sm">
-          <CollapsibleTrigger className="group hover:text-foreground inline-flex cursor-pointer items-center gap-1 select-none">
-            Only have a photo or scan?
-            <ChevronRightIcon className="size-3.5 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <p className="mt-1.5">
-              Host it somewhere with a direct link (any image host works) and paste that link here.
-            </p>
-          </CollapsibleContent>
-        </Collapsible>
       </div>
 
       {submit.isError && (
         <Alert variant="destructive">
           <AlertTitle>Couldn&apos;t submit</AlertTitle>
-          <AlertDescription>{submitErrorMessage(submit.error)}</AlertDescription>
+          <AlertDescription>{errorMessage(submit.error)}</AlertDescription>
         </Alert>
       )}
 
@@ -114,7 +160,38 @@ export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSugg
   );
 }
 
-function submitErrorMessage(error: unknown): string {
+function NextCardAction({ currentPrintingId }: { currentPrintingId: string }) {
+  const { data } = useMyMissingImages();
+  if (data === undefined) {
+    return null;
+  }
+  const { next, remaining } = nextMissingImage(data.items, currentPrintingId);
+  if (next === null) {
+    return <p className="text-muted-foreground">All your cards have images now. Thanks!</p>;
+  }
+  const remainingLine = remainingMissingImagesLine(remaining);
+  return (
+    <div className="flex flex-col gap-2">
+      <Button
+        className="self-start"
+        render={
+          <Link
+            to="/contribute/$cardSlug/image/$printingId"
+            params={{ cardSlug: next.cardSlug, printingId: next.printingId }}
+          />
+        }
+      >
+        <ArrowRightIcon className="size-4" />
+        Next: {next.cardName} · {next.setName}
+      </Button>
+      {remainingLine === null ? null : (
+        <p className="text-muted-foreground text-sm">{remainingLine}</p>
+      )}
+    </div>
+  );
+}
+
+function errorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message.trim() : "";
   return message || "Something went wrong. Please try again in a moment.";
 }

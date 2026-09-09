@@ -227,6 +227,7 @@ describe("computeFilterCounts", () => {
         id: "p-promo",
         cardId: "c-promo",
         isSigned: false,
+        images: [],
         markers: [{ id: "m1", slug: "promo-stamp", label: "Promo", description: null }],
         card: { slug: "c-promo", bans: [], errata: null },
       }),
@@ -238,6 +239,7 @@ describe("computeFilterCounts", () => {
       expect(counts.presence.markers.any).toBe(1);
       expect(counts.flags.banned).toBe(1);
       expect(counts.flags.errata).toBe(1);
+      expect(counts.flags.noImage).toBe(1);
     });
 
     it("counts flags at their false state when the chip is in 'Not X' mode", () => {
@@ -245,6 +247,13 @@ describe("computeFilterCounts", () => {
         countBy: "printing",
       });
       expect(counts.flags.signed).toBe(2);
+    });
+
+    it("counts the printings that have an image when noImage is in 'Not X' mode", () => {
+      const counts = computeFilterCounts(flagSample, emptyFilters({ hasNoImage: false }), {
+        countBy: "printing",
+      });
+      expect(counts.flags.noImage).toBe(2);
     });
 
     it("flag counts respect other active filters", () => {
@@ -255,6 +264,7 @@ describe("computeFilterCounts", () => {
       expect(counts.presence.markers.any).toBe(0);
       expect(counts.flags.banned).toBe(0);
       expect(counts.flags.errata).toBe(0);
+      expect(counts.flags.noImage).toBe(0);
     });
   });
 

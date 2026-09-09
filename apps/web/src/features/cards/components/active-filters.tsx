@@ -56,6 +56,7 @@ export function ActiveFilters({
     clearPresence,
     clearBanned,
     clearErrata,
+    clearNoImage,
     clearStandard,
     clearAllFilters,
     setSearch,
@@ -341,6 +342,7 @@ export function ActiveFilters({
     presenceChips.some(([, value]) => value !== null) ||
     filterState.banned !== null ||
     filterState.errata !== null ||
+    filterState.noImage !== null ||
     filterState.standard !== null;
 
   if (!hasVisibleContent) {
@@ -551,6 +553,9 @@ export function ActiveFilters({
         )}
         {filterState.errata !== null && (
           <FlagChip label="Errata" state={filterState.errata} onClear={clearErrata} />
+        )}
+        {filterState.noImage !== null && (
+          <FlagChip label="No image yet" state={filterState.noImage} onClear={clearNoImage} />
         )}
         {filterState.standard !== null && (
           <FlagChip label="Standard" state={filterState.standard} onClear={clearStandard} />

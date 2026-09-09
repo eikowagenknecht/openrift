@@ -3,6 +3,7 @@ import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { Heading } from "@/components/heading";
 import { Button } from "@/components/ui/button";
 import { ContributeForm } from "@/features/contribute/components/contribute-form";
+import { MyMissingImagesSection } from "@/features/contribute/components/my-missing-images-section";
 import { emptyFormState } from "@/features/contribute/lib/contribute-json";
 import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
@@ -24,6 +25,7 @@ function ContributePage() {
           Spotted a missing printing or a typo? Any help is appreciated!
         </p>
       </header>
+      <MyMissingImagesSection />
       <ContributeForm initial={emptyFormState()} />
     </div>
   );

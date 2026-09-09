@@ -264,6 +264,7 @@ export function FilterMoreMenu({
     cyclePresence,
     toggleBanned,
     toggleErrata,
+    toggleNoImage,
     toggleStandard,
   } = useFilterActions();
   const visibleDimensions = useVisibleFilterDimensions({
@@ -400,6 +401,15 @@ export function FilterMoreMenu({
       onToggle={toggleErrata}
     />
   ) : null;
+  const noImageNode = shows("noImage") ? (
+    <FlagMenuItem
+      key="noImage"
+      label="No image yet"
+      state={filterState.noImage}
+      count={filterCounts?.flags.noImage}
+      onToggle={toggleNoImage}
+    />
+  ) : null;
   const standardNode = shows("standard") ? (
     <FlagMenuItem
       key="standard"
@@ -516,7 +526,7 @@ export function FilterMoreMenu({
         dropdownRow("keywords"),
       ],
     },
-    { id: "flags", items: [overnumberedNode, signedNode, bannedNode, errataNode] },
+    { id: "flags", items: [overnumberedNode, signedNode, bannedNode, errataNode, noImageNode] },
     { id: "market", items: [ownedNode, copiesNode, priceNode] },
   ]
     .map((block) => ({ id: block.id, items: block.items.filter(Boolean) }))

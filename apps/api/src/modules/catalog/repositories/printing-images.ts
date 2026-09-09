@@ -437,6 +437,18 @@ export function printingImagesRepo(db: Kysely<Database>) {
       return findOrCreateImageFile(originalUrl);
     },
 
+    async originalUrlsInUse(originalUrls: string[]): Promise<Set<string>> {
+      if (originalUrls.length === 0) {
+        return new Set();
+      }
+      const rows = await db
+        .selectFrom("imageFiles")
+        .select("originalUrl")
+        .where("originalUrl", "in", originalUrls)
+        .execute();
+      return new Set(rows.map((row) => row.originalUrl as string));
+    },
+
     /**
      * The unattached row is the point: a file pinned as substitute art is not a
      * scan of the printing that shows it, and giving it a `printing_images` row

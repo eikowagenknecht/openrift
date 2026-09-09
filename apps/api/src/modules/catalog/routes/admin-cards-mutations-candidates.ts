@@ -29,6 +29,7 @@ export const adminCardMutationsCandidatesRouter = {
       candidateCardIds: [input.candidateCardId],
       adminUserId: context.userId,
       now: new Date(),
+      io: context.io,
     });
   }),
 
@@ -51,6 +52,7 @@ export const adminCardMutationsCandidatesRouter = {
       candidateCardIds,
       adminUserId: context.userId,
       now: new Date(),
+      io: context.io,
     });
     return { updated };
   }),
@@ -65,6 +67,7 @@ export const adminCardMutationsCandidatesRouter = {
         candidateCardIds: [result.candidateCardId],
         adminUserId: context.userId,
         now: new Date(),
+        io: context.io,
       });
     },
   ),
@@ -96,6 +99,7 @@ export const adminCardMutationsCandidatesRouter = {
       candidateCardIds,
       adminUserId: context.userId,
       now: new Date(),
+      io: context.io,
     });
     return { updated };
   }),
@@ -242,6 +246,7 @@ export const adminCardMutationsCandidatesRouter = {
         .filter((id): id is string => id !== null),
       adminUserId: context.userId,
       now,
+      io: context.io,
     });
     return result;
   }),

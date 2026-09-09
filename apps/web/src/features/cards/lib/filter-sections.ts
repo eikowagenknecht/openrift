@@ -31,6 +31,7 @@ export const FILTER_PLACEMENT_UNITS: readonly FilterPlacementUnit[] = [
   { key: "keywords", label: "Keywords", sections: ["keywords"] },
   { key: "banned", label: "Banned", sections: ["banned"] },
   { key: "errata", label: "Errata", sections: ["errata"] },
+  { key: "noImage", label: "No image yet", sections: ["noImage"] },
   { key: "owned", label: "Owned", sections: ["owned"] },
   { key: "price", label: "Price", sections: ["price"] },
 ];

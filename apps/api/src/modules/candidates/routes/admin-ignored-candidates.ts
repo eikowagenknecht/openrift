@@ -49,6 +49,7 @@ export const adminIgnoredCandidatesRouter = {
       externalId,
       adminUserId: context.userId,
       now: new Date(),
+      io: context.io,
     });
 
     await recordAdminEvent(context.repos, context.userId, {

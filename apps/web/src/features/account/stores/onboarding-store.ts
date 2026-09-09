@@ -12,6 +12,8 @@ interface OnboardingState {
   dismissDeckBuilderIntro: () => void;
   collectionIntroDismissed: boolean;
   dismissCollectionIntro: () => void;
+  missingImagesNudgeDismissed: boolean;
+  dismissMissingImagesNudge: () => void;
   dismissedGroupNudges: string[];
   dismissGroupNudge: (slug: string, kind: GroupNudgeKind) => void;
 }
@@ -23,6 +25,8 @@ export const useOnboardingStore = create<OnboardingState>()(
       dismissDeckBuilderIntro: () => set({ deckBuilderIntroDismissed: true }),
       collectionIntroDismissed: false,
       dismissCollectionIntro: () => set({ collectionIntroDismissed: true }),
+      missingImagesNudgeDismissed: false,
+      dismissMissingImagesNudge: () => set({ missingImagesNudgeDismissed: true }),
       dismissedGroupNudges: [],
       dismissGroupNudge: (slug, kind) =>
         set((state) => {
@@ -38,6 +42,7 @@ export const useOnboardingStore = create<OnboardingState>()(
       partialize: (state) => ({
         deckBuilderIntroDismissed: state.deckBuilderIntroDismissed,
         collectionIntroDismissed: state.collectionIntroDismissed,
+        missingImagesNudgeDismissed: state.missingImagesNudgeDismissed,
         dismissedGroupNudges: state.dismissedGroupNudges,
       }),
       merge: (persisted, current) => {
@@ -52,6 +57,10 @@ export const useOnboardingStore = create<OnboardingState>()(
             typeof raw?.collectionIntroDismissed === "boolean"
               ? raw.collectionIntroDismissed
               : current.collectionIntroDismissed,
+          missingImagesNudgeDismissed:
+            typeof raw?.missingImagesNudgeDismissed === "boolean"
+              ? raw.missingImagesNudgeDismissed
+              : current.missingImagesNudgeDismissed,
           dismissedGroupNudges: Array.isArray(raw?.dismissedGroupNudges)
             ? raw.dismissedGroupNudges.filter((key) => typeof key === "string")
             : current.dismissedGroupNudges,

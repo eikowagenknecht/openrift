@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Repos } from "../../../deps.js";
+import { mockIo, mockUnlink, resetImageMocks } from "../../../test/image-mocks.js";
 import {
   outcomeForCheckedSubmission,
   rejectIgnoredSubmission,
@@ -17,7 +18,13 @@ interface StubOptions {
   proposal?: unknown;
   liveCard?: { id: string; slug: string } | null;
   currentlyDiffering?: string[];
+  candidateImageUrls?: string[];
+  urlsInUse?: string[];
 }
+
+beforeEach(() => {
+  resetImageMocks();
+});
 
 function stubRepos(options: StubOptions = {}) {
   const resolve = vi.fn();
@@ -47,6 +54,10 @@ function stubRepos(options: StubOptions = {}) {
       })),
       resolve,
       reopen,
+      candidatePrintingImageUrls: vi.fn(async () => options.candidateImageUrls ?? []),
+    },
+    printingImages: {
+      originalUrlsInUse: vi.fn(async () => new Set(options.urlsInUse)),
     },
     candidateCards: {
       reviewStateForCandidates: vi.fn(
@@ -89,6 +100,7 @@ describe("resolveCheckedSubmissions", () => {
         candidateCardIds: [],
         adminUserId: ADMIN_ID,
         now: NOW,
+        io: mockIo,
       }),
     ).toBe(0);
     expect(resolve).not.toHaveBeenCalled();
@@ -105,6 +117,7 @@ describe("resolveCheckedSubmissions", () => {
         candidateCardIds: ["cc-1"],
         adminUserId: ADMIN_ID,
         now: NOW,
+        io: mockIo,
       }),
     ).toBe(1);
     expect(resolve).toHaveBeenCalledWith("sub-1", {
@@ -122,6 +135,7 @@ describe("resolveCheckedSubmissions", () => {
       candidateCardIds: ["cc-1"],
       adminUserId: ADMIN_ID,
       now: NOW,
+      io: mockIo,
     });
     expect(resolve).toHaveBeenCalledWith(
       "sub-1",
@@ -139,6 +153,7 @@ describe("resolveCheckedSubmissions", () => {
       candidateCardIds: ["cc-1"],
       adminUserId: ADMIN_ID,
       now: NOW,
+      io: mockIo,
     });
     expect(resolve).toHaveBeenCalledWith(
       "sub-1",
@@ -157,6 +172,7 @@ describe("resolveCheckedSubmissions", () => {
         candidateCardIds: ["cc-1"],
         adminUserId: ADMIN_ID,
         now: NOW,
+        io: mockIo,
       }),
     ).toBe(0);
     expect(resolve).not.toHaveBeenCalled();
@@ -172,6 +188,7 @@ describe("resolveCheckedSubmissions", () => {
       candidateCardIds: ["cc-1"],
       adminUserId: ADMIN_ID,
       now: NOW,
+      io: mockIo,
     });
     expect(resolve).not.toHaveBeenCalled();
   });
@@ -185,8 +202,66 @@ describe("resolveCheckedSubmissions", () => {
       candidateCardIds: ["cc-1"],
       adminUserId: ADMIN_ID,
       now: NOW,
+      io: mockIo,
     });
     expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it("deletes the uploads of a submission that was not applied", async () => {
+    const upload = "/media/submissions/0198f000-0000-7000-8000-00000000000a.jpg";
+    const { repos } = stubRepos({
+      pending: [pendingSubmission(["card.new"])],
+      liveCard: null,
+      candidateImageUrls: [upload, "https://example.test/photo.jpg"],
+    });
+
+    await resolveCheckedSubmissions(repos, {
+      candidateCardIds: ["cc-1"],
+      adminUserId: ADMIN_ID,
+      now: NOW,
+      io: mockIo,
+    });
+
+    expect(mockUnlink).toHaveBeenCalledTimes(1);
+    expect(String(mockUnlink.mock.calls[0]?.[0])).toContain(
+      "submissions/0198f000-0000-7000-8000-00000000000a.jpg",
+    );
+  });
+
+  it("keeps an upload an image_files row still points at", async () => {
+    const upload = "/media/submissions/0198f000-0000-7000-8000-00000000000b.png";
+    const { repos } = stubRepos({
+      pending: [pendingSubmission(["card.new"])],
+      liveCard: null,
+      candidateImageUrls: [upload],
+      urlsInUse: [upload],
+    });
+
+    await resolveCheckedSubmissions(repos, {
+      candidateCardIds: ["cc-1"],
+      adminUserId: ADMIN_ID,
+      now: NOW,
+      io: mockIo,
+    });
+
+    expect(mockUnlink).not.toHaveBeenCalled();
+  });
+
+  it("keeps the uploads of an accepted submission", async () => {
+    const { repos } = stubRepos({
+      pending: [pendingSubmission(["card.new"])],
+      liveCard: { id: "card-1", slug: "jinx" },
+      candidateImageUrls: ["/media/submissions/0198f000-0000-7000-8000-00000000000c.jpg"],
+    });
+
+    await resolveCheckedSubmissions(repos, {
+      candidateCardIds: ["cc-1"],
+      adminUserId: ADMIN_ID,
+      now: NOW,
+      io: mockIo,
+    });
+
+    expect(mockUnlink).not.toHaveBeenCalled();
   });
 });
 
@@ -202,12 +277,32 @@ describe("rejectIgnoredSubmission", () => {
       externalId: "jinx--20260813-1200--u1",
       adminUserId: ADMIN_ID,
       now: NOW,
+      io: mockIo,
     });
     expect(resolve).toHaveBeenCalledWith("sub-1", {
       status: "rejected",
       resolvedAt: NOW,
       resolvedByUserId: ADMIN_ID,
     });
+  });
+
+  it("deletes the uploads of the rejected submission", async () => {
+    const { repos } = stubRepos({
+      candidateImageUrls: ["/media/submissions/0198f000-0000-7000-8000-00000000000d.jpg"],
+    });
+    repos.cardSubmissions.findByExternalId = vi.fn(
+      async () => ({ id: "sub-1", status: "pending", candidateCardId: "cc-1" }) as never,
+    );
+
+    await rejectIgnoredSubmission(repos, {
+      provider: "usersubmission",
+      externalId: "jinx--20260813-1200--u1",
+      adminUserId: ADMIN_ID,
+      now: NOW,
+      io: mockIo,
+    });
+
+    expect(mockUnlink).toHaveBeenCalledTimes(1);
   });
 
   it("no-ops for a scraped provider with no ledger row", async () => {
@@ -217,6 +312,7 @@ describe("rejectIgnoredSubmission", () => {
       externalId: "12345",
       adminUserId: ADMIN_ID,
       now: NOW,
+      io: mockIo,
     });
     expect(resolve).not.toHaveBeenCalled();
   });
@@ -232,6 +328,7 @@ describe("rejectIgnoredSubmission", () => {
       externalId: "jinx--20260813-1200--u1",
       adminUserId: ADMIN_ID,
       now: NOW,
+      io: mockIo,
     });
     expect(resolve).not.toHaveBeenCalled();
   });

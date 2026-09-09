@@ -61,6 +61,7 @@ function makeAvailable(overrides: Partial<AvailableFilters> = {}): AvailableFilt
     hasNonStandard: false,
     hasBanned: false,
     hasErrata: false,
+    hasNoImage: false,
     keywords: [],
     tags: [],
     hasNullEnergy: false,
@@ -93,7 +94,7 @@ function makeFilterCounts(
     channels: dimensionOverrides.channels ?? new Map(),
     keywords: new Map(),
     tags: new Map(),
-    flags: { signed: 0, overnumbered: 0, banned: 0, errata: 0, standard: 0 },
+    flags: { signed: 0, overnumbered: 0, banned: 0, errata: 0, noImage: 0, standard: 0 },
     presence: {
       markers: { any: 3, none: 0 },
       superTypes: { any: 0, none: 0 },
@@ -144,6 +145,7 @@ function setupHooks(filterStateOverrides: Partial<MoreFilterState> = {}) {
     cyclePresence: vi.fn(),
     toggleBanned: vi.fn(),
     toggleErrata: vi.fn(),
+    toggleNoImage: vi.fn(),
     toggleStandard: vi.fn(),
   };
   mockUseFilterValues.mockReturnValue({
@@ -198,6 +200,7 @@ function setupHooks(filterStateOverrides: Partial<MoreFilterState> = {}) {
       overnumbered: null,
       banned: null,
       errata: null,
+      noImage: null,
       standard: null,
       priceMin: null,
       priceMax: null,
@@ -403,6 +406,38 @@ describe("FilterMoreMenu", () => {
     await user.click(screen.getByRole("button", { name: "More" }));
     await user.click(await screen.findByRole("menuitem", { name: /Standard/u }));
     expect(actions.toggleStandard).toHaveBeenCalledOnce();
+  });
+
+  it("shows and cycles the No image yet flag when a printing has no image", async () => {
+    const user = userEvent.setup();
+    const actions = setupHooks();
+    render(
+      <FilterMoreMenu
+        availableFilters={makeAvailable({ hasNoImage: true })}
+        filterCounts={makeFilterCounts()}
+        activeCount={0}
+        topLevelUnits={DEFAULT_TOP}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(await screen.findByRole("menuitem", { name: /No image yet/u }));
+    expect(actions.toggleNoImage).toHaveBeenCalledOnce();
+  });
+
+  it("hides the No image yet flag when every printing has an image", async () => {
+    const user = userEvent.setup();
+    setupHooks();
+    render(
+      <FilterMoreMenu
+        availableFilters={makeAvailable({ hasNoImage: false })}
+        filterCounts={makeFilterCounts()}
+        activeCount={0}
+        topLevelUnits={DEFAULT_TOP}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await screen.findByRole("menu");
+    expect(screen.queryByRole("menuitem", { name: /No image yet/u })).not.toBeInTheDocument();
   });
 
   it("hides the Standard flag when every printing is standard", async () => {

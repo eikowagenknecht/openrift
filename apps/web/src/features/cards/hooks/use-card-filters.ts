@@ -165,6 +165,7 @@ export function useFilterValues() {
     tags: filterState.tags,
     isBanned: filterState.banned ?? null,
     hasErrata: filterState.errata ?? null,
+    hasNoImage: filterState.noImage ?? null,
     setsExclude: filterState.setsEx,
     languagesExclude: filterState.languagesEx,
     raritiesExclude: filterState.raritiesEx as Rarity[],
@@ -235,6 +236,7 @@ export function useFilterValues() {
     filterState.tagsPresence !== null ||
     filterState.banned !== null ||
     filterState.errata !== null ||
+    filterState.noImage !== null ||
     // Omitting these lets a "Standard"-only or exclude-only filter silently
     // trim the grid while the active-filter indicators stay off.
     filterState.standard !== null ||
@@ -336,6 +338,7 @@ export function useFilterActions() {
       tagsPresence: undefined,
       banned: undefined,
       errata: undefined,
+      noImage: undefined,
       standard: undefined,
       setsEx: undefined,
       // Language (incl. its negation companion) is preserved when clearing.
@@ -462,7 +465,9 @@ export function useFilterActions() {
 
   const clearOwned = () => updateSearch({ owned: undefined });
 
-  const toggleFlag = (key: "signed" | "overnumbered" | "banned" | "errata" | "standard") => {
+  const toggleFlag = (
+    key: "signed" | "overnumbered" | "banned" | "errata" | "noImage" | "standard",
+  ) => {
     trackEvent("filter-apply", { type: key });
     const current = filterState[key];
     updateSearch({ [key]: current === null ? true : current === true ? false : undefined });
@@ -471,6 +476,7 @@ export function useFilterActions() {
   const toggleOvernumbered = () => toggleFlag("overnumbered");
   const toggleBanned = () => toggleFlag("banned");
   const toggleErrata = () => toggleFlag("errata");
+  const toggleNoImage = () => toggleFlag("noImage");
   const toggleStandard = () => toggleFlag("standard");
   const applyPresence = (dimension: PresenceDimension, next: PresenceState | undefined) => {
     const patch: Partial<FilterSearch> = { [PRESENCE_PARAMS[dimension]]: next };
@@ -497,6 +503,7 @@ export function useFilterActions() {
   const clearOvernumbered = () => updateSearch({ overnumbered: undefined });
   const clearBanned = () => updateSearch({ banned: undefined });
   const clearErrata = () => updateSearch({ errata: undefined });
+  const clearNoImage = () => updateSearch({ noImage: undefined });
   const clearStandard = () => updateSearch({ standard: undefined });
 
   const setSortBy = (sort: SortOption) => {
@@ -545,11 +552,13 @@ export function useFilterActions() {
     clearPresence,
     toggleBanned,
     toggleErrata,
+    toggleNoImage,
     toggleStandard,
     clearSigned,
     clearOvernumbered,
     clearBanned,
     clearErrata,
+    clearNoImage,
     clearStandard,
     setSortBy,
     setSortDir,

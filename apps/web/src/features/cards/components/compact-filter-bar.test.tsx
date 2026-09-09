@@ -230,6 +230,7 @@ function makeAvailable(): AvailableFilters {
     hasNonStandard: false,
     hasBanned: false,
     hasErrata: false,
+    hasNoImage: false,
     keywords: [],
     tags: [],
     hasNullEnergy: false,
