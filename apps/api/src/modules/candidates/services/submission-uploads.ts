@@ -18,6 +18,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 const MAX_EDGE_PX = 4000;
 
+const SWEEP_GRACE_DAYS = 7;
+
 const JPEG_QUALITY = 92;
 
 const uploadTimesByUser = new Map<string, number[]>();
@@ -125,4 +127,65 @@ export async function discardSubmissionUploads(
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[submission-uploads] Cleanup failed for candidate ${candidateCardId}:`, message);
   }
+}
+
+export interface SubmissionUploadSweepResult {
+  scanned: number;
+  deleted: number;
+  cutoff: string;
+}
+
+async function olderThan(io: Io, name: string, cutoffMs: number): Promise<boolean> {
+  try {
+    const stats = await io.fs.stat(join(SUBMISSION_MEDIA_DIR, name));
+    return stats.mtimeMs < cutoffMs;
+  } catch {
+    return false;
+  }
+}
+
+export async function sweepSubmissionUploads(
+  io: Io,
+  repos: Repos,
+  args: { now: Date },
+): Promise<SubmissionUploadSweepResult> {
+  const cutoff = new Date(args.now.getTime() - SWEEP_GRACE_DAYS * DAY_MS);
+
+  let names: string[];
+  try {
+    names = await io.fs.readdir(SUBMISSION_MEDIA_DIR);
+  } catch {
+    return { scanned: 0, deleted: 0, cutoff: cutoff.toISOString() };
+  }
+
+  const urls = names
+    .map((name) => `${URL_PREFIX}${name}`)
+    .filter((url) => isSubmissionUploadUrl(url));
+
+  const stale: string[] = [];
+  for (const url of urls) {
+    if (await olderThan(io, url.slice(URL_PREFIX.length), cutoff.getTime())) {
+      stale.push(url);
+    }
+  }
+
+  if (stale.length === 0) {
+    return { scanned: urls.length, deleted: 0, cutoff: cutoff.toISOString() };
+  }
+
+  const [candidateUrls, imageFileUrls] = await Promise.all([
+    repos.cardSubmissions.candidateImageUrlsInUse(stale),
+    repos.printingImages.originalUrlsInUse(stale),
+  ]);
+
+  let deleted = 0;
+  for (const url of stale) {
+    if (candidateUrls.has(url) || imageFileUrls.has(url)) {
+      continue;
+    }
+    await deleteSubmissionUpload(io, url);
+    deleted += 1;
+  }
+
+  return { scanned: urls.length, deleted, cutoff: cutoff.toISOString() };
 }

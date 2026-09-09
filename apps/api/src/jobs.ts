@@ -5,6 +5,8 @@ import type { Database } from "./db/tables.js";
 import type { Repos } from "./deps.js";
 import { createTransact } from "./deps.js";
 import type { createEmailSender } from "./email.js";
+import { defaultIo } from "./io.js";
+import { sweepSubmissionUploads } from "./modules/candidates/services/submission-uploads.js";
 import {
   flushPendingPrintingEvents,
   isPrintingFlushNoop,
@@ -72,6 +74,7 @@ export function createJobDefinitions(deps: JobDefinitionDeps): AnyJobDefinition[
   const clLog = log.child({ service: "changelog" });
   const peLog = log.child({ service: "printing-events" });
   const jrLog = log.child({ service: "job-runs-cleanup" });
+  const suLog = log.child({ service: "submission-upload-sweep" });
   const cteLog = log.child({ service: "card-trades-expire" });
   const tdLog = log.child({ service: "trade-match-digest" });
   const trfLog = log.child({ service: "trade-request-flush" });
@@ -191,6 +194,17 @@ export function createJobDefinitions(deps: JobDefinitionDeps): AnyJobDefinition[
       },
       summarize: (summary) => summary,
       classifyNoop: (summary) => summary.deleted === 0,
+    }),
+    defineJob({
+      kind: "submission_uploads.sweep",
+      title: "Submission upload sweep",
+      description:
+        "Deletes contributor photo uploads older than 7 days that never became a submission.",
+      suggestedSchedule: "0 4 * * *",
+      log: suLog,
+      execute: () => sweepSubmissionUploads(defaultIo, repos, { now: new Date() }),
+      summarize: (result) => result,
+      classifyNoop: (result) => result.deleted === 0,
     }),
     defineJob({
       kind: "card_trades.expire_pending",

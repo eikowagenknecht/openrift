@@ -1,11 +1,14 @@
 import sharp from "sharp";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Repos } from "../../../deps.js";
 import { defaultIo } from "../../../io.js";
 import type { Io } from "../../../io.js";
 import {
   mockMkdir,
   mockReadFile,
+  mockReaddir,
+  mockStat,
   mockUnlink,
   mockWriteFile,
   resetImageMocks,
@@ -15,6 +18,7 @@ import {
   deleteSubmissionUpload,
   readSubmissionUpload,
   saveSubmissionUpload,
+  sweepSubmissionUploads,
 } from "./submission-uploads.js";
 
 const io: Io = { ...defaultIo, fs: { ...defaultIo.fs, ...mockedFs() } };
@@ -23,6 +27,8 @@ function mockedFs() {
   return {
     mkdir: mockMkdir as never,
     readFile: mockReadFile as never,
+    readdir: mockReaddir as never,
+    stat: mockStat as never,
     unlink: mockUnlink as never,
     writeFile: mockWriteFile as never,
   };
@@ -244,6 +250,107 @@ describe("deleteSubmissionUpload", () => {
   it("does nothing for a URL outside the upload tree", async () => {
     await deleteSubmissionUpload(io, "https://example.test/a.jpg");
 
+    expect(mockUnlink).not.toHaveBeenCalled();
+  });
+});
+
+describe("sweepSubmissionUploads", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const CUTOFF = new Date(NOW.getTime() - 7 * DAY).toISOString();
+
+  const upload = (suffix: string) => `0198f000-0000-7000-8000-00000000000${suffix}.jpg`;
+  const urlOf = (name: string) => `/media/submissions/${name}`;
+
+  function stubRepos(refs: { candidates?: string[]; imageFiles?: string[] } = {}) {
+    return {
+      cardSubmissions: {
+        candidateImageUrlsInUse: vi.fn(async () => new Set(refs.candidates)),
+      },
+      printingImages: {
+        originalUrlsInUse: vi.fn(async () => new Set(refs.imageFiles)),
+      },
+    } as unknown as Repos;
+  }
+
+  function onDisk(files: { name: string; ageDays: number }[]) {
+    mockReaddir.mockResolvedValue(files.map((file) => file.name));
+    const mtimes = new Map(
+      files.map((file) => [
+        `${SUBMISSION_MEDIA_DIR}/${file.name}`,
+        NOW.getTime() - file.ageDays * DAY,
+      ]),
+    );
+    mockStat.mockImplementation((path: unknown) => {
+      const mtimeMs = mtimes.get(String(path));
+      return mtimeMs === undefined
+        ? Promise.reject(new Error("ENOENT"))
+        : Promise.resolve({ mtimeMs });
+    });
+  }
+
+  it("keeps an unreferenced upload inside the grace period", async () => {
+    onDisk([{ name: upload("1"), ageDays: 3 }]);
+
+    const result = await sweepSubmissionUploads(io, stubRepos(), { now: NOW });
+
+    expect(result).toStrictEqual({ scanned: 1, deleted: 0, cutoff: CUTOFF });
+    expect(mockUnlink).not.toHaveBeenCalled();
+  });
+
+  it("keeps an old upload a candidate printing still points at", async () => {
+    const name = upload("2");
+    onDisk([{ name, ageDays: 30 }]);
+
+    const result = await sweepSubmissionUploads(io, stubRepos({ candidates: [urlOf(name)] }), {
+      now: NOW,
+    });
+
+    expect(result).toStrictEqual({ scanned: 1, deleted: 0, cutoff: CUTOFF });
+    expect(mockUnlink).not.toHaveBeenCalled();
+  });
+
+  it("keeps an old upload an accepted image file still points at", async () => {
+    const name = upload("3");
+    onDisk([{ name, ageDays: 30 }]);
+
+    const result = await sweepSubmissionUploads(io, stubRepos({ imageFiles: [urlOf(name)] }), {
+      now: NOW,
+    });
+
+    expect(result).toStrictEqual({ scanned: 1, deleted: 0, cutoff: CUTOFF });
+    expect(mockUnlink).not.toHaveBeenCalled();
+  });
+
+  it("deletes an old upload nothing references", async () => {
+    const name = upload("4");
+    onDisk([{ name, ageDays: 8 }]);
+
+    const result = await sweepSubmissionUploads(io, stubRepos(), { now: NOW });
+
+    expect(result).toStrictEqual({ scanned: 1, deleted: 1, cutoff: CUTOFF });
+    expect(String(mockUnlink.mock.calls[0]?.[0])).toBe(`${SUBMISSION_MEDIA_DIR}/${name}`);
+  });
+
+  it("ignores a file whose name is not an upload", async () => {
+    onDisk([
+      { name: "notes.txt", ageDays: 40 },
+      { name: upload("5"), ageDays: 40 },
+    ]);
+
+    const result = await sweepSubmissionUploads(io, stubRepos(), { now: NOW });
+
+    expect(result).toStrictEqual({ scanned: 1, deleted: 1, cutoff: CUTOFF });
+    expect(String(mockUnlink.mock.calls[0]?.[0])).toBe(`${SUBMISSION_MEDIA_DIR}/${upload("5")}`);
+  });
+
+  it("reports nothing scanned when the directory does not exist", async () => {
+    mockReaddir.mockRejectedValue(Object.assign(new Error("ENOENT"), { code: "ENOENT" }));
+    const repos = stubRepos();
+
+    const result = await sweepSubmissionUploads(io, repos, { now: NOW });
+
+    expect(result).toStrictEqual({ scanned: 0, deleted: 0, cutoff: CUTOFF });
+    expect(repos.printingImages.originalUrlsInUse).not.toHaveBeenCalled();
     expect(mockUnlink).not.toHaveBeenCalled();
   });
 });

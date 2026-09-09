@@ -397,6 +397,18 @@ export function cardSubmissionsRepo(db: Kysely<Database>) {
       return rows.map((row) => row.imageUrl as string);
     },
 
+    async candidateImageUrlsInUse(imageUrls: string[]): Promise<Set<string>> {
+      if (imageUrls.length === 0) {
+        return new Set();
+      }
+      const rows = await db
+        .selectFrom("candidatePrintings")
+        .select("imageUrl")
+        .where("imageUrl", "in", imageUrls)
+        .execute();
+      return new Set(rows.map((row) => row.imageUrl as string));
+    },
+
     // Counts the submissions ledger, not `candidate_cards`: purging staging must not reset a user's daily cap.
     async countRecentByUser(userId: string, since: Date): Promise<number> {
       const row = await db
