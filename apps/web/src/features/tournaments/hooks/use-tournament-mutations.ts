@@ -102,6 +102,7 @@ const updateParticipantFn = createServerFn({ method: "POST" })
       displayName?: string;
       seed?: number | null;
       region?: string | null;
+      legendCardId?: string | null;
       fixedTable?: number | null;
     }) => input,
   )
@@ -280,6 +281,7 @@ export function useUpdateParticipant() {
     displayName?: string;
     seed?: number | null;
     region?: string | null;
+    legendCardId?: string | null;
     fixedTable?: number | null;
   }>((data) => updateParticipantFn({ data }));
 }

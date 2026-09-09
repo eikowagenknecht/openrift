@@ -311,6 +311,11 @@ export async function buildDetail(
     winPoints: tournament.winPoints,
     drawPoints: tournament.drawPoints,
     regionsEnabled: tournament.regionsEnabled,
+    format: tournament.format,
+    cutSize: tournament.cutSize,
+    cutRematchAvoidance: tournament.cutRematchAvoidance,
+    legendTiebreak: tournament.legendTiebreak,
+    groupsSelfPaced: tournament.groupsSelfPaced,
     deckPhase: tournament.deckPhase,
     submissionsCloseAt: tournament.submissionsCloseAt
       ? tournament.submissionsCloseAt.toISOString()

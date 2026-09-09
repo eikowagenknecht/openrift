@@ -1,4 +1,5 @@
 import type { DeckCheckCardLine } from "@openrift/shared/deck-check";
+import type { CutSize } from "@openrift/shared/pairing/group-cut-types";
 import type { PodPenaltyBreakdown } from "@openrift/shared/pairing/types";
 import type {
   DeckCheckChangeSummary,
@@ -15,6 +16,7 @@ import type {
   TournamentClaimSource,
   TournamentDeckPhase,
   TournamentDeckSubmission,
+  TournamentFormat,
   TournamentHostType,
   TournamentListLockMode,
   TournamentMatchFormat,
@@ -24,7 +26,7 @@ import type {
   TournamentStaffRole,
   TournamentStatus,
 } from "@openrift/shared/types/api/tournament";
-import type { Generated } from "kysely";
+import type { ColumnType, Generated } from "kysely";
 
 import type { CreatedAt, UpdatedAt } from "./columns.js";
 
@@ -54,6 +56,12 @@ export interface TournamentsTable {
   winPoints: Generated<number>;
   drawPoints: Generated<number>;
   regionsEnabled: Generated<boolean>;
+
+  format: Generated<TournamentFormat>;
+  cutSize: Generated<CutSize>;
+  cutRematchAvoidance: Generated<boolean>;
+  legendTiebreak: Generated<boolean>;
+  groupsSelfPaced: Generated<boolean>;
 
   deckSubmission: Generated<TournamentDeckSubmission>;
 
@@ -99,12 +107,29 @@ export interface TournamentParticipantsTable {
   teamId: string | null;
   region: string | null;
   fixedTable: number | null;
+  groupId: string | null;
+  groupSlot: number | null;
+  legendCardId: string | null;
   claimSource: TournamentClaimSource | null;
   claimToken: string | null;
   claimedAt: Date | null;
   claimBlockedAt: Date | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
+}
+
+export interface TournamentGroupsTable {
+  id: Generated<string>;
+  tournamentId: string;
+  label: string;
+  pairedGroupId: string | null;
+}
+
+export interface TournamentLegendMetaSharesTable {
+  tournamentId: string;
+  legendCardId: string;
+  /** Percent. numeric arrives as a string; the repository converts it. */
+  share: ColumnType<string, number, number>;
 }
 
 export interface PodRoundsTable {

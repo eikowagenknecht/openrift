@@ -4,6 +4,7 @@ import {
   ArmchairIcon,
   CheckIcon,
   CopyIcon,
+  CrownIcon,
   EllipsisVerticalIcon,
   GlobeIcon,
   LayersIcon,
@@ -57,6 +58,13 @@ export function participantMissesRegion(
   return regionsEnabled && participant.status === "active" && participant.region === null;
 }
 
+export function participantMissesLegend(
+  participant: TournamentParticipantResponse,
+  legendTiebreak: boolean,
+): boolean {
+  return legendTiebreak && participant.status === "active" && participant.legendCardId === null;
+}
+
 function statusBadgeVariant(status: TournamentParticipantResponse["status"]) {
   return status === "active" ? ("secondary" as const) : ("outline" as const);
 }
@@ -67,12 +75,15 @@ export interface ParticipantRowProps {
   regionsEnabled: boolean;
   manage: boolean;
   canAssignRegion: boolean;
+  canAssignLegend?: boolean;
+  legendTiebreak?: boolean;
   dimmed?: boolean;
   teammateName?: string;
   deckEntryId?: string;
   actionPending: boolean;
   onAction: (participantId: string, action: ParticipantAction) => void;
   onRename: (target: ParticipantTarget) => void;
+  onSetLegend?: (target: ParticipantTarget & { legendName: string | null }) => void;
   onSetRegion: (target: ParticipantTarget & { region: string }) => void;
   onSetFixedTable: (target: ParticipantTarget & { fixedTable: string }) => void;
   onRemove: (target: ParticipantTarget) => void;
@@ -84,12 +95,15 @@ export function ParticipantRow({
   regionsEnabled,
   manage,
   canAssignRegion,
+  canAssignLegend = false,
+  legendTiebreak = false,
   dimmed = false,
   teammateName,
   deckEntryId,
   actionPending,
   onAction,
   onRename,
+  onSetLegend,
   onSetRegion,
   onSetFixedTable,
   onRemove,
@@ -97,6 +111,7 @@ export function ParticipantRow({
   const regionLabel = useRegionLabel();
   const { copy } = useCopyToClipboard();
   const missesRegion = participantMissesRegion(participant, regionsEnabled);
+  const missesLegend = participantMissesLegend(participant, legendTiebreak);
   const target: ParticipantTarget = {
     participantId: participant.id,
     name: participant.displayName,
@@ -139,6 +154,20 @@ export function ParticipantRow({
             No region
           </Badge>
         ) : null}
+        {participant.groupLabel === null ? null : (
+          <Badge variant="info">Group {participant.groupLabel}</Badge>
+        )}
+        {participant.legendName ? (
+          <Badge variant="subtle">
+            <CrownIcon className="size-3" />
+            {participant.legendName}
+          </Badge>
+        ) : missesLegend ? (
+          <Badge variant="muted">
+            <CrownIcon className="size-3" />
+            No Legend
+          </Badge>
+        ) : null}
         {participant.fixedTable === null ? null : (
           <Badge
             variant="outline"
@@ -173,6 +202,17 @@ export function ParticipantRow({
             >
               <GlobeIcon className="size-4" />
               Set region
+            </Button>
+          ) : null}
+          {missesLegend && canAssignLegend && onSetLegend ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="hidden sm:inline-flex"
+              onClick={() => onSetLegend({ ...target, legendName: null })}
+            >
+              <CrownIcon className="size-4" />
+              Set Legend
             </Button>
           ) : null}
           {deckEntryId ? (
@@ -244,6 +284,14 @@ export function ParticipantRow({
                 >
                   <GlobeIcon className="size-4" />
                   Set region
+                </DropdownMenuItem>
+              ) : null}
+              {canAssignLegend && onSetLegend ? (
+                <DropdownMenuItem
+                  onClick={() => onSetLegend({ ...target, legendName: participant.legendName })}
+                >
+                  <CrownIcon className="size-4" />
+                  Set Legend
                 </DropdownMenuItem>
               ) : null}
               <DropdownMenuItem

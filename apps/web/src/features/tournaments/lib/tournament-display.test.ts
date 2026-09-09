@@ -12,6 +12,7 @@ import {
   canManageTournament,
   hasPairing,
   ordinalPlace,
+  isGroupCutChoice,
   pairingFromRoundsChoice,
   pairingLabel,
   pairingPluralNoun,
@@ -44,6 +45,9 @@ function makeParticipant(
     seed: null,
     teamId: null,
     region: null,
+    legendCardId: null,
+    legendName: null,
+    groupLabel: null,
     fixedTable: null,
     droppedAfterRound: null,
     claimToken: null,
@@ -461,11 +465,13 @@ describe("pairingPluralNoun", () => {
 });
 
 describe("rounds choice", () => {
-  it("offers both Swiss formats and FFA pods", () => {
+  it("offers both Swiss formats, FFA pods and both group-stage formats", () => {
     expect(ROUNDS_CHOICE_ITEMS.map((item) => item.value)).toEqual([
       "swiss-bo1",
       "swiss-bo3",
       "pod",
+      "group-cut-bo1",
+      "group-cut-bo3",
     ]);
   });
 
@@ -488,18 +494,53 @@ describe("rounds choice", () => {
     expect(pairingFromRoundsChoice("swiss-bo1")).toEqual({
       pairingStyle: "swiss",
       matchFormat: "bo1",
+      format: "rounds",
     });
     expect(pairingFromRoundsChoice("swiss-bo3")).toEqual({
       pairingStyle: "swiss",
       matchFormat: "bo3",
+      format: "rounds",
     });
-    expect(pairingFromRoundsChoice("pod")).toEqual({ pairingStyle: "pod", matchFormat: "bo1" });
+    expect(pairingFromRoundsChoice("pod")).toEqual({
+      pairingStyle: "pod",
+      matchFormat: "bo1",
+      format: "rounds",
+    });
+  });
+
+  it("maps the group-stage choices to Swiss pairing on the group_cut format", () => {
+    expect(pairingFromRoundsChoice("group-cut-bo1")).toEqual({
+      pairingStyle: "swiss",
+      matchFormat: "bo1",
+      format: "group_cut",
+    });
+    expect(pairingFromRoundsChoice("group-cut-bo3")).toEqual({
+      pairingStyle: "swiss",
+      matchFormat: "bo3",
+      format: "group_cut",
+    });
+  });
+
+  it("reads the group-stage choice back off the format, not the pairing style", () => {
+    expect(roundsChoiceFor("swiss", "bo1", "group_cut")).toBe("group-cut-bo1");
+    expect(roundsChoiceFor("swiss", "bo3", "group_cut")).toBe("group-cut-bo3");
+    expect(roundsChoiceFor("swiss", "bo3", "rounds")).toBe("swiss-bo3");
+  });
+
+  it("keeps pairings off ahead of the format", () => {
+    expect(roundsChoiceFor("none", "bo1", "group_cut")).toBeNull();
+  });
+
+  it("tells the group-stage choices from the rest", () => {
+    expect(
+      ROUNDS_CHOICE_ITEMS.filter((item) => isGroupCutChoice(item.value)).map((i) => i.value),
+    ).toEqual(["group-cut-bo1", "group-cut-bo3"]);
   });
 
   it("round-trips every dropdown option", () => {
     for (const item of ROUNDS_CHOICE_ITEMS) {
-      const { pairingStyle, matchFormat } = pairingFromRoundsChoice(item.value);
-      expect(roundsChoiceFor(pairingStyle, matchFormat)).toBe(item.value);
+      const { pairingStyle, matchFormat, format } = pairingFromRoundsChoice(item.value);
+      expect(roundsChoiceFor(pairingStyle, matchFormat, format)).toBe(item.value);
     }
   });
 });

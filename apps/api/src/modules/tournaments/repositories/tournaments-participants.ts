@@ -12,6 +12,8 @@ import type { TournamentParticipant } from "./tournaments-shared.js";
 export interface TournamentParticipantWithUser extends TournamentParticipant {
   /** Linked account's display name; null for walk-ins. */
   userName: string | null;
+  legendName: string | null;
+  groupLabel: string | null;
 }
 
 export interface NewTournamentParticipant {
@@ -42,6 +44,7 @@ export interface TournamentParticipantPatch {
   status?: TournamentParticipantStatus;
   seed?: number | null;
   droppedAfterRound?: number | null;
+  legendCardId?: string | null;
 }
 
 export function tournamentParticipantsRepo(db: Kysely<Database>) {
@@ -325,8 +328,14 @@ export function tournamentParticipantsRepo(db: Kysely<Database>) {
       return db
         .selectFrom("tournamentParticipants as p")
         .leftJoin("users as u", "u.id", "p.userId")
+        .leftJoin("cards as lc", "lc.id", "p.legendCardId")
+        .leftJoin("tournamentGroups as g", "g.id", "p.groupId")
         .selectAll("p")
-        .select((eb) => eb.ref("u.name").as("userName"))
+        .select((eb) => [
+          eb.ref("u.name").as("userName"),
+          eb.ref("lc.name").as("legendName"),
+          eb.ref("g.label").as("groupLabel"),
+        ])
         .where("p.tournamentId", "=", tournamentId)
         .orderBy("p.createdAt", "asc")
         .execute();

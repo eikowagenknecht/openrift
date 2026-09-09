@@ -1,5 +1,6 @@
 import { tournamentsContract } from "@openrift/shared/contracts/tournaments";
 import { ERROR_CODES } from "@openrift/shared/error-codes";
+import { GROUP_STAGE_ROUNDS } from "@openrift/shared/pairing/group-cut-types";
 import type { PodTournamentDetailResponse } from "@openrift/shared/types/api/pod-tournament";
 import type {
   TournamentDetailResponse,
@@ -14,6 +15,7 @@ import { generateShareToken } from "../../../lib/share-token.js";
 import { requireAuthedUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
 import { loadGroupForMember } from "../../groups/lib/group-access.js";
+import { isGroupCut } from "../lib/group-cut.js";
 import { buildPodRunDetail, podRunDetailById } from "../lib/pod-tournament-builders.js";
 import {
   loadParticipant,
@@ -33,12 +35,25 @@ import {
 } from "../lib/tournament-builders.js";
 import {
   assertDateOrder,
+  assertGroupCutCompatible,
+  assertLegendAssignable,
   assertParticipantsOpen,
   assertPlayModeCompatible,
   assertStatusTransition,
   assertValidRegion,
 } from "../lib/tournament-invariants.js";
 import type { TournamentParticipant } from "../repositories/tournaments-shared.js";
+import {
+  assertCutRoundEditable,
+  assertGroupCutRun,
+  completeAfterFinal,
+  generateGroupCutRound,
+  reportGroupStageWalkovers,
+  rerollGroupCutRound,
+  setLegendMetaShares,
+  startGroupRound as startGroupRoundEngine,
+  startGroupStageRound as startGroupStageRoundEngine,
+} from "../services/group-cut.js";
 import {
   finalizeRound as finalizeRoundEngine,
   pairNextRound,
@@ -116,6 +131,7 @@ export const tournamentsRouter = {
       input.pairingStyle,
       input.regionsEnabled ?? false,
     );
+    assertGroupCutCompatible(input.format ?? "rounds", input.pairingStyle, input.playMode ?? "1v1");
 
     const host: TournamentHostColumns =
       input.host.type === "user"
@@ -142,6 +158,11 @@ export const tournamentsRouter = {
         winPoints: input.winPoints,
         drawPoints: input.drawPoints,
         regionsEnabled: input.regionsEnabled,
+        format: input.format,
+        cutSize: input.cutSize,
+        cutRematchAvoidance: input.cutRematchAvoidance,
+        legendTiebreak: input.legendTiebreak,
+        groupsSelfPaced: input.groupsSelfPaced,
         deckSubmission: input.deckSubmission,
         submissionsCloseAt: input.submissionsCloseAt ? new Date(input.submissionsCloseAt) : null,
         listLockMode: input.listLockMode,
@@ -190,8 +211,15 @@ export const tournamentsRouter = {
     const matchFormatChanging =
       patch.matchFormat !== undefined && patch.matchFormat !== tournament.matchFormat;
     const playModeChanging = patch.playMode !== undefined && patch.playMode !== tournament.playMode;
+    const formatChanging =
+      (patch.format !== undefined && patch.format !== tournament.format) ||
+      (patch.cutSize !== undefined && patch.cutSize !== tournament.cutSize) ||
+      (patch.cutRematchAvoidance !== undefined &&
+        patch.cutRematchAvoidance !== tournament.cutRematchAvoidance) ||
+      (patch.legendTiebreak !== undefined && patch.legendTiebreak !== tournament.legendTiebreak) ||
+      (patch.groupsSelfPaced !== undefined && patch.groupsSelfPaced !== tournament.groupsSelfPaced);
     if (
-      (pairingChanging || matchFormatChanging || playModeChanging) &&
+      (pairingChanging || matchFormatChanging || playModeChanging || formatChanging) &&
       (await repos.tournaments.hasRounds(id))
     ) {
       throw new AppError(
@@ -204,6 +232,11 @@ export const tournamentsRouter = {
       patch.playMode ?? tournament.playMode,
       patch.pairingStyle ?? tournament.pairingStyle,
       patch.regionsEnabled ?? tournament.regionsEnabled,
+    );
+    assertGroupCutCompatible(
+      patch.format ?? tournament.format,
+      patch.pairingStyle ?? tournament.pairingStyle,
+      patch.playMode ?? tournament.playMode,
     );
     // Validate the merged schedule: a patch may touch only one of the three
     // instants, so the order check needs the existing row to fill the rest.
@@ -250,6 +283,11 @@ export const tournamentsRouter = {
       winPoints: patch.winPoints,
       drawPoints: patch.drawPoints,
       regionsEnabled: patch.regionsEnabled,
+      format: patch.format,
+      cutSize: patch.cutSize,
+      cutRematchAvoidance: patch.cutRematchAvoidance,
+      legendTiebreak: patch.legendTiebreak,
+      groupsSelfPaced: patch.groupsSelfPaced,
       deckSubmission: patch.deckSubmission,
       submissionsCloseAt:
         patch.submissionsCloseAt === undefined
@@ -445,10 +483,27 @@ export const tournamentsRouter = {
         : requireStaff(repos, tournament, userId));
       await loadParticipant(repos, input.id, input.participantId);
       await assertValidRegion(repos, input.region);
+      if (input.legendCardId !== undefined) {
+        await assertLegendAssignable(repos, tournament, input.legendCardId);
+      }
+      if (input.seed !== undefined && isGroupCut(tournament)) {
+        const cutRound = await repos.podTournaments.findRoundByNumber(
+          tournament.id,
+          GROUP_STAGE_ROUNDS + 1,
+        );
+        if (cutRound) {
+          throw new AppError(
+            409,
+            ERROR_CODES.CONFLICT,
+            "Seeds were locked when the cut was generated",
+          );
+        }
+      }
       await repos.tournaments.updateParticipant(input.participantId, {
         displayName: input.displayName,
         seed: input.seed,
         region: input.region,
+        legendCardId: input.legendCardId,
         fixedTable: input.fixedTable,
       });
       return buildParticipantList(repos, input.id);
@@ -477,6 +532,7 @@ export const tournamentsRouter = {
           });
         }
       }
+      await reportGroupStageWalkovers(repos, tournament, input.participantId);
       return buildParticipantList(repos, input.id);
     },
   ),
@@ -680,7 +736,44 @@ export const tournamentsRouter = {
       const userId = context.userId;
       const tournament = await loadTournament(repos, input.id);
       await requireManage(repos, tournament, userId);
-      await pairNextRound(repos, tournament, input.byes);
+      await (isGroupCut(tournament)
+        ? generateGroupCutRound(repos, tournament)
+        : pairNextRound(repos, tournament, input.byes));
+      return podRunDetailById(repos, input.id);
+    },
+  ),
+
+  startGroupRound: os.startGroupRound.handler(
+    async ({ input, context }): Promise<PodTournamentDetailResponse> => {
+      const repos = context.repos;
+      const userId = context.userId;
+      const tournament = await loadTournament(repos, input.id);
+      await requireStaff(repos, tournament, userId);
+      assertGroupCutRun(tournament);
+      await startGroupRoundEngine(repos, tournament, input.groupId);
+      return podRunDetailById(repos, input.id);
+    },
+  ),
+
+  startGroupStageRound: os.startGroupStageRound.handler(
+    async ({ input, context }): Promise<PodTournamentDetailResponse> => {
+      const repos = context.repos;
+      const userId = context.userId;
+      const tournament = await loadTournament(repos, input.id);
+      await requireManage(repos, tournament, userId);
+      assertGroupCutRun(tournament);
+      await startGroupStageRoundEngine(repos, tournament);
+      return podRunDetailById(repos, input.id);
+    },
+  ),
+
+  setLegendMetaShares: os.setLegendMetaShares.handler(
+    async ({ input, context }): Promise<PodTournamentDetailResponse> => {
+      const repos = context.repos;
+      const userId = context.userId;
+      const tournament = await loadTournament(repos, input.id);
+      await requireManage(repos, tournament, userId);
+      await setLegendMetaShares(repos, tournament, input.shares);
       return podRunDetailById(repos, input.id);
     },
   ),
@@ -691,6 +784,7 @@ export const tournamentsRouter = {
       const userId = context.userId;
       const tournament = await loadTournament(repos, input.id);
       await requireManage(repos, tournament, userId);
+      assertCutRoundEditable(tournament, input.roundNumber);
       await replaceRoundPairing(repos, tournament, input.roundNumber, input.pods, input.byes);
       return podRunDetailById(repos, input.id);
     },
@@ -702,7 +796,9 @@ export const tournamentsRouter = {
       const userId = context.userId;
       const tournament = await loadTournament(repos, input.id);
       await requireManage(repos, tournament, userId);
-      await rerollRoundEngine(repos, tournament, input.roundNumber);
+      await (isGroupCut(tournament)
+        ? rerollGroupCutRound(repos, tournament, input.roundNumber)
+        : rerollRoundEngine(repos, tournament, input.roundNumber));
       return podRunDetailById(repos, input.id);
     },
   ),
@@ -713,7 +809,9 @@ export const tournamentsRouter = {
       const userId = context.userId;
       const tournament = await loadTournament(repos, input.id);
       await requireManage(repos, tournament, userId);
+      assertCutRoundEditable(tournament, input.roundNumber);
       await finalizeRoundEngine(repos, tournament, input.roundNumber);
+      await completeAfterFinal(repos, tournament, input.roundNumber);
       return podRunDetailById(repos, input.id);
     },
   ),

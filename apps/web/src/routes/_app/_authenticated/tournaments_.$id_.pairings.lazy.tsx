@@ -13,7 +13,7 @@ function TournamentPairingsRoute() {
     <TournamentSectionFrame
       id={id}
       section="pairings"
-      render={() => <TournamentPairingsTab id={id} />}
+      render={(detail) => <TournamentPairingsTab id={id} detail={detail} />}
     />
   );
 }

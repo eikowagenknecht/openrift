@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 9Upfex8hKsVRC7aYEL76cSVxaTf8IC6tugxPyrejQjYX1LgheZnabg9CQ4jpjYI
+\restrict HNjHQEGNMlkbqCvhGXcS1chdwfMZQJjCy4mqeXdO4tEPiEf381M8gXV88eb5WM9
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -3446,6 +3446,31 @@ CREATE TABLE public.topdeck_events (
 
 
 --
+-- Name: tournament_groups; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.tournament_groups (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    tournament_id uuid NOT NULL,
+    label text NOT NULL,
+    paired_group_id uuid,
+    CONSTRAINT chk_tournament_groups_label CHECK ((label <> ''::text))
+);
+
+
+--
+-- Name: tournament_legend_meta_shares; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.tournament_legend_meta_shares (
+    tournament_id uuid NOT NULL,
+    legend_card_id uuid NOT NULL,
+    share numeric(6,3) NOT NULL,
+    CONSTRAINT chk_tournament_legend_meta_shares_share CHECK (((share >= (0)::numeric) AND (share <= (100)::numeric)))
+);
+
+
+--
 -- Name: tournament_participants; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -3467,8 +3492,12 @@ CREATE TABLE public.tournament_participants (
     region text,
     fixed_table integer,
     team_id uuid,
+    group_id uuid,
+    group_slot integer,
+    legend_card_id uuid,
     CONSTRAINT chk_tournament_participants_claim_source CHECK (((claim_source IS NULL) OR (claim_source = ANY (ARRAY['judge_manual'::text, 'self_submit'::text, 'claim_link'::text])))),
     CONSTRAINT chk_tournament_participants_fixed_table CHECK (((fixed_table IS NULL) OR ((fixed_table >= 1) AND (fixed_table <= 999)))),
+    CONSTRAINT chk_tournament_participants_group_slot CHECK (((group_slot IS NULL) OR ((group_slot >= 0) AND (group_slot <= 3)))),
     CONSTRAINT chk_tournament_participants_name CHECK (((length(display_name) >= 1) AND (length(display_name) <= 120))),
     CONSTRAINT chk_tournament_participants_region CHECK (((region IS NULL) OR ((char_length(region) >= 1) AND (char_length(region) <= 50)))),
     CONSTRAINT chk_tournament_participants_riot_id CHECK (((riot_id IS NULL) OR (length(riot_id) <= 120))),
@@ -3537,11 +3566,19 @@ CREATE TABLE public.tournaments (
     draw_points integer DEFAULT 1 NOT NULL,
     regions_enabled boolean DEFAULT false NOT NULL,
     play_mode text DEFAULT '1v1'::text NOT NULL,
+    format text DEFAULT 'rounds'::text NOT NULL,
+    cut_size integer DEFAULT 8 NOT NULL,
+    cut_rematch_avoidance boolean DEFAULT false NOT NULL,
+    legend_tiebreak boolean DEFAULT false NOT NULL,
+    groups_self_paced boolean DEFAULT true NOT NULL,
     CONSTRAINT chk_tournaments_allowed_sets_shape CHECK (((allowed_sets IS NULL) OR (jsonb_typeof(allowed_sets) = 'array'::text))),
     CONSTRAINT chk_tournaments_bye_points CHECK ((bye_points >= 0)),
+    CONSTRAINT chk_tournaments_cut_size CHECK ((cut_size = ANY (ARRAY[4, 8, 16]))),
     CONSTRAINT chk_tournaments_deck_phase CHECK ((deck_phase = ANY (ARRAY['open'::text, 'closed'::text, 'locked'::text]))),
     CONSTRAINT chk_tournaments_deck_submission CHECK ((deck_submission = ANY (ARRAY['none'::text, 'optional'::text, 'required'::text]))),
     CONSTRAINT chk_tournaments_draw_points CHECK ((draw_points >= 0)),
+    CONSTRAINT chk_tournaments_format CHECK ((format = ANY (ARRAY['rounds'::text, 'group_cut'::text]))),
+    CONSTRAINT chk_tournaments_group_cut CHECK (((format = 'rounds'::text) OR ((pairing_style = 'swiss'::text) AND (play_mode = '1v1'::text)))),
     CONSTRAINT chk_tournaments_host CHECK ((((host_type = 'user'::text) AND (host_org_id IS NULL)) OR ((host_type = 'organization'::text) AND (host_user_id IS NULL)))),
     CONSTRAINT chk_tournaments_list_lock_mode CHECK ((list_lock_mode = ANY (ARRAY['on_submit'::text, 'at_deadline'::text]))),
     CONSTRAINT chk_tournaments_match_format CHECK ((match_format = ANY (ARRAY['bo1'::text, 'bo3'::text]))),
@@ -5129,6 +5166,30 @@ ALTER TABLE ONLY public.topdeck_events
 
 
 --
+-- Name: tournament_groups tournament_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournament_groups
+    ADD CONSTRAINT tournament_groups_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: tournament_groups tournament_groups_tournament_id_label_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournament_groups
+    ADD CONSTRAINT tournament_groups_tournament_id_label_key UNIQUE (tournament_id, label);
+
+
+--
+-- Name: tournament_legend_meta_shares tournament_legend_meta_shares_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournament_legend_meta_shares
+    ADD CONSTRAINT tournament_legend_meta_shares_pkey PRIMARY KEY (tournament_id, legend_card_id);
+
+
+--
 -- Name: tournament_participants tournament_participants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6395,6 +6456,13 @@ CREATE INDEX idx_topdeck_events_format ON public.topdeck_events USING btree (for
 --
 
 CREATE INDEX idx_topdeck_events_start ON public.topdeck_events USING btree (start_at);
+
+
+--
+-- Name: idx_tournament_groups_tournament; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tournament_groups_tournament ON public.tournament_groups USING btree (tournament_id);
 
 
 --
@@ -9129,6 +9197,54 @@ ALTER TABLE ONLY public.topdeck_event_standings
 
 
 --
+-- Name: tournament_groups tournament_groups_paired_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournament_groups
+    ADD CONSTRAINT tournament_groups_paired_group_id_fkey FOREIGN KEY (paired_group_id) REFERENCES public.tournament_groups(id) ON DELETE CASCADE;
+
+
+--
+-- Name: tournament_groups tournament_groups_tournament_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournament_groups
+    ADD CONSTRAINT tournament_groups_tournament_id_fkey FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE;
+
+
+--
+-- Name: tournament_legend_meta_shares tournament_legend_meta_shares_legend_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournament_legend_meta_shares
+    ADD CONSTRAINT tournament_legend_meta_shares_legend_card_id_fkey FOREIGN KEY (legend_card_id) REFERENCES public.cards(id) ON DELETE CASCADE;
+
+
+--
+-- Name: tournament_legend_meta_shares tournament_legend_meta_shares_tournament_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournament_legend_meta_shares
+    ADD CONSTRAINT tournament_legend_meta_shares_tournament_id_fkey FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE;
+
+
+--
+-- Name: tournament_participants tournament_participants_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournament_participants
+    ADD CONSTRAINT tournament_participants_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.tournament_groups(id) ON DELETE SET NULL;
+
+
+--
+-- Name: tournament_participants tournament_participants_legend_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tournament_participants
+    ADD CONSTRAINT tournament_participants_legend_card_id_fkey FOREIGN KEY (legend_card_id) REFERENCES public.cards(id) ON DELETE SET NULL;
+
+
+--
 -- Name: tournament_participants tournament_participants_team_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9340,5 +9456,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 9Upfex8hKsVRC7aYEL76cSVxaTf8IC6tugxPyrejQjYX1LgheZnabg9CQ4jpjYI
+\unrestrict HNjHQEGNMlkbqCvhGXcS1chdwfMZQJjCy4mqeXdO4tEPiEf381M8gXV88eb5WM9
 

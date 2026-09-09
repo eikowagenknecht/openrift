@@ -12,6 +12,7 @@ import {
 } from "@/features/tournaments/hooks/use-tournament-run";
 
 import { GenerateRoundControls } from "./generate-round-controls";
+import { GroupCutPairingsSection } from "./group-cut-pairings-section";
 import { PairingsView } from "./pairings-view";
 import { PodPairingEditor } from "./pod-pairing-editor";
 import { CompletedRoundsBand, OpenRoundBand } from "./round-state-band";
@@ -19,10 +20,12 @@ import { CompletedRoundsBand, OpenRoundBand } from "./round-state-band";
 export function PodPairingsSection({
   id,
   data,
+  staff = false,
   regionLabel,
 }: {
   id: string;
   data: PodTournamentDetailResponse;
+  staff?: boolean;
   regionLabel?: (slug: string) => string;
 }) {
   const rerollRound = useRerollTournamentRound();
@@ -31,6 +34,7 @@ export function PodPairingsSection({
   const [editingRound, setEditingRound] = useState<number | null>(null);
   const [warningsExpanded, setWarningsExpanded] = useState(true);
 
+  const groupCut = data.tournament.format === "group_cut";
   const isSwiss = data.tournament.pairingStyle === "swiss";
   const teamMode = data.tournament.playMode === "2v2";
   const regionByPlayer = data.tournament.regionsEnabled
@@ -70,6 +74,10 @@ export function PodPairingsSection({
   const shownRounds = editing
     ? data.rounds.filter((round) => round.status === "finalized")
     : data.rounds;
+
+  if (groupCut) {
+    return <GroupCutPairingsSection id={id} data={data} staff={staff} />;
+  }
 
   return (
     <div className="flex flex-col gap-4">

@@ -1,5 +1,6 @@
 import { ERROR_CODES } from "@openrift/shared/error-codes";
 import type {
+  TournamentFormat,
   TournamentPairingStyle,
   TournamentPlayMode,
   TournamentStatus,
@@ -60,6 +61,24 @@ export function assertPlayModeCompatible(
   }
 }
 
+// Mirrors chk_tournaments_group_cut: the format runs on size-2 pods only.
+export function assertGroupCutCompatible(
+  format: TournamentFormat,
+  pairingStyle: TournamentPairingStyle,
+  playMode: TournamentPlayMode,
+): void {
+  if (format !== "group_cut") {
+    return;
+  }
+  if (pairingStyle !== "swiss" || playMode !== "1v1") {
+    throw new AppError(
+      422,
+      ERROR_CODES.VALIDATION_ERROR,
+      "A group stage with a top cut pairs 1v1 Swiss matches",
+    );
+  }
+}
+
 /** `cancelled` is also blocked upstream by the cannot-edit-cancelled guard. */
 const ALLOWED_STATUS_TRANSITIONS: Record<TournamentStatus, readonly TournamentStatus[]> = {
   setup: ["setup", "running", "completed", "cancelled"],
@@ -88,6 +107,30 @@ export function assertParticipantsOpen(tournament: Tournament): void {
       ERROR_CODES.CONFLICT,
       "Participants cannot be added to a completed or cancelled tournament",
     );
+  }
+}
+
+export async function assertLegendAssignable(
+  repos: Repos,
+  tournament: Tournament,
+  legendCardId: string | null,
+): Promise<void> {
+  if (tournament.format === "group_cut") {
+    const groups = await repos.tournamentGroups.listGroups(tournament.id);
+    if (groups.length > 0) {
+      throw new AppError(
+        409,
+        ERROR_CODES.CONFLICT,
+        "The Legend can't change once the groups are generated",
+      );
+    }
+  }
+  if (legendCardId === null) {
+    return;
+  }
+  const names = await repos.tournamentGroups.legendCardNames([legendCardId]);
+  if (!names.has(legendCardId)) {
+    throw new AppError(400, ERROR_CODES.BAD_REQUEST, "That card is not a Legend");
   }
 }
 

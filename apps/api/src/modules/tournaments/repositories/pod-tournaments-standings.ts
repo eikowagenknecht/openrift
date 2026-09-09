@@ -45,7 +45,7 @@ interface FinalizedMemberRow {
 // A stable pseudo-random key per player id, used as the final standings
 // tie-breaker so fully-tied players get an arbitrary but consistent order instead
 // of reshuffling on every read. Math.imul keeps each step within a 32-bit int.
-function tieBreakKey(id: string): number {
+export function tieBreakKey(id: string): number {
   let hash = 0;
   for (let index = 0; index < id.length; index++) {
     hash = Math.imul(hash, 31) + (id.codePointAt(index) ?? 0);

@@ -1,5 +1,11 @@
 import type { podReportResponseSchema } from "@openrift/shared/contracts/public-pod-tournaments";
 import type {
+  groupCutTierSchema,
+  groupQualificationRowSchema,
+  groupStageGroupSchema,
+  groupStageViewSchema,
+  groupStandingRowSchema,
+  legendMetaShareSchema,
   podByeResponseSchema,
   podMemberResponseSchema,
   podPenaltyViewSchema,
@@ -66,3 +72,10 @@ export type PodTournamentDetailResponse = z.infer<typeof podTournamentDetailResp
 export type PodReportResponse = z.infer<typeof podReportResponseSchema>;
 
 export type PodReportTokenResponse = z.infer<typeof podReportTokenResponseSchema>;
+
+export type GroupCutTierView = z.infer<typeof groupCutTierSchema>;
+export type GroupStandingRowView = z.infer<typeof groupStandingRowSchema>;
+export type GroupStageGroupView = z.infer<typeof groupStageGroupSchema>;
+export type GroupQualificationRowView = z.infer<typeof groupQualificationRowSchema>;
+export type GroupStageView = z.infer<typeof groupStageViewSchema>;
+export type LegendMetaShareView = z.infer<typeof legendMetaShareSchema>;

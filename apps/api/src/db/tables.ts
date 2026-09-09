@@ -163,6 +163,8 @@ import type {
   PodMembersTable,
   PodRoundsTable,
   PodsTable,
+  TournamentGroupsTable,
+  TournamentLegendMetaSharesTable,
   TournamentParticipantsTable,
   TournamentStaffTable,
   TournamentTeamsTable,
@@ -282,6 +284,8 @@ export interface Database {
   tournamentStaff: TournamentStaffTable;
   tournamentParticipants: TournamentParticipantsTable;
   tournamentTeams: TournamentTeamsTable;
+  tournamentGroups: TournamentGroupsTable;
+  tournamentLegendMetaShares: TournamentLegendMetaSharesTable;
   podRounds: PodRoundsTable;
   pods: PodsTable;
   podMembers: PodMembersTable;

@@ -1,7 +1,9 @@
+import type { CutSize } from "@openrift/shared/pairing/group-cut-types";
 import type { PodScoringScheme } from "@openrift/shared/types/api/pod-tournament";
 import type {
   TournamentDeckPhase,
   TournamentDeckSubmission,
+  TournamentFormat,
   TournamentHostType,
   TournamentListLockMode,
   TournamentMatchFormat,
@@ -34,6 +36,11 @@ export interface NewTournament {
   winPoints?: number;
   drawPoints?: number;
   regionsEnabled?: boolean;
+  format?: TournamentFormat;
+  cutSize?: CutSize;
+  cutRematchAvoidance?: boolean;
+  legendTiebreak?: boolean;
+  groupsSelfPaced?: boolean;
   deckSubmission: TournamentDeckSubmission;
   deckPhase?: TournamentDeckPhase;
   submissionsCloseAt?: Date | null;
@@ -65,6 +72,11 @@ export interface TournamentPatch {
   winPoints?: number;
   drawPoints?: number;
   regionsEnabled?: boolean;
+  format?: TournamentFormat;
+  cutSize?: CutSize;
+  cutRematchAvoidance?: boolean;
+  legendTiebreak?: boolean;
+  groupsSelfPaced?: boolean;
   deckSubmission?: TournamentDeckSubmission;
   deckPhase?: TournamentDeckPhase;
   submissionsCloseAt?: Date | null;

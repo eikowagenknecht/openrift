@@ -25,6 +25,8 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useFriendGroups } from "@/features/groups/hooks/use-friend-groups";
+import type { GroupCutSettings } from "@/features/tournaments/components/group-cut-settings-fields";
+import { GroupCutSettingsFields } from "@/features/tournaments/components/group-cut-settings-fields";
 import { useMyOrganizations } from "@/features/tournaments/hooks/use-organizations";
 import { useCreateTournament } from "@/features/tournaments/hooks/use-tournament-mutations";
 import type { TournamentRoundsChoice } from "@/features/tournaments/lib/tournament-display";
@@ -32,6 +34,7 @@ import {
   combineLocalDateTimeToUtc,
   DECK_SUBMISSION_ITEMS,
   hasPairing,
+  isGroupCutChoice,
   localTimeZoneLabel,
   pairingFromRoundsChoice,
   parseScheduleInput,
@@ -65,6 +68,12 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
   const [drawPointsText, setDrawPointsText] = useState("1");
   const [byePointsText, setByePointsText] = useState("3");
   const [regionsEnabled, setRegionsEnabled] = useState(false);
+  const [groupCut, setGroupCut] = useState<GroupCutSettings>({
+    cutSize: 8,
+    groupsSelfPaced: true,
+    cutRematchAvoidance: false,
+    legendTiebreak: false,
+  });
   const [deckSubmission, setDeckSubmission] = useState<TournamentDeckSubmission>(
     hasInitialGroup ? "required" : "none",
   );
@@ -100,22 +109,34 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
 
   const tzLabel = localTimeZoneLabel();
   const wantsDeck = deckSubmission !== "none";
-  const { pairingStyle, matchFormat } = pairingsEnabled
+  const { pairingStyle, matchFormat, format } = pairingsEnabled
     ? pairingFromRoundsChoice(roundsChoice)
-    : { pairingStyle: "none" as const, matchFormat: "bo1" as const };
+    : { pairingStyle: "none" as const, matchFormat: "bo1" as const, format: "rounds" as const };
   const runsRounds = hasPairing(pairingStyle);
   const isSwiss = pairingStyle === "swiss";
+  const isGroupCut = format === "group_cut";
   const isTeams = playMode === "2v2";
   // 2v2 pairs team Swiss: free-for-all pods don't compose with fixed teams,
   // and the region layer isn't team-aware yet.
-  const roundsItems = isTeams
-    ? ROUNDS_CHOICE_ITEMS.filter((item) => item.value !== "pod")
-    : ROUNDS_CHOICE_ITEMS;
+  const roundsItems = ROUNDS_CHOICE_ITEMS.filter(
+    (item) => !isTeams || (item.value !== "pod" && !isGroupCutChoice(item.value)),
+  );
+  const playModeItems = isGroupCut
+    ? PLAY_MODE_ITEMS.filter((item) => item.value === "1v1")
+    : PLAY_MODE_ITEMS;
 
   function handlePlayModeChange(value: TournamentPlayMode) {
     setPlayMode(value);
-    if (value === "2v2" && roundsChoice === "pod") {
+    if (value === "2v2" && (roundsChoice === "pod" || isGroupCutChoice(roundsChoice))) {
       setRoundsChoice("swiss-bo1");
+    }
+  }
+
+  function handleRoundsChoiceChange(value: TournamentRoundsChoice) {
+    setRoundsChoice(value);
+    if (isGroupCutChoice(value)) {
+      setPlayMode("1v1");
+      setRegionsEnabled(false);
     }
   }
   const parsePoints = (text: string): number | null => {
@@ -154,6 +175,11 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
       host,
       pairingStyle,
       playMode,
+      format: runsRounds ? format : undefined,
+      cutSize: isGroupCut ? groupCut.cutSize : undefined,
+      groupsSelfPaced: isGroupCut ? groupCut.groupsSelfPaced : undefined,
+      cutRematchAvoidance: isGroupCut ? groupCut.cutRematchAvoidance : undefined,
+      legendTiebreak: isGroupCut ? groupCut.legendTiebreak : undefined,
       matchFormat: isSwiss ? matchFormat : undefined,
       winPoints: isSwiss ? (winPoints ?? undefined) : undefined,
       drawPoints: isSwiss ? (drawPoints ?? undefined) : undefined,
@@ -331,7 +357,7 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
               <div className="flex flex-col gap-1.5">
                 <Label>Play mode</Label>
                 <Select
-                  items={PLAY_MODE_ITEMS}
+                  items={playModeItems}
                   value={playMode}
                   onValueChange={(value) =>
                     value && handlePlayModeChange(value as TournamentPlayMode)
@@ -341,7 +367,7 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
                     <SelectValue placeholder="Play mode" />
                   </SelectTrigger>
                   <SelectContent>
-                    {PLAY_MODE_ITEMS.map((item) => (
+                    {playModeItems.map((item) => (
                       <SelectItem key={item.value} value={item.value}>
                         {item.label}
                       </SelectItem>
@@ -374,7 +400,7 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
                       items={roundsItems}
                       value={roundsChoice}
                       onValueChange={(value) =>
-                        value && setRoundsChoice(value as TournamentRoundsChoice)
+                        value && handleRoundsChoiceChange(value as TournamentRoundsChoice)
                       }
                     >
                       <SelectTrigger className="w-full" aria-label="Rounds">
@@ -449,6 +475,13 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
                     ) : null}
                   </div>
                 </div>
+              ) : null}
+              {isGroupCut ? (
+                <GroupCutSettingsFields
+                  idPrefix="t-new"
+                  value={groupCut}
+                  onChange={(patch) => setGroupCut((current) => ({ ...current, ...patch }))}
+                />
               ) : null}
             </CardContent>
           </Card>
@@ -534,7 +567,7 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
           </Card>
         </SettingsGroup>
 
-        {runsRounds && !isTeams ? (
+        {runsRounds && !isTeams && !isGroupCut ? (
           <SettingsGroup id="custom" title="Custom" collapsible defaultCollapsed>
             <Card>
               <CardHeader>

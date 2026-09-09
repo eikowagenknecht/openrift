@@ -23,6 +23,7 @@ const mockTournamentsRepo = {
 };
 
 const mockPodTournamentsRepo = {
+  listPlayers: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
   computeStandings: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
   loadRounds: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
 };
@@ -56,6 +57,10 @@ const dbTournament = {
   regionsEnabled: false,
   pairingStyle: "pod" as const,
   playMode: "1v1" as const,
+  format: "rounds" as const,
+  cutSize: 8 as const,
+  legendTiebreak: false,
+  groupsSelfPaced: true,
   reportToken: TOKEN,
   followToken: FOLLOW_TOKEN,
 };
@@ -91,6 +96,7 @@ describe("GET /api/v1/pod-tournaments/report/:token", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockSubmitPodResult.mockResolvedValue(undefined);
+    mockPodTournamentsRepo.listPlayers.mockResolvedValue([]);
     mockPodTournamentsRepo.computeStandings.mockResolvedValue([]);
     mockPodTournamentsRepo.loadRounds.mockResolvedValue([]);
   });
@@ -208,6 +214,7 @@ describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/result", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockSubmitPodResult.mockResolvedValue(undefined);
+    mockPodTournamentsRepo.listPlayers.mockResolvedValue([]);
     mockPodTournamentsRepo.computeStandings.mockResolvedValue([]);
     mockPodTournamentsRepo.loadRounds.mockResolvedValue([]);
   });
@@ -291,6 +298,7 @@ describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/players/:playerI
   beforeEach(() => {
     vi.resetAllMocks();
     mockSubmitPodPlayerResult.mockResolvedValue(undefined);
+    mockPodTournamentsRepo.listPlayers.mockResolvedValue([]);
     mockPodTournamentsRepo.computeStandings.mockResolvedValue([]);
     mockPodTournamentsRepo.loadRounds.mockResolvedValue([]);
   });
@@ -391,6 +399,7 @@ describe("pod-tournaments route registration", () => {
     registerRouterForTest(mountedApp, publicPodTournamentsRouter);
 
     mockTournamentsRepo.findByShareToken.mockResolvedValue(dbTournament);
+    mockPodTournamentsRepo.listPlayers.mockResolvedValue([]);
     mockPodTournamentsRepo.computeStandings.mockResolvedValue([]);
     mockPodTournamentsRepo.loadRounds.mockResolvedValue([]);
 

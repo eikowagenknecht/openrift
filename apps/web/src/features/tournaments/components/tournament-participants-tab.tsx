@@ -28,6 +28,8 @@ import {
 import type { StatStripItem } from "@/components/ui/stat-strip";
 import { StatStrip } from "@/components/ui/stat-strip";
 import { SearchInput } from "@/features/cards/components/search-input";
+import type { LegendTarget } from "@/features/tournaments/components/legend-picker-dialog";
+import { LegendPickerDialog } from "@/features/tournaments/components/legend-picker-dialog";
 import { MissingRegionsBand } from "@/features/tournaments/components/missing-regions-band";
 import type {
   ParticipantAction,
@@ -74,6 +76,8 @@ export function TournamentParticipantsTab({
 }) {
   const manage = canManageTournament(detail.myRoles);
   const canAssignRegion = detail.regionsEnabled && canCheckDecks(detail.myRoles);
+  const groupCut = detail.format === "group_cut";
+  const canAssignLegend = groupCut && !detail.hasRounds && canCheckDecks(detail.myRoles);
   const { data } = useTournamentParticipants(id);
   const participants = data.items;
   const updateParticipant = useUpdateParticipant();
@@ -100,6 +104,7 @@ export function TournamentParticipantsTab({
     (ParticipantTarget & { fixedTable: string }) | null
   >(null);
   const [removeTarget, setRemoveTarget] = useState<ParticipantTarget | null>(null);
+  const [legendTarget, setLegendTarget] = useState<LegendTarget | null>(null);
 
   const missingRegionPlayers = participants.filter((participant) =>
     participantMissesRegion(participant, detail.regionsEnabled),
@@ -199,6 +204,11 @@ export function TournamentParticipantsTab({
     setRegionTarget(null);
   }
 
+  async function handleSetLegend(participantId: string, legendCardId: string | null) {
+    await run(() => updateParticipant.mutateAsync({ id, participantId, legendCardId }));
+    setLegendTarget(null);
+  }
+
   async function handleSetFixedTable() {
     if (!fixedTableTarget) {
       return;
@@ -261,12 +271,15 @@ export function TournamentParticipantsTab({
                     regionsEnabled={detail.regionsEnabled}
                     manage={manage}
                     canAssignRegion={canAssignRegion}
+                    canAssignLegend={canAssignLegend}
+                    legendTiebreak={groupCut && detail.legendTiebreak}
                     dimmed={group.dimmed}
                     teammateName={teammateNames.get(participant.id)}
                     deckEntryId={entryByParticipant.get(participant.id)?.id}
                     actionPending={participantAction.isPending}
                     onAction={fireAction}
                     onRename={setRenameTarget}
+                    onSetLegend={setLegendTarget}
                     onSetRegion={setRegionTarget}
                     onSetFixedTable={setFixedTableTarget}
                     onRemove={setRemoveTarget}
@@ -378,6 +391,13 @@ export function TournamentParticipantsTab({
           </DialogForm>
         </DialogContent>
       </Dialog>
+
+      <LegendPickerDialog
+        target={legendTarget}
+        pending={updateParticipant.isPending}
+        onOpenChange={(open) => !open && setLegendTarget(null)}
+        onPick={(participantId, legendCardId) => void handleSetLegend(participantId, legendCardId)}
+      />
 
       <Dialog open={removeTarget !== null} onOpenChange={(open) => !open && setRemoveTarget(null)}>
         <DialogContent>

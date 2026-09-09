@@ -3,6 +3,7 @@ import { effectiveTournamentState } from "@openrift/shared/tournament-lifecycle"
 import type {
   TournamentDeckPhase,
   TournamentDeckSubmission,
+  TournamentFormat,
   TournamentMatchFormat,
   TournamentPairingStyle,
   TournamentParticipantResponse,
@@ -42,20 +43,31 @@ export const MATCH_FORMAT_LABEL: Record<TournamentMatchFormat, string> = {
 };
 
 // "None" is deliberately not an option: the pairings-enable switch owns that state.
-export type TournamentRoundsChoice = "swiss-bo1" | "swiss-bo3" | "pod";
+export type TournamentRoundsChoice =
+  | "swiss-bo1"
+  | "swiss-bo3"
+  | "pod"
+  | "group-cut-bo1"
+  | "group-cut-bo3";
 
 export const ROUNDS_CHOICE_ITEMS: { value: TournamentRoundsChoice; label: string }[] = [
   { value: "swiss-bo1", label: "Swiss - BO1" },
   { value: "swiss-bo3", label: "Swiss - BO3" },
   { value: "pod", label: "FFA" },
+  { value: "group-cut-bo1", label: "Group stage + top cut - BO1" },
+  { value: "group-cut-bo3", label: "Group stage + top cut - BO3" },
 ];
 
 export function roundsChoiceFor(
   pairingStyle: TournamentPairingStyle,
   matchFormat: TournamentMatchFormat,
+  format: TournamentFormat = "rounds",
 ): TournamentRoundsChoice | null {
   if (pairingStyle === "none") {
     return null;
+  }
+  if (format === "group_cut") {
+    return matchFormat === "bo3" ? "group-cut-bo3" : "group-cut-bo1";
   }
   if (pairingStyle === "pod") {
     return "pod";
@@ -66,11 +78,27 @@ export function roundsChoiceFor(
 export function pairingFromRoundsChoice(choice: TournamentRoundsChoice): {
   pairingStyle: TournamentPairingStyle;
   matchFormat: TournamentMatchFormat;
+  format: TournamentFormat;
 } {
   if (choice === "pod") {
-    return { pairingStyle: "pod", matchFormat: "bo1" };
+    return { pairingStyle: "pod", matchFormat: "bo1", format: "rounds" };
   }
-  return { pairingStyle: "swiss", matchFormat: choice === "swiss-bo3" ? "bo3" : "bo1" };
+  if (choice === "group-cut-bo1" || choice === "group-cut-bo3") {
+    return {
+      pairingStyle: "swiss",
+      matchFormat: choice === "group-cut-bo3" ? "bo3" : "bo1",
+      format: "group_cut",
+    };
+  }
+  return {
+    pairingStyle: "swiss",
+    matchFormat: choice === "swiss-bo3" ? "bo3" : "bo1",
+    format: "rounds",
+  };
+}
+
+export function isGroupCutChoice(choice: TournamentRoundsChoice): boolean {
+  return choice === "group-cut-bo1" || choice === "group-cut-bo3";
 }
 
 export function hasPairing(style: TournamentPairingStyle): boolean {

@@ -5,9 +5,11 @@ import { implement } from "@orpc/server";
 import type { Repos } from "../../../deps.js";
 import { requireUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
+import { buildGroupStageBundle } from "../lib/group-cut-builders.js";
 import { scoringOf } from "../lib/pod-scoring.js";
 import { toRoundResponse } from "../lib/pod-tournament-presenters.js";
 import type { Tournament } from "../repositories/tournaments-shared.js";
+import { assertGroupCutRun, startGroupRound } from "../services/group-cut.js";
 import { submitPodPlayerResult, submitPodResult } from "../services/pod-pairing.js";
 
 async function buildReport(
@@ -16,10 +18,13 @@ async function buildReport(
   canSubmit: boolean,
 ): Promise<PodReportResponse> {
   const scoring = scoringOf(tournament);
-  const [standings, roundRows] = await Promise.all([
+  const [players, standings, roundRows] = await Promise.all([
+    repos.podTournaments.listPlayers(tournament.id),
     repos.podTournaments.computeStandings(tournament.id, scoring),
     repos.podTournaments.loadRounds(tournament.id),
   ]);
+  // Meta share values stay in the staff dialog; the report carries the stage only.
+  const { groupStage } = await buildGroupStageBundle(repos, tournament, players, roundRows);
   return {
     tournamentName: tournament.name,
     status: tournament.status,
@@ -32,6 +37,11 @@ async function buildReport(
     winPoints: tournament.winPoints,
     drawPoints: tournament.drawPoints,
     regionsEnabled: tournament.regionsEnabled,
+    format: tournament.format,
+    cutSize: tournament.cutSize,
+    legendTiebreak: tournament.legendTiebreak,
+    groupsSelfPaced: tournament.groupsSelfPaced,
+    groupStage,
     standings,
     rounds: roundRows.map((rows) => {
       const round = toRoundResponse(rows, scoring);
@@ -94,6 +104,25 @@ export const publicPodTournamentsRouter = {
         input.playerId,
         input.gamePoints,
       );
+      return buildReport(repos, tournament, true);
+    },
+  ),
+
+  startGroupRound: os.startGroupRound.handler(
+    async ({ input, context, errors }): Promise<PodReportResponse> => {
+      const repos = context.repos;
+      const tournament = await repos.tournaments.findByShareToken(input.token);
+      if (!tournament || tournament.pairingStyle === "none") {
+        throw errors.NOT_FOUND({ message: "Not found" });
+      }
+      if (tournament.reportToken !== input.token) {
+        throw errors.FORBIDDEN({ message: "This link is follow-only" });
+      }
+      if (!tournament.groupsSelfPaced) {
+        throw errors.FORBIDDEN({ message: "Only staff can start rounds in this tournament" });
+      }
+      assertGroupCutRun(tournament);
+      await startGroupRound(repos, tournament, input.groupId);
       return buildReport(repos, tournament, true);
     },
   ),

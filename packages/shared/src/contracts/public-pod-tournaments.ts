@@ -1,5 +1,7 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+  cutSizeSchema,
+  groupStageViewSchema,
   podMatchFormatSchema,
   podPairingStyleSchema,
   podPlayModeSchema,
@@ -7,6 +9,7 @@ import {
   podScoringSchemeSchema,
   podStandingRowSchema,
   podTournamentStatusSchema,
+  tournamentFormatSchema,
 } from "@openrift/shared/response-schemas";
 import { podResultSchema } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
@@ -27,8 +30,14 @@ export const podReportResponseSchema = z
     winPoints: z.number().int().nonnegative(),
     drawPoints: z.number().int().nonnegative(),
     regionsEnabled: z.boolean(),
+    format: tournamentFormatSchema,
+    cutSize: cutSizeSchema,
+    legendTiebreak: z.boolean(),
+    groupsSelfPaced: z.boolean(),
     standings: z.array(podStandingRowSchema),
     rounds: z.array(podRoundResponseSchema),
+    /** Null unless `format` is `group_cut`. */
+    groupStage: groupStageViewSchema.nullable(),
     canSubmit: z.boolean(),
   })
   .openapi("PodReportResponse");
@@ -79,6 +88,22 @@ export const publicPodTournamentsContract = {
       FORBIDDEN: { message: "This link is follow-only" },
       CONFLICT: { message: "Round already finalized" },
       BAD_REQUEST: { message: "Invalid result data" },
+    })
+    .output(podReportResponseSchema),
+  // Needs the report token, not the follow token, and `groupsSelfPaced`.
+  startGroupRound: oc
+    .route({
+      method: "POST",
+      path: "/api/v1/pod-tournaments/report/{token}/groups/{groupId}/rounds",
+      tags: ["Pod Tournaments"],
+    })
+    .meta({ auth: "public" })
+    .input(z.object({ token: z.string().min(1), groupId: z.uuid() }))
+    .errors({
+      NOT_FOUND: { message: "Not found" },
+      FORBIDDEN: { message: "This link cannot start rounds" },
+      CONFLICT: { message: "The group's current round is not fully reported" },
+      BAD_REQUEST: { message: "Not a group stage tournament" },
     })
     .output(podReportResponseSchema),
 };

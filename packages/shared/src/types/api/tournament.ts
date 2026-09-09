@@ -39,12 +39,15 @@ import type {
   tournamentSummaryResponseSchema,
   tournamentWinnerSchema,
 } from "@openrift/shared/contracts/tournaments";
-import type { TOURNAMENT_STATUSES } from "@openrift/shared/response-schemas";
+import type { TOURNAMENT_FORMATS, TOURNAMENT_STATUSES } from "@openrift/shared/response-schemas";
 import type { z } from "zod";
 
 export type TournamentHostType = z.infer<typeof tournamentHostInfoSchema>["type"];
 
 export type TournamentStatus = (typeof TOURNAMENT_STATUSES)[number];
+
+/** `rounds` = Swiss or pod rounds; `group_cut` = group stage + fixed top cut. */
+export type TournamentFormat = (typeof TOURNAMENT_FORMATS)[number];
 
 /**
  * `none` = no rounds or pairings; `pod` = 3/4-player pod rounds; `swiss` =

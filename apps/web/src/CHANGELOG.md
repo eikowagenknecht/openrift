@@ -6,6 +6,7 @@
 
 - feat(Cards): **Contribute in smaller steps** — the contribute page now asks what you want to add first, and each form opens with just the fields it needs.
 - feat(Cards): **The preview card is the map of the form** — every spot the card shows is marked on the preview, and picking one jumps to the field that fills it.
+- feat(Tournaments): **Group stage with a top cut** — a new format seats players in groups of four for three rounds, lets each group start its own next round, then seeds a fixed Top 4, 8 or 16 bracket from group placement.
 - feat(App): **First-visit guides for lists, tier lists and the Stage** — a dismissable guide on a wishlist or tradelist, the tier list builder and the Stage explains what the page does and how to start, as collections and decks already had.
 - feat(Trades): **See who you could trade with** — the Trades page now has a Could trade section for people you share matching wishlists and tradelists with but haven't traded yet.
 - feat(Cards): **Upload a photo for a missing card image** — the suggest-image page now takes a photo straight from your phone or a file, no image host needed, and shows the rest of your cards without a photo so you can pick the next one.

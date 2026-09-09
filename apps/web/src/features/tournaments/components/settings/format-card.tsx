@@ -10,10 +10,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { GroupCutSettingsFields } from "@/features/tournaments/components/group-cut-settings-fields";
 import { useUpdateTournament } from "@/features/tournaments/hooks/use-tournament-mutations";
 import type { TournamentRoundsChoice } from "@/features/tournaments/lib/tournament-display";
 import {
   hasPairing,
+  isGroupCutChoice,
   MATCH_FORMAT_LABEL,
   PAIRING_STYLE_LABEL,
   PLAY_MODE_ITEMS,
@@ -33,12 +35,14 @@ export function FormatCard({
   const updateTournament = useUpdateTournament();
   const runsRounds = hasPairing(detail.pairingStyle);
   const isSwiss = detail.pairingStyle === "swiss";
-  const roundsChoice = roundsChoiceFor(detail.pairingStyle, detail.matchFormat);
-  // 2v2 pairs team Swiss only; the pod option disappears while it's on.
-  const roundsItems =
-    detail.playMode === "2v2"
-      ? ROUNDS_CHOICE_ITEMS.filter((item) => item.value !== "pod")
-      : ROUNDS_CHOICE_ITEMS;
+  const groupCut = detail.format === "group_cut";
+  const roundsChoice = roundsChoiceFor(detail.pairingStyle, detail.matchFormat, detail.format);
+  const roundsItems = ROUNDS_CHOICE_ITEMS.filter(
+    (item) => detail.playMode !== "2v2" || (item.value !== "pod" && !isGroupCutChoice(item.value)),
+  );
+  const playModeItems = groupCut
+    ? PLAY_MODE_ITEMS.filter((item) => item.value === "1v1")
+    : PLAY_MODE_ITEMS;
 
   return (
     <Card id="pairings" className="scroll-mt-16">
@@ -55,7 +59,7 @@ export function FormatCard({
           <div className="flex flex-col gap-1.5">
             <Label>Play mode</Label>
             <Select
-              items={PLAY_MODE_ITEMS}
+              items={playModeItems}
               value={detail.playMode}
               disabled={locked || updateTournament.isPending}
               onValueChange={(value) => {
@@ -76,7 +80,7 @@ export function FormatCard({
                 <SelectValue placeholder="Play mode" />
               </SelectTrigger>
               <SelectContent>
-                {PLAY_MODE_ITEMS.map((item) => (
+                {playModeItems.map((item) => (
                   <SelectItem key={item.value} value={item.value}>
                     {item.label}
                   </SelectItem>
@@ -123,6 +127,8 @@ export function FormatCard({
                       id: detail.id,
                       pairingStyle: next.pairingStyle,
                       matchFormat: next.pairingStyle === "swiss" ? next.matchFormat : undefined,
+                      format: next.format,
+                      playMode: next.format === "group_cut" ? "1v1" : undefined,
                     }),
                   );
                 }}
@@ -140,9 +146,34 @@ export function FormatCard({
               </Select>
             </div>
           ) : null}
+          {groupCut ? (
+            <div className="basis-full">
+              <GroupCutSettingsFields
+                idPrefix="t-settings"
+                disabled={locked || updateTournament.isPending}
+                value={{
+                  cutSize: detail.cutSize,
+                  groupsSelfPaced: detail.groupsSelfPaced,
+                  cutRematchAvoidance: detail.cutRematchAvoidance,
+                  legendTiebreak: detail.legendTiebreak,
+                }}
+                onChange={(patch) => {
+                  void runReportedMutation(() =>
+                    updateTournament.mutateAsync({ id: detail.id, ...patch }),
+                  );
+                }}
+              />
+            </div>
+          ) : null}
         </CardContent>
       )}
-      {detail.hasRounds && isSwiss ? (
+      {detail.hasRounds && groupCut ? (
+        <CardContent className="text-muted-foreground text-sm">
+          {MATCH_FORMAT_LABEL[detail.matchFormat]}, group stage with a top {detail.cutSize} cut. The
+          format is fixed once the groups have been drawn.
+        </CardContent>
+      ) : null}
+      {detail.hasRounds && isSwiss && !groupCut ? (
         <CardContent className="text-muted-foreground text-sm">
           {MATCH_FORMAT_LABEL[detail.matchFormat]}. The match format is fixed once a round has been
           generated.

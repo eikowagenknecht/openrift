@@ -4,6 +4,7 @@ import { z } from "zod";
 import { ERROR_CODES } from "./error-codes.js";
 import type { ErrorCode } from "./error-codes.js";
 import { isAllowedLinkUrl } from "./link-hosts.js";
+import { GROUP_CUT_TIERS } from "./pairing/group-cut-types.js";
 import {
   META_CREDIT_VISIBILITIES,
   META_ENTRY_STATUSES,
@@ -521,6 +522,19 @@ export const podReportTokenResponseSchema = z
   .object({ reportToken: z.string().nullable() })
   .openapi("PodReportTokenResponse");
 
+export const TOURNAMENT_FORMATS = ["rounds", "group_cut"] as const;
+export const tournamentFormatSchema = z.enum(TOURNAMENT_FORMATS);
+export const cutSizeSchema = z.union([z.literal(4), z.literal(8), z.literal(16)]);
+export const groupCutTierSchema = z.enum(GROUP_CUT_TIERS);
+
+export const groupCutSettingsShape = {
+  format: tournamentFormatSchema,
+  cutSize: cutSizeSchema,
+  cutRematchAvoidance: z.boolean(),
+  legendTiebreak: z.boolean(),
+  groupsSelfPaced: z.boolean(),
+};
+
 export const podTournamentResponseSchema = z
   .object({
     id: z.string(),
@@ -535,11 +549,78 @@ export const podTournamentResponseSchema = z
     winPoints: z.number().int().nonnegative(),
     drawPoints: z.number().int().nonnegative(),
     regionsEnabled: z.boolean(),
+    ...groupCutSettingsShape,
     reportToken: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
   })
   .openapi("PodTournamentResponse");
+
+export const groupStandingRowSchema = z.object({
+  playerId: z.string(),
+  displayName: z.string(),
+  status: podPlayerStatusSchema,
+  legendCardId: z.string().nullable(),
+  legendName: z.string().nullable(),
+  place: z.number().int().positive(),
+  points: z.number(),
+  wins: z.number().int().nonnegative(),
+  losses: z.number().int().nonnegative(),
+  draws: z.number().int().nonnegative(),
+  gamesWon: z.number().int().nonnegative(),
+  gamesPlayed: z.number().int().nonnegative(),
+  gameWinRate: z.number().nullable(),
+  decidedBy: groupCutTierSchema.nullable(),
+});
+
+export const groupStageGroupSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  pairedGroupId: z.string().nullable(),
+  pairedGroupLabel: z.string().nullable(),
+  /** Slot order. */
+  playerIds: z.array(z.string()),
+  /** Group-stage rounds this group has started, 0 to 3. */
+  roundsStarted: z.number().int().min(0).max(3),
+  currentRoundReported: z.boolean(),
+  canStartNextRound: z.boolean(),
+  done: z.boolean(),
+  standings: z.array(groupStandingRowSchema),
+});
+
+export const groupQualificationRowSchema = z.object({
+  playerId: z.string(),
+  displayName: z.string(),
+  groupLabel: z.string(),
+  place: z.number().int().positive(),
+  matchWinRate: z.number(),
+  gameWinRate: z.number().nullable(),
+  decidedBy: groupCutTierSchema.nullable(),
+  /** Locked seed once the cut exists, else the provisional seed or null past the cut size. */
+  seed: z.number().int().positive().nullable(),
+  qualified: z.boolean(),
+});
+
+export const legendMetaShareSchema = z.object({
+  legendCardId: z.string(),
+  legendName: z.string().nullable(),
+  /** Percent. */
+  share: z.number().min(0).max(100),
+});
+
+export const groupStageViewSchema = z
+  .object({
+    groups: z.array(groupStageGroupSchema),
+    ranking: z.array(groupQualificationRowSchema),
+    pendingMetaShares: z.array(
+      z.object({ legendCardId: z.string(), legendName: z.string().nullable() }),
+    ),
+    stageComplete: z.boolean(),
+    cutGenerated: z.boolean(),
+    /** Seeds are locked but the derived ranking no longer agrees with them. */
+    seedsDiverged: z.boolean(),
+  })
+  .openapi("GroupStageView");
 
 export const podPlayerResponseSchema = z
   .object({
@@ -576,6 +657,10 @@ export const podTournamentDetailResponseSchema = z
     standings: z.array(podStandingRowSchema),
     rounds: z.array(podRoundResponseSchema),
     openRoundSnapshot: z.array(podSnapshotPlayerSchema).nullable(),
+    /** Null unless `format` is `group_cut`. */
+    groupStage: groupStageViewSchema.nullable(),
+    /** Organizer-entered values; only the staff dialog shows them. */
+    legendMetaShares: z.array(legendMetaShareSchema),
   })
   .openapi("PodTournamentDetailResponse");
 

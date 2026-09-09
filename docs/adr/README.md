@@ -72,3 +72,4 @@ The MADR documentation is available at <https://adr.github.io/madr/> while gener
 - **[ADR-043](043-zod-mini-on-the-boot-path.md)**: zod/mini on the Boot Path, Classic zod Everywhere Else
 - **[ADR-045](045-borrowed-cards-in-deck-boxes.md)**: Borrowed Cards in Deck Boxes (undecided; placement rows vs. flagged copies)
 - **[ADR-048](048-cardmarket-stock-sync.md)**: Cardmarket Stock Sync through the Browser Extension
+- **[ADR-049](049-group-stage-with-fixed-top-cut.md)**: Group Stage with Fixed Top Cut

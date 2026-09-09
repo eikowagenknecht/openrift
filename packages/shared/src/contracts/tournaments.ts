@@ -1,6 +1,8 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { organizationRoleSchema } from "@openrift/shared/contracts/organizations";
 import {
+  cutSizeSchema,
+  groupCutSettingsShape,
   deckCheckEntryStateSchema,
   deckCheckReviewOutcomeSchema,
   podMatchFormatSchema,
@@ -9,6 +11,7 @@ import {
   podScoringSchemeSchema,
   podTournamentDetailResponseSchema,
   TOURNAMENT_STATUSES,
+  tournamentFormatSchema,
 } from "@openrift/shared/response-schemas";
 import {
   friendGroupSlugParamSchema,
@@ -156,6 +159,7 @@ export const tournamentDetailResponseSchema = tournamentSummaryResponseSchema
     judgeInviteToken: z.string().nullable(),
     staff: z.array(tournamentStaffMemberResponseSchema),
     hasRounds: z.boolean(),
+    ...groupCutSettingsShape,
   })
   .openapi("TournamentDetailResponse");
 
@@ -184,6 +188,9 @@ export const tournamentParticipantResponseSchema = z
     // team identity.
     teamId: z.string().nullable(),
     region: z.string().nullable(),
+    legendCardId: z.string().nullable(),
+    legendName: z.string().nullable(),
+    groupLabel: z.string().nullable(),
     // Soft: steers which table the player's pod lands on, never who they
     // are paired with.
     fixedTable: z.number().int().nullable(),
@@ -220,6 +227,12 @@ export const createTournamentSchema = z.object({
   winPoints: z.number().int().min(0).max(99).optional(),
   drawPoints: z.number().int().min(0).max(99).optional(),
   regionsEnabled: z.boolean().optional(),
+  // group_cut requires pairingStyle 'swiss' and playMode '1v1'.
+  format: tournamentFormatSchema.optional(),
+  cutSize: cutSizeSchema.optional(),
+  cutRematchAvoidance: z.boolean().optional(),
+  legendTiebreak: z.boolean().optional(),
+  groupsSelfPaced: z.boolean().optional(),
   deckSubmission: tournamentDeckSubmissionSchema,
   submissionsCloseAt: isoDateTime.nullable().optional(),
   listLockMode: tournamentListLockModeSchema.optional(),
@@ -251,6 +264,12 @@ export const updateTournamentSchema = z.object({
   winPoints: z.number().int().min(0).max(99).optional(),
   drawPoints: z.number().int().min(0).max(99).optional(),
   regionsEnabled: z.boolean().optional(),
+  // Only honored while the tournament has no rounds yet (409 otherwise).
+  format: tournamentFormatSchema.optional(),
+  cutSize: cutSizeSchema.optional(),
+  cutRematchAvoidance: z.boolean().optional(),
+  legendTiebreak: z.boolean().optional(),
+  groupsSelfPaced: z.boolean().optional(),
   deckSubmission: tournamentDeckSubmissionSchema.optional(),
   submissionsCloseAt: isoDateTime.nullable().optional(),
   listLockMode: tournamentListLockModeSchema.optional(),
@@ -277,6 +296,14 @@ const roundNumberParamSchema = z.object({
   roundNumber: z.coerce.number().int().positive(),
 });
 const podParamSchema = z.object({ id: z.uuid(), podId: z.uuid() });
+const groupParamSchema = z.object({ id: z.uuid(), groupId: z.uuid() });
+
+const legendMetaSharesSchema = z.object({
+  shares: z
+    .array(z.object({ legendCardId: z.string().min(1), share: z.number().min(0).max(100) }))
+    .min(1)
+    .max(64),
+});
 
 /** `byes` lists active players the organizer is manually sitting out this round. */
 const generateRoundSchema = z.object({ byes: z.array(z.uuid()).default([]) });
@@ -412,8 +439,10 @@ export const tournamentsContract = {
       withParams(participantParamSchema, {
         displayName: z.string().min(1).max(120).optional(),
         seed: z.number().int().nullable().optional(),
-        // Judges may patch region alone; other fields stay organizer/host-only.
+        // Judges may patch region and legend alone; other fields stay organizer/host-only.
         region: z.string().min(1).max(50).nullable().optional(),
+        // A Legend card id; frozen once groups exist in a group_cut tournament.
+        legendCardId: z.string().min(1).nullable().optional(),
         fixedTable: z.number().int().min(1).max(999).nullable().optional(),
       }),
     )
@@ -516,6 +545,35 @@ export const tournamentsContract = {
       BAD_REQUEST: { message: "Invalid player count or bye selection" },
     })
     .input(withParams(idParamSchema, generateRoundSchema))
+    .output(podTournamentDetailResponseSchema),
+  // group_cut only; the paired 3-player groups start together.
+  startGroupRound: authedRoute
+    .route({ method: "POST", path: `${BASE}/{id}/groups/{groupId}/rounds`, tags: [TAG] })
+    .errors({
+      NOT_FOUND: { message: "Tournament or group not found" },
+      CONFLICT: { message: "The group's current round is not fully reported" },
+      BAD_REQUEST: { message: "Not a group stage tournament" },
+    })
+    .input(groupParamSchema)
+    .output(podTournamentDetailResponseSchema),
+  // group_cut only, lockstep: every group's current round must be reported.
+  startGroupStageRound: authedRoute
+    .route({ method: "POST", path: `${BASE}/{id}/group-rounds`, tags: [TAG] })
+    .errors({
+      NOT_FOUND: { message: "Tournament not found" },
+      CONFLICT: { message: "A group's current round is not fully reported" },
+      BAD_REQUEST: { message: "Not a group stage tournament" },
+    })
+    .input(idParamSchema)
+    .output(podTournamentDetailResponseSchema),
+  // group_cut only; values are per tournament and replace earlier ones per Legend.
+  setLegendMetaShares: authedRoute
+    .route({ method: "PUT", path: `${BASE}/{id}/legend-meta-shares`, tags: [TAG] })
+    .errors({
+      NOT_FOUND: { message: "Tournament not found" },
+      BAD_REQUEST: { message: "Not a group stage tournament or unknown Legend" },
+    })
+    .input(withParams(idParamSchema, legendMetaSharesSchema))
     .output(podTournamentDetailResponseSchema),
   replacePairing: authedRoute
     .route({ method: "PUT", path: `${BASE}/{id}/rounds/{roundNumber}/pairing`, tags: [TAG] })

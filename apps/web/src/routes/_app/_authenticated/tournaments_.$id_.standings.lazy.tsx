@@ -13,7 +13,7 @@ function TournamentStandingsRoute() {
     <TournamentSectionFrame
       id={id}
       section="standings"
-      render={() => <TournamentStandingsTab id={id} />}
+      render={(detail) => <TournamentStandingsTab id={id} detail={detail} />}
     />
   );
 }

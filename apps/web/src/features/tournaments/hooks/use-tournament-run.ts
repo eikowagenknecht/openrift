@@ -35,6 +35,12 @@ interface PairingPodInput {
   playerIds: string[];
 }
 
+interface LegendMetaShareInput {
+  legendCardId: string;
+  /** Percent, one decimal. */
+  share: number;
+}
+
 const fetchRunState = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .middleware([withCookies])
@@ -101,6 +107,27 @@ const generateRoundFn = createServerFn({ method: "POST" })
     apiOrpcClient(tournamentsContract, context.cookie).generateRound(data),
   );
 
+const startGroupRoundFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string; groupId: string }) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }): Promise<PodTournamentDetailResponse> =>
+    apiOrpcClient(tournamentsContract, context.cookie).startGroupRound(data),
+  );
+
+const startGroupStageRoundFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string }) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }): Promise<PodTournamentDetailResponse> =>
+    apiOrpcClient(tournamentsContract, context.cookie).startGroupStageRound(data),
+  );
+
+const setLegendMetaSharesFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string; shares: LegendMetaShareInput[] }) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }): Promise<PodTournamentDetailResponse> =>
+    apiOrpcClient(tournamentsContract, context.cookie).setLegendMetaShares(data),
+  );
+
 const replacePairingFn = createServerFn({ method: "POST" })
   .validator(
     (input: { id: string; roundNumber: number; pods: PairingPodInput[]; byes: string[] }) => input,
@@ -159,6 +186,12 @@ const submitReportPlayerResultFn = createServerFn({ method: "POST" })
     apiOrpcClient(publicPodTournamentsContract).submitPlayerResult(data),
   );
 
+const startReportGroupRoundFn = createServerFn({ method: "POST" })
+  .validator((input: { token: string; groupId: string }) => input)
+  .handler(({ data }): Promise<PodReportResponse> =>
+    apiOrpcClient(publicPodTournamentsContract).startGroupRound(data),
+  );
+
 const submitReportResultFn = createServerFn({ method: "POST" })
   .validator((input: { token: string; podId: string; results: PodResultEntry[] }) => input)
   .handler(({ data }): Promise<PodReportResponse> =>
@@ -187,6 +220,20 @@ function useRunMutation<TVariables extends { id: string }>(
 export function useGenerateTournamentRound() {
   return useRunMutation<{ id: string; byes?: string[] }>((data) =>
     generateRoundFn({ data: { id: data.id, byes: data.byes ?? [] } }),
+  );
+}
+
+export function useStartGroupRound() {
+  return useRunMutation<{ id: string; groupId: string }>((data) => startGroupRoundFn({ data }));
+}
+
+export function useStartGroupStageRound() {
+  return useRunMutation<{ id: string }>((data) => startGroupStageRoundFn({ data }));
+}
+
+export function useSetLegendMetaShares() {
+  return useRunMutation<{ id: string; shares: LegendMetaShareInput[] }>((data) =>
+    setLegendMetaSharesFn({ data }),
   );
 }
 
@@ -233,6 +280,13 @@ export function useSubmitTournamentReportPlayerResult(token: string) {
     { podId: string; playerId: string; gamePoints: number }
   >({
     mutationFn: (data) => submitReportPlayerResultFn({ data: { token, ...data } }),
+    invalidates: () => [podTournamentsKeys.report(token)],
+  });
+}
+
+export function useStartReportGroupRound(token: string) {
+  return useMutationWithInvalidation<PodReportResponse, { groupId: string }>({
+    mutationFn: (data) => startReportGroupRoundFn({ data: { token, ...data } }),
     invalidates: () => [podTournamentsKeys.report(token)],
   });
 }
