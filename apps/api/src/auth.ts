@@ -1,4 +1,7 @@
 import { apiKey } from "@better-auth/api-key";
+// better-auth 1.7.3 leaks SchemaCheck into betterAuth()'s inferred type. The import
+// makes it nameable for declaration emit. Drop once better-auth re-exports it.
+import type { SchemaCheck as _SchemaCheck } from "@better-auth/core/db/internal";
 import { validateRiotId } from "@openrift/shared/riot-id";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";

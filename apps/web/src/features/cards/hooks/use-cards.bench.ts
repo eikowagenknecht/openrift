@@ -8,7 +8,7 @@ import type {
   CatalogSetResponse,
 } from "@openrift/shared/types/api/catalog";
 import type { Card, Printing } from "@openrift/shared/types/catalog";
-import { bench, describe } from "vitest";
+import { test } from "vitest";
 
 const SET_COUNT = 7;
 const CARD_COUNT = 771;
@@ -135,12 +135,13 @@ function compareByFourAxes(a: Printing, b: Printing): number {
 
 const printings = buildFixture();
 
-describe("printing canonical sort", () => {
-  bench("old: 6-axis comparator over ~3k printings", () => {
-    [...printings].sort(compareByFourAxes);
-  });
-
-  bench("new: canonicalRank integer compare over ~3k printings", () => {
-    [...printings].sort((a, b) => a.canonicalRank - b.canonicalRank);
-  });
+test("printing canonical sort", async ({ bench }) => {
+  await bench.compare(
+    bench("old: 6-axis comparator over ~3k printings", () => {
+      [...printings].sort(compareByFourAxes);
+    }),
+    bench("new: canonicalRank integer compare over ~3k printings", () => {
+      [...printings].sort((a, b) => a.canonicalRank - b.canonicalRank);
+    }),
+  );
 });

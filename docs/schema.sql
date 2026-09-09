@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict Rt081jjImIjoVahWxTYmYdy9IBc3iaPKffWQrab1cIkQtLY075iLgYjEAHyLxkx
+\restrict waV9HrLGybdH5kFlhGKpqDCqgE2rz3UzVaQZOPIMKW71LWaib8m8aQccBReFspZ
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -700,7 +700,7 @@ CREATE TABLE public.accounts (
     password text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    issuer text NOT NULL
+    issuer text
 );
 
 
@@ -6466,13 +6466,6 @@ CREATE UNIQUE INDEX marketplace_products_sku_key ON public.marketplace_products 
 
 
 --
--- Name: uq_accounts_issuer_account; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX uq_accounts_issuer_account ON public.accounts USING btree (issuer, account_id);
-
-
---
 -- Name: uq_accounts_provider_account; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -9227,5 +9220,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Rt081jjImIjoVahWxTYmYdy9IBc3iaPKffWQrab1cIkQtLY075iLgYjEAHyLxkx
+\unrestrict waV9HrLGybdH5kFlhGKpqDCqgE2rz3UzVaQZOPIMKW71LWaib8m8aQccBReFspZ
 

@@ -19,7 +19,7 @@ import {
   lte,
   queryOnce,
 } from "@tanstack/react-db";
-import { bench, describe } from "vitest";
+import { test } from "vitest";
 
 const SET_COUNT = 7;
 const CARD_COUNT = 771;
@@ -194,33 +194,33 @@ function runTanstackQuery(filters: CardFilters) {
   });
 }
 
-describe("filter+sort: current JS path", () => {
-  bench("noop", () => {
-    const f = filterCards(fixture.printings, SCENARIOS.noop);
-    sortCards(f, "name", { sortDir: "asc" });
-  });
-
-  bench("simple", () => {
-    const f = filterCards(fixture.printings, SCENARIOS.simple);
-    sortCards(f, "name", { sortDir: "asc" });
-  });
-
-  bench("complex", () => {
-    const f = filterCards(fixture.printings, SCENARIOS.complex);
-    sortCards(f, "name", { sortDir: "asc" });
-  });
+test("filter+sort: current JS path", async ({ bench }) => {
+  await bench.compare(
+    bench("noop", () => {
+      const f = filterCards(fixture.printings, SCENARIOS.noop);
+      sortCards(f, "name", { sortDir: "asc" });
+    }),
+    bench("simple", () => {
+      const f = filterCards(fixture.printings, SCENARIOS.simple);
+      sortCards(f, "name", { sortDir: "asc" });
+    }),
+    bench("complex", () => {
+      const f = filterCards(fixture.printings, SCENARIOS.complex);
+      sortCards(f, "name", { sortDir: "asc" });
+    }),
+  );
 });
 
-describe("filter+sort: TanStack DB queryOnce path", () => {
-  bench("noop", async () => {
-    await runTanstackQuery(SCENARIOS.noop);
-  });
-
-  bench("simple", async () => {
-    await runTanstackQuery(SCENARIOS.simple);
-  });
-
-  bench("complex", async () => {
-    await runTanstackQuery(SCENARIOS.complex);
-  });
+test("filter+sort: TanStack DB queryOnce path", async ({ bench }) => {
+  await bench.compare(
+    bench("noop", async () => {
+      await runTanstackQuery(SCENARIOS.noop);
+    }),
+    bench("simple", async () => {
+      await runTanstackQuery(SCENARIOS.simple);
+    }),
+    bench("complex", async () => {
+      await runTanstackQuery(SCENARIOS.complex);
+    }),
+  );
 });

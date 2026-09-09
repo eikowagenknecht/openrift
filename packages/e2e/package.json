@@ -11,7 +11,7 @@
   "devDependencies": {
     "@openrift/shared": "workspace:*",
     "@piltoverarchive/riftbound-deck-codes": "1.4.0",
-    "@playwright/test": "1.62.1",
+    "@playwright/test": "1.63.0",
     "postgres": "3.4.9"
   }
 }
