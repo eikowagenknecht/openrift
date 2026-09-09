@@ -1,6 +1,7 @@
 import { ERROR_CODES } from "@openrift/shared/error-codes";
 import { aspectFromQuery, qrFromQuery } from "@openrift/shared/share-image-params";
 import { sentenceCaseSlug } from "@openrift/shared/utils";
+import type { Context } from "hono";
 import { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
 import { bodyLimit } from "hono/body-limit";
@@ -48,13 +49,27 @@ const MAX_RENDER_TEXT_LENGTH = 200;
 const RENDER_MAX_BODY_BYTES = 256 * 1024;
 const RENDERS_PER_MINUTE = 10;
 
+// og:image points crawlers at the GETs below and each render costs ~3s of CPU,
+// above the pool's throughput. An unfurler fetches a given link once.
+const SHARE_IMAGE_RENDERS_PER_MINUTE = 20;
+
 /** `x-real-ip` is trustworthy because nginx overwrites it from the connection
  * address (see docs/deployment.md). */
+const keyByRealIp = (c: Context<{ Variables: Variables }>): string =>
+  c.req.header("x-real-ip") ?? "unknown";
+
 const renderRateLimit = rateLimiter<{ Variables: Variables }>({
   windowMs: 60_000,
   limit: RENDERS_PER_MINUTE,
   standardHeaders: "draft-6",
-  keyGenerator: (c) => c.req.header("x-real-ip") ?? "unknown",
+  keyGenerator: keyByRealIp,
+});
+
+const shareImageRateLimit = rateLimiter<{ Variables: Variables }>({
+  windowMs: 60_000,
+  limit: SHARE_IMAGE_RENDERS_PER_MINUTE,
+  standardHeaders: "draft-6",
+  keyGenerator: keyByRealIp,
 });
 
 // Throwing routes the rejection through `app.onError`, so it answers with the
@@ -99,7 +114,7 @@ function dedupeCards(cards: readonly ShareImageCard[]): ShareImageCard[] {
 }
 
 export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
-  .get("/lists/share/:token/image.png", async (c) => {
+  .get("/lists/share/:token/image.png", shareImageRateLimit, async (c) => {
     const { lists, canonicalPrintings } = c.get("repos");
     const config = c.get("config");
     const token = c.req.param("token");
@@ -128,7 +143,7 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     return pngResponse(png);
   })
 
-  .get("/users/share/:token/image.png", async (c) => {
+  .get("/users/share/:token/image.png", shareImageRateLimit, async (c) => {
     const { userShares, lists, canonicalPrintings } = c.get("repos");
     const config = c.get("config");
     const token = c.req.param("token");
@@ -165,7 +180,7 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     return pngResponse(png);
   })
 
-  .get("/collections/share/:token/image.png", async (c) => {
+  .get("/collections/share/:token/image.png", shareImageRateLimit, async (c) => {
     const { collections, copies } = c.get("repos");
     const config = c.get("config");
     const token = c.req.param("token");
@@ -193,7 +208,7 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     return pngResponse(png);
   })
 
-  .get("/decks/share/:token/image.png", async (c) => {
+  .get("/decks/share/:token/image.png", shareImageRateLimit, async (c) => {
     const repos = c.get("repos");
     const config = c.get("config");
     const token = c.req.param("token");
@@ -236,7 +251,7 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     return pngResponse(png);
   })
 
-  .get("/tier-lists/share/:token/image.png", async (c) => {
+  .get("/tier-lists/share/:token/image.png", shareImageRateLimit, async (c) => {
     const repos = c.get("repos");
     const config = c.get("config");
     const token = c.req.param("token");

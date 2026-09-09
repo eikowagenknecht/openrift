@@ -78,6 +78,15 @@ const app = new Hono<{ Variables: Variables }>()
     throw err;
   });
 
+// The share-image rate limiter's counters live for the whole test file, so each
+// request gets its own key unless a test is deliberately exercising the limit.
+let nextClientId = 0;
+
+function getImage(path: string, realIp?: string) {
+  nextClientId += 1;
+  return app.request(path, { headers: { "x-real-ip": realIp ?? `client-${nextClientId}` } });
+}
+
 const NOW = new Date("2026-04-20T00:00:00Z");
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
 
@@ -146,7 +155,7 @@ describe("GET /api/v1/lists/share/:token/image.png", () => {
       copyEntry("e2", "Jinx, Rebel", 1),
     ]);
 
-    const res = await app.request("/api/v1/lists/share/tok-abc/image.png?v=123");
+    const res = await getImage("/api/v1/lists/share/tok-abc/image.png?v=123");
 
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/png");
@@ -169,7 +178,7 @@ describe("GET /api/v1/lists/share/:token/image.png", () => {
   it("returns 404 for an unknown token and does not render", async () => {
     mockListsRepo.findByShareToken.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/lists/share/nope/image.png");
+    const res = await getImage("/api/v1/lists/share/nope/image.png");
 
     expect(res.status).toBe(404);
     expect(mockListsRepo.entriesWithDetailsAnon).not.toHaveBeenCalled();
@@ -203,7 +212,7 @@ describe("GET /api/v1/lists/share/:token/image.png", () => {
       },
     ]);
 
-    const res = await app.request("/api/v1/lists/share/tok-abc/image.png");
+    const res = await getImage("/api/v1/lists/share/tok-abc/image.png");
 
     expect(res.status).toBe(200);
     expect(mockCanonicalPrintingsRepo.resolvePrintingMetaForRows).toHaveBeenCalledWith([
@@ -220,7 +229,7 @@ describe("GET /api/v1/lists/share/:token/image.png", () => {
     });
     mockListsRepo.entriesWithDetailsAnon.mockResolvedValue([]);
 
-    const res = await app.request("/api/v1/lists/share/tok-abc/image.png");
+    const res = await getImage("/api/v1/lists/share/tok-abc/image.png");
 
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/png");
@@ -235,7 +244,7 @@ describe("GET /api/v1/lists/share/:token/image.png", () => {
     });
     mockListsRepo.entriesWithDetailsAnon.mockResolvedValue([]);
 
-    await app.request("/api/v1/lists/share/tok-abc/image.png");
+    await getImage("/api/v1/lists/share/tok-abc/image.png");
 
     expect(shareJobs()[0]!.options).toEqual({ aspect: "landscape", qr: true });
   });
@@ -248,10 +257,30 @@ describe("GET /api/v1/lists/share/:token/image.png", () => {
     });
     mockListsRepo.entriesWithDetailsAnon.mockResolvedValue([]);
 
-    const res = await app.request("/api/v1/lists/share/tok-abc/image.png?aspect=vertical&qr=0");
+    const res = await getImage("/api/v1/lists/share/tok-abc/image.png?aspect=vertical&qr=0");
 
     expect(res.status).toBe(200);
     expect(shareJobs()[0]!.options).toEqual({ aspect: "vertical", qr: false });
+  });
+
+  it("rate-limits repeated share-image renders from one IP with 429", async () => {
+    mockListsRepo.findByShareToken.mockResolvedValue({
+      list: tradeList,
+      ownerName: "Alice",
+      ownerEmail: "alice@example.test",
+    });
+    mockListsRepo.entriesWithDetailsAnon.mockResolvedValue([]);
+
+    let limited = 0;
+    for (let attempt = 0; attempt < 21; attempt += 1) {
+      const res = await getImage("/api/v1/lists/share/tok-abc/image.png", "10.9.0.1");
+      if (res.status === 429) {
+        limited += 1;
+      }
+    }
+
+    expect(limited).toBe(1);
+    expect(renderMock).toHaveBeenCalledTimes(20);
   });
 });
 
@@ -268,7 +297,7 @@ describe("GET /api/v1/users/share/:token/image.png", () => {
     ]);
     mockListsRepo.entriesWithDetailsAnon.mockResolvedValue([copyEntry("e1", "Teemo, Scout", 1)]);
 
-    const res = await app.request("/api/v1/users/share/tok-bundle/image.png");
+    const res = await getImage("/api/v1/users/share/tok-bundle/image.png");
 
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/png");
@@ -292,7 +321,7 @@ describe("GET /api/v1/users/share/:token/image.png", () => {
     ]);
     mockListsRepo.entriesWithDetailsAnon.mockResolvedValue([copyEntry("e1", "Teemo, Scout", 1)]);
 
-    const res = await app.request(
+    const res = await getImage(
       "/api/v1/users/share/tok-bundle/image.png?aspect=vertical&qr=0&size=hq",
     );
 
@@ -304,7 +333,7 @@ describe("GET /api/v1/users/share/:token/image.png", () => {
   it("returns 404 for an unknown bundle token", async () => {
     mockUserSharesRepo.findOwnerByShareToken.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/users/share/nope/image.png");
+    const res = await getImage("/api/v1/users/share/nope/image.png");
 
     expect(res.status).toBe(404);
     expect(renderMock).not.toHaveBeenCalled();
@@ -326,7 +355,7 @@ describe("GET /api/v1/collections/share/:token/image.png", () => {
       totalDistinct: 14,
     });
 
-    const res = await app.request("/api/v1/collections/share/tok-col/image.png?v=1700-7");
+    const res = await getImage("/api/v1/collections/share/tok-col/image.png?v=1700-7");
 
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/png");
@@ -355,7 +384,7 @@ describe("GET /api/v1/collections/share/:token/image.png", () => {
     });
     mockCopiesRepo.collectionShareImageCards.mockResolvedValue({ cards: [], totalDistinct: 0 });
 
-    const res = await app.request(
+    const res = await getImage(
       "/api/v1/collections/share/tok-col/image.png?aspect=vertical&qr=0&size=hq",
     );
 
@@ -367,7 +396,7 @@ describe("GET /api/v1/collections/share/:token/image.png", () => {
   it("returns 404 for an unknown or private token and does not render", async () => {
     mockCollectionsRepo.findByShareToken.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/collections/share/nope/image.png");
+    const res = await getImage("/api/v1/collections/share/nope/image.png");
 
     expect(res.status).toBe(404);
     expect(mockCopiesRepo.collectionShareImageCards).not.toHaveBeenCalled();
@@ -413,7 +442,7 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
   it("renders a PNG with an immutable cache header and the enriched deck cards", async () => {
     setupDeck();
 
-    const res = await app.request("/api/v1/decks/share/tok-deck/image.png?v=999");
+    const res = await getImage("/api/v1/decks/share/tok-deck/image.png?v=999");
 
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/png");
@@ -454,7 +483,7 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
   it("renders the HQ variant at 2× when size=hq", async () => {
     setupDeck();
 
-    const res = await app.request("/api/v1/decks/share/tok-deck/image.png?v=999&size=hq");
+    const res = await getImage("/api/v1/decks/share/tok-deck/image.png?v=999&size=hq");
 
     expect(res.status).toBe(200);
     expect(deckJobs()[0]!.scale).toBe(2);
@@ -463,7 +492,7 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
   it("renders the landscape canvas by default", async () => {
     setupDeck();
 
-    await app.request("/api/v1/decks/share/tok-deck/image.png?v=999");
+    await getImage("/api/v1/decks/share/tok-deck/image.png?v=999");
 
     expect(deckJobs()[0]!.aspect).toBe("landscape");
   });
@@ -471,7 +500,7 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
   it("renders the vertical canvas when aspect=vertical", async () => {
     setupDeck();
 
-    const res = await app.request("/api/v1/decks/share/tok-deck/image.png?v=999&aspect=vertical");
+    const res = await getImage("/api/v1/decks/share/tok-deck/image.png?v=999&aspect=vertical");
 
     expect(res.status).toBe(200);
     expect(deckJobs()[0]!.aspect).toBe("vertical");
@@ -480,7 +509,7 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
   it("ignores an unrecognized aspect rather than failing the render", async () => {
     setupDeck();
 
-    const res = await app.request("/api/v1/decks/share/tok-deck/image.png?v=999&aspect=square");
+    const res = await getImage("/api/v1/decks/share/tok-deck/image.png?v=999&aspect=square");
 
     expect(res.status).toBe(200);
     expect(deckJobs()[0]!.aspect).toBe("landscape");
@@ -489,7 +518,7 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
   it("passes a share URL for the QR by default", async () => {
     setupDeck();
 
-    await app.request("/api/v1/decks/share/tok-deck/image.png?v=999");
+    await getImage("/api/v1/decks/share/tok-deck/image.png?v=999");
 
     expect(deckJobs()[0]!.input).toMatchObject({
       shareUrl: expect.stringContaining("/decks/share/tok-deck"),
@@ -499,7 +528,7 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
   it("drops the share URL when qr=0, so no code is drawn", async () => {
     setupDeck();
 
-    const res = await app.request("/api/v1/decks/share/tok-deck/image.png?v=999&qr=0");
+    const res = await getImage("/api/v1/decks/share/tok-deck/image.png?v=999&qr=0");
 
     expect(res.status).toBe(200);
     expect(deckJobs()[0]!.input).toMatchObject({ shareUrl: undefined });
@@ -508,7 +537,7 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
   it("keeps the QR for any other qr value", async () => {
     setupDeck();
 
-    await app.request("/api/v1/decks/share/tok-deck/image.png?v=999&qr=1");
+    await getImage("/api/v1/decks/share/tok-deck/image.png?v=999&qr=1");
 
     expect(deckJobs()[0]!.input).toMatchObject({
       shareUrl: expect.stringContaining("/decks/share/tok-deck"),
@@ -518,7 +547,7 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
   it("returns 404 for an unknown deck token and does not render", async () => {
     mockDecksRepo.findByShareToken.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/decks/share/nope/image.png");
+    const res = await getImage("/api/v1/decks/share/nope/image.png");
 
     expect(res.status).toBe(404);
     expect(mockDecksRepo.cardsForDeck).not.toHaveBeenCalled();
@@ -528,7 +557,7 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
   it("leaves the result line out for a deck outside the archive", async () => {
     setupDeck();
 
-    await app.request("/api/v1/decks/share/tok-deck/image.png?v=999");
+    await getImage("/api/v1/decks/share/tok-deck/image.png?v=999");
 
     expect(deckJobs()[0]!.input.resultLine).toBeUndefined();
   });
@@ -584,7 +613,7 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
     it("titles the image with the legend, bylines the player, and states the finish", async () => {
       setupArchivedDeck();
 
-      const res = await app.request("/api/v1/decks/share/tok-deck/image.png?v=999");
+      const res = await getImage("/api/v1/decks/share/tok-deck/image.png?v=999");
 
       expect(res.status).toBe(200);
       expect(mockMetaRepo.contextForDeck).toHaveBeenCalledWith(deck.id);
@@ -598,7 +627,7 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
     it("points the QR at the archive page rather than the deck share link", async () => {
       setupArchivedDeck();
 
-      await app.request("/api/v1/decks/share/tok-deck/image.png?v=999");
+      await getImage("/api/v1/decks/share/tok-deck/image.png?v=999");
 
       expect(deckJobs()[0]!.input.shareUrl).toBe("https://openrift.app/meta/decks/tok-deck");
     });
@@ -606,7 +635,7 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
     it("still drops the QR when qr=0", async () => {
       setupArchivedDeck();
 
-      await app.request("/api/v1/decks/share/tok-deck/image.png?v=999&qr=0");
+      await getImage("/api/v1/decks/share/tok-deck/image.png?v=999&qr=0");
 
       expect(deckJobs()[0]!.input.shareUrl).toBeUndefined();
     });
@@ -620,7 +649,7 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
         { cardId: "card-2", imageId: "img-2" },
       ]);
 
-      await app.request("/api/v1/decks/share/tok-deck/image.png?v=999");
+      await getImage("/api/v1/decks/share/tok-deck/image.png?v=999");
 
       expect(deckJobs()[0]!.input).toMatchObject({ deckName: "adtoll" });
       expect(deckJobs()[0]!.input.ownerName).toBeUndefined();
@@ -636,7 +665,7 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
         eventPlayerCount: null,
       });
 
-      await app.request("/api/v1/decks/share/tok-deck/image.png?v=999");
+      await getImage("/api/v1/decks/share/tok-deck/image.png?v=999");
 
       expect(deckJobs()[0]!.input.resultLine).toBe("1st · Summoner Skirmish Wuhan");
     });

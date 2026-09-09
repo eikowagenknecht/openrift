@@ -45,6 +45,7 @@ import {
   swaggerAssetsRoute,
 } from "./modules/system/routes/public-swagger-assets.js";
 import type { JobScheduler } from "./modules/system/services/job-scheduler.js";
+import { renderPoolStats } from "./modules/system/services/render-pool.js";
 import { mountDeckCheckIngestMiddleware } from "./modules/tournaments/routes/public-deck-check-ingest.js";
 import { mapAuthError } from "./modules/users/lib/better-auth-error.js";
 import { unsubscribeOneClickRoute } from "./modules/users/routes/public-unsubscribe-one-click.js";
@@ -173,7 +174,9 @@ export function createApp(deps: AppDeps) {
   app.use("/api/*", otelRequestMiddleware);
 
   // Registered after otelRequestMiddleware so exemplars carry the active span's trace ID.
-  const { printMetrics, registerMetrics } = createMetricsMiddleware();
+  const { printMetrics, registerMetrics } = createMetricsMiddleware({
+    renderStats: renderPoolStats,
+  });
   app.use("*", registerMetrics);
   app.get("/metrics", printMetrics);
 

@@ -87,6 +87,68 @@ describe("createMetricsMiddleware", () => {
     expect(body).not.toMatch(/# \{traceID=/u);
   });
 
+  it("records the proxy-to-handler delay from x-request-start", async () => {
+    const { registerMetrics, registry } = createMetricsMiddleware({ collectDefaults: false });
+
+    const app = new Hono();
+    app.use("*", registerMetrics);
+    app.get("/api/ping", (c) => c.json({ ok: true }));
+
+    const forwardedAt = (Date.now() - 3000) / 1000;
+    const res = await app.request("/api/ping", {
+      headers: { "x-request-start": String(forwardedAt) },
+    });
+    expect(res.status).toBe(200);
+
+    const body = await registry.metrics();
+    expect(body).toContain('http_upstream_delay_seconds_count{method="GET",route="/api/ping"} 1');
+    // The 3s gap lands above the 2.5s bucket and below the 5s one.
+    expect(body).toContain('http_upstream_delay_seconds_bucket{le="2.5"');
+    expect(body).toMatch(
+      /http_upstream_delay_seconds_bucket\{le="5",method="GET",route="\/api\/ping"\} 1/u,
+    );
+  });
+
+  it("skips the delay metric when the header is absent, unparseable or implausible", async () => {
+    const { registerMetrics, registry } = createMetricsMiddleware({ collectDefaults: false });
+
+    const app = new Hono();
+    app.use("*", registerMetrics);
+    app.get("/api/ping", (c) => c.json({ ok: true }));
+
+    await app.request("/api/ping");
+    await app.request("/api/ping", { headers: { "x-request-start": "not-a-number" } });
+    // A forged header from the future, and one older than any real request.
+    await app.request("/api/ping", {
+      headers: { "x-request-start": String((Date.now() + 60_000) / 1000) },
+    });
+    await app.request("/api/ping", { headers: { "x-request-start": "1" } });
+
+    const body = await registry.metrics();
+    expect(body).not.toMatch(/http_upstream_delay_seconds_count\{[^}]*\} [1-9]/u);
+  });
+
+  it("exposes render pool depth when a stats source is supplied", async () => {
+    const { registry } = createMetricsMiddleware({
+      collectDefaults: false,
+      renderStats: () => ({ queued: 4, active: 2, workers: 2 }),
+    });
+
+    const body = await registry.metrics();
+
+    expect(body).toContain("render_pool_queued 4");
+    expect(body).toContain("render_pool_active 2");
+    expect(body).toContain("render_pool_workers 2");
+  });
+
+  it("omits the render pool gauges when no stats source is supplied", async () => {
+    const { registry } = createMetricsMiddleware({ collectDefaults: false });
+
+    const body = await registry.metrics();
+
+    expect(body).not.toContain("render_pool_queued");
+  });
+
   it("serves /metrics with the OpenMetrics content type", async () => {
     const { registerMetrics, printMetrics } = createMetricsMiddleware({ collectDefaults: false });
 
