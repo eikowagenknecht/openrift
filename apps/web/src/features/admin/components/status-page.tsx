@@ -155,7 +155,11 @@ export function StatusPage() {
             <StatRow label="Printings" value={formatNumber(app.totalPrintings)} />
             <StatRow label="Sets" value={formatNumber(app.totalSets)} />
             <StatRow label="Collections" value={formatNumber(app.totalCollections)} />
-            <StatRow label="Decks" value={formatNumber(app.totalDecks)} />
+            <StatRow label="User decks" value={formatNumber(app.totalUserDecks)} />
+            <StatRow label="Meta event decks" value={formatNumber(app.totalMetaDecks)} />
+            <StatRow label="Wishlists" value={formatNumber(app.totalWishlists)} />
+            <StatRow label="Tradelists" value={formatNumber(app.totalTradelists)} />
+            <StatRow label="Friend groups" value={formatNumber(app.totalFriendGroups)} />
             <StatRow label="Copies" value={formatNumber(app.totalCopies)} />
           </CardContent>
         </Card>

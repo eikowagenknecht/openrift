@@ -12,7 +12,11 @@ export const adminAppStatsSchema = z.object({
   totalPrintings: z.number(),
   totalSets: z.number(),
   totalCollections: z.number(),
-  totalDecks: z.number(),
+  totalUserDecks: z.number(),
+  totalMetaDecks: z.number(),
+  totalWishlists: z.number(),
+  totalTradelists: z.number(),
+  totalFriendGroups: z.number(),
   totalCopies: z.number(),
 });
 

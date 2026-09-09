@@ -1,11 +1,12 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  CopyIcon,
-  DatabaseIcon,
-  GalleryVerticalIcon,
+  HandshakeIcon,
+  HeartIcon,
   LayersIcon,
   SwordsIcon,
+  TrophyIcon,
   UsersIcon,
+  UsersRoundIcon,
 } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,18 +49,19 @@ export function DashboardPage() {
     <div className="space-y-4">
       <AdminPageTopBar title="Dashboard" />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
         <StatTile
           icon={UsersIcon}
           label="Users"
           value={app.totalUsers}
           caption={`+${app.recentSignups7d.toLocaleString()} in 7 days`}
         />
-        <StatTile icon={GalleryVerticalIcon} label="Cards" value={app.totalCards} />
-        <StatTile icon={CopyIcon} label="Printings" value={app.totalPrintings} />
-        <StatTile icon={DatabaseIcon} label="Sets" value={app.totalSets} />
         <StatTile icon={LayersIcon} label="Collections" value={app.totalCollections} />
-        <StatTile icon={SwordsIcon} label="Decks" value={app.totalDecks} />
+        <StatTile icon={SwordsIcon} label="User decks" value={app.totalUserDecks} />
+        <StatTile icon={TrophyIcon} label="Meta event decks" value={app.totalMetaDecks} />
+        <StatTile icon={HeartIcon} label="Wishlists" value={app.totalWishlists} />
+        <StatTile icon={HandshakeIcon} label="Tradelists" value={app.totalTradelists} />
+        <StatTile icon={UsersRoundIcon} label="Friend groups" value={app.totalFriendGroups} />
       </div>
 
       <Card>

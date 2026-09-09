@@ -2,6 +2,7 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../../../db/tables.js";
+import { META_ARCHIVE_USER_ID } from "../../meta/repositories/meta-shared.js";
 
 interface DbStatus {
   status: string;
@@ -18,7 +19,11 @@ interface AppStats {
   totalPrintings: number;
   totalSets: number;
   totalCollections: number;
-  totalDecks: number;
+  totalUserDecks: number;
+  totalMetaDecks: number;
+  totalWishlists: number;
+  totalTradelists: number;
+  totalFriendGroups: number;
   totalCopies: number;
 }
 
@@ -110,15 +115,51 @@ export function statusRepo(db: Kysely<Database>) {
         return row.count;
       };
 
-      const [totalCards, totalPrintings, totalSets, totalCollections, totalDecks, totalCopies] =
-        await Promise.all([
-          countFrom("cards"),
-          countFrom("printings"),
-          countFrom("sets"),
-          countFrom("collections"),
-          countFrom("decks"),
-          countFrom("copies"),
-        ]);
+      const [
+        totalCards,
+        totalPrintings,
+        totalSets,
+        totalCollections,
+        totalFriendGroups,
+        totalCopies,
+        deckCounts,
+        listCounts,
+      ] = await Promise.all([
+        countFrom("cards"),
+        countFrom("printings"),
+        countFrom("sets"),
+        countFrom("collections"),
+        countFrom("friend_groups"),
+        countFrom("copies"),
+        db
+          .selectFrom("decks")
+          .select((eb) => [
+            eb
+              .cast<number>(
+                eb.fn.count("id").filterWhere("userId", "=", META_ARCHIVE_USER_ID),
+                "integer",
+              )
+              .as("meta"),
+            eb
+              .cast<number>(
+                eb.fn.count("id").filterWhere("userId", "!=", META_ARCHIVE_USER_ID),
+                "integer",
+              )
+              .as("user"),
+          ])
+          .executeTakeFirstOrThrow(),
+        db
+          .selectFrom("lists")
+          .select((eb) => [
+            eb
+              .cast<number>(eb.fn.count("id").filterWhere("intent", "=", "wish"), "integer")
+              .as("wish"),
+            eb
+              .cast<number>(eb.fn.count("id").filterWhere("intent", "=", "trade"), "integer")
+              .as("trade"),
+          ])
+          .executeTakeFirstOrThrow(),
+      ]);
 
       return {
         totalUsers: users.total,
@@ -127,7 +168,11 @@ export function statusRepo(db: Kysely<Database>) {
         totalPrintings,
         totalSets,
         totalCollections,
-        totalDecks,
+        totalUserDecks: deckCounts.user,
+        totalMetaDecks: deckCounts.meta,
+        totalWishlists: listCounts.wish,
+        totalTradelists: listCounts.trade,
+        totalFriendGroups,
         totalCopies,
       };
     },

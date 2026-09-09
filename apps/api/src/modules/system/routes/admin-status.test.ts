@@ -44,7 +44,11 @@ const appStats = {
   totalPrintings: 468,
   totalSets: 4,
   totalCollections: 80,
-  totalDecks: 25,
+  totalUserDecks: 25,
+  totalMetaDecks: 12,
+  totalWishlists: 9,
+  totalTradelists: 6,
+  totalFriendGroups: 3,
   totalCopies: 142,
 };
 
