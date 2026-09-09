@@ -1,6 +1,7 @@
 import type {
   META_EVENT_SORTS,
   MetaEventSourceFilter,
+  MetaEventStatus,
   MetaEventTier,
 } from "@openrift/shared/types/enums";
 import type {
@@ -489,6 +490,13 @@ export function metaEventsRepo(db: Kysely<Database>) {
          where m.id = v.id
       `.execute(db);
       return Number(result.numAffectedRows ?? 0n);
+    },
+
+    async setEventLifecycle(
+      id: string,
+      values: { status: MetaEventStatus; sourceCheckedAt: Date | null },
+    ): Promise<void> {
+      await db.updateTable("metaEvents").set(values).where("id", "=", id).execute();
     },
 
     /** The caller has already narrowed the body to real columns via `buildPatchUpdates`. */

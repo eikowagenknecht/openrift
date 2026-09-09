@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict HNjHQEGNMlkbqCvhGXcS1chdwfMZQJjCy4mqeXdO4tEPiEf381M8gXV88eb5WM9
+\restrict hMtLda3FnwfsOfJYBowTVJlKYGemuE7bqopXBLkr4HGDR6Waom355iHhsEOWYCX
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -2472,6 +2472,8 @@ CREATE TABLE public.meta_events (
     tier text DEFAULT 'local'::text NOT NULL,
     country text,
     location text,
+    status text DEFAULT 'complete'::text NOT NULL,
+    source_checked_at timestamp with time zone,
     CONSTRAINT chk_meta_events_country CHECK (((country IS NULL) OR (country ~ '^[A-Z]{2}$'::text))),
     CONSTRAINT chk_meta_events_location CHECK (((location IS NULL) OR ((length(location) >= 1) AND (length(location) <= 500)))),
     CONSTRAINT chk_meta_events_name CHECK (((length(name) >= 1) AND (length(name) <= 120))),
@@ -2479,6 +2481,7 @@ CREATE TABLE public.meta_events (
     CONSTRAINT chk_meta_events_organizer CHECK (((organizer IS NULL) OR ((length(organizer) >= 1) AND (length(organizer) <= 120)))),
     CONSTRAINT chk_meta_events_player_count CHECK (((player_count IS NULL) OR (player_count > 0))),
     CONSTRAINT chk_meta_events_slug CHECK ((slug ~ '^[a-z0-9][a-z0-9-]{2,49}$'::text)),
+    CONSTRAINT chk_meta_events_status CHECK ((status = ANY (ARRAY['upcoming'::text, 'in_progress'::text, 'complete'::text]))),
     CONSTRAINT chk_meta_events_tier CHECK ((tier = ANY (ARRAY['premier'::text, 'competitive'::text, 'local'::text])))
 );
 
@@ -9456,5 +9459,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict HNjHQEGNMlkbqCvhGXcS1chdwfMZQJjCy4mqeXdO4tEPiEf381M8gXV88eb5WM9
+\unrestrict hMtLda3FnwfsOfJYBowTVJlKYGemuE7bqopXBLkr4HGDR6Waom355iHhsEOWYCX
 

@@ -57,6 +57,8 @@ function eventRow(overrides: Record<string, unknown> = {}) {
     tier: "local",
     country: "DE",
     location: "Kartenstraße 1, 10115 Berlin, DE",
+    status: "complete",
+    sourceCheckedAt: null,
     playerRowCount: 0,
     deckCount: 0,
     createdAt: new Date("2026-08-01T00:00:00.000Z"),

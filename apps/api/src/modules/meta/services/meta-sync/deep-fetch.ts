@@ -15,6 +15,7 @@ import { clock, errorText } from "./deps.js";
 import { MAX_PAGE_SIZE, UvsHttpError } from "./uvsgames-client.js";
 
 const MAX_DECK_FETCHES = 400;
+const COMPLETE = "complete";
 const DECK_HEARTBEAT = 25;
 
 export interface MetaDeepFetchResult {
@@ -205,13 +206,16 @@ async function fetchEvent(
     errors,
     "Registrations",
   );
-  const standings = await allPages(
-    deps,
-    `/api/v2/player/events/${id}/tv/standings/`,
-    errors,
-    "Final standings",
-    TV_PAGE_SIZE,
-  );
+  // Mid-event, the round standings carry every rank the tv sheet would, so a
+  // sheet the source withholds until the finals does not block the fetch.
+  const standings =
+    (await allPages(
+      deps,
+      `/api/v2/player/events/${id}/tv/standings/`,
+      errors,
+      "Final standings",
+      TV_PAGE_SIZE,
+    )) ?? (row.displayStatus === COMPLETE ? null : []);
 
   const rounds = completedRounds(detail);
   const roundStandings = await readStandings(deps, standingsRounds(rounds, detail), errors);

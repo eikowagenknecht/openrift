@@ -4,6 +4,7 @@ import type {
   MetaEventPhase,
   MetaEventPlayer,
 } from "@openrift/shared/types/api/meta";
+import type { MetaEventStatus } from "@openrift/shared/types/enums";
 import { SearchIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 
@@ -37,6 +38,7 @@ import {
   standingsColumns,
   subtitleFor,
 } from "@/features/meta/lib/meta-event-standings";
+import { describeEventProgress } from "@/features/meta/lib/meta-event-structure";
 import { metaPlayerRounds } from "@/features/meta/lib/meta-player-run";
 import {
   costMatchesBounds,
@@ -49,12 +51,23 @@ import { useUserId } from "@/lib/auth-session";
 
 type StandingsFilter = "all" | "withList";
 
+function emptyStandingsCopy(status: MetaEventStatus, eventDate: string): string {
+  if (status === "in_progress") {
+    return "This event is under way. Standings appear here once the first round is in the books.";
+  }
+  if (status === "upcoming" || eventDate > todayUtc()) {
+    return "This event has not been played yet. Standings will appear here once it has.";
+  }
+  return "No standings on file for this event yet.";
+}
+
 export function MetaEventStandings({
   players,
   matches,
   phases,
   slug,
   eventDate,
+  status,
 }: {
   players: readonly MetaEventPlayer[];
   matches: readonly MetaEventMatch[];
@@ -62,6 +75,7 @@ export function MetaEventStandings({
   slug: string;
   /** UTC date. */
   eventDate: string;
+  status: MetaEventStatus;
 }) {
   const canSubmit = useUserId() !== null;
   const hydrated = useHydrated();
@@ -82,11 +96,7 @@ export function MetaEventStandings({
         <Heading className="mb-3">Standings</Heading>
         <Empty>
           <EmptyHeader>
-            <EmptyDescription>
-              {eventDate > todayUtc()
-                ? "This event has not been played yet. Standings will appear here once it has."
-                : "No standings on file for this event yet."}
-            </EmptyDescription>
+            <EmptyDescription>{emptyStandingsCopy(status, eventDate)}</EmptyDescription>
           </EmptyHeader>
         </Empty>
       </section>
@@ -140,6 +150,11 @@ export function MetaEventStandings({
         <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <Heading>Standings</Heading>
           <p className="text-muted-foreground text-sm">{subtitleFor(players.length, withLists)}</p>
+          {status === "in_progress" && (
+            <p className="text-warning text-sm">
+              {[describeEventProgress(matches, phases), "provisional"].filter(Boolean).join(" · ")}
+            </p>
+          )}
         </div>
 
         {(withLists > 0 || showSearch || showLegendFilter) && (

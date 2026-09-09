@@ -52,6 +52,18 @@ describe("projectUvsStandings", () => {
     expect(dropped).toBe(2);
   });
 
+  it("ranks a registration by its last finished round while the placement is not final", () => {
+    const { standings, dropped } = projectUvsStandings(
+      raw({
+        registrations: [registration({ final_place_in_standings: null })],
+        roundStandings: [{ rank: 7, match_points: 9, user_event_status: { id: 900 } }],
+      }),
+    );
+
+    expect(dropped).toBe(0);
+    expect(standings[0]).toMatchObject({ registrationId: "900", rank: 7, matchPoints: 9 });
+  });
+
   it("refuses a tv-standings rank when the display name is not unique", () => {
     const { standings, dropped } = projectUvsStandings(
       raw({

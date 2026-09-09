@@ -1,5 +1,9 @@
 import { PLAYLOLTCG_STATUS_FINISHED } from "../../../../lib/meta-providers.js";
-import { DECKLIST_PUBLISHED, nextRecheck } from "../../lib/meta-recheck-schedule.js";
+import {
+  DECKLIST_PUBLISHED,
+  lifecycleStatus,
+  nextRecheck,
+} from "../../lib/meta-recheck-schedule.js";
 import {
   PLAYLOLTCG_STATUS_IN_PROGRESS,
   projectEventRow,
@@ -351,17 +355,27 @@ async function visitPlayloltcgEvent(
   const coverage = await deps.repos.playloltcgResults.deckCoverage(row.activityShopId);
   // isPublishResult means both results and decklists are final: the source
   // publishes them together.
+  const displayStatus = displayStatusOf(detail, row.status);
+  const startAt = startInstant(row.startAt, now);
   const decision = nextRecheck({
     now,
     checkStage: row.checkStage,
-    displayStatus: displayStatusOf(detail, row.status),
-    startAt: startInstant(row.startAt, now),
+    displayStatus,
+    startAt,
     decklistStatus: detail.isPublishResult ? DECKLIST_PUBLISHED : null,
     fetched: row.fetchedAt !== null,
     decksComplete: coverage.outstanding.length === 0,
     playersPending: false,
+    // The source publishes results only with the finished event.
+    newRounds: false,
     watched: false,
   });
+  if (row.metaEventId !== null) {
+    await deps.repos.meta.setEventLifecycle(row.metaEventId, {
+      status: lifecycleStatus({ now, displayStatus, startAt }),
+      sourceCheckedAt: now,
+    });
+  }
   const advance = () =>
     deps.repos.playloltcgEvents.setRecheck(row.activityShopId, {
       nextCheckAt: decision.nextCheckAt,

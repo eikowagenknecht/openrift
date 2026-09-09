@@ -1,4 +1,4 @@
-import type { MetaEventPhase } from "@openrift/shared/types/api/meta";
+import type { MetaEventMatch, MetaEventPhase } from "@openrift/shared/types/api/meta";
 
 import { isSingleElimination } from "@/features/meta/lib/meta-bracket";
 
@@ -69,4 +69,25 @@ export function describeEventStructure(phases: readonly MetaEventPhase[]): MetaE
   const cutSize = cutSizeOf(phases);
   const bestOf = bestOfOf(phases);
   return { swissRounds, cutSize, bestOf, sentence: sentenceFor(swissRounds, cutSize, bestOf) };
+}
+
+/** Null before the first round is in. */
+export function describeEventProgress(
+  matches: readonly MetaEventMatch[],
+  phases: readonly MetaEventPhase[],
+): string | null {
+  if (matches.length === 0) {
+    return null;
+  }
+  const phaseOrder = Math.max(...matches.map((match) => match.phaseOrder));
+  const phase = phases.find((candidate) => candidate.phaseOrder === phaseOrder);
+  if (phase !== undefined && isSingleElimination(phase.roundType)) {
+    const cutSize = cutSizeOf(phases);
+    return cutSize === null ? "Top cut under way" : `Top ${cutSize} under way`;
+  }
+  const played = Math.max(
+    ...matches.filter((match) => match.phaseOrder === phaseOrder).map((match) => match.roundNumber),
+  );
+  const total = phase?.roundCount ?? null;
+  return total === null ? `After round ${played}` : `After round ${played} of ${total}`;
 }

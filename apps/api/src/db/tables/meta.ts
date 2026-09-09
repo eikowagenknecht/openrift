@@ -1,6 +1,7 @@
 import type { MetaEventFieldEdits } from "@openrift/shared/types/api/meta";
 import type {
   MetaEventOverlayField,
+  MetaEventStatus,
   MetaEventTier,
   MetaEntryStatus,
   MetaListStatus,
@@ -34,8 +35,10 @@ export interface MetaEventsTable {
   organizer: string | null;
   notes: string | null;
   tier: ColumnType<MetaEventTier, MetaEventTier | undefined, MetaEventTier>;
+  status: ColumnType<MetaEventStatus, MetaEventStatus | undefined, MetaEventStatus>;
   country: string | null;
   location: string | null;
+  sourceCheckedAt: Date | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

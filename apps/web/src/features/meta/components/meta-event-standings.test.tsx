@@ -3,6 +3,7 @@ import type {
   MetaEventPhase,
   MetaEventPlayer,
 } from "@openrift/shared/types/api/meta";
+import type { MetaEventStatus } from "@openrift/shared/types/enums";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -95,6 +96,7 @@ function renderStandings(
   players: MetaEventPlayer[] = [metaPlayer()],
   eventDate = "2020-01-01",
   rounds: { matches?: MetaEventMatch[]; phases?: MetaEventPhase[] } = {},
+  status: MetaEventStatus = "complete",
 ) {
   render(
     <MetaEventStandings
@@ -102,6 +104,7 @@ function renderStandings(
       matches={rounds.matches ?? []}
       phases={rounds.phases ?? []}
       slug="summoner-skirmish"
+      status={status}
       eventDate={eventDate}
     />,
   );
@@ -214,6 +217,25 @@ describe("MetaEventStandings", () => {
     renderStandings([]);
     expect(screen.getByText("No standings on file for this event yet.")).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("says a running event is under way rather than that results are missing", () => {
+    renderStandings([], "2020-01-01", {}, "in_progress");
+    expect(
+      screen.getByText(
+        "This event is under way. Standings appear here once the first round is in the books.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("marks a running event's standings provisional, with the round they stand after", () => {
+    renderStandings(
+      [metaPlayer()],
+      "2020-01-01",
+      { matches: [metaMatch({ phaseOrder: 1, roundNumber: 2 })], phases: [SWISS] },
+      "in_progress",
+    );
+    expect(screen.getByText(/After round 2 of \d+ · provisional/u)).toBeInTheDocument();
   });
 
   it("says an event still to come has not been played rather than that results are late", () => {

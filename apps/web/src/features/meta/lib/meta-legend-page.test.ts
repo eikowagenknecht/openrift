@@ -92,6 +92,7 @@ function eventSummary(slug: string, overrides: Partial<MetaEventSummary> = {}): 
     eventDate: "2026-08-01",
     format: "constructed",
     tier: "local",
+    status: "complete",
     country: "DE",
     location: null,
     playerCount: 64,

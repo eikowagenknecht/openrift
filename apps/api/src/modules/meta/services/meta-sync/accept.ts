@@ -4,6 +4,7 @@ import { AppError } from "../../../../errors.js";
 import { UVSGAMES_PROVIDER } from "../../../../lib/meta-providers.js";
 import type { MetaAutoAcceptRule, MetaAutoAcceptSettings } from "../../lib/meta-auto-accept.js";
 import { autoAcceptRule } from "../../lib/meta-auto-accept.js";
+import { lifecycleStatus } from "../../lib/meta-recheck-schedule.js";
 import { mapSourceFormat, uvsgamesEventUrl, venueLocalDay } from "../../lib/uvsgames-catalog.js";
 import type { UvsgamesListRow } from "../../repositories/uvsgames-events.js";
 import { promoteNewEvent } from "../meta-promote.js";
@@ -55,6 +56,14 @@ export async function acceptCatalogEvent(
     sourceUrl: uvsgamesEventUrl(row.externalId),
   });
 
+  await deps.repos.meta.setEventLifecycle(promoted.metaEventId, {
+    status: lifecycleStatus({
+      now: clock(deps),
+      displayStatus: row.displayStatus,
+      startAt: row.startAt,
+    }),
+    sourceCheckedAt: row.lastSeenAt,
+  });
   await deps.repos.uvsgamesEvents.setRecheck(row.externalId, {
     nextCheckAt: clock(deps),
     checkStage: 0,

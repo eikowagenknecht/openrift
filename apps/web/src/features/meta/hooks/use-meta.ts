@@ -127,8 +127,12 @@ export function metaEventQueryOptions(slug: string) {
     queryKey: metaKeys.event(slug),
     queryFn: () => fetchMetaEvent({ data: slug }),
     staleTime: 5 * 60 * 1000,
+    refetchInterval: (query) =>
+      query.state.data?.event.status === "in_progress" ? LIVE_EVENT_REFETCH_MS : false,
   });
 }
+
+const LIVE_EVENT_REFETCH_MS = 5 * 60 * 1000;
 
 export function useMetaEvent(slug: string) {
   return useSuspenseQuery(metaEventQueryOptions(slug));

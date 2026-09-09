@@ -1,6 +1,7 @@
 import { UVSGAMES_PROVIDER } from "../../../../lib/meta-providers.js";
-import { nextRecheck } from "../../lib/meta-recheck-schedule.js";
+import { lifecycleStatus, nextRecheck } from "../../lib/meta-recheck-schedule.js";
 import { projectCatalogRow } from "../../lib/uvsgames-catalog.js";
+import { completedRounds } from "../../lib/uvsgames-transform.js";
 import type { UvsgamesListRow } from "../../repositories/uvsgames-events.js";
 import { runCancelRequested, writeRunHeartbeat } from "./crawl-checkpoint.js";
 import { deepFetchEvent } from "./deep-fetch.js";
@@ -125,10 +126,22 @@ async function visit(
     fetched: refreshed.fetched,
     decksComplete: refreshed.decksComplete,
     playersPending: refreshed.playersPending,
+    newRounds: refreshed.newRounds,
     watched:
       refreshed.row.eventConfigurationTemplate !== null &&
       watched.has(refreshed.row.eventConfigurationTemplate),
   });
+
+  if (row.metaEventId !== null) {
+    await deps.repos.meta.setEventLifecycle(row.metaEventId, {
+      status: lifecycleStatus({
+        now,
+        displayStatus: refreshed.displayStatus,
+        startAt: refreshed.startAt,
+      }),
+      sourceCheckedAt: now,
+    });
+  }
 
   if (decision.deepFetch) {
     const fetched = await deepFetchEvent(deps, refreshed.row, runId, refreshed.detail);
@@ -156,6 +169,7 @@ interface RefreshedRow {
   fetched: boolean;
   decksComplete: boolean;
   playersPending: boolean;
+  newRounds: boolean;
 }
 
 async function refreshStatus(
@@ -175,10 +189,12 @@ async function refreshStatus(
   }
   await deps.repos.uvsgamesEvents.upsertBatch([projection], now);
 
-  const [standings, coverage] = await Promise.all([
+  const [standings, coverage, heldRounds] = await Promise.all([
     deps.repos.uvsgamesResults.standings(row.externalId),
     deps.repos.uvsgamesResults.deckCoverage(row.externalId),
+    deps.repos.uvsgamesResults.heldRoundIds(row.externalId),
   ]);
+  const held = new Set(heldRounds);
 
   return {
     row: { ...row, ...projection },
@@ -194,6 +210,7 @@ async function refreshStatus(
     // is still in flight.
     playersPending:
       standings.length > 0 && (await liveLagsMirror(deps, row.externalId, standings.length)),
+    newRounds: completedRounds(detail).some((round) => !held.has(round.roundId)),
   };
 }
 

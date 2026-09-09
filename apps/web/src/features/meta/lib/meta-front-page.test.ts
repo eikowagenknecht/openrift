@@ -23,6 +23,7 @@ function event(overrides: Partial<MetaEventSummary> = {}): MetaEventSummary {
     eventDate: "2026-08-15",
     format: "constructed",
     tier: "local",
+    status: "complete",
     country: "DE",
     location: "Rift Games, Berlin",
     playerCount: 32,

@@ -292,6 +292,24 @@ describe("deepFetchEvent", () => {
     expect(fetchMarks).toEqual([]);
   });
 
+  it("writes a running event's standings even when the source withholds the final sheet", async () => {
+    const { deps, fetchMarks, mirroredStandings } = fakeDeps({
+      source: acceptedSource(),
+      failedPages: ["/tv/standings/:1"],
+      detail: {
+        tournament_phases: [{ rounds: [{ id: 901, status: "complete", round_number: 1 }] }],
+      },
+      registrations: [{ id: "r1", best_identifier: "Ashwalker", final_place_in_standings: null }],
+      roundStandings: () => [{ rank: 3, user_event_status: { id: "r1" } }],
+    });
+
+    const result = await deepFetchEvent(deps, catalogRow({ displayStatus: "inProgress" }));
+
+    expect(mirroredStandings).toMatchObject([{ registrationId: "r1", rank: 3 }]);
+    expect(fetchMarks).toHaveLength(1);
+    expect(result.errors).toHaveLength(1);
+  });
+
   it("reads the outstanding decks after mirroring the standings", async () => {
     const { deps, callOrder } = fakeDeps({
       source: acceptedSource(),

@@ -109,6 +109,7 @@ describe("metaEventCounts", () => {
   const TODAY = "2026-09-01";
   const event = (over: Partial<MetaCountedEvent>): MetaCountedEvent => ({
     eventDate: "2026-08-09",
+    status: "complete",
     playerCount: null,
     playerRowCount: 0,
     deckCount: 0,
@@ -153,6 +154,13 @@ describe("metaEventCounts", () => {
     expect(metaEventCounts(event({}), TODAY)).toEqual(["No results on file"]);
   });
 
+  it("says a running event is in progress while its standings are still to land", () => {
+    expect(metaEventCounts(event({ status: "in_progress", playerCount: 82 }), TODAY)).toEqual([
+      "82 players",
+      "In progress",
+    ]);
+  });
+
   it("keeps a one-player event singular, and its deckless field plural", () => {
     expect(metaEventCounts(event({ playerCount: 1, playerRowCount: 1 }), TODAY)).toEqual([
       "1 player",
@@ -165,6 +173,7 @@ describe("metaEventEmptyStatus", () => {
   const TODAY = "2026-09-01";
   const event = (over: Partial<MetaCountedEvent>): MetaCountedEvent => ({
     eventDate: "2026-08-09",
+    status: "complete",
     playerCount: null,
     playerRowCount: 0,
     deckCount: 0,
@@ -181,6 +190,11 @@ describe("metaEventEmptyStatus", () => {
 
   it("says an event still to come has not been played", () => {
     expect(metaEventEmptyStatus(event({ eventDate: "2026-09-26" }), TODAY)).toBe("Not played yet");
+  });
+
+  it("trusts the source over the date for an event that started early or runs late", () => {
+    expect(metaEventEmptyStatus(event({ status: "in_progress" }), TODAY)).toBe("In progress");
+    expect(metaEventEmptyStatus(event({ status: "upcoming" }), TODAY)).toBe("Not played yet");
   });
 });
 

@@ -1,5 +1,5 @@
 import { enumLabel } from "@openrift/shared/enum-label";
-import { dateLeafPartsUtc } from "@openrift/shared/format-date";
+import { dateLeafPartsUtc, formatRelativeTime } from "@openrift/shared/format-date";
 import { imageUrl } from "@openrift/shared/image-url";
 import type {
   MetaEventDetail,
@@ -18,14 +18,19 @@ import { DateLeaf } from "@/components/ui/date-leaf";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { CARD_BORDER_RADIUS } from "@/features/cards/lib/card-grid-constants";
 import { MetaContributors } from "@/features/meta/components/meta-contributors";
+import { MetaEventStatusBadge } from "@/features/meta/components/meta-event-status-badge";
 import { MetaIdentity } from "@/features/meta/components/meta-identity";
 import { MetaPlayerName } from "@/features/meta/components/meta-player-name";
 import { MetaTierBadge } from "@/features/meta/components/meta-tier-badge";
-import { describeEventStructure } from "@/features/meta/lib/meta-event-structure";
+import {
+  describeEventProgress,
+  describeEventStructure,
+} from "@/features/meta/lib/meta-event-structure";
 import { formatRecord } from "@/features/meta/lib/meta-format";
 import { metaEventWinners } from "@/features/meta/lib/meta-front-page";
 import { metaCutLineRecord } from "@/features/meta/lib/meta-player-run";
 import { useDeckFormatList } from "@/hooks/use-enums";
+import { useHydrated } from "@/hooks/use-hydrated";
 
 /** Every citation is printed, never collapsed behind a "+2 more". */
 function EventSources({ sources }: { sources: MetaEventDetail["sources"] }) {
@@ -148,8 +153,10 @@ export function MetaEventHeader({
   slug: string;
 }) {
   const { labels: formatLabels } = useDeckFormatList();
+  const hydrated = useHydrated();
   const leaf = dateLeafPartsUtc(event.eventDate);
   const structure = describeEventStructure(phases);
+  const live = event.status === "in_progress";
   const champion = players.find((player) => player.rank === 1) ?? null;
   const winnerLegend =
     champion?.legend ?? metaEventWinners(event).find((winner) => winner.legend !== null)?.legend;
@@ -166,6 +173,14 @@ export function MetaEventHeader({
   byline.push(enumLabel(formatLabels, event.format));
   if (structure.sentence !== null) {
     byline.push(structure.sentence);
+  }
+  const liveLine: string[] = [];
+  if (live) {
+    liveLine.push(describeEventProgress(matches, phases) ?? "Round 1 under way");
+    // Relative to the reader's clock, so it only renders once hydrated.
+    if (hydrated && event.sourceCheckedAt !== null) {
+      liveLine.push(`checked ${formatRelativeTime(event.sourceCheckedAt)}`);
+    }
   }
 
   return (
@@ -185,6 +200,7 @@ export function MetaEventHeader({
               <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                 <h1 className="font-heading text-2xl font-bold">{event.name}</h1>
                 <MetaTierBadge tier={event.tier} />
+                <MetaEventStatusBadge status={event.status} />
               </div>
               {(event.country !== null || event.location !== null) && (
                 <p className="font-medium">
@@ -198,6 +214,9 @@ export function MetaEventHeader({
                 </p>
               )}
               <p className="text-muted-foreground text-sm">{byline.join(" · ")}</p>
+              {liveLine.length > 0 && (
+                <p className="text-warning text-sm">{liveLine.join(" · ")}</p>
+              )}
             </div>
           </div>
 

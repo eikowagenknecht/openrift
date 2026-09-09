@@ -155,6 +155,7 @@ export function toMetaEventSummary(
     eventDate: row.eventDate,
     format: row.format,
     tier: row.tier,
+    status: row.status,
     country: row.country,
     location: row.location,
     playerCount: row.playerCount,
@@ -231,6 +232,7 @@ export function toMetaEventDetail(
   return {
     ...toMetaEventSummary(row, options.topFinishes ?? []),
     notes: row.notes,
+    sourceCheckedAt: row.sourceCheckedAt?.toISOString() ?? null,
     sources: options.sources.map((source) => toMetaEventSource(source)),
     contributors: options.contributors.map((contributor) => contributor.displayName),
   };

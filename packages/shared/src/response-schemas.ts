@@ -8,6 +8,7 @@ import { GROUP_CUT_TIERS } from "./pairing/group-cut-types.js";
 import {
   META_CREDIT_VISIBILITIES,
   META_ENTRY_STATUSES,
+  META_EVENT_STATUSES,
   META_EVENT_TIERS,
   META_LIST_STATUSES,
   META_OVERLAY_STATUSES,
@@ -63,6 +64,8 @@ export const cardFaceSchema = z.enum(["front", "back"]);
 export const metaListStatusSchema = z.enum(META_LIST_STATUSES);
 
 export const metaEventTierSchema = z.enum(META_EVENT_TIERS);
+
+export const metaEventStatusSchema = z.enum(META_EVENT_STATUSES);
 
 export const metaEntryStatusSchema = z.enum(META_ENTRY_STATUSES);
 

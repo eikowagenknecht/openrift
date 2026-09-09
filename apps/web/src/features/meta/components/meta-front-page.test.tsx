@@ -143,6 +143,7 @@ function event(overrides: Partial<MetaEventSummary> = {}): MetaEventSummary {
     eventDate: "2026-08-23",
     format: "constructed",
     tier: "premier",
+    status: "complete",
     country: "ES",
     location: "Fira de Barcelona",
     playerCount: 588,

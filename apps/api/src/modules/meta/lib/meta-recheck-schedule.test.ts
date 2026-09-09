@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { MetaRecheckState } from "./meta-recheck-schedule.js";
-import { nextRecheck } from "./meta-recheck-schedule.js";
+import { lifecycleStatus, nextRecheck } from "./meta-recheck-schedule.js";
 
 const NOW = new Date("2026-08-20T12:00:00Z");
 const HOUR_MS = 60 * 60 * 1000;
@@ -17,6 +17,7 @@ function state(overrides: Partial<MetaRecheckState> = {}): MetaRecheckState {
     fetched: false,
     decksComplete: false,
     playersPending: false,
+    newRounds: false,
     watched: false,
     ...overrides,
   };
@@ -38,10 +39,10 @@ describe("nextRecheck", () => {
     expect(decision.deepFetch).toBe(false);
   });
 
-  it("polls a live watched event every quarter hour instead", () => {
+  it("polls a live watched event every ten minutes instead", () => {
     const decision = nextRecheck(state({ displayStatus: "inProgress", watched: true }));
 
-    expect(decision.nextCheckAt?.getTime()).toBe(NOW.getTime() + 15 * 60 * 1000);
+    expect(decision.nextCheckAt?.getTime()).toBe(NOW.getTime() + 10 * 60 * 1000);
     expect(decision.checkStage).toBe(0);
     expect(decision.deepFetch).toBe(false);
   });
@@ -69,12 +70,27 @@ describe("nextRecheck", () => {
     expect(decision.deepFetch).toBe(false);
   });
 
+  it("fetches a running event again once the source finishes another round", () => {
+    const decision = nextRecheck(state({ displayStatus: "inProgress", newRounds: true }));
+
+    expect(decision.deepFetch).toBe(true);
+    expect(decision.checkStage).toBe(0);
+    expect(decision.nextCheckAt?.getTime()).toBe(NOW.getTime() + HOUR_MS);
+  });
+
   it("pulls the results the first time an event reads as complete", () => {
     const decision = nextRecheck(state());
 
     expect(decision.deepFetch).toBe(true);
     expect(decision.checkStage).toBe(1);
     expect(decision.nextCheckAt?.getTime()).toBe(NOW.getTime() + DAY_MS);
+  });
+
+  it("pulls the final standings over a mid-event fetch once the event completes", () => {
+    const decision = nextRecheck(state({ fetched: true }));
+
+    expect(decision.deepFetch).toBe(true);
+    expect(decision.checkStage).toBe(1);
   });
 
   it("walks the decaying ladder without re-fetching an unchanged event", () => {
@@ -112,5 +128,34 @@ describe("nextRecheck", () => {
     const decision = nextRecheck(state({ checkStage: 2, fetched: true, playersPending: true }));
 
     expect(decision.deepFetch).toBe(true);
+  });
+});
+
+describe("lifecycleStatus", () => {
+  const started = new Date("2026-08-20T09:00:00Z");
+
+  it("reads the source's own lifecycle for an event on its day", () => {
+    expect(lifecycleStatus({ now: NOW, displayStatus: "inProgress", startAt: started })).toBe(
+      "in_progress",
+    );
+    expect(lifecycleStatus({ now: NOW, displayStatus: "complete", startAt: started })).toBe(
+      "complete",
+    );
+  });
+
+  it("calls an event upcoming until its start time whatever the source says", () => {
+    const startAt = new Date("2026-08-25T09:00:00Z");
+    expect(lifecycleStatus({ now: NOW, displayStatus: "inProgress", startAt })).toBe("upcoming");
+  });
+
+  it("treats an event that started but the source never advanced as upcoming, not live", () => {
+    expect(lifecycleStatus({ now: NOW, displayStatus: "upcoming", startAt: started })).toBe(
+      "upcoming",
+    );
+  });
+
+  it("closes an event the source leaves running for days", () => {
+    const startAt = new Date("2026-08-16T12:00:00Z");
+    expect(lifecycleStatus({ now: NOW, displayStatus: "inProgress", startAt })).toBe("complete");
   });
 });

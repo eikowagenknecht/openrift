@@ -81,6 +81,8 @@ function eventRow(overrides: Record<string, unknown> = {}) {
     tier: "local",
     country: null,
     location: null,
+    status: "complete",
+    sourceCheckedAt: null,
     playerRowCount: 0,
     deckCount: 0,
     createdAt: new Date("2026-08-01T00:00:00.000Z"),

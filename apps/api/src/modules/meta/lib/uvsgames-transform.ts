@@ -318,6 +318,7 @@ interface UvsStandingDetail {
   opponentMatchWinPct: number | null;
   gameWinPct: number | null;
   opponentGameWinPct: number | null;
+  rank: number | null;
 }
 
 /** First row per registration wins. Callers must hand rounds latest-first. */
@@ -338,6 +339,7 @@ function standingsByRegistration(
       opponentMatchWinPct: fraction(row?.opponent_match_win_percentage),
       gameWinPct: fraction(row?.game_win_percentage),
       opponentGameWinPct: fraction(row?.opponent_game_win_percentage),
+      rank: positive(row?.rank),
     });
   }
   return details;
@@ -518,9 +520,13 @@ export function projectUvsStandings(raw: UvsDeepFetchResponses): UvsTransformRes
       dropped++;
       continue;
     }
+    const standing = standings.get(registrationId) ?? null;
+    // Placement is final only once the event is; until then the last finished
+    // round's standings carry the provisional rank.
     const rank =
       positive(registration?.final_place_in_standings) ??
       ranks.get(playerName.toLowerCase()) ??
+      standing?.rank ??
       null;
     if (rank === null) {
       dropped++;
@@ -538,7 +544,6 @@ export function projectUvsStandings(raw: UvsDeepFetchResponses): UvsTransformRes
 
     const sourceDeckId = text(registration?.deck_id);
 
-    const standing = standings.get(registrationId) ?? null;
     rows.push({
       registrationId,
       uvsgamesPlayerId: userId,

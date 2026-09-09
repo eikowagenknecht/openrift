@@ -1,6 +1,7 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
   deckFormatSchema,
+  metaEventStatusSchema,
   metaEventTierSchema,
   metaListStatusSchema,
 } from "@openrift/shared/response-schemas";
@@ -47,6 +48,7 @@ export const metaEventSummarySchema = z
     eventDate: isoDate,
     format: deckFormatSchema,
     tier: metaEventTierSchema,
+    status: metaEventStatusSchema,
     /** ISO 3166-1 alpha-2. */
     country: z.string().nullable(),
     location: z.string().nullable(),
@@ -71,6 +73,8 @@ export const metaEventSourceSchema = z
 export const metaEventDetailSchema = metaEventSummarySchema
   .extend({
     notes: z.string().nullable(),
+    /** ISO timestamp of the last source read, null for hand-entered events. */
+    sourceCheckedAt: z.string().nullable(),
     sources: z.array(metaEventSourceSchema),
     contributors: z.array(z.string()),
   })

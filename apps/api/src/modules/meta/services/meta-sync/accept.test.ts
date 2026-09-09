@@ -75,6 +75,7 @@ function fakeDeps(
   updates: { id: string; values: Record<string, unknown> }[];
   rechecks: RecheckWrite[];
   reads: string[];
+  lifecycles: { metaEventId: string; status: string; sourceCheckedAt: Date | null }[];
 } {
   const inserted: Record<string, unknown>[] = [];
   const updates: { id: string; values: Record<string, unknown> }[] = [];
@@ -126,14 +127,25 @@ function fakeDeps(
     },
   };
 
+  const lifecycles: { metaEventId: string; status: string; sourceCheckedAt: Date | null }[] = [];
+  const meta = {
+    setEventLifecycle: (
+      metaEventId: string,
+      values: { status: string; sourceCheckedAt: Date | null },
+    ) => {
+      lifecycles.push({ metaEventId, ...values });
+      return Promise.resolve();
+    },
+  };
+
   const deps: MetaSyncDeps = {
-    repos: { metaCandidates, uvsgamesEvents } as unknown as Repos,
+    repos: { metaCandidates, uvsgamesEvents, meta } as unknown as Repos,
     transact: (() => Promise.reject(new Error("no transactions here"))) as unknown as Transact,
     client: { requests: 0 } as unknown as UvsClient,
     log: createLogger("test"),
     now: () => NOW,
   };
-  return { deps, inserted, updates, rechecks, reads };
+  return { deps, inserted, updates, rechecks, reads, lifecycles };
 }
 
 describe("acceptCatalogEvent", () => {
@@ -142,11 +154,12 @@ describe("acceptCatalogEvent", () => {
   });
 
   it("seeds the live event from the catalogue row and arms the recheck queue", async () => {
-    const { deps, rechecks } = fakeDeps();
+    const { deps, rechecks, lifecycles } = fakeDeps();
 
     const accepted = await acceptCatalogEvent(deps, catalogRow());
 
     expect(accepted).toMatchObject({ metaEventId: "live-1", slug: "rq-bologna" });
+    expect(lifecycles).toMatchObject([{ metaEventId: "live-1", status: "complete" }]);
     expect(vi.mocked(promoteNewEvent).mock.calls[0]?.[3]).toMatchObject({
       name: "Riftbound Regional Qualifier - Bologna",
       eventDate: "2026-02-20",

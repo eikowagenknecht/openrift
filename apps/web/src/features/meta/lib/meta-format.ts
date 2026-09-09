@@ -1,5 +1,6 @@
 import { todayUtc } from "@openrift/shared/set-release";
 import type {
+  MetaEventStatus,
   MetaEventTier,
   MetaListStatus,
   MetaPlayerOverlayField,
@@ -21,6 +22,12 @@ export const META_EVENT_TIER_LABELS: Record<MetaEventTier, string> = {
   premier: "Premier",
   competitive: "Competitive",
   local: "Local",
+};
+
+export const META_EVENT_STATUS_LABELS: Record<MetaEventStatus, string> = {
+  upcoming: "Upcoming",
+  in_progress: "In progress",
+  complete: "Complete",
 };
 
 /** Grouping is pinned to `en-US`: SSR would otherwise send a different locale's separator than the browser renders. */
@@ -121,16 +128,27 @@ export function formatRankRuns(ranks: readonly number[], limit = 6): string {
 
 export interface MetaCountedEvent {
   eventDate: string;
+  status: MetaEventStatus;
   playerCount: number | null;
   playerRowCount: number;
   deckCount: number;
+}
+
+function emptyStatusFor(event: MetaCountedEvent, today: string): string {
+  if (event.status === "in_progress") {
+    return "In progress";
+  }
+  if (event.status === "upcoming" || event.eventDate > today) {
+    return "Not played yet";
+  }
+  return "No results on file";
 }
 
 export function metaEventEmptyStatus(event: MetaCountedEvent, today = todayUtc()): string | null {
   if (event.playerRowCount > 0 || event.deckCount > 0) {
     return null;
   }
-  return event.eventDate > today ? "Not played yet" : "No results on file";
+  return emptyStatusFor(event, today);
 }
 
 export function metaEventFieldSize(
@@ -146,7 +164,7 @@ export function metaEventCounts(event: MetaCountedEvent, today = todayUtc()): st
     parts.push(`${size.toLocaleString("en-US")} ${size === 1 ? "player" : "players"}`);
   }
   if (event.playerRowCount === 0) {
-    parts.push(event.eventDate > today ? "Not played yet" : "No results on file");
+    parts.push(emptyStatusFor(event, today));
   } else {
     parts.push(`${event.deckCount} ${event.deckCount === 1 ? "deck" : "decks"}`);
   }

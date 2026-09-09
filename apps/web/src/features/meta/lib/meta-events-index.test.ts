@@ -23,6 +23,7 @@ function event(overrides: Partial<MetaEventSummary> = {}): MetaEventSummary {
     eventDate: "2026-08-29",
     format: "constructed",
     tier: "local",
+    status: "complete",
     country: "AT",
     location: "Vienna",
     playerCount: 18,

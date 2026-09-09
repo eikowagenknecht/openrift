@@ -165,6 +165,7 @@ function fakeDeps(options: {
     repos: {
       playloltcgEvents,
       playloltcgResults,
+      meta: { setEventLifecycle: () => Promise.resolve() },
       jobRuns: {
         findLatestForResume: () => Promise.resolve({ result: options.priorResult ?? null }),
         updateResult: () => Promise.resolve(),

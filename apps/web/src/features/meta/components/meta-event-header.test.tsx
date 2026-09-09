@@ -324,3 +324,29 @@ describe("MetaEventHeader attribution", () => {
     expect(screen.queryByText(/^Contributed by/u)).toBeNull();
   });
 });
+
+describe("a running event", () => {
+  it("wears an in-progress badge and says how far the rounds have got", () => {
+    renderHeader({
+      event: metaEvent({ status: "in_progress", sourceCheckedAt: null }),
+      matches: [metaMatch({ phaseOrder: 1, roundNumber: 4 })],
+      phases: [swiss],
+    });
+
+    expect(screen.getByText("In progress")).toBeInTheDocument();
+    expect(screen.getByText("After round 4 of 6")).toBeInTheDocument();
+  });
+
+  it("says when the source was last read", () => {
+    const checked = new Date(Date.now() - 12 * 60 * 1000).toISOString();
+    renderHeader({ event: metaEvent({ status: "in_progress", sourceCheckedAt: checked }) });
+
+    expect(screen.getByText("Round 1 under way · checked 12m ago")).toBeInTheDocument();
+  });
+
+  it("wears no badge once the event is complete", () => {
+    renderHeader({ event: metaEvent({ status: "complete" }) });
+
+    expect(screen.queryByText("In progress")).toBeNull();
+  });
+});

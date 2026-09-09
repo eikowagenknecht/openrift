@@ -105,6 +105,7 @@ export function MetaEventPage({ slug }: { slug: string }) {
           phases={phases}
           slug={slug}
           eventDate={event.eventDate}
+          status={event.status}
         />
 
         <div className="mt-8">

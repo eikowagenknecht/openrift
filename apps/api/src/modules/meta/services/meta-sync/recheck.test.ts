@@ -64,6 +64,12 @@ interface RecheckWrite {
   checkStage: number;
 }
 
+interface LifecycleWrite {
+  metaEventId: string;
+  status: string;
+  sourceCheckedAt: Date | null;
+}
+
 function fakeDeps(options: {
   due: UvsgamesListRow[];
   detail: (externalId: string) => unknown;
@@ -73,7 +79,13 @@ function fakeDeps(options: {
   source?: { metaEventId: string };
   stored?: Record<string, unknown>;
   watchedTemplates?: string[];
-}): { deps: MetaSyncDeps; writes: RecheckWrite[]; progress: unknown[] } {
+  heldRounds?: string[];
+}): {
+  deps: MetaSyncDeps;
+  writes: RecheckWrite[];
+  lifecycles: LifecycleWrite[];
+  progress: unknown[];
+} {
   const writes: RecheckWrite[] = [];
 
   const client: UvsClient = {
@@ -103,11 +115,17 @@ function fakeDeps(options: {
   const uvsgamesResults = {
     standings: () => Promise.resolve(options.mirroredStandings ?? []),
     deckCoverage: () => Promise.resolve({ outstanding: options.outstandingDecks ?? [], held: 0 }),
+    heldRoundIds: () => Promise.resolve(options.heldRounds ?? []),
   };
 
+  const lifecycles: LifecycleWrite[] = [];
   const meta = {
     sourceByKey: () => Promise.resolve(options.source ?? { metaEventId: "live-1" }),
     rawStandingsForEvent: () => Promise.resolve(options.livePlayers ?? []),
+    setEventLifecycle: (metaEventId: string, values: Omit<LifecycleWrite, "metaEventId">) => {
+      lifecycles.push({ metaEventId, ...values });
+      return Promise.resolve();
+    },
   };
 
   const progress: unknown[] = [];
@@ -129,7 +147,7 @@ function fakeDeps(options: {
     log: createLogger("test"),
     now: () => NOW,
   };
-  return { deps, writes, progress };
+  return { deps, writes, lifecycles, progress };
 }
 
 function detailRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -172,7 +190,7 @@ describe("processRechecks", () => {
     expect(writes[0]!.nextCheckAt?.getTime()).toBe(NOW.getTime() + HOUR_MS);
   });
 
-  it("polls a watched template every quarter hour while its event runs", async () => {
+  it("polls a watched template every ten minutes while its event runs", async () => {
     const { deps, writes } = fakeDeps({
       due: [dueRow({ displayStatus: "inProgress", eventConfigurationTemplate: "tpl-live" })],
       detail: () =>
@@ -186,7 +204,44 @@ describe("processRechecks", () => {
 
     await processRechecks(deps);
 
-    expect(writes[0]!.nextCheckAt?.getTime()).toBe(NOW.getTime() + 15 * 60 * 1000);
+    expect(writes[0]!.nextCheckAt?.getTime()).toBe(NOW.getTime() + 10 * 60 * 1000);
+  });
+
+  it("fetches a running event when the source has finished a round the mirror lacks", async () => {
+    const { deps, lifecycles } = fakeDeps({
+      due: [dueRow({ displayStatus: "inProgress" })],
+      detail: () =>
+        detailRow({
+          display_status: "inProgress",
+          start_datetime: "2026-08-20T09:00:00Z",
+          tournament_phases: [{ rounds: [{ id: 901, status: "complete", round_number: 1 }] }],
+        }),
+      heldRounds: [],
+    });
+
+    const result = await processRechecks(deps);
+
+    expect(result.fetched).toBe(1);
+    expect(lifecycles).toEqual([
+      { metaEventId: "live-1", status: "in_progress", sourceCheckedAt: NOW },
+    ]);
+  });
+
+  it("leaves a running event alone while every finished round is already held", async () => {
+    const { deps } = fakeDeps({
+      due: [dueRow({ displayStatus: "inProgress" })],
+      detail: () =>
+        detailRow({
+          display_status: "inProgress",
+          start_datetime: "2026-08-20T09:00:00Z",
+          tournament_phases: [{ rounds: [{ id: 901, status: "complete", round_number: 1 }] }],
+        }),
+      heldRounds: ["901"],
+    });
+
+    const result = await processRechecks(deps);
+
+    expect(result.fetched).toBe(0);
   });
 
   it("gives a failing source an hour's grace without advancing the ladder", async () => {

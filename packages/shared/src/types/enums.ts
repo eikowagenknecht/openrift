@@ -78,6 +78,12 @@ export type MetaEventTier = "premier" | "competitive" | "local";
 /** The {@link MetaEventTier} values, most to least competitive. */
 export const META_EVENT_TIERS = ["premier", "competitive", "local"] as const;
 
+/** Where the event stands at its source; hand-entered events are `complete`. */
+export type MetaEventStatus = "upcoming" | "in_progress" | "complete";
+
+/** The {@link MetaEventStatus} values, in lifecycle order. */
+export const META_EVENT_STATUSES = ["upcoming", "in_progress", "complete"] as const;
+
 /** Final once set: `refused` marks the id unreadable so later passes don't retry it. */
 export type MetaSourceFetchStatus = "fetched" | "refused";
 
