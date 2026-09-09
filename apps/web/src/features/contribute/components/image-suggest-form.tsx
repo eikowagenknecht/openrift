@@ -18,10 +18,7 @@ import {
   buildSubmissionPayload,
   validateContribution,
 } from "@/features/contribute/lib/contribute-json";
-import {
-  otherMissingImages,
-  remainingMissingImagesLine,
-} from "@/features/contribute/lib/missing-images";
+import { otherMissingImages } from "@/features/contribute/lib/missing-images";
 
 interface ImageSuggestFormProps {
   card: Card;
@@ -153,9 +150,6 @@ export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSugg
           <SendIcon className="size-4" />
           {submit.isPending ? "Submitting…" : "Submit image suggestion"}
         </Button>
-        <p className="text-muted-foreground text-sm">
-          Goes straight into the review queue. I&apos;ll review before it goes live.
-        </p>
       </div>
     </form>
   );
@@ -173,9 +167,6 @@ function MoreMissingImages({ currentPrintingId }: { currentPrintingId: string })
   return (
     <section className="flex flex-col gap-3">
       <Heading level={2}>Pick the next card</Heading>
-      <p className="text-muted-foreground text-sm">
-        {remainingMissingImagesLine(remaining.length)}
-      </p>
       <MissingImagesList items={remaining} />
     </section>
   );

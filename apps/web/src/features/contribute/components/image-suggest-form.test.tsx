@@ -161,7 +161,6 @@ describe("ImageSuggestForm", () => {
     ];
     renderForm();
 
-    expect(screen.getByText("2 more cards you own have no image yet")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Yasuo, Windchaser/u })).toHaveAttribute(
       "href",
       "/contribute/yasuo-windchaser/image/printing-2",
@@ -177,7 +176,7 @@ describe("ImageSuggestForm", () => {
     renderForm();
 
     expect(screen.queryByText("Ahri, Alluring")).not.toBeInTheDocument();
-    expect(screen.getByText("1 more card you own has no image yet")).toBeInTheDocument();
+    expect(screen.getByText("Yasuo, Windchaser")).toBeInTheDocument();
   });
 
   it("says the run is over when nothing is left", () => {

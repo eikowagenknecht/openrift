@@ -1,7 +1,7 @@
 import type { MissingImagePrinting } from "@openrift/shared/contracts/card-submissions";
 import { describe, expect, it } from "vitest";
 
-import { otherMissingImages, remainingMissingImagesLine } from "./missing-images";
+import { otherMissingImages } from "./missing-images";
 
 function printing(printingId: string): MissingImagePrinting {
   return {
@@ -36,19 +36,5 @@ describe("otherMissingImages", () => {
 
   it("returns nothing for an empty list", () => {
     expect(otherMissingImages([], "a")).toEqual([]);
-  });
-});
-
-describe("remainingMissingImagesLine", () => {
-  it("stays silent at zero", () => {
-    expect(remainingMissingImagesLine(0)).toBeNull();
-  });
-
-  it("uses the singular for one card", () => {
-    expect(remainingMissingImagesLine(1)).toBe("1 more card you own has no image yet");
-  });
-
-  it("uses the plural above one", () => {
-    expect(remainingMissingImagesLine(3)).toBe("3 more cards you own have no image yet");
   });
 });

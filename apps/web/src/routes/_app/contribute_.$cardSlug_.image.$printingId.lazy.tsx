@@ -13,11 +13,6 @@ import { Heading } from "@/components/heading";
 import { Pressable } from "@/components/ui/pressable";
 import { cardDetailQueryOptions } from "@/features/cards/hooks/use-card-detail";
 import { ImageSuggestForm } from "@/features/contribute/components/image-suggest-form";
-import { useMyMissingImages } from "@/features/contribute/hooks/use-missing-images";
-import {
-  otherMissingImages,
-  remainingMissingImagesLine,
-} from "@/features/contribute/lib/missing-images";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
@@ -32,10 +27,6 @@ function ImageSuggestPage() {
   const navigate = useNavigate();
   const canGoBack = useCanGoBack();
   const { labels } = useEnumOrders();
-  const { data: missing } = useMyMissingImages();
-  const remainingLine = remainingMissingImagesLine(
-    otherMissingImages(missing?.items ?? [], printingId).length,
-  );
   const printing = data.printings.find((p) => p.id === printingId);
   if (!printing) {
     throw notFound();
@@ -70,9 +61,6 @@ function ImageSuggestPage() {
           </span>{" "}
           · {setName} · {enumLabel(labels.finishes, printing.finish)} · {printing.language || "EN"}
         </p>
-        {remainingLine === null ? null : (
-          <p className="text-muted-foreground text-sm">{remainingLine}</p>
-        )}
       </header>
       <ImageSuggestForm
         key={printingId}
