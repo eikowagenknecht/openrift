@@ -1,3 +1,4 @@
+import type { ImageQuad } from "@openrift/shared/contracts/admin/card-images";
 import type { CardFace } from "@openrift/shared/types/enums";
 import type { Kysely, Selectable } from "kysely";
 
@@ -235,6 +236,7 @@ export function candidateCardDetailRepo(db: Kysely<Database>) {
         rehostedUrl: string | null;
         rotation: number;
         needsTrim: boolean;
+        quad: ImageQuad | null;
         isActive: boolean;
       }[]
     > {
@@ -253,6 +255,7 @@ export function candidateCardDetailRepo(db: Kysely<Database>) {
           "ci.rehostedUrl",
           "ci.rotation",
           "ci.needsTrim",
+          "ci.quad",
           "printingImages.isActive",
         ])
         .where("printingImages.printingId", "in", printingIds)

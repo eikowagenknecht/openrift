@@ -1,3 +1,4 @@
+import type { ImageQuad } from "@openrift/shared/contracts/admin/card-images";
 import { describe, expect, it } from "vitest";
 
 import { createDbContext } from "../../../test/integration-context.js";
@@ -113,6 +114,34 @@ describe("printingImagesRepo", () => {
         mode: "additional",
       }),
     ).resolves.toBeUndefined();
+  });
+
+  it("setQuad stores the corners", async () => {
+    const db = createMockDb([]);
+    const quad: ImageQuad = [
+      { x: 1, y: 2 },
+      { x: 3, y: 2 },
+      { x: 3, y: 4 },
+      { x: 1, y: 4 },
+    ];
+    await expect(printingImagesRepo(db).setQuad("ci-1", quad)).resolves.toBeUndefined();
+  });
+
+  it("setQuad clears the corners", async () => {
+    const db = createMockDb([]);
+    await expect(printingImagesRepo(db).setQuad("ci-1", null)).resolves.toBeUndefined();
+  });
+
+  it("getVariantSettingsByIds keys rotation, trim and quad by image file", async () => {
+    const db = createMockDb([{ id: "ci-1", rotation: 90, needsTrim: true, quad: null }]);
+    const settings = await printingImagesRepo(db).getVariantSettingsByIds(["ci-1"]);
+    expect(settings.get("ci-1")).toEqual({ rotation: 90, needsTrim: true, quad: null });
+  });
+
+  it("getVariantSettingsByIds returns an empty map for empty input", async () => {
+    expect(await printingImagesRepo(createMockDb([])).getVariantSettingsByIds([])).toEqual(
+      new Map(),
+    );
   });
 
   it("clearAllRehostedUrls returns count", async () => {

@@ -59,6 +59,8 @@ mockSharpInstance.rotate = vi.fn((r: number) => {
 mockSharpInstance.clone = vi.fn(() => mockSharpInstance);
 mockSharpInstance.greyscale = vi.fn(() => mockSharpInstance);
 mockSharpInstance.raw = vi.fn(() => mockSharpInstance);
+mockSharpInstance.ensureAlpha = vi.fn(() => mockSharpInstance);
+mockSharpInstance.png = vi.fn(() => mockSharpInstance);
 mockSharpInstance.linear = vi.fn(() => mockSharpInstance);
 mockSharpInstance.extract = vi.fn(() => mockSharpInstance);
 mockSharpInstance.webp = () => mockSharpInstance;
@@ -135,7 +137,7 @@ export function makeMockRepo(
     }),
     rehostStatusBySet: vi.fn(() => Promise.resolve(opts.selectResult ?? [])),
     allRehostedUrls: vi.fn(() => Promise.resolve([])),
-    getRotationsAndTrimByIds: vi.fn(() => Promise.resolve(new Map())),
+    getVariantSettingsByIds: vi.fn(() => Promise.resolve(new Map())),
     listAllRehosted: vi.fn(() => Promise.resolve(opts.rehosted ?? [])),
     getImageFileById: vi.fn(() =>
       Promise.resolve(opts.imageFile === undefined ? defaultFile : opts.imageFile),
@@ -158,6 +160,8 @@ export function resetImageMocks(): void {
   mockSharpInstance.clone.mockClear();
   mockSharpInstance.greyscale.mockClear();
   mockSharpInstance.raw.mockClear();
+  mockSharpInstance.ensureAlpha.mockClear();
+  mockSharpInstance.png.mockClear();
   mockSharpInstance.linear.mockClear();
   mockSharpInstance.extract.mockClear();
   mockSharpMetadata = { width: 600, height: 850 };

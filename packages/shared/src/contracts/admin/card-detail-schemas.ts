@@ -1,4 +1,5 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import { imageQuadSchema } from "@openrift/shared/contracts/admin/card-images";
 import { cardFaceSchema } from "@openrift/shared/response-schemas";
 import { marketplaceEnum } from "@openrift/shared/schemas";
 import { z } from "zod";
@@ -117,6 +118,7 @@ export const adminPrintingImageResponseSchema = z
     rehostedUrl: z.string().nullable(),
     rotation: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]),
     needsTrim: z.boolean(),
+    quad: imageQuadSchema.nullable().optional(),
     isActive: z.boolean(),
   })
   .openapi("AdminPrintingImageResponse");

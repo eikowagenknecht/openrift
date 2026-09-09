@@ -1,5 +1,5 @@
 import { applyHomography, computeHomography } from "./geometry";
-import type { Quad, RgbaImage } from "./types";
+import type { Matrix3, Quad, RgbaImage } from "./types";
 
 /**
  * Rectify a detected card into an upright canonical image.
@@ -28,7 +28,30 @@ export function unwarpCard(
   if (!h) {
     return null;
   }
+  return sample(frame, h, outWidth, outHeight);
+}
 
+/** Maps the quad in the given corner order onto the full output rectangle, no reordering and no padding. */
+export function unwarpQuad(
+  frame: RgbaImage,
+  quad: Quad,
+  outWidth: number,
+  outHeight: number,
+): RgbaImage | null {
+  const canonical: Quad = [
+    { x: 0, y: 0 },
+    { x: outWidth, y: 0 },
+    { x: outWidth, y: outHeight },
+    { x: 0, y: outHeight },
+  ];
+  const h = computeHomography(canonical, quad);
+  if (!h) {
+    return null;
+  }
+  return sample(frame, h, outWidth, outHeight);
+}
+
+function sample(frame: RgbaImage, h: Matrix3, outWidth: number, outHeight: number): RgbaImage {
   const out = new Uint8ClampedArray(outWidth * outHeight * 4);
   const { data, width: fw, height: fh } = frame;
 

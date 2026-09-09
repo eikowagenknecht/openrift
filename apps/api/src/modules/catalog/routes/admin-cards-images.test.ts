@@ -1,6 +1,8 @@
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { AppError } from "../../../errors.js";
 import { registerRouterForTest } from "../../../test/mount-router.js";
 import { readJson } from "../../../test/read-json.js";
 import type { Variables } from "../../../types.js";
@@ -9,6 +11,7 @@ import { rehostImageFile, rehostSingleImage } from "../services/images/jobs.js";
 import { imageRehostedUrl } from "../services/images/paths.js";
 import {
   deleteRehostFiles,
+  ensureOriginalOnDisk,
   processAndSave,
   regenerateFromOrig,
 } from "../services/images/variants.js";
@@ -27,6 +30,7 @@ vi.mock("../services/images/jobs.js", () => ({
 
 vi.mock("../services/images/variants.js", () => ({
   deleteRehostFiles: vi.fn(),
+  ensureOriginalOnDisk: vi.fn(),
   processAndSave: vi.fn(),
   regenerateFromOrig: vi.fn(),
 }));
@@ -45,6 +49,7 @@ const mockDeleteRehostFiles = vi.mocked(deleteRehostFiles);
 const mockDownloadImage = vi.mocked(downloadImage);
 const mockProcessAndSave = vi.mocked(processAndSave);
 const mockRegenerateFromOrig = vi.mocked(regenerateFromOrig);
+const mockEnsureOriginalOnDisk = vi.mocked(ensureOriginalOnDisk);
 const mockImageRehostedUrl = vi.mocked(imageRehostedUrl);
 
 const mockPrintingImages = {
@@ -67,6 +72,7 @@ const mockPrintingImages = {
   getPrintingById: vi.fn(),
   setRotation: vi.fn(),
   setNeedsTrim: vi.fn(),
+  setQuad: vi.fn(),
 };
 
 const mockTrxPrintingImages = {
@@ -459,6 +465,7 @@ describe("POST /printing-images/:imageId/rehost", () => {
       imageFileId: "00594247-a18a-4efd-8998-105449a4c1ab",
       rotation: 0,
       needsTrim: false,
+      quad: null,
     });
     mockDownloadImage.mockResolvedValue({ buffer: Buffer.from("image"), ext: ".png" });
     mockProcessAndSave.mockResolvedValue(undefined);
@@ -480,6 +487,7 @@ describe("POST /printing-images/:imageId/rehost", () => {
       "00594247-a18a-4efd-8998-105449a4c1ab",
       0,
       false,
+      null,
       // allowOverwrite=true: the background auto-rehost already wrote these files on accept.
       true,
     );
@@ -495,6 +503,7 @@ describe("POST /printing-images/:imageId/rehost", () => {
       imageFileId: "00594247-a18a-4efd-8998-105449a4c1ab",
       rotation: 0,
       needsTrim: false,
+      quad: null,
     });
     mockDownloadImage.mockResolvedValue({ buffer: Buffer.from("image"), ext: ".png" });
     mockProcessAndSave.mockResolvedValue(undefined);
@@ -544,6 +553,7 @@ describe("POST /printing-images/:imageId/rotate", () => {
       imageFileId: "ci-1",
       rotation: 0,
       needsTrim: true,
+      quad: null,
       originalUrl: "https://example.com/img.png",
     });
 
@@ -559,6 +569,7 @@ describe("POST /printing-images/:imageId/rotate", () => {
       "ci-1",
       90,
       true,
+      null,
       "https://example.com/img.png",
     );
   });
@@ -598,6 +609,7 @@ describe("POST /printing-images/:imageId/set-needs-trim", () => {
       imageFileId: "ci-1",
       rotation: 90,
       needsTrim: false,
+      quad: null,
       originalUrl: "https://example.com/img.png",
     });
 
@@ -616,6 +628,7 @@ describe("POST /printing-images/:imageId/set-needs-trim", () => {
       "ci-1",
       90,
       true,
+      null,
       "https://example.com/img.png",
     );
   });
@@ -630,6 +643,175 @@ describe("POST /printing-images/:imageId/set-needs-trim", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ needsTrim: true }),
       },
+    );
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /printing-images/:imageId/quad", () => {
+  const QUAD = [
+    { x: 10, y: 5 },
+    { x: 90, y: 5 },
+    { x: 90, y: 95 },
+    { x: 10, y: 95 },
+  ];
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    adminAccess = FULL_ADMIN;
+    mockPrintingImages.getForRehost.mockResolvedValue({
+      imageFileId: "ci-1",
+      rotation: 90,
+      needsTrim: true,
+      quad: null,
+      originalUrl: "https://example.com/img.png",
+    });
+  });
+
+  it("regenerates with the new quad and stores it", async () => {
+    const res = await app.request(`/api/admin/v1/cards/printing-images/${IMAGE_ID}/quad`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quad: QUAD }),
+    });
+
+    expect(res.status).toBe(204);
+    expect(mockRegenerateFromOrig).toHaveBeenCalledWith(
+      mockIo,
+      "ci-1",
+      90,
+      true,
+      QUAD,
+      "https://example.com/img.png",
+    );
+    expect(mockPrintingImages.setQuad).toHaveBeenCalledWith("ci-1", QUAD);
+  });
+
+  it("clears the quad when null is sent", async () => {
+    mockPrintingImages.getForRehost.mockResolvedValue({
+      imageFileId: "ci-1",
+      rotation: 0,
+      needsTrim: false,
+      quad: QUAD,
+      originalUrl: null,
+    });
+
+    const res = await app.request(`/api/admin/v1/cards/printing-images/${IMAGE_ID}/quad`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quad: null }),
+    });
+
+    expect(res.status).toBe(204);
+    expect(mockPrintingImages.setQuad).toHaveBeenCalledWith("ci-1", null);
+  });
+
+  it("leaves the stored quad alone when the pipeline rejects it", async () => {
+    mockRegenerateFromOrig.mockRejectedValue(
+      new AppError(400, ERROR_CODES.BAD_REQUEST, "Quad does not fit the original image"),
+    );
+
+    const res = await app.request(`/api/admin/v1/cards/printing-images/${IMAGE_ID}/quad`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quad: QUAD }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(mockPrintingImages.setQuad).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when image not found", async () => {
+    mockPrintingImages.getForRehost.mockResolvedValue(null);
+
+    const res = await app.request(
+      "/api/admin/v1/cards/printing-images/00000000-0000-4000-a000-000000000099/quad",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quad: QUAD }),
+      },
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it("rejects a quad that is not four corners", async () => {
+    const res = await app.request(`/api/admin/v1/cards/printing-images/${IMAGE_ID}/quad`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quad: QUAD.slice(0, 3) }),
+    });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /printing-images/:imageId/original", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    adminAccess = FULL_ADMIN;
+  });
+
+  it("returns the orig file's url and stored pixel grid", async () => {
+    mockPrintingImages.getForRehost.mockResolvedValue({
+      imageFileId: "00594247-a18a-4efd-8998-105449a4c1ab",
+      rotation: 90,
+      needsTrim: false,
+      quad: null,
+      originalUrl: "https://example.com/img.png",
+    });
+    mockEnsureOriginalOnDisk.mockResolvedValue({
+      url: "/media/cards/ab/00594247-a18a-4efd-8998-105449a4c1ab-orig.jpg",
+      width: 1200,
+      height: 1600,
+    });
+
+    const res = await app.request(`/api/admin/v1/cards/printing-images/${IMAGE_ID}/original`, {
+      method: "POST",
+    });
+
+    expect(res.status).toBe(200);
+    expect(await readJson(res)).toEqual({
+      url: "/media/cards/ab/00594247-a18a-4efd-8998-105449a4c1ab-orig.jpg",
+      width: 1200,
+      height: 1600,
+    });
+    expect(mockEnsureOriginalOnDisk).toHaveBeenCalledWith(
+      mockIo,
+      "00594247-a18a-4efd-8998-105449a4c1ab",
+      90,
+      false,
+      null,
+      "https://example.com/img.png",
+    );
+  });
+
+  it("returns 400 when there is no original to straighten", async () => {
+    mockPrintingImages.getForRehost.mockResolvedValue({
+      imageFileId: "00594247-a18a-4efd-8998-105449a4c1ab",
+      rotation: 0,
+      needsTrim: false,
+      quad: null,
+      originalUrl: null,
+    });
+    mockEnsureOriginalOnDisk.mockRejectedValue(
+      new AppError(400, ERROR_CODES.BAD_REQUEST, "Image has no original to straighten"),
+    );
+
+    const res = await app.request(`/api/admin/v1/cards/printing-images/${IMAGE_ID}/original`, {
+      method: "POST",
+    });
+
+    expect(res.status).toBe(400);
+    const body = await readJson(res);
+    expect(body.message).toContain("no original to straighten");
+  });
+
+  it("returns 404 when image not found", async () => {
+    mockPrintingImages.getForRehost.mockResolvedValue(null);
+
+    const res = await app.request(
+      "/api/admin/v1/cards/printing-images/00000000-0000-4000-a000-000000000099/original",
+      { method: "POST" },
     );
     expect(res.status).toBe(404);
   });

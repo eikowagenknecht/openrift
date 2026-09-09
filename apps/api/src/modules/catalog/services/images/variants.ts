@@ -1,12 +1,15 @@
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side file needs filesystem access
 import { dirname, join } from "node:path";
 
+import type { ImageQuad } from "@openrift/shared/contracts/admin/card-images";
 import { ERROR_CODES } from "@openrift/shared/error-codes";
+import { CARD_ASPECT } from "@openrift/shared/scan/types";
+import { unwarpQuad } from "@openrift/shared/scan/unwarp";
 
 import { AppError } from "../../../../errors.js";
 import type { Io } from "../../../../io.js";
 import { fetchOriginalImage } from "./original-source.js";
-import { CARD_MEDIA_DIR } from "./paths.js";
+import { CARD_MEDIA_DIR, imageRehostedUrl } from "./paths.js";
 import { computeScanCropBox, computeScanLevels } from "./scan-analysis.js";
 
 const SIZES = [
@@ -24,6 +27,70 @@ export function isValidVariantSuffix(file: string): boolean {
   return SIZES.some((size) => file.endsWith(`-${size.suffix}.webp`));
 }
 
+/** Pixels. */
+const MAX_STRAIGHTENED_EDGE = 2400;
+
+function edgeLength(a: { x: number; y: number }, b: { x: number; y: number }): number {
+  return Math.hypot(b.x - a.x, b.y - a.y);
+}
+
+export function straightenedSize(quad: ImageQuad): { width: number; height: number } {
+  let width = Math.round(Math.max(edgeLength(quad[0], quad[1]), edgeLength(quad[2], quad[3])));
+  let height = Math.round(Math.max(edgeLength(quad[1], quad[2]), edgeLength(quad[3], quad[0])));
+  if (height >= width) {
+    width = Math.round(height * CARD_ASPECT);
+  } else {
+    height = Math.round(width * CARD_ASPECT);
+  }
+  const longest = Math.max(width, height);
+  if (longest > MAX_STRAIGHTENED_EDGE) {
+    const scale = MAX_STRAIGHTENED_EDGE / longest;
+    width = Math.round(width * scale);
+    height = Math.round(height * scale);
+  }
+  return { width, height };
+}
+
+async function straighten(io: Io, buffer: Buffer, quad: ImageQuad): Promise<Buffer> {
+  const { data, info } = await io
+    .sharp(buffer)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const fits = quad.every((p) => p.x >= 0 && p.y >= 0 && p.x <= info.width && p.y <= info.height);
+  if (!fits) {
+    throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Quad does not fit the original image");
+  }
+
+  const { width, height } = straightenedSize(quad);
+  if (width < 1 || height < 1) {
+    throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Quad does not fit the original image");
+  }
+
+  const frame = {
+    data: new Uint8ClampedArray(data.buffer, data.byteOffset, data.byteLength),
+    width: info.width,
+    height: info.height,
+  };
+  const straightened = unwarpQuad(frame, quad, width, height);
+  if (!straightened) {
+    throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Quad does not fit the original image");
+  }
+
+  return io
+    .sharp(
+      Buffer.from(
+        straightened.data.buffer,
+        straightened.data.byteOffset,
+        straightened.data.byteLength,
+      ),
+      { raw: { width, height, channels: 4 } },
+    )
+    .png()
+    .toBuffer();
+}
+
 export async function generateWebpVariants(
   io: Io,
   buffer: Buffer,
@@ -32,6 +99,7 @@ export async function generateWebpVariants(
   rotation: number,
   /** True crops to the detected card box and applies auto-levels; false leaves the image untouched. */
   needsTrim: boolean,
+  quad: ImageQuad | null,
   skipExisting = false,
 ): Promise<void> {
   await io.fs.mkdir(outputDir, { recursive: true });
@@ -49,7 +117,9 @@ export async function generateWebpVariants(
     }
   }
 
-  let prepped = io.sharp(buffer);
+  const source = quad ? await straighten(io, buffer, quad) : buffer;
+
+  let prepped = io.sharp(source);
   if (rotation !== 0) {
     prepped = prepped.rotate(rotation);
   }
@@ -93,7 +163,7 @@ export async function generateWebpVariants(
     }
     preppedBuffer = await prepped.toBuffer();
   } else {
-    const meta = await io.sharp(buffer).metadata();
+    const meta = await io.sharp(source).metadata();
     const rawWidth = meta.width ?? 0;
     const rawHeight = meta.height ?? 0;
     // 90° and 270° rotations swap width and height — measure orientation
@@ -179,6 +249,7 @@ export async function processAndSave(
   fileBase: string,
   rotation: number,
   needsTrim: boolean,
+  quad: ImageQuad | null,
   allowOverwrite = false,
 ): Promise<void> {
   if (!allowOverwrite && (await rehostFilesExist(io, outputDir, fileBase))) {
@@ -191,7 +262,7 @@ export async function processAndSave(
   await io.fs.mkdir(outputDir, { recursive: true });
   await sweepExistingOrig(io, outputDir, fileBase);
   await io.fs.writeFile(join(outputDir, `${fileBase}-orig${originalExt}`), buffer);
-  await generateWebpVariants(io, buffer, outputDir, fileBase, rotation, needsTrim);
+  await generateWebpVariants(io, buffer, outputDir, fileBase, rotation, needsTrim, quad);
 }
 
 export async function deleteRehostFiles(io: Io, rehostedUrl: string): Promise<void> {
@@ -220,6 +291,7 @@ export async function regenerateFromOrig(
   imageFileId: string,
   rotation: number,
   needsTrim: boolean,
+  quad: ImageQuad | null,
   originalUrl: string | null,
 ): Promise<void> {
   const outputDir = join(CARD_MEDIA_DIR, imageFileId.slice(-2));
@@ -233,7 +305,7 @@ export async function regenerateFromOrig(
   const origFile = files.find((f) => f.startsWith(`${imageFileId}-orig.`));
   if (origFile) {
     const buffer = await io.fs.readFile(join(outputDir, origFile));
-    await generateWebpVariants(io, buffer, outputDir, imageFileId, rotation, needsTrim);
+    await generateWebpVariants(io, buffer, outputDir, imageFileId, rotation, needsTrim, quad);
     return;
   }
 
@@ -241,5 +313,51 @@ export async function regenerateFromOrig(
     throw new Error(`No orig file on disk and no originalUrl for image ${imageFileId}`);
   }
   const { buffer, ext } = await fetchOriginalImage(io, originalUrl);
-  await processAndSave(io, buffer, ext, outputDir, imageFileId, rotation, needsTrim, true);
+  await processAndSave(io, buffer, ext, outputDir, imageFileId, rotation, needsTrim, quad, true);
+}
+
+export interface OriginalOnDisk {
+  url: string;
+  width: number;
+  height: number;
+}
+
+// Dimensions come from the un-oriented decode: the straighten UI reads the file with EXIF ignored.
+export async function ensureOriginalOnDisk(
+  io: Io,
+  imageFileId: string,
+  rotation: number,
+  needsTrim: boolean,
+  quad: ImageQuad | null,
+  originalUrl: string | null,
+): Promise<OriginalOnDisk> {
+  const outputDir = join(CARD_MEDIA_DIR, imageFileId.slice(-2));
+  let files: string[] = [];
+  try {
+    files = await io.fs.readdir(outputDir);
+  } catch {
+    // directory doesn't exist yet
+  }
+
+  let origFile = files.find((f) => f.startsWith(`${imageFileId}-orig.`));
+  if (!origFile) {
+    if (!originalUrl) {
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Image has no original to straighten");
+    }
+    const { buffer, ext } = await fetchOriginalImage(io, originalUrl);
+    await processAndSave(io, buffer, ext, outputDir, imageFileId, rotation, needsTrim, quad, true);
+    origFile = `${imageFileId}-orig${ext}`;
+  }
+
+  const buffer = await io.fs.readFile(join(outputDir, origFile));
+  const meta = await io.sharp(buffer).metadata();
+  if (!meta.width || !meta.height) {
+    throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Image has no original to straighten");
+  }
+  const suffix = origFile.slice(imageFileId.length);
+  return {
+    url: `${imageRehostedUrl(imageFileId)}${suffix}`,
+    width: meta.width,
+    height: meta.height,
+  };
 }

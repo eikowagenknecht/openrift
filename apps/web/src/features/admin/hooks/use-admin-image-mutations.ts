@@ -1,3 +1,4 @@
+import type { ImageOriginalOutput, ImageQuad } from "@openrift/shared/contracts/admin/card-images";
 import { adminCardImagesContract } from "@openrift/shared/contracts/admin/card-images";
 import { adminCardMutationsContract } from "@openrift/shared/contracts/admin/card-mutations";
 import { createServerFn } from "@tanstack/react-start";
@@ -69,6 +70,25 @@ const setNeedsTrimFn = createServerFn({ method: "POST" })
       needsTrim: data.needsTrim,
     });
   });
+
+const setPrintingImageQuadFn = createServerFn({ method: "POST" })
+  .validator((input: { imageId: string; quad: ImageQuad | null }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    await apiOrpcClient(adminCardImagesContract, context.cookie).setQuad({
+      imageId: data.imageId,
+      quad: data.quad,
+    });
+  });
+
+const ensurePrintingImageOriginalFn = createServerFn({ method: "POST" })
+  .validator((input: { imageId: string }) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }): Promise<ImageOriginalOutput> =>
+    apiOrpcClient(adminCardImagesContract, context.cookie).ensureOriginal({
+      imageId: data.imageId,
+    }),
+  );
 
 const addImageFromUrlFn = createServerFn({ method: "POST" })
   .validator((input: { printingId: string; url: string; mode?: string }) => input)
@@ -195,6 +215,23 @@ export function useSetPrintingImageNeedsTrim(invalidates: Scope = defaultScope) 
       await setNeedsTrimFn({ data: { imageId, needsTrim } });
     },
     invalidates,
+  });
+}
+
+export function useSetPrintingImageQuad(invalidates: Scope = defaultScope) {
+  return useMutationWithInvalidation({
+    mutationFn: async ({ imageId, quad }: { imageId: string; quad: ImageQuad | null }) => {
+      await setPrintingImageQuadFn({ data: { imageId, quad } });
+    },
+    invalidates,
+  });
+}
+
+export function useEnsurePrintingImageOriginal() {
+  return useMutationWithInvalidation({
+    mutationFn: (imageId: string): Promise<ImageOriginalOutput> =>
+      ensurePrintingImageOriginalFn({ data: { imageId } }),
+    invalidates: [],
   });
 }
 

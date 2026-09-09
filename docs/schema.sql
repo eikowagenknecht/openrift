@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict waV9HrLGybdH5kFlhGKpqDCqgE2rz3UzVaQZOPIMKW71LWaib8m8aQccBReFspZ
+\restrict GybEh1QsLgjNj36rybcygA6PMFAzXIjtQOGreUdtmKBMx4YvDaZ5reVqDxKOqsB
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -1803,9 +1803,11 @@ CREATE TABLE public.image_files (
     rotation smallint DEFAULT 0 NOT NULL,
     needs_trim boolean DEFAULT false NOT NULL,
     credit text,
+    quad jsonb,
     CONSTRAINT chk_image_files_credit CHECK ((credit <> ''::text)),
     CONSTRAINT chk_image_files_has_url CHECK (((original_url IS NOT NULL) OR (rehosted_url IS NOT NULL))),
     CONSTRAINT chk_image_files_original_url CHECK ((original_url <> ''::text)),
+    CONSTRAINT chk_image_files_quad_shape CHECK (((quad IS NULL) OR (jsonb_typeof(quad) = 'array'::text))),
     CONSTRAINT chk_image_files_rehosted_url CHECK ((rehosted_url <> ''::text)),
     CONSTRAINT chk_image_files_rotation CHECK ((rotation = ANY (ARRAY[0, 90, 180, 270])))
 );
@@ -9220,5 +9222,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict waV9HrLGybdH5kFlhGKpqDCqgE2rz3UzVaQZOPIMKW71LWaib8m8aQccBReFspZ
+\unrestrict GybEh1QsLgjNj36rybcygA6PMFAzXIjtQOGreUdtmKBMx4YvDaZ5reVqDxKOqsB
 

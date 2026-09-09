@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Quad, RgbaImage } from "./types";
-import { unwarpCard } from "./unwarp";
+import { unwarpCard, unwarpQuad } from "./unwarp";
 
 function rgba(width: number, height: number, gray: (x: number, y: number) => number): RgbaImage {
   const data = new Uint8ClampedArray(width * height * 4);
@@ -99,5 +99,59 @@ describe("unwarpCard", () => {
       { x: 1, y: 1 },
     ];
     expect(unwarpCard(frame, collapsed, 4, 4)).toBeNull();
+  });
+});
+
+describe("unwarpQuad", () => {
+  it("maps the given corners onto the output rectangle in order", () => {
+    const frame = rgba(4, 4, (x, y) => (y < 2 ? (x < 2 ? 10 : 20) : x < 2 ? 30 : 40));
+    const out = unwarpQuad(frame, corners(4, 4), 2, 2);
+    expect(redChannels(out!)).toEqual([10, 20, 30, 40]);
+  });
+
+  it("rotates the source when the corner order starts elsewhere", () => {
+    const frame = rgba(4, 4, (x, y) => (y < 2 ? (x < 2 ? 10 : 20) : x < 2 ? 30 : 40));
+    const startingBottomLeft: Quad = [
+      { x: 0, y: 4 },
+      { x: 0, y: 0 },
+      { x: 4, y: 0 },
+      { x: 4, y: 4 },
+    ];
+    expect(redChannels(unwarpQuad(frame, startingBottomLeft, 2, 2)!)).toEqual([30, 10, 40, 20]);
+  });
+
+  it("straightens a skewed quad into an upright rectangle", () => {
+    const frame = rgba(9, 9, (_x, y) => (y < 3 ? 200 : 0));
+    const skewed: Quad = [
+      { x: 1, y: 0 },
+      { x: 9, y: 0 },
+      { x: 8, y: 9 },
+      { x: 0, y: 9 },
+    ];
+    const out = unwarpQuad(frame, skewed, 3, 3);
+    expect({ width: out!.width, height: out!.height }).toEqual({ width: 3, height: 3 });
+    expect(redChannels(out!).slice(0, 3)).toEqual([200, 200, 200]);
+  });
+
+  it("adds no padding around the quad", () => {
+    const frame = rgba(8, 8, (x) => (x >= 2 && x <= 5 ? 200 : 0));
+    const inner: Quad = [
+      { x: 2, y: 0 },
+      { x: 6, y: 0 },
+      { x: 6, y: 8 },
+      { x: 2, y: 8 },
+    ];
+    expect(redChannels(unwarpQuad(frame, inner, 2, 2)!)).toEqual([200, 200, 200, 200]);
+  });
+
+  it("returns null for a degenerate quad", () => {
+    const frame = rgba(4, 4, () => 10);
+    const collapsed: Quad = [
+      { x: 2, y: 2 },
+      { x: 2, y: 2 },
+      { x: 2, y: 2 },
+      { x: 2, y: 2 },
+    ];
+    expect(unwarpQuad(frame, collapsed, 4, 4)).toBeNull();
   });
 });

@@ -1,3 +1,4 @@
+import type { ImageQuad } from "@openrift/shared/contracts/admin/card-images";
 import type { RuleChangeType, RuleKind, RuleType } from "@openrift/shared/types/api/rules";
 import type {
   ArtVariant,
@@ -105,6 +106,7 @@ export interface ImageFilesTable {
   rehostedUrl: string | null;
   rotation: Generated<0 | 90 | 180 | 270>;
   needsTrim: Generated<boolean>;
+  quad: ImageQuad | null;
   credit: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;

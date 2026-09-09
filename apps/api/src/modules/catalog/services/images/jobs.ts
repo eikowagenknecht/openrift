@@ -56,7 +56,17 @@ export async function rehostImageFile(
     const { buffer, ext } = await fetchOriginalImage(io, file.originalUrl);
     const rehostedUrl = imageRehostedUrl(file.id);
     const outputDir = join(CARD_MEDIA_DIR, file.id.slice(-2));
-    await processAndSave(io, buffer, ext, outputDir, file.id, file.rotation, file.needsTrim, true);
+    await processAndSave(
+      io,
+      buffer,
+      ext,
+      outputDir,
+      file.id,
+      file.rotation,
+      file.needsTrim,
+      file.quad,
+      true,
+    );
     await repo.updateRehostedUrl(file.id, rehostedUrl);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -105,6 +115,7 @@ export async function rehostImages(
         img.imageId,
         img.rotation,
         img.needsTrim,
+        img.quad,
         true,
       );
       await repo.updateRehostedUrl(img.imageId, selfHostedPath);
@@ -156,7 +167,7 @@ export async function regenerateImagesBatch(
     return out;
   }
 
-  const settings = await repo.getRotationsAndTrimByIds(batch.map((img) => img.imageId));
+  const settings = await repo.getVariantSettingsByIds(batch.map((img) => img.imageId));
 
   const results = await Promise.allSettled(
     batch.map(async (img) => {
@@ -206,6 +217,7 @@ export async function regenerateImagesBatch(
         img.imageId,
         setting?.rotation ?? 0,
         setting?.needsTrim ?? false,
+        setting?.quad ?? null,
         options.skipExisting,
       );
     }),

@@ -28,6 +28,7 @@ import { Toggle } from "@/components/ui/toggle";
 import type { DeduplicatedSourceImage } from "@/features/admin/components/card-detail-shared";
 import { sortByProviderOrder } from "@/features/admin/components/card-detail-shared";
 import { ImagePreview } from "@/features/admin/components/image-preview";
+import { StraightenImageDialog } from "@/features/admin/components/straighten-image-dialog";
 import {
   useActivatePrintingImage,
   useAddFallbackArtUrl,
@@ -42,6 +43,7 @@ import {
   useUploadFallbackArt,
   useUploadPrintingImage,
 } from "@/features/admin/hooks/use-admin-image-mutations";
+import { imageQuadOf, quadCacheKey } from "@/features/admin/lib/straighten-quad";
 import { cn } from "@/lib/utils";
 
 type Rotation = 0 | 90 | 180 | 270;
@@ -53,8 +55,8 @@ function getDisplayUrl(img: AdminPrintingImageResponse): string | null {
   if (!img.rehostedUrl) {
     return img.originalUrl;
   }
-  // Cache-bust: the rehosted URL is stable, but the file is rewritten in place on rotation/trim.
-  return `${img.rehostedUrl}-full.webp?r=${img.rotation}&t=${img.needsTrim ? 1 : 0}`;
+  // Cache-bust: the rehosted URL is stable, but the file is rewritten in place on straighten/rotation/trim.
+  return `${img.rehostedUrl}-full.webp?r=${img.rotation}&t=${img.needsTrim ? 1 : 0}&q=${quadCacheKey(imageQuadOf(img))}`;
 }
 
 function imageLabel(img: AdminPrintingImageResponse): string {
@@ -205,6 +207,7 @@ export function PrintingImageSwitcher({
               External
             </Badge>
           )}
+          {imageQuadOf(effectiveImage) !== null && <Badge variant="outline">Straightened</Badge>}
           <span className="text-muted-foreground">{imageLabel(effectiveImage)}</span>
           <div className="ml-auto flex items-center gap-0.5">
             {effectiveImage.isActive ? (
@@ -248,6 +251,11 @@ export function PrintingImageSwitcher({
             )}
             {effectiveImage.rehostedUrl && (
               <>
+                <StraightenImageDialog
+                  imageId={effectiveImage.id}
+                  quad={imageQuadOf(effectiveImage)}
+                  invalidates={invalidates}
+                />
                 <Button
                   variant="ghost"
                   size="icon"

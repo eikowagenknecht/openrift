@@ -34,6 +34,7 @@ export type AdminEventAction =
   | "image.rehost"
   | "image.unrehost"
   | "image.set-needs-trim"
+  | "image.quad"
   | "image.add-url"
   | "image.upload"
   | "image.credit"

@@ -339,7 +339,7 @@ describe("regenerateImagesBatch", () => {
     const repo = makeMockRepo({});
     const result = await regenerateImagesBatch(mockIo, repo, []);
     expect(result).toEqual({ regenerated: 0, failed: 0, errors: [] });
-    expect(repo.getRotationsAndTrimByIds).not.toHaveBeenCalled();
+    expect(repo.getVariantSettingsByIds).not.toHaveBeenCalled();
   });
 
   it("regenerates variants from on-disk orig files for each entry", async () => {
@@ -463,7 +463,7 @@ describe("regenerateImagesBatch", () => {
 
   it("uses per-image needsTrim from the settings map", async () => {
     const repo = makeMockRepo({});
-    repo.getRotationsAndTrimByIds = vi.fn(() =>
+    repo.getVariantSettingsByIds = vi.fn(() =>
       Promise.resolve(new Map([["card-trim", { rotation: 0, needsTrim: true }]])),
     );
     mockReaddir.mockImplementation(async () => ["card-trim-orig.png"]);
@@ -474,7 +474,7 @@ describe("regenerateImagesBatch", () => {
 
   it("skips the scan analysis when needsTrim is false in the settings map", async () => {
     const repo = makeMockRepo({});
-    repo.getRotationsAndTrimByIds = vi.fn(() =>
+    repo.getVariantSettingsByIds = vi.fn(() =>
       Promise.resolve(new Map([["card-keep", { rotation: 0, needsTrim: false }]])),
     );
     mockReaddir.mockImplementation(async () => ["card-keep-orig.png"]);
@@ -488,7 +488,7 @@ describe("regenerateImagesBatch", () => {
     // not retroactively start trimming; defaulting to false matches the
     // digital-image-default invariant.
     const repo = makeMockRepo({});
-    repo.getRotationsAndTrimByIds = vi.fn(() => Promise.resolve(new Map()));
+    repo.getVariantSettingsByIds = vi.fn(() => Promise.resolve(new Map()));
     mockReaddir.mockImplementation(async () => ["card-orphan-orig.png"]);
     await regenerateImagesBatch(mockIo, repo, [snap("card-orphan")]);
 
@@ -619,7 +619,7 @@ describe("runRegenerateImagesJob", () => {
     expect(result.regenerated).toBe(12);
     expect(result.resumedFromRunId).toBe("run-1");
     // Per-batch helper sees only the 7 unprocessed entries (settings fetched once).
-    const settingsCallArgs = (printingImages.getRotationsAndTrimByIds as any).mock.calls[0][0];
+    const settingsCallArgs = (printingImages.getVariantSettingsByIds as any).mock.calls[0][0];
     expect(settingsCallArgs).toHaveLength(7);
     expect(settingsCallArgs[0]).toBe("card-005");
   });

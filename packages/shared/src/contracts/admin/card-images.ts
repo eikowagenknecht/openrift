@@ -12,6 +12,25 @@ const printingIdParam = z.object({ printingId: z.uuid() });
 const modeSchema = z.enum(["main", "additional"]);
 const rehostedUrlOutput = z.object({ rehostedUrl: z.string() });
 
+const quadPointSchema = z.object({ x: z.number().min(0), y: z.number().min(0) });
+
+/** Card corners in pixel coordinates of the untouched original, clockwise from top-left as the card should appear upright. */
+export const imageQuadSchema = z.tuple([
+  quadPointSchema,
+  quadPointSchema,
+  quadPointSchema,
+  quadPointSchema,
+]);
+
+export const imageOriginalOutputSchema = z.object({
+  url: z.string(),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+});
+
+export type ImageQuad = z.infer<typeof imageQuadSchema>;
+export type ImageOriginalOutput = z.infer<typeof imageOriginalOutputSchema>;
+
 /**
  * The `fallbackArt` verbs manage substitute artwork for a printing with no
  * scan of its own. They never touch `printing_images`: recording a substitute
@@ -95,6 +114,30 @@ export const adminCardImagesContract = {
     })
     .errors({ NOT_FOUND: { message: "Printing image not found" } })
     .input(imageIdParam.extend({ needsTrim: z.boolean() })),
+  setQuad: authedRoute
+    .route({
+      method: "POST",
+      path: "/api/admin/v1/cards/printing-images/{imageId}/quad",
+      tags: [TAG],
+      successStatus: 204,
+    })
+    .errors({
+      NOT_FOUND: { message: "Printing image not found" },
+      BAD_REQUEST: { message: "Quad does not fit the original image" },
+    })
+    .input(imageIdParam.extend({ quad: imageQuadSchema.nullable() })),
+  ensureOriginal: authedRoute
+    .route({
+      method: "POST",
+      path: "/api/admin/v1/cards/printing-images/{imageId}/original",
+      tags: [TAG],
+    })
+    .errors({
+      NOT_FOUND: { message: "Printing image not found" },
+      BAD_REQUEST: { message: "Image has no original to straighten" },
+    })
+    .input(imageIdParam)
+    .output(imageOriginalOutputSchema),
   addImageUrl: authedRoute
     .route({
       method: "POST",

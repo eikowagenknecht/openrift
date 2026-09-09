@@ -20,6 +20,7 @@ import { fetchOriginalImage } from "../services/images/original-source.js";
 import { CARD_MEDIA_DIR, imageRehostedUrl } from "../services/images/paths.js";
 import {
   deleteRehostFiles,
+  ensureOriginalOnDisk,
   processAndSave,
   regenerateFromOrig,
 } from "../services/images/variants.js";
@@ -206,6 +207,7 @@ export const adminCardImagesRouter = {
       image.imageFileId,
       image.rotation,
       image.needsTrim,
+      image.quad,
       true,
     );
 
@@ -240,6 +242,7 @@ export const adminCardImagesRouter = {
       image.imageFileId,
       rotation,
       image.needsTrim,
+      image.quad,
       image.originalUrl,
     );
 
@@ -265,6 +268,7 @@ export const adminCardImagesRouter = {
       image.imageFileId,
       image.rotation,
       needsTrim,
+      image.quad,
       image.originalUrl,
     );
 
@@ -275,6 +279,63 @@ export const adminCardImagesRouter = {
       oldValues: { needsTrim: image.needsTrim },
       newValues: { needsTrim },
     });
+  }),
+
+  setQuad: os.setQuad.handler(async ({ input, context }): Promise<void> => {
+    const { printingImages } = context.repos;
+    const { imageId, quad } = input;
+
+    const image = await printingImages.getForRehost(imageId);
+    assertFound(image, "Printing image not found");
+    await assertDeskPrintingScope(
+      context.repos,
+      context.adminAccess,
+      context.userId,
+      image.printingId,
+    );
+
+    // Stored only once the pipeline accepted the corners, so a rejected quad
+    // leaves the variants and the row agreeing with each other.
+    await regenerateFromOrig(
+      context.io,
+      image.imageFileId,
+      image.rotation,
+      image.needsTrim,
+      quad,
+      image.originalUrl,
+    );
+    await printingImages.setQuad(image.imageFileId, quad);
+
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "image.quad",
+      entityType: "image",
+      entityId: imageId,
+      oldValues: { quad: image.quad },
+      newValues: { quad },
+    });
+  }),
+
+  ensureOriginal: os.ensureOriginal.handler(async ({ input, context }) => {
+    const { printingImages } = context.repos;
+    const { imageId } = input;
+
+    const image = await printingImages.getForRehost(imageId);
+    assertFound(image, "Printing image not found");
+    await assertDeskPrintingScope(
+      context.repos,
+      context.adminAccess,
+      context.userId,
+      image.printingId,
+    );
+
+    return ensureOriginalOnDisk(
+      context.io,
+      image.imageFileId,
+      image.rotation,
+      image.needsTrim,
+      image.quad,
+      image.originalUrl,
+    );
   }),
 
   addImageUrl: os.addImageUrl.handler(async ({ input, context }): Promise<void> => {
@@ -328,7 +389,7 @@ export const adminCardImagesRouter = {
     const rehostedUrl = imageRehostedUrl(imageId);
     const outputDir = join(CARD_MEDIA_DIR, imageId.slice(-2));
 
-    await processAndSave(context.io, buffer, ext, outputDir, imageId, 0, false);
+    await processAndSave(context.io, buffer, ext, outputDir, imageId, 0, false, null);
 
     await context.transact((trxRepos) =>
       trxRepos.printingImages.insertUploadedImage({
@@ -439,7 +500,7 @@ export const adminCardImagesRouter = {
     const imageFileId = uuidv7();
     const rehostedUrl = imageRehostedUrl(imageFileId);
     const outputDir = join(CARD_MEDIA_DIR, imageFileId.slice(-2));
-    await processAndSave(context.io, buffer, ext, outputDir, imageFileId, 0, false);
+    await processAndSave(context.io, buffer, ext, outputDir, imageFileId, 0, false, null);
 
     await context.transact(async (trxRepos) => {
       await trxRepos.printingImages.insertUnattachedImageFile({ id: imageFileId, rehostedUrl });

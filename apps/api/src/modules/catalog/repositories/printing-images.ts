@@ -1,3 +1,4 @@
+import type { ImageQuad } from "@openrift/shared/contracts/admin/card-images";
 import type { CardFace, FallbackArtMode } from "@openrift/shared/types/enums";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
@@ -66,23 +67,26 @@ export function printingImagesRepo(db: Kysely<Database>) {
           "imgf.originalUrl",
           "imgf.rotation",
           "imgf.needsTrim",
+          "imgf.quad",
         ])
         .where("printingImages.id", "=", imageId)
         .executeTakeFirst();
     },
 
-    async getRotationsAndTrimByIds(
+    async getVariantSettingsByIds(
       ids: string[],
-    ): Promise<Map<string, { rotation: number; needsTrim: boolean }>> {
+    ): Promise<Map<string, { rotation: number; needsTrim: boolean; quad: ImageQuad | null }>> {
       if (ids.length === 0) {
         return new Map();
       }
       const rows = await db
         .selectFrom("imageFiles")
-        .select(["id", "rotation", "needsTrim"])
+        .select(["id", "rotation", "needsTrim", "quad"])
         .where("id", "in", ids)
         .execute();
-      return new Map(rows.map((r) => [r.id, { rotation: r.rotation, needsTrim: r.needsTrim }]));
+      return new Map(
+        rows.map((r) => [r.id, { rotation: r.rotation, needsTrim: r.needsTrim, quad: r.quad }]),
+      );
     },
 
     async setRotation(imageFileId: string, rotation: 0 | 90 | 180 | 270): Promise<void> {
@@ -91,6 +95,10 @@ export function printingImagesRepo(db: Kysely<Database>) {
 
     async setNeedsTrim(imageFileId: string, needsTrim: boolean): Promise<void> {
       await db.updateTable("imageFiles").set({ needsTrim }).where("id", "=", imageFileId).execute();
+    },
+
+    async setQuad(imageFileId: string, quad: ImageQuad | null): Promise<void> {
+      await db.updateTable("imageFiles").set({ quad }).where("id", "=", imageFileId).execute();
     },
 
     async deleteById(imageId: string): Promise<void> {
@@ -231,11 +239,17 @@ export function printingImagesRepo(db: Kysely<Database>) {
       return db
         .selectFrom("printingImages as pi")
         .innerJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
-        .select(["imgf.id as imageId", "imgf.originalUrl", "imgf.rotation", "imgf.needsTrim"])
+        .select([
+          "imgf.id as imageId",
+          "imgf.originalUrl",
+          "imgf.rotation",
+          "imgf.needsTrim",
+          "imgf.quad",
+        ])
         .where("pi.face", "=", "front")
         .where("imgf.rehostedUrl", "is", null)
         .where("imgf.originalUrl", "is not", null)
-        .groupBy(["imgf.id", "imgf.originalUrl", "imgf.rotation", "imgf.needsTrim"])
+        .groupBy(["imgf.id", "imgf.originalUrl", "imgf.rotation", "imgf.needsTrim", "imgf.quad"])
         .limit(limit)
         .execute();
     },
@@ -300,12 +314,13 @@ export function printingImagesRepo(db: Kysely<Database>) {
           rehostedUrl: string | null;
           rotation: 0 | 90 | 180 | 270;
           needsTrim: boolean;
+          quad: ImageQuad | null;
         }
       | undefined
     > {
       return db
         .selectFrom("imageFiles")
-        .select(["id", "originalUrl", "rehostedUrl", "rotation", "needsTrim"])
+        .select(["id", "originalUrl", "rehostedUrl", "rotation", "needsTrim", "quad"])
         .where("id", "=", imageFileId)
         .executeTakeFirst();
     },
@@ -470,12 +485,13 @@ export function printingImagesRepo(db: Kysely<Database>) {
           rehostedUrl: string | null;
           rotation: number;
           needsTrim: boolean;
+          quad: ImageQuad | null;
         }
       | undefined
     > {
       return db
         .selectFrom("imageFiles")
-        .select(["id", "originalUrl", "rehostedUrl", "rotation", "needsTrim"])
+        .select(["id", "originalUrl", "rehostedUrl", "rotation", "needsTrim", "quad"])
         .where("id", "=", imageFileId)
         .executeTakeFirst();
     },
