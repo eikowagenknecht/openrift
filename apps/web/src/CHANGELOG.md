@@ -6,7 +6,7 @@
 
 - feat(App): **First-visit guides for lists, tier lists and the Stage** — a dismissable guide on a wishlist or tradelist, the tier list builder and the Stage explains what the page does and how to start, as collections and decks already had.
 - feat(Trades): **See who you could trade with** — the Trades page now has a Could trade section for people you share matching wishlists and tradelists with but haven't traded yet.
-- feat(Cards): **Upload a photo for a missing card image** — the suggest-image page now takes a photo straight from your phone or a file, no image host needed, and walks you to the next card you own that has none.
+- feat(Cards): **Upload a photo for a missing card image** — the suggest-image page now takes a photo straight from your phone or a file, no image host needed, and shows the rest of your cards without a photo so you can pick the next one.
 - feat(Collection): **Your cards without a photo** — a nudge on your collection, a tile on Stats and a list on Contribute point at the cards you own that the catalogue has no picture for.
 
 ### Other

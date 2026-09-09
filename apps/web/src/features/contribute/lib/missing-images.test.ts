@@ -1,7 +1,7 @@
 import type { MissingImagePrinting } from "@openrift/shared/contracts/card-submissions";
 import { describe, expect, it } from "vitest";
 
-import { nextMissingImage, remainingMissingImagesLine } from "./missing-images";
+import { otherMissingImages, remainingMissingImagesLine } from "./missing-images";
 
 function printing(printingId: string): MissingImagePrinting {
   return {
@@ -17,37 +17,25 @@ function printing(printingId: string): MissingImagePrinting {
   };
 }
 
-describe("nextMissingImage", () => {
-  it("picks the item right after the current one", () => {
+describe("otherMissingImages", () => {
+  it("drops the current printing and keeps the order", () => {
     const items = [printing("a"), printing("b"), printing("c")];
 
-    const { next, remaining } = nextMissingImage(items, "a");
-
-    expect(next?.printingId).toBe("b");
-    expect(remaining).toBe(2);
+    expect(otherMissingImages(items, "b").map((item) => item.printingId)).toEqual(["a", "c"]);
   });
 
-  it("wraps to the first item when the current one is last", () => {
-    const items = [printing("a"), printing("b"), printing("c")];
-
-    expect(nextMissingImage(items, "c").next?.printingId).toBe("a");
-  });
-
-  it("starts at the first item when the current printing is not in the list", () => {
+  it("keeps every item when the current printing is not in the list", () => {
     const items = [printing("a"), printing("b")];
 
-    const { next, remaining } = nextMissingImage(items, "gone");
-
-    expect(next?.printingId).toBe("a");
-    expect(remaining).toBe(2);
+    expect(otherMissingImages(items, "gone")).toHaveLength(2);
   });
 
-  it("has no next item when only the current printing is left", () => {
-    expect(nextMissingImage([printing("a")], "a")).toEqual({ next: null, remaining: 0 });
+  it("returns nothing when only the current printing is left", () => {
+    expect(otherMissingImages([printing("a")], "a")).toEqual([]);
   });
 
-  it("has no next item for an empty list", () => {
-    expect(nextMissingImage([], "a")).toEqual({ next: null, remaining: 0 });
+  it("returns nothing for an empty list", () => {
+    expect(otherMissingImages([], "a")).toEqual([]);
   });
 });
 

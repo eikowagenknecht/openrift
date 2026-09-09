@@ -1,3 +1,4 @@
+import type { MissingImagePrinting } from "@openrift/shared/contracts/card-submissions";
 import { makeCard, makePrinting } from "@openrift/shared/test-factories";
 import type { CopyResponse } from "@openrift/shared/types/api/collection";
 import type { MetaPlayerDetailResponse, MetaPlayerFinish } from "@openrift/shared/types/api/meta";
@@ -79,6 +80,24 @@ export function stubPrinting(
     ...printingOverrides,
     card,
   });
+}
+
+export function stubMissingImagePrinting(
+  index: number,
+  overrides: Partial<MissingImagePrinting> = {},
+): MissingImagePrinting {
+  return {
+    printingId: `printing-${index}`,
+    cardSlug: `card-${index}`,
+    cardName: `Card ${index}`,
+    setSlug: "ogn",
+    setName: "Origins",
+    publicCode: `OGN-${index}`,
+    finish: "foil",
+    language: "DE",
+    copies: 2,
+    ...overrides,
+  };
 }
 
 export function stubCardViewerItem(

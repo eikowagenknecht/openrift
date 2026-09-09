@@ -52,7 +52,11 @@ vi.mock("@/features/contribute/hooks/use-missing-images", () => ({
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { ImageSuggestForm } from "@/features/contribute/components/image-suggest-form";
 // oxlint-disable-next-line import/first -- must import after vi.mock
-import { stubPrinting } from "@/test/factories";
+import { initKeys } from "@/lib/query-keys";
+// oxlint-disable-next-line import/first -- must import after vi.mock
+import { stubMissingImagePrinting, stubPrinting } from "@/test/factories";
+// oxlint-disable-next-line import/first -- must import after vi.mock
+import { MISSING_IMAGE_ENUMS, stubInitResponse } from "@/test/init-fixtures";
 
 const UPLOADED_URL = "/media/submissions/11111111-2222-3333-4444-555555555555.jpg";
 
@@ -66,6 +70,7 @@ const printing = stubPrinting({
 
 function renderForm() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(initKeys.all, stubInitResponse(MISSING_IMAGE_ENUMS));
   return render(
     <QueryClientProvider client={client}>
       <ImageSuggestForm card={printing.card} printing={printing} setSlug="ogn" setName="Origins" />
@@ -148,27 +153,31 @@ describe("ImageSuggestForm", () => {
     );
   });
 
-  it("offers the next card the user owns once the suggestion is in", () => {
+  it("lists the cards still missing an image once the suggestion is in", () => {
     submitState.isSuccess = true;
     missingImages.items = [
-      {
-        printingId: "printing-2",
-        cardSlug: "yasuo-windchaser",
-        cardName: "Yasuo, Windchaser",
-        setSlug: "ogn",
-        setName: "Origins",
-        publicCode: "OGN-100/298",
-        finish: "normal",
-        language: "EN",
-        copies: 1,
-      },
+      stubMissingImagePrinting(2, { cardSlug: "yasuo-windchaser", cardName: "Yasuo, Windchaser" }),
+      stubMissingImagePrinting(3),
     ];
     renderForm();
 
-    expect(screen.getByRole("link", { name: /Yasuo, Windchaser · Origins/u })).toHaveAttribute(
+    expect(screen.getByText("2 more cards you own have no image yet")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Yasuo, Windchaser/u })).toHaveAttribute(
       "href",
       "/contribute/yasuo-windchaser/image/printing-2",
     );
+  });
+
+  it("drops the printing just submitted from the list", () => {
+    submitState.isSuccess = true;
+    missingImages.items = [
+      stubMissingImagePrinting(1, { cardName: "Ahri, Alluring" }),
+      stubMissingImagePrinting(2, { cardName: "Yasuo, Windchaser" }),
+    ];
+    renderForm();
+
+    expect(screen.queryByText("Ahri, Alluring")).not.toBeInTheDocument();
+    expect(screen.getByText("1 more card you own has no image yet")).toBeInTheDocument();
   });
 
   it("says the run is over when nothing is left", () => {

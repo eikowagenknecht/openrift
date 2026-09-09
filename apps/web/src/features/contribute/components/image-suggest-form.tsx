@@ -1,13 +1,14 @@
 import type { Card, Printing } from "@openrift/shared/types/catalog";
-import { Link } from "@tanstack/react-router";
-import { ArrowRightIcon, CheckCircle2Icon, ImageUpIcon, SendIcon } from "lucide-react";
+import { CheckCircle2Icon, ImageUpIcon, SendIcon } from "lucide-react";
 import { useState } from "react";
 
+import { Heading } from "@/components/heading";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dropzone } from "@/components/ui/dropzone";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MissingImagesList } from "@/features/contribute/components/missing-images-list";
 import { useSubmitCard } from "@/features/contribute/hooks/use-card-submission";
 import { useMyMissingImages } from "@/features/contribute/hooks/use-missing-images";
 import { useUploadSubmissionImage } from "@/features/contribute/hooks/use-upload-submission-image";
@@ -18,7 +19,7 @@ import {
   validateContribution,
 } from "@/features/contribute/lib/contribute-json";
 import {
-  nextMissingImage,
+  otherMissingImages,
   remainingMissingImagesLine,
 } from "@/features/contribute/lib/missing-images";
 
@@ -90,7 +91,7 @@ export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSugg
           <AlertTitle>Thanks! Your image suggestion is in the review queue.</AlertTitle>
           <AlertDescription>I check every submission before it goes live.</AlertDescription>
         </Alert>
-        <NextCardAction currentPrintingId={printing.id} />
+        <MoreMissingImages currentPrintingId={printing.id} />
       </div>
     );
   }
@@ -160,34 +161,23 @@ export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSugg
   );
 }
 
-function NextCardAction({ currentPrintingId }: { currentPrintingId: string }) {
+function MoreMissingImages({ currentPrintingId }: { currentPrintingId: string }) {
   const { data } = useMyMissingImages();
   if (data === undefined) {
     return null;
   }
-  const { next, remaining } = nextMissingImage(data.items, currentPrintingId);
-  if (next === null) {
+  const remaining = otherMissingImages(data.items, currentPrintingId);
+  if (remaining.length === 0) {
     return <p className="text-muted-foreground">All your cards have images now. Thanks!</p>;
   }
-  const remainingLine = remainingMissingImagesLine(remaining);
   return (
-    <div className="flex flex-col gap-2">
-      <Button
-        className="self-start"
-        render={
-          <Link
-            to="/contribute/$cardSlug/image/$printingId"
-            params={{ cardSlug: next.cardSlug, printingId: next.printingId }}
-          />
-        }
-      >
-        <ArrowRightIcon className="size-4" />
-        Next: {next.cardName} · {next.setName}
-      </Button>
-      {remainingLine === null ? null : (
-        <p className="text-muted-foreground text-sm">{remainingLine}</p>
-      )}
-    </div>
+    <section className="flex flex-col gap-3">
+      <Heading level={2}>Pick the next card</Heading>
+      <p className="text-muted-foreground text-sm">
+        {remainingMissingImagesLine(remaining.length)}
+      </p>
+      <MissingImagesList items={remaining} />
+    </section>
   );
 }
 

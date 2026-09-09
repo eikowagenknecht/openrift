@@ -1,6 +1,7 @@
 import type { MissingImagePrinting } from "@openrift/shared/contracts/card-submissions";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -30,14 +31,8 @@ vi.mock("@tanstack/react-router", () => ({
   },
 }));
 
-const missingImages = vi.hoisted(() => ({ items: [] as MissingImagePrinting[] }));
-
-vi.mock("@/features/contribute/hooks/use-missing-images", () => ({
-  useMyMissingImages: () => ({ data: { items: missingImages.items } }),
-}));
-
 // oxlint-disable-next-line import/first -- must import after vi.mock
-import { MyMissingImagesSection } from "@/features/contribute/components/my-missing-images-section";
+import { MissingImagesList } from "@/features/contribute/components/missing-images-list";
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { initKeys } from "@/lib/query-keys";
 // oxlint-disable-next-line import/first -- must import after vi.mock
@@ -45,33 +40,43 @@ import { stubMissingImagePrinting } from "@/test/factories";
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { MISSING_IMAGE_ENUMS, stubInitResponse } from "@/test/init-fixtures";
 
-function renderSection(items: MissingImagePrinting[]) {
-  missingImages.items = items;
+function renderList(items: MissingImagePrinting[]) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(initKeys.all, stubInitResponse(MISSING_IMAGE_ENUMS));
   return render(
     <QueryClientProvider client={client}>
-      <MyMissingImagesSection />
+      <MissingImagesList items={items} />
     </QueryClientProvider>,
   );
 }
 
-describe("MyMissingImagesSection", () => {
-  it("renders nothing when the user owns no card without an image", () => {
-    const { container } = renderSection([]);
+describe("MissingImagesList", () => {
+  it("shows each printing with its labels and links to its suggest page", () => {
+    renderList([stubMissingImagePrinting(1, { cardName: "Ahri, Alluring" })]);
 
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it("lists the printings under the section heading", () => {
-    renderSection([stubMissingImagePrinting(1, { cardName: "Ahri, Alluring" })]);
-
-    expect(
-      screen.getByRole("heading", { name: "Cards you own that have no image" }),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Ahri, Alluring")).toBeInTheDocument();
+    expect(screen.getByText("Origins · OGN-1 · Foil · German")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Ahri, Alluring/u })).toHaveAttribute(
       "href",
       "/contribute/card-1/image/printing-1",
     );
+    expect(screen.getByTitle("2 in your collections")).toHaveTextContent("2");
+  });
+
+  it("caps the list at ten rows until the toggle reveals the rest", async () => {
+    const user = userEvent.setup();
+    renderList(Array.from({ length: 12 }, (_, index) => stubMissingImagePrinting(index + 1)));
+
+    expect(screen.queryByText("Card 11")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Show all 12" }));
+
+    expect(screen.getByText("Card 12")).toBeInTheDocument();
+  });
+
+  it("shows no toggle when everything already fits", () => {
+    renderList([stubMissingImagePrinting(1), stubMissingImagePrinting(2)]);
+
+    expect(screen.queryByRole("button", { name: /Show all/u })).not.toBeInTheDocument();
   });
 });

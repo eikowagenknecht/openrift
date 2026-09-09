@@ -15,7 +15,7 @@ import { cardDetailQueryOptions } from "@/features/cards/hooks/use-card-detail";
 import { ImageSuggestForm } from "@/features/contribute/components/image-suggest-form";
 import { useMyMissingImages } from "@/features/contribute/hooks/use-missing-images";
 import {
-  nextMissingImage,
+  otherMissingImages,
   remainingMissingImagesLine,
 } from "@/features/contribute/lib/missing-images";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -34,7 +34,7 @@ function ImageSuggestPage() {
   const { labels } = useEnumOrders();
   const { data: missing } = useMyMissingImages();
   const remainingLine = remainingMissingImagesLine(
-    nextMissingImage(missing?.items ?? [], printingId).remaining,
+    otherMissingImages(missing?.items ?? [], printingId).length,
   );
   const printing = data.printings.find((p) => p.id === printingId);
   if (!printing) {
