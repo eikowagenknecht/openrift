@@ -25,6 +25,7 @@
 - fix(Cards): **Contribute form rejected repeat card names** — submitting a card whose name someone had already sent in failed with a server error; now everyone's submissions for that name are kept.
 - fix(Cards): **Image suggestions need a photo or a link** — the suggest-image form let you submit with neither; it now asks for one before you can send it.
 - fix(Collection): **Share links open the full view when you already have access** — a collection share link used to show a read-only page with a small link to switch, which people missed; it now sends you straight to the editable view.
+- fix(Groups): **A big trade no longer buries the activity feed** — a bulk trade of many cards used to fill the whole Recent activity window as separate rows, pushing out joins, shares, and other trades; it now counts as the one row it renders.
 
 ## 2026-09-08
 

@@ -1,23 +1,20 @@
 import type { FriendGroupActivityEvent } from "@openrift/shared/types/api/friend-group";
 import { describe, expect, it } from "vitest";
 
-import type { AggregatedActivityRow } from "./friend-group-activity";
-import {
-  aggregateActivityEvents,
-  distinctPrintingIds,
-  groupActivityRowsByDay,
-  tradeVolumeLabel,
-} from "./friend-group-activity";
+import { buildActivityDays, distinctPrintingIds, tradeVolumeLabel } from "./friend-group-activity";
 
 type TradeCompletedEvent = Extract<FriendGroupActivityEvent, { kind: "trade-completed" }>;
 
 let tradeSeq = 0;
 
-function trade(overrides: Partial<TradeCompletedEvent> = {}): TradeCompletedEvent {
+const atLocal = (day: number, hour: number): string =>
+  new Date(2026, 6, day, hour, 0, 0).toISOString();
+
+function trade(at: string, overrides: Partial<TradeCompletedEvent> = {}): TradeCompletedEvent {
   tradeSeq += 1;
   return {
     kind: "trade-completed",
-    at: "2026-07-15T12:00:00.000Z",
+    at,
     tradeId: `trade-${tradeSeq}`,
     printingId: `printing-${tradeSeq}`,
     cardId: `card-${tradeSeq}`,
@@ -34,145 +31,96 @@ function memberJoined(at: string): FriendGroupActivityEvent {
   return {
     kind: "member-joined",
     at,
-    userId: "user-9",
+    userId: `user-${at}`,
     userName: "Garruk",
     userImage: null,
     gravatarHash: "hash",
   };
 }
 
-describe("aggregateActivityEvents", () => {
+describe("buildActivityDays", () => {
   it("returns an empty list for no events", () => {
-    expect(aggregateActivityEvents([])).toEqual([]);
+    expect(buildActivityDays([], 20)).toEqual([]);
   });
 
-  it("keeps a lone trade as a plain event row", () => {
-    const event = trade();
-    const rows = aggregateActivityEvents([event]);
-    expect(rows).toEqual([{ kind: "event", at: event.at, event }]);
+  it("gathers same-day events into one group anchored at the newest timestamp", () => {
+    const newer = memberJoined(atLocal(15, 18));
+    const older = memberJoined(atLocal(15, 9));
+    const days = buildActivityDays([newer, older], 20);
+    expect(days).toHaveLength(1);
+    expect(days[0]!.at).toBe(newer.at);
+    expect(days[0]!.rows.map((row) => row.at)).toEqual([newer.at, older.at]);
   });
 
-  it("keeps non-trade events as plain event rows", () => {
-    const event = memberJoined("2026-07-15T10:00:00.000Z");
-    const rows = aggregateActivityEvents([event]);
-    expect(rows).toEqual([{ kind: "event", at: event.at, event }]);
+  it("splits events on different local days into separate groups, newest-first", () => {
+    const today = memberJoined(atLocal(15, 12));
+    const yesterdayLate = memberJoined(atLocal(14, 23));
+    const yesterdayEarly = memberJoined(atLocal(14, 1));
+    const lastWeek = memberJoined(atLocal(8, 12));
+    const days = buildActivityDays([today, yesterdayLate, yesterdayEarly, lastWeek], 20);
+    expect(days.map((day) => day.rows.map((row) => row.at))).toEqual([
+      [today.at],
+      [yesterdayLate.at, yesterdayEarly.at],
+      [lastWeek.at],
+    ]);
+    expect(days.map((day) => day.at)).toEqual([today.at, yesterdayLate.at, lastWeek.at]);
   });
 
-  it("collapses consecutive same-pair trades into one batch summing quantities", () => {
-    const first = trade({ at: "2026-07-15T12:00:00.000Z", quantity: 2 });
-    const second = trade({ at: "2026-07-15T11:59:00.000Z", quantity: 1 });
-    const third = trade({ at: "2026-07-15T11:58:00.000Z", quantity: 3 });
-    const rows = aggregateActivityEvents([first, second, third]);
-    expect(rows).toHaveLength(1);
-    const batch = rows[0]!;
+  it("keys groups uniquely across month boundaries", () => {
+    const july = memberJoined(new Date(2026, 6, 1, 12).toISOString());
+    const june = memberJoined(new Date(2026, 5, 1, 12).toISOString());
+    const days = buildActivityDays([july, june], 20);
+    expect(days).toHaveLength(2);
+    expect(days[0]!.key).not.toBe(days[1]!.key);
+  });
+
+  it("collapses a same-day run of same-pair trades into one batch row", () => {
+    const first = trade(atLocal(15, 12), { quantity: 2 });
+    const second = trade(atLocal(15, 11), { quantity: 3 });
+    const days = buildActivityDays([first, second], 20);
+    expect(days).toHaveLength(1);
+    const batch = days[0]!.rows[0]!;
     expect(batch.kind).toBe("trade-batch");
     if (batch.kind !== "trade-batch") {
       return;
     }
-    expect(batch.at).toBe(first.at);
-    expect(batch.totalQuantity).toBe(6);
-    expect(batch.giverName).toBe("Mira");
-    expect(batch.receiverName).toBe("EPA");
-    expect(batch.events).toEqual([first, second, third]);
+    expect(batch.totalQuantity).toBe(5);
   });
 
-  it("does not merge trades between different pairs", () => {
-    const pairA = trade();
-    const pairB = trade({ giverUserId: "giver-2", giverName: "Chris" });
-    const rows = aggregateActivityEvents([pairA, pairB]);
-    expect(rows).toEqual([
-      { kind: "event", at: pairA.at, event: pairA },
-      { kind: "event", at: pairB.at, event: pairB },
+  it("keeps a same-pair run split across days on its own day", () => {
+    const today = trade(atLocal(15, 12));
+    const yesterday = trade(atLocal(14, 12));
+    const days = buildActivityDays([today, yesterday], 20);
+    expect(days.map((day) => day.rows.map((row) => row.kind))).toEqual([["event"], ["event"]]);
+  });
+
+  it("spends the budget on rows, so one big batch leaves room for older days", () => {
+    const batched = Array.from({ length: 25 }, (_unused, index) =>
+      trade(new Date(2026, 6, 15, 12, -index).toISOString()),
+    );
+    const joined = memberJoined(atLocal(14, 12));
+    const days = buildActivityDays([...batched, joined], 2);
+    expect(days.map((day) => day.rows.map((row) => row.kind))).toEqual([
+      ["trade-batch"],
+      ["event"],
     ]);
   });
 
-  it("does not merge same-pair trades separated by another event", () => {
-    const before = trade();
-    const interruption = memberJoined("2026-07-15T11:30:00.000Z");
-    const after = trade();
-    const rows = aggregateActivityEvents([before, interruption, after]);
-    expect(rows.map((row) => row.kind)).toEqual(["event", "event", "event"]);
+  it("drops days once the budget is spent", () => {
+    const days = buildActivityDays(
+      [memberJoined(atLocal(15, 12)), memberJoined(atLocal(14, 12)), memberJoined(atLocal(13, 12))],
+      2,
+    );
+    expect(days.map((day) => day.at)).toEqual([atLocal(15, 12), atLocal(14, 12)]);
   });
 
-  it("treats reversed direction as a different pair", () => {
-    const give = trade();
-    const receive = trade({
-      giverUserId: "receiver-1",
-      giverName: "EPA",
-      receiverUserId: "giver-1",
-      receiverName: "Mira",
-    });
-    const rows = aggregateActivityEvents([give, receive]);
-    expect(rows.map((row) => row.kind)).toEqual(["event", "event"]);
-  });
-
-  it("closes a run at the end of the list", () => {
-    const joined = memberJoined("2026-07-15T13:00:00.000Z");
-    const first = trade({ quantity: 2 });
-    const second = trade({ quantity: 2 });
-    const rows = aggregateActivityEvents([joined, first, second]);
-    expect(rows).toHaveLength(2);
-    expect(rows[0]!.kind).toBe("event");
-    expect(rows[1]!.kind).toBe("trade-batch");
-  });
-});
-
-describe("groupActivityRowsByDay", () => {
-  const atLocal = (day: number, hour: number): string =>
-    new Date(2026, 6, day, hour, 0, 0).toISOString();
-
-  const eventRow = (at: string): AggregatedActivityRow => ({
-    kind: "event",
-    at,
-    event: memberJoined(at),
-  });
-
-  it("returns an empty list for no rows", () => {
-    expect(groupActivityRowsByDay([])).toEqual([]);
-  });
-
-  it("gathers same-day rows into one group anchored at the newest timestamp", () => {
-    const newer = eventRow(atLocal(15, 18));
-    const older = eventRow(atLocal(15, 9));
-    const groups = groupActivityRowsByDay([newer, older]);
-    expect(groups).toHaveLength(1);
-    expect(groups[0]!.at).toBe(newer.at);
-    expect(groups[0]!.rows).toEqual([newer, older]);
-  });
-
-  it("splits rows on different local days into separate groups, newest-first", () => {
-    const today = eventRow(atLocal(15, 12));
-    const yesterdayLate = eventRow(atLocal(14, 23));
-    const yesterdayEarly = eventRow(atLocal(14, 1));
-    const lastWeek = eventRow(atLocal(8, 12));
-    const groups = groupActivityRowsByDay([today, yesterdayLate, yesterdayEarly, lastWeek]);
-    expect(groups.map((group) => group.rows)).toEqual([
-      [today],
-      [yesterdayLate, yesterdayEarly],
-      [lastWeek],
-    ]);
-    expect(groups.map((group) => group.at)).toEqual([today.at, yesterdayLate.at, lastWeek.at]);
-  });
-
-  it("keys groups uniquely across month boundaries", () => {
-    const july = eventRow(new Date(2026, 6, 1, 12).toISOString());
-    const june = eventRow(new Date(2026, 5, 1, 12).toISOString());
-    const groups = groupActivityRowsByDay([july, june]);
-    expect(groups).toHaveLength(2);
-    expect(groups[0]!.key).not.toBe(groups[1]!.key);
-  });
-
-  it("carries trade-batch rows like plain event rows", () => {
-    const batchAt = atLocal(15, 12);
-    const [batch] = aggregateActivityEvents([
-      trade({ at: batchAt }),
-      trade({ at: atLocal(15, 11) }),
-    ]);
-    const joined = eventRow(atLocal(14, 12));
-    const groups = groupActivityRowsByDay([batch!, joined]);
-    expect(groups).toHaveLength(2);
-    expect(groups[0]!.rows).toEqual([batch]);
-    expect(groups[0]!.at).toBe(batchAt);
+  it("truncates a day's rows to the remaining budget", () => {
+    const days = buildActivityDays(
+      [memberJoined(atLocal(15, 12)), memberJoined(atLocal(14, 18)), memberJoined(atLocal(14, 9))],
+      2,
+    );
+    expect(days.map((day) => day.rows.length)).toEqual([1, 1]);
+    expect(days[1]!.rows[0]!.at).toBe(atLocal(14, 18));
   });
 });
 

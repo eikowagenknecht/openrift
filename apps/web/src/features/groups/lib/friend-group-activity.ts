@@ -1,4 +1,6 @@
 import { TRADE_VOLUME_WINDOW_DAYS } from "@openrift/shared/contracts/friend-groups";
+import type { AggregatedActivityRow } from "@openrift/shared/friend-group-activity";
+import { aggregateActivityEvents } from "@openrift/shared/friend-group-activity";
 import type { FriendGroupActivityEvent } from "@openrift/shared/types/api/friend-group";
 
 export function tradeVolumeLabel(recent: number, lifetime: number): string {
@@ -9,23 +11,6 @@ export function tradeVolumeLabel(recent: number, lifetime: number): string {
     ? `No trades in the last ${TRADE_VOLUME_WINDOW_DAYS} days`
     : "No trades here yet";
 }
-
-type TradeCompletedEvent = Extract<FriendGroupActivityEvent, { kind: "trade-completed" }>;
-
-export interface TradeBatch {
-  kind: "trade-batch";
-  at: string;
-  giverUserId: string | null;
-  giverName: string | null;
-  receiverUserId: string | null;
-  receiverName: string | null;
-  totalQuantity: number;
-  events: TradeCompletedEvent[];
-}
-
-export type AggregatedActivityRow =
-  | { kind: "event"; at: string; event: FriendGroupActivityEvent }
-  | TradeBatch;
 
 /** `at` is the day's newest timestamp: the input is newest-first. */
 export interface ActivityDayGroup {
@@ -39,69 +24,28 @@ function localDayKey(at: string): string {
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 }
 
-export function groupActivityRowsByDay(rows: AggregatedActivityRow[]): ActivityDayGroup[] {
-  const groups: ActivityDayGroup[] = [];
-  for (const row of rows) {
-    const key = localDayKey(row.at);
-    const last = groups.at(-1);
-    if (last?.key === key) {
-      last.rows.push(row);
-    } else {
-      groups.push({ key, at: row.at, rows: [row] });
+/** Aggregates within a local day, so a trade batch never spans two date leaves. */
+export function buildActivityDays(
+  events: readonly FriendGroupActivityEvent[],
+  maxRows: number,
+): ActivityDayGroup[] {
+  const days: ActivityDayGroup[] = [];
+  let budget = maxRows;
+  for (const [key, dayEvents] of Map.groupBy(events, (event) => localDayKey(event.at))) {
+    if (budget <= 0) {
+      break;
     }
+    const rows = aggregateActivityEvents(dayEvents).slice(0, budget);
+    const first = rows[0];
+    if (first === undefined) {
+      continue;
+    }
+    budget -= rows.length;
+    days.push({ key, at: first.at, rows });
   }
-  return groups;
+  return days;
 }
 
 export function distinctPrintingIds(events: readonly { printingId: string }[]): string[] {
   return [...new Set(events.map((event) => event.printingId))];
-}
-
-function sameParties(a: TradeCompletedEvent, b: TradeCompletedEvent): boolean {
-  return a.giverUserId === b.giverUserId && a.receiverUserId === b.receiverUserId;
-}
-
-/** Only consecutive trade-completed events with the same parties merge into a {@link TradeBatch}. */
-export function aggregateActivityEvents(
-  events: FriendGroupActivityEvent[],
-): AggregatedActivityRow[] {
-  const rows: AggregatedActivityRow[] = [];
-  let run: TradeCompletedEvent[] = [];
-
-  const flush = () => {
-    const first = run[0];
-    if (first === undefined) {
-      return;
-    }
-    if (run.length === 1) {
-      rows.push({ kind: "event", at: first.at, event: first });
-    } else {
-      rows.push({
-        kind: "trade-batch",
-        at: first.at,
-        giverUserId: first.giverUserId,
-        giverName: first.giverName,
-        receiverUserId: first.receiverUserId,
-        receiverName: first.receiverName,
-        totalQuantity: run.reduce((sum, event) => sum + event.quantity, 0),
-        events: run,
-      });
-    }
-    run = [];
-  };
-
-  for (const event of events) {
-    if (event.kind !== "trade-completed") {
-      flush();
-      rows.push({ kind: "event", at: event.at, event });
-      continue;
-    }
-    const head = run[0];
-    if (head !== undefined && !sameParties(head, event)) {
-      flush();
-    }
-    run.push(event);
-  }
-  flush();
-  return rows;
 }

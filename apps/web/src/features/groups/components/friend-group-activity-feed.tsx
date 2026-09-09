@@ -1,4 +1,5 @@
 import { dateLeafParts, formatRelativeTime } from "@openrift/shared/format-date";
+import type { AggregatedActivityRow, TradeBatch } from "@openrift/shared/friend-group-activity";
 import type { FriendGroupActivityEvent } from "@openrift/shared/types/api/friend-group";
 import { getOrientation } from "@openrift/shared/utils";
 import { Link } from "@tanstack/react-router";
@@ -14,32 +15,26 @@ import { CardArtThumbStack } from "@/features/cards/components/card-art-thumb-st
 import { useCards } from "@/features/cards/hooks/use-cards";
 import { frontImageId } from "@/features/cards/lib/card-meta";
 import { useFriendGroupActivity } from "@/features/groups/hooks/use-friend-groups";
-import type {
-  AggregatedActivityRow,
-  TradeBatch,
-} from "@/features/groups/lib/friend-group-activity";
 import {
-  aggregateActivityEvents,
+  buildActivityDays,
   distinctPrintingIds,
-  groupActivityRowsByDay,
 } from "@/features/groups/lib/friend-group-activity";
 import { useRequiredUserId } from "@/lib/auth-session";
 
 import { HOVER_ROW_CLASS } from "./hover-row";
 import { LIST_INTENT_ICON, LIST_INTENT_NOUN } from "./list-intent-meta";
 
-const FEED_VISIBLE = 20;
+const FEED_ROWS = 20;
 
 // Derived server-side from existing rows; there is no dedicated event log.
 export function FriendGroupActivityFeed({ slug }: { slug: string }) {
   const { data } = useFriendGroupActivity(slug);
-  const rows = aggregateActivityEvents(data.events.slice(0, FEED_VISIBLE));
-  const days = groupActivityRowsByDay(rows);
+  const days = buildActivityDays(data.events, FEED_ROWS);
 
   return (
     <section className="flex flex-col gap-4">
       <SectionHeading>Recent activity</SectionHeading>
-      {rows.length === 0 ? (
+      {days.length === 0 ? (
         <p className="text-muted-foreground text-sm">
           Nothing yet. New members, shared lists, and trades show up here as the group gets going.
         </p>

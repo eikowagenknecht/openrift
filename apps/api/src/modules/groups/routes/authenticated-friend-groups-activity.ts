@@ -1,4 +1,5 @@
 import { friendGroupsContract } from "@openrift/shared/contracts/friend-groups";
+import { limitEventsToRows } from "@openrift/shared/friend-group-activity";
 import type {
   FriendGroupActivityEvent,
   FriendGroupActivityResponse,
@@ -52,18 +53,19 @@ export const friendGroupsActivityRouter = {
       const ctx = await loadGroupForMember(context.repos, input.slug, viewerId);
       const { friendGroups, cardTrades, friendGroupMatches } = context.repos;
 
-      // One bound per source; the merged list is sliced to the same bound after
-      // sorting, so older events from any single source fall away.
-      const FEED_LIMIT = 30;
+      // The merged list is bounded by rendered rows, not events, and one trade
+      // row per traded printing collapses into a single batch row.
+      const FEED_ROWS = 30;
+      const TRADE_POOL = 200;
       const [completedTrades, members, shares, collectionShares, matches] = await Promise.all([
-        cardTrades.recentCompletedInGroup(ctx.group.id, FEED_LIMIT),
+        cardTrades.recentCompletedInGroup(ctx.group.id, TRADE_POOL),
         friendGroups.listMembers(ctx.group.id),
         friendGroups.listSharesForGroup(ctx.group.id),
         friendGroups.collectionSharesForGroup(ctx.group.id),
         friendGroupMatches.recentIncomingMatchesForFeed({
           groupId: ctx.group.id,
           viewerUserId: viewerId,
-          limit: FEED_LIMIT,
+          limit: FEED_ROWS,
         }),
       ]);
 
@@ -122,7 +124,7 @@ export const friendGroupsActivityRouter = {
       // order for same-offset ISO strings).
       events.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
 
-      return { events: events.slice(0, FEED_LIMIT) };
+      return { events: limitEventsToRows(events, FEED_ROWS) };
     },
   ),
 };
