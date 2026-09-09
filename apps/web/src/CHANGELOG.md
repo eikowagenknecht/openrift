@@ -11,6 +11,7 @@
 ### Other
 
 - feat(Cards): **"No image yet" filter** — the card browser and your collection can now show only printings without a picture.
+- fix(Collection): **Share links open the full view when you already have access** — a collection share link used to show a read-only page with a small link to switch, which people missed; it now sends you straight to the editable view.
 
 ## 2026-09-08
 

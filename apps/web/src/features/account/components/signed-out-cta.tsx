@@ -42,7 +42,7 @@ export function PublicShareCta({ title, children }: { title: string; children: R
     return null;
   }
   return (
-    <Card className="mt-3 flex-row flex-wrap items-center justify-between gap-3 px-4">
+    <Card className="my-3 flex-row flex-wrap items-center justify-between gap-3 px-4">
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="font-medium">{title}</span>
         <span className="text-muted-foreground">{children}</span>

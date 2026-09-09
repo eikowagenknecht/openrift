@@ -1,7 +1,7 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
 import { PublicShareCta } from "@/features/account/components/signed-out-cta";
-import { SharedCollectionAccessNotice } from "@/features/collections/components/shared-collection-access-notice";
+import { SharedCollectionAccessRedirect } from "@/features/collections/components/shared-collection-access-redirect";
 import { SharedCollectionView } from "@/features/collections/components/shared-collection-view";
 import { usePublicCollection } from "@/features/collections/hooks/use-collections";
 
@@ -20,7 +20,7 @@ function SharedCollectionPage() {
       search={search}
       notice={
         <>
-          <SharedCollectionAccessNotice collectionId={data.collection.id} />
+          <SharedCollectionAccessRedirect collectionId={data.collection.id} />
           <PublicShareCta title="Keep track of your own cards">
             Log what you own, see what a binder is worth, and share it with a link like this one.
           </PublicShareCta>
