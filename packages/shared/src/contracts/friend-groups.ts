@@ -97,6 +97,72 @@ export const friendGroupSlugAndLinkIdParamSchema = z.object({
   linkId: z.uuid(),
 });
 
+export const friendGroupSlugAndStoreIdParamSchema = z.object({
+  slug: friendGroupSlugSchema,
+  storeId: z.coerce.number().int().positive(),
+});
+
+export const friendGroupShopSearchQuerySchema = z.object({
+  q: z.string().min(2).max(80),
+});
+
+export const friendGroupLinkShopSchema = z.object({
+  storeId: z.number().int().positive(),
+});
+
+export const friendGroupShopResponseSchema = z
+  .object({
+    storeId: z.number().int(),
+    name: z.string(),
+    location: z.string().nullable(),
+    upcomingCount: z.number().int(),
+    nextEventAt: z.string().nullable(),
+  })
+  .openapi("FriendGroupShopResponse");
+
+export const friendGroupShopsResponseSchema = z
+  .object({
+    items: z.array(friendGroupShopResponseSchema),
+    limit: z.number().int(),
+  })
+  .openapi("FriendGroupShopsResponse");
+
+export const friendGroupShopSearchResultSchema = z
+  .object({
+    storeId: z.number().int(),
+    name: z.string(),
+    location: z.string().nullable(),
+    upcomingCount: z.number().int(),
+    linked: z.boolean(),
+  })
+  .openapi("FriendGroupShopSearchResult");
+
+export const friendGroupShopSearchResponseSchema = z
+  .object({
+    items: z.array(friendGroupShopSearchResultSchema),
+  })
+  .openapi("FriendGroupShopSearchResponse");
+
+export const friendGroupShopEventResponseSchema = z
+  .object({
+    externalId: z.string(),
+    name: z.string(),
+    startAt: z.string(),
+    storeId: z.number().int(),
+    storeName: z.string(),
+    eventFormat: z.string().nullable(),
+    url: z.string(),
+  })
+  .openapi("FriendGroupShopEventResponse");
+
+export const friendGroupShopEventsResponseSchema = z
+  .object({
+    items: z.array(friendGroupShopEventResponseSchema),
+    shops: z.array(z.object({ storeId: z.number().int(), name: z.string() })),
+    horizonDays: z.number().int(),
+  })
+  .openapi("FriendGroupShopEventsResponse");
+
 export const friendGroupDiscordLinkResponseSchema = z
   .object({
     id: z.string(),
@@ -660,6 +726,37 @@ export const friendGroupsContract = {
     .input(friendGroupSlugParamSchema)
     .errors({ NOT_FOUND: { message: "Group not found" } })
     .output(friendGroupDiscordLinksResponseSchema),
+  listShops: authedRoute
+    .route({ method: "GET", path: `${FG}/{slug}/shops`, tags: [TAG] })
+    .input(friendGroupSlugParamSchema)
+    .errors({ NOT_FOUND: { message: "Group not found" } })
+    .output(friendGroupShopsResponseSchema),
+  searchShops: authedRoute
+    .route({ method: "GET", path: `${FG}/{slug}/shop-search`, tags: [TAG] })
+    .input(withParams(friendGroupSlugParamSchema, friendGroupShopSearchQuerySchema))
+    .errors({ NOT_FOUND: { message: "Group not found" } })
+    .output(friendGroupShopSearchResponseSchema),
+  linkShop: authedRoute
+    .route({ method: "POST", path: `${FG}/{slug}/shops`, tags: [TAG], successStatus: 204 })
+    .errors({
+      NOT_FOUND: { message: "Group or shop not found" },
+      CONFLICT: { message: "Shop limit reached" },
+    })
+    .input(withParams(friendGroupSlugParamSchema, friendGroupLinkShopSchema)),
+  unlinkShop: authedRoute
+    .route({
+      method: "DELETE",
+      path: `${FG}/{slug}/shops/{storeId}`,
+      tags: [TAG],
+      successStatus: 204,
+    })
+    .errors({ NOT_FOUND: { message: "Group or shop not found" } })
+    .input(friendGroupSlugAndStoreIdParamSchema),
+  shopEvents: authedRoute
+    .route({ method: "GET", path: `${FG}/{slug}/shop-events`, tags: [TAG] })
+    .input(friendGroupSlugParamSchema)
+    .errors({ NOT_FOUND: { message: "Group not found" } })
+    .output(friendGroupShopEventsResponseSchema),
   deleteDiscordLink: authedRoute
     .route({
       method: "DELETE",

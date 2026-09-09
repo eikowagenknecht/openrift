@@ -50,6 +50,13 @@ export interface FriendGroupInvitesTable {
   createdAt: CreatedAt;
 }
 
+export interface FriendGroupShopsTable {
+  groupId: string;
+  uvsgamesStoreId: number;
+  addedByUserId: string | null;
+  createdAt: CreatedAt;
+}
+
 export interface FriendGroupListSharesTable {
   groupId: string;
   listId: string;

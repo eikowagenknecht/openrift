@@ -71,6 +71,7 @@ import type {
   FriendGroupListSharesTable,
   FriendGroupMemberContactsTable,
   FriendGroupMembersTable,
+  FriendGroupShopsTable,
   FriendGroupsTable,
   UserContactMethodsTable,
 } from "./tables/friend-groups.js";
@@ -267,6 +268,7 @@ export interface Database {
   friendGroupDiscordLinks: FriendGroupDiscordLinksTable;
   friendGroupListShares: FriendGroupListSharesTable;
   friendGroupCollectionShares: FriendGroupCollectionSharesTable;
+  friendGroupShops: FriendGroupShopsTable;
 
   userContactMethods: UserContactMethodsTable;
   friendGroupMemberContacts: FriendGroupMemberContactsTable;

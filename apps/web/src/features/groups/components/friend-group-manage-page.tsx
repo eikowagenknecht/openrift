@@ -8,6 +8,7 @@ import { AdminSettings } from "@/features/groups/components/friend-group-admin-s
 import { LeaveOrDeletePanel } from "@/features/groups/components/leave-or-delete-panel";
 import { ShareableCollectionsPanel } from "@/features/groups/components/shareable-collections-panel";
 import { ShareableListsPanel } from "@/features/groups/components/shareable-lists-panel";
+import { ShopsPanel } from "@/features/groups/components/shops-panel";
 import { useFriendGroupDetail } from "@/features/groups/hooks/use-friend-groups";
 import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
@@ -34,6 +35,7 @@ export function FriendGroupManagePage({ slug }: FriendGroupManagePageProps) {
 
         {isAdmin(viewerRole) ? <AdminSettings data={data} slug={slug} /> : null}
         {isAdmin(viewerRole) ? <DiscordPanel slug={slug} /> : null}
+        {isAdmin(viewerRole) ? <ShopsPanel slug={slug} /> : null}
         <ContactSharingPanel data={data} slug={slug} />
         <ShareableListsPanel slug={slug} />
         <ShareableCollectionsPanel slug={slug} />

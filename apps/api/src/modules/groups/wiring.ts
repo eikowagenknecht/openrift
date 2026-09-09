@@ -5,6 +5,7 @@ import type { ListRuleProviders } from "../lists/repositories/lists-rules.js";
 import { cardTradesRepo } from "./repositories/card-trades.js";
 import { friendGroupDiscordLinksRepo } from "./repositories/friend-group-discord-links.js";
 import { friendGroupMatchesRepo } from "./repositories/friend-group-matches.js";
+import { friendGroupShopsRepo } from "./repositories/friend-group-shops.js";
 import { friendGroupsRepo } from "./repositories/friend-groups.js";
 import { loansRepo } from "./repositories/loans.js";
 import { userSharesRepo } from "./repositories/user-shares.js";
@@ -38,6 +39,7 @@ export interface GroupsRepos {
   friendGroups: ReturnType<typeof friendGroupsRepo>;
   friendGroupDiscordLinks: ReturnType<typeof friendGroupDiscordLinksRepo>;
   friendGroupMatches: ReturnType<typeof friendGroupMatchesRepo>;
+  friendGroupShops: ReturnType<typeof friendGroupShopsRepo>;
   loans: ReturnType<typeof loansRepo>;
   userShares: ReturnType<typeof userSharesRepo>;
 }
@@ -68,6 +70,7 @@ export function createGroupsRepos(db: Kysely<Database>, providers: ListRuleProvi
     friendGroups: friendGroupsRepo(db),
     friendGroupDiscordLinks: friendGroupDiscordLinksRepo(db),
     friendGroupMatches: friendGroupMatchesRepo(db, providers),
+    friendGroupShops: friendGroupShopsRepo(db),
     loans: loansRepo(db),
     userShares: userSharesRepo(db),
   };

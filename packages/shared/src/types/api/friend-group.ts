@@ -29,6 +29,12 @@ import type {
   friendGroupShareResponseSchema,
   friendGroupSharedCollectionDetailResponseSchema,
   friendGroupSharedListDetailResponseSchema,
+  friendGroupShopEventResponseSchema,
+  friendGroupShopEventsResponseSchema,
+  friendGroupShopResponseSchema,
+  friendGroupShopSearchResponseSchema,
+  friendGroupShopSearchResultSchema,
+  friendGroupShopsResponseSchema,
   friendGroupSummaryResponseSchema,
 } from "@openrift/shared/contracts/friend-groups";
 import type { listGroupSharesResponseSchema } from "@openrift/shared/contracts/lists";
@@ -90,6 +96,18 @@ export type FriendGroupBoxWantRow = z.infer<typeof friendGroupBoxWantRowSchema>;
 export type FriendGroupBoxWantsResponse = z.infer<typeof friendGroupBoxWantsResponseSchema>;
 
 export type FriendGroupMemberDetailResponse = z.infer<typeof friendGroupMemberDetailResponseSchema>;
+
+export type FriendGroupShopResponse = z.infer<typeof friendGroupShopResponseSchema>;
+
+export type FriendGroupShopsResponse = z.infer<typeof friendGroupShopsResponseSchema>;
+
+export type FriendGroupShopSearchResult = z.infer<typeof friendGroupShopSearchResultSchema>;
+
+export type FriendGroupShopSearchResponse = z.infer<typeof friendGroupShopSearchResponseSchema>;
+
+export type FriendGroupShopEventResponse = z.infer<typeof friendGroupShopEventResponseSchema>;
+
+export type FriendGroupShopEventsResponse = z.infer<typeof friendGroupShopEventsResponseSchema>;
 
 export type FriendGroupDiscordLinkResponse = z.infer<typeof friendGroupDiscordLinkResponseSchema>;
 

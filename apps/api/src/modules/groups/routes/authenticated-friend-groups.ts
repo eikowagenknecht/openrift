@@ -3,6 +3,7 @@ import { friendGroupsCoreRouter } from "./authenticated-friend-groups-core.js";
 import { friendGroupsDiscordRouter } from "./authenticated-friend-groups-discord.js";
 import { friendGroupsMembersRouter } from "./authenticated-friend-groups-members.js";
 import { friendGroupsSharesRouter } from "./authenticated-friend-groups-shares.js";
+import { friendGroupsShopsRouter } from "./authenticated-friend-groups-shops.js";
 
 /**
  * The friend-groups contract, mounted at `/api/v1/friend-groups`. Role checks /
@@ -15,4 +16,5 @@ export const friendGroupsRouter = {
   ...friendGroupsSharesRouter,
   ...friendGroupsActivityRouter,
   ...friendGroupsDiscordRouter,
+  ...friendGroupsShopsRouter,
 };

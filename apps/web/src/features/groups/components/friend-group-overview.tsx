@@ -2,7 +2,14 @@ import { formatDayTimeLocal } from "@openrift/shared/format-date";
 import type { FriendGroupDetailResponse } from "@openrift/shared/types/api/friend-group";
 import { capitalize } from "@openrift/shared/utils";
 import { Link } from "@tanstack/react-router";
-import { ChevronRightIcon, FolderIcon, HeartIcon, TrophyIcon, UsersIcon } from "lucide-react";
+import {
+  ChevronRightIcon,
+  FolderIcon,
+  HeartIcon,
+  StoreIcon,
+  TrophyIcon,
+  UsersIcon,
+} from "lucide-react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
 
 import { CardList } from "@/components/ui/card-list";
@@ -12,6 +19,7 @@ import type { StatTileTone } from "@/components/ui/stat-tile";
 import { StatTile } from "@/components/ui/stat-tile";
 import { UserAvatarStack } from "@/components/user-avatar-stack";
 import { useCollections } from "@/features/collections/hooks/use-collections";
+import { useFriendGroupShopEvents } from "@/features/groups/hooks/use-friend-group-shops";
 import { useGroupBoxWants } from "@/features/groups/hooks/use-friend-groups";
 import { useGroupTournaments } from "@/features/tournaments/hooks/use-tournaments";
 import {
@@ -192,8 +200,59 @@ function OverviewRail({ slug, data }: { slug: string; data: FriendGroupDetailRes
   return (
     <aside className="flex flex-col gap-8">
       <NewestShared slug={slug} data={data} />
+      <ShopNextUp slug={slug} data={data} />
       <TournamentNudge slug={slug} data={data} />
     </aside>
+  );
+}
+
+function ShopNextUp({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
+  const { data: feed } = useFriendGroupShopEvents(slug);
+  const admin = isAdmin(data.viewerRole);
+
+  if (feed.shops.length === 0 && !admin) {
+    return null;
+  }
+  return (
+    <section className="flex flex-col gap-3">
+      <SectionHeading>Next at your shops</SectionHeading>
+      {feed.items.length > 0 ? (
+        <CardList>
+          {feed.items.slice(0, 3).map((event) => (
+            <li key={event.externalId}>
+              <Link to="/groups/$slug/shops" params={{ slug }} className={HOVER_ROW_CLASS}>
+                <IconChip icon={StoreIcon} tone="info" size="sm" shape="round" />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-sm font-medium">{event.name}</span>
+                  <span className="text-muted-foreground truncate text-xs">
+                    {formatDayTimeLocal(event.startAt)} · {event.storeName}
+                  </span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </CardList>
+      ) : (
+        <div className="flex flex-col gap-2 rounded-lg border border-dashed p-4">
+          <p className="text-muted-foreground text-sm">
+            {feed.shops.length === 0
+              ? "No shop linked yet. Link the store you play at and its next events show up here."
+              : `Nothing listed at your shops in the next ${feed.horizonDays} days.`}
+          </p>
+          {admin && feed.shops.length === 0 ? (
+            <Link
+              to="/groups/$slug/manage"
+              params={{ slug }}
+              hash="shops"
+              className="text-primary inline-flex items-center gap-1 text-sm font-medium hover:underline"
+            >
+              Link a shop
+              <ChevronRightIcon className="size-4" />
+            </Link>
+          ) : null}
+        </div>
+      )}
+    </section>
   );
 }
 

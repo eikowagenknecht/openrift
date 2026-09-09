@@ -170,19 +170,20 @@ Every date the app shows is ISO 8601 and comes from `packages/shared/src/format-
 
 The module builds every form from plain `Date` getters and never touches `Intl`, so there is no locale to pin and no way for a date to render differently on the server than in the browser. That whole class of React #418 hydration mismatch is gone by construction.
 
-| Function              | Output                                                | Use for                                                                      |
-| --------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `formatDay`           | `2026-08-15`                                          | A calendar day, in UTC. The default for anything dated.                      |
-| `formatMonth`         | `2026-08`                                             | A month, in UTC.                                                             |
-| `formatDayTime`       | `2026-08-15 23:59`                                    | An instant in UTC, for admin and ops surfaces.                               |
-| `formatDayLocal`      | `2026-08-15`                                          | The day an instant fell on for **this viewer**.                              |
-| `formatTimeLocal`     | `14:30`                                               | Time of day for this viewer, under a day heading.                            |
-| `formatDayTimeLocal`  | `2026-08-15 14:30`                                    | An instant on the viewer's own clock.                                        |
-| `formatRelativeTime`  | `3h ago` / `in 3h`                                    | A gap from now, either direction. `{ seconds }` and `{ compound }` widen it. |
-| `formatRelativeDay`   | `Yesterday` … `2026-01-15`                            | A day relative to today, falling back to `formatDay`.                        |
-| `dateLeafParts`       | `AUG` / `15`                                          | The calendar-leaf tile for an instant, on the viewer's clock.                |
-| `dateLeafPartsUtc`    | `AUG` / `15`                                          | The same tile for a day that belongs to an event, not to the viewer.         |
-| `formatReleasePeriod` | `2026-08-15` / `2026-08` / `2026-Q2` / `2026` / `TBA` | A set release, at whatever precision is known.                               |
+| Function                | Output                                                | Use for                                                                      |
+| ----------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `formatDay`             | `2026-08-15`                                          | A calendar day, in UTC. The default for anything dated.                      |
+| `formatMonth`           | `2026-08`                                             | A month, in UTC.                                                             |
+| `formatDayTime`         | `2026-08-15 23:59`                                    | An instant in UTC, for admin and ops surfaces.                               |
+| `formatDayLocal`        | `2026-08-15`                                          | The day an instant fell on for **this viewer**.                              |
+| `formatTimeLocal`       | `14:30`                                               | Time of day for this viewer, under a day heading.                            |
+| `formatDayTimeLocal`    | `2026-08-15 14:30`                                    | An instant on the viewer's own clock.                                        |
+| `formatWeekdayDayLocal` | `Thursday, 11 September`                              | A day heading in a list the viewer reads as their own week.                  |
+| `formatRelativeTime`    | `3h ago` / `in 3h`                                    | A gap from now, either direction. `{ seconds }` and `{ compound }` widen it. |
+| `formatRelativeDay`     | `Yesterday` … `2026-01-15`                            | A day relative to today, falling back to `formatDay`.                        |
+| `dateLeafParts`         | `AUG` / `15`                                          | The calendar-leaf tile for an instant, on the viewer's clock.                |
+| `dateLeafPartsUtc`      | `AUG` / `15`                                          | The same tile for a day that belongs to an event, not to the viewer.         |
+| `formatReleasePeriod`   | `2026-08-15` / `2026-08` / `2026-Q2` / `2026` / `TBA` | A set release, at whatever precision is known.                               |
 
 Two rules decide which one you want:
 

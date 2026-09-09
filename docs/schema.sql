@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict GybEh1QsLgjNj36rybcygA6PMFAzXIjtQOGreUdtmKBMx4YvDaZ5reVqDxKOqsB
+\restrict pZcsra80qUKOlIy7ICTAf5pXpkIvJ3eo6vjVkDsQZGrbtl2EyeWg0q4n0W3lqQh
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -1694,6 +1694,18 @@ CREATE TABLE public.friend_group_members (
     role text NOT NULL,
     joined_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT chk_friend_group_members_role CHECK ((role = ANY (ARRAY['owner'::text, 'admin'::text, 'member'::text])))
+);
+
+
+--
+-- Name: friend_group_shops; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.friend_group_shops (
+    group_id uuid NOT NULL,
+    uvsgames_store_id integer NOT NULL,
+    added_by_user_id text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -4336,6 +4348,14 @@ ALTER TABLE ONLY public.friend_group_members
 
 
 --
+-- Name: friend_group_shops friend_group_shops_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_shops
+    ADD CONSTRAINT friend_group_shops_pkey PRIMARY KEY (group_id, uvsgames_store_id);
+
+
+--
 -- Name: friend_groups friend_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5838,6 +5858,13 @@ CREATE INDEX idx_friend_group_list_shares_list ON public.friend_group_list_share
 
 
 --
+-- Name: idx_friend_group_shops_store; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_friend_group_shops_store ON public.friend_group_shops USING btree (uvsgames_store_id);
+
+
+--
 -- Name: idx_friend_groups_previous_slug; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6444,6 +6471,13 @@ CREATE INDEX idx_uvsgames_events_start ON public.uvsgames_events USING btree (st
 --
 
 CREATE INDEX idx_uvsgames_events_store ON public.uvsgames_events USING btree (store_id) WHERE (store_id IS NOT NULL);
+
+
+--
+-- Name: idx_uvsgames_events_store_start; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_uvsgames_events_store_start ON public.uvsgames_events USING btree (store_id, start_at) WHERE (store_id IS NOT NULL);
 
 
 --
@@ -8291,6 +8325,30 @@ ALTER TABLE ONLY public.friend_group_members
 
 
 --
+-- Name: friend_group_shops friend_group_shops_added_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_shops
+    ADD CONSTRAINT friend_group_shops_added_by_user_id_fkey FOREIGN KEY (added_by_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: friend_group_shops friend_group_shops_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_shops
+    ADD CONSTRAINT friend_group_shops_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.friend_groups(id) ON DELETE CASCADE;
+
+
+--
+-- Name: friend_group_shops friend_group_shops_uvsgames_store_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.friend_group_shops
+    ADD CONSTRAINT friend_group_shops_uvsgames_store_id_fkey FOREIGN KEY (uvsgames_store_id) REFERENCES public.uvsgames_stores(id) ON DELETE CASCADE;
+
+
+--
 -- Name: keyword_translations keyword_translations_keyword_name_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9222,5 +9280,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict GybEh1QsLgjNj36rybcygA6PMFAzXIjtQOGreUdtmKBMx4YvDaZ5reVqDxKOqsB
+\unrestrict pZcsra80qUKOlIy7ICTAf5pXpkIvJ3eo6vjVkDsQZGrbtl2EyeWg0q4n0W3lqQh
 

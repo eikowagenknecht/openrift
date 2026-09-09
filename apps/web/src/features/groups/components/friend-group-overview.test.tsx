@@ -1,4 +1,7 @@
-import type { FriendGroupDetailResponse } from "@openrift/shared/types/api/friend-group";
+import type {
+  FriendGroupDetailResponse,
+  FriendGroupShopEventsResponse,
+} from "@openrift/shared/types/api/friend-group";
 import type { TournamentSummaryResponse } from "@openrift/shared/types/api/tournament";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -9,6 +12,7 @@ import type { BoxWantRow } from "@/features/decks/lib/box-wants";
 import { buildBoxWantsLookup } from "@/features/decks/lib/box-wants";
 
 let currentTournaments: TournamentSummaryResponse[] = [];
+let currentShopEvents: FriendGroupShopEventsResponse = { items: [], shops: [], horizonDays: 14 };
 let currentCollections: { id: string; name: string; groupId: string | null }[] = [];
 let currentBoxWantRows: BoxWantRow[] = [];
 const acceptMutate = vi.fn();
@@ -42,6 +46,10 @@ vi.mock("@/features/groups/hooks/use-friend-group-mutations", () => ({
 
 vi.mock("@/features/tournaments/hooks/use-tournaments", () => ({
   useGroupTournaments: () => ({ data: { items: currentTournaments } }),
+}));
+
+vi.mock("@/features/groups/hooks/use-friend-group-shops", () => ({
+  useFriendGroupShopEvents: () => ({ data: currentShopEvents }),
 }));
 
 vi.mock("@/lib/auth-session", () => ({
@@ -95,6 +103,7 @@ const { OverviewContent } = await import("./friend-group-overview");
 beforeEach(() => {
   currentCollections = [];
   currentBoxWantRows = [];
+  currentShopEvents = { items: [], shops: [], horizonDays: 14 };
 });
 
 function makeDetail(
@@ -208,6 +217,54 @@ describe("OverviewContent wanted-in-box tile", () => {
     const tile = screen.getByRole("link", { name: /Cards you want/u });
     expect(tile).toHaveAttribute("href", "/collections/box-1?wanted=true");
     expect(tile).toHaveTextContent("waiting in Bulk Box");
+  });
+});
+
+describe("OverviewContent shop rail", () => {
+  const event = {
+    externalId: "9911",
+    name: "Nexus Night",
+    startAt: "2026-09-11T15:00:00.000Z",
+    storeId: 42,
+    storeName: "FUNtainment Berlin",
+    eventFormat: "Constructed",
+    url: "https://locator.riftbound.uvsgames.com/events/9911",
+  };
+
+  it("lists the next events at the group's shops", () => {
+    currentShopEvents = {
+      items: [event],
+      shops: [{ storeId: 42, name: "FUNtainment Berlin" }],
+      horizonDays: 14,
+    };
+    renderOverview("member");
+    const row = screen.getByRole("link", { name: /Nexus Night/u });
+    expect(row).toHaveAttribute("href", "/groups/bothfeld/shops");
+    expect(row).toHaveTextContent("FUNtainment Berlin");
+  });
+
+  it("says so when the linked shops have nothing coming up", () => {
+    currentShopEvents = {
+      items: [],
+      shops: [{ storeId: 42, name: "FUNtainment Berlin" }],
+      horizonDays: 14,
+    };
+    renderOverview("member");
+    expect(screen.getByText(/Nothing listed at your shops in the next 14 days/u)).toBeVisible();
+  });
+
+  it("nudges an admin to link the first shop", () => {
+    renderOverview("owner");
+    expect(screen.getByRole("link", { name: /Link a shop/u })).toHaveAttribute(
+      "href",
+      "/groups/bothfeld/manage",
+    );
+  });
+
+  it("hides the rail from a member while no shop is linked", () => {
+    renderOverview("member");
+    expect(screen.queryByText(/No shop linked yet/u)).toBeNull();
+    expect(screen.queryByText(/Next at your shops/u)).toBeNull();
   });
 });
 

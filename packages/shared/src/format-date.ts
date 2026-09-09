@@ -23,6 +23,31 @@ const MONTH_ABBREVIATIONS = [
   "DEC",
 ] as const;
 
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
+const WEEKDAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
+
 function monthAbbreviation(monthIndex: number): string {
   const abbreviation = MONTH_ABBREVIATIONS[monthIndex];
   if (abbreviation === undefined) {
@@ -89,6 +114,20 @@ export function formatDayTimeLocal(input: Date | string): string {
     return "";
   }
   return `${formatDayLocal(date)} ${formatTimeLocal(date)}`;
+}
+
+/** `Thursday, 11 September` on the viewer's clock. Same SSR constraint as the other `…Local` functions. */
+export function formatWeekdayDayLocal(input: Date | string): string {
+  const date = toDate(input);
+  if (date === null) {
+    return "";
+  }
+  const weekday = WEEKDAY_NAMES[date.getDay()];
+  const month = MONTH_NAMES[date.getMonth()];
+  if (weekday === undefined || month === undefined) {
+    return "";
+  }
+  return `${weekday}, ${date.getDate()} ${month}`;
 }
 
 export function formatCompactUtcStamp(input: Date | string): string {
