@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
+import type { LinkProps } from "@tanstack/react-router";
 import { Link, useLocation, useMatch, useRouter } from "@tanstack/react-router";
 import {
   CircleHelpIcon,
@@ -8,7 +9,6 @@ import {
   LockIcon,
   LogOutIcon,
   MenuIcon,
-  MessageSquareIcon,
   MoonIcon,
   PencilLineIcon,
   SearchIcon,
@@ -17,6 +17,7 @@ import {
   SunIcon,
   UserIcon,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { siDiscord, siGithub } from "simple-icons";
 import { toast } from "sonner";
@@ -347,19 +348,6 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
           {darkMode ? "Light mode" : "Dark mode"}
         </DropdownMenuItem>
       )}
-      <DropdownMenuItem render={<Link to="/help" />}>
-        <CircleHelpIcon className="size-4" />
-        Help
-      </DropdownMenuItem>
-      <DropdownMenuItem render={<Link to="/changelog" />}>
-        <SparklesIcon className="size-4" />
-        What&apos;s new
-      </DropdownMenuItem>
-      <DropdownMenuItem render={<Link to="/support" />}>
-        <HeartIcon className="size-4" />
-        Support us
-      </DropdownMenuItem>
-      {isLoggedIn && <DropdownMenuSeparator />}
       {isLoggedIn && (
         <DropdownMenuItem onClick={() => void handleSignOut()}>
           <LogOutIcon className="size-4" />
@@ -583,22 +571,6 @@ function MobileNav({
           ))}
         </nav>
         <SheetFooter className="border-t px-4 pt-4">
-          <SheetClose
-            nativeButton={false}
-            render={<Link to="/help" />}
-            className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm"
-          >
-            <CircleHelpIcon className="size-4" />
-            Help
-          </SheetClose>
-          <SheetClose
-            nativeButton={false}
-            render={<Link to="/changelog" />}
-            className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm"
-          >
-            <SparklesIcon className="size-4" />
-            What&apos;s new
-          </SheetClose>
           <a
             href={SOCIAL_LINKS.discordInvite}
             target="_blank"
@@ -617,7 +589,112 @@ function MobileNav({
   );
 }
 
-function FeedbackPopover({
+const POPOVER_ROW_CLASS = "hover:bg-muted flex items-center gap-3 rounded-md px-2 py-2 text-sm";
+
+function SimpleIconGlyph({ path }: { path: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className="size-4 shrink-0" aria-hidden="true">
+      <path d={path} fill="currentColor" />
+    </svg>
+  );
+}
+
+function PopoverRowText({ label, description }: { label: string; description: string }) {
+  return (
+    <div>
+      <div className="font-medium">{label}</div>
+      <div className="text-muted-foreground text-xs">{description}</div>
+    </div>
+  );
+}
+
+function InternalPopoverRow({
+  to,
+  icon,
+  label,
+  description,
+}: {
+  to: LinkProps["to"];
+  icon: ReactNode;
+  label: string;
+  description: string;
+}) {
+  return (
+    <PopoverClose nativeButton={false} render={<Link to={to} />} className={POPOVER_ROW_CLASS}>
+      {icon}
+      <PopoverRowText label={label} description={description} />
+    </PopoverClose>
+  );
+}
+
+function ExternalPopoverRow({
+  href,
+  icon,
+  label,
+  description,
+}: {
+  href: string;
+  icon: ReactNode;
+  label: string;
+  description: string;
+}) {
+  return (
+    <PopoverClose
+      nativeButton={false}
+      render={
+        // oxlint-disable-next-line jsx-a11y/anchor-has-content, jsx-a11y/control-has-associated-label -- content is provided as children of PopoverClose
+        <a href={href} target="_blank" rel="noreferrer" />
+      }
+      className={POPOVER_ROW_CLASS}
+    >
+      {icon}
+      <PopoverRowText label={label} description={description} />
+      <ExternalLinkIcon className="text-muted-foreground ml-auto size-3.5" />
+    </PopoverClose>
+  );
+}
+
+function HelpPopover() {
+  return (
+    <Popover>
+      <PopoverTrigger render={<Button variant="ghost" size="sm" />} className="gap-1.5">
+        <CircleHelpIcon className="size-4" />
+        <span className="sr-only lg:not-sr-only">Help</span>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-64 gap-1 p-1.5">
+        <p className="text-muted-foreground px-2 pt-1.5 pb-1 text-xs">
+          Stuck, or found something broken?
+        </p>
+        <InternalPopoverRow
+          to="/help"
+          icon={<CircleHelpIcon className="size-4 shrink-0" />}
+          label="Help articles"
+          description="How everything on the site works"
+        />
+        <InternalPopoverRow
+          to="/changelog"
+          icon={<SparklesIcon className="size-4 shrink-0" />}
+          label="What's new"
+          description="Recent changes and additions"
+        />
+        <ExternalPopoverRow
+          href={SOCIAL_LINKS.githubNewIssue}
+          icon={<SimpleIconGlyph path={siGithub.path} />}
+          label="Report a bug"
+          description="We'll get back to you (we actually will)"
+        />
+        <ExternalPopoverRow
+          href={SOCIAL_LINKS.discordInvite}
+          icon={<SimpleIconGlyph path={siDiscord.path} />}
+          label="Ask on Discord"
+          description="Chat, report bugs, or share ideas"
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function ContributePopover({
   isLoggedIn,
   onLockedClick,
 }: {
@@ -627,77 +704,37 @@ function FeedbackPopover({
   return (
     <Popover>
       <PopoverTrigger render={<Button variant="ghost" size="sm" />} className="gap-1.5">
-        <MessageSquareIcon className="size-4" />
-        <span className="sr-only md:not-sr-only">Feedback</span>
+        <PencilLineIcon className="size-4" />
+        <span className="sr-only lg:not-sr-only">Contribute</span>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-64 gap-1 p-1.5">
-        <p className="text-muted-foreground px-2 pt-1.5 pb-1 text-xs">
-          Bug report, feature idea, or just want to chat?
-        </p>
-        <PopoverClose
-          nativeButton={false}
-          render={
-            // oxlint-disable-next-line jsx-a11y/anchor-has-content, jsx-a11y/control-has-associated-label -- content is provided as children of PopoverClose
-            <a href={SOCIAL_LINKS.discordInvite} target="_blank" rel="noreferrer" />
-          }
-          className="hover:bg-muted flex items-center gap-3 rounded-md px-2 py-2 text-sm"
-        >
-          <svg viewBox="0 0 24 24" className="size-4 shrink-0" aria-hidden="true">
-            <path d={siDiscord.path} fill="currentColor" />
-          </svg>
-          <div>
-            <div className="font-medium">Discord</div>
-            <div className="text-muted-foreground text-xs">Chat, report bugs, or share ideas</div>
-          </div>
-          <ExternalLinkIcon className="text-muted-foreground ml-auto size-3.5" />
-        </PopoverClose>
-        <PopoverClose
-          nativeButton={false}
-          render={
-            // oxlint-disable-next-line jsx-a11y/anchor-has-content, jsx-a11y/control-has-associated-label -- content is provided as children of PopoverClose
-            <a href={SOCIAL_LINKS.githubNewIssue} target="_blank" rel="noreferrer" />
-          }
-          className="hover:bg-muted flex items-center gap-3 rounded-md px-2 py-2 text-sm"
-        >
-          <svg viewBox="0 0 24 24" className="size-4 shrink-0" aria-hidden="true">
-            <path d={siGithub.path} fill="currentColor" />
-          </svg>
-          <div>
-            <div className="font-medium">GitHub Issues</div>
-            <div className="text-muted-foreground text-xs">
-              We&apos;ll get back to you (we actually will)
-            </div>
-          </div>
-          <ExternalLinkIcon className="text-muted-foreground ml-auto size-3.5" />
-        </PopoverClose>
+        <p className="text-muted-foreground px-2 pt-1.5 pb-1 text-xs">Help us fill in the gaps.</p>
         {isLoggedIn ? (
-          <PopoverClose
-            nativeButton={false}
-            render={<Link to="/contribute" />}
-            className="hover:bg-muted flex items-center gap-3 rounded-md px-2 py-2 text-sm"
-          >
-            <PencilLineIcon className="size-4 shrink-0" />
-            <div>
-              <div className="font-medium">Contribute card data</div>
-              <div className="text-muted-foreground text-xs">Add a missing card or fix a typo</div>
-            </div>
-          </PopoverClose>
+          <InternalPopoverRow
+            to="/contribute"
+            icon={<PencilLineIcon className="size-4 shrink-0" />}
+            label="Card data"
+            description="Add a missing card or fix a typo"
+          />
         ) : (
           <PopoverClose
             // A native <button> shrinks to its content and centers its text; force
             // it to fill and left-align so it matches the <Link>-rendered rows.
-            className="hover:bg-muted flex w-full items-center gap-3 rounded-md px-2 py-2 text-left text-sm"
+            className={cn(POPOVER_ROW_CLASS, "w-full text-left")}
             // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bare render slot; PopoverClose owns all styling and provides the label as children
             render={<button type="button" onClick={() => onLockedClick("contribute")} />}
           >
             <PencilLineIcon className="size-4 shrink-0" />
-            <div>
-              <div className="font-medium">Contribute card data</div>
-              <div className="text-muted-foreground text-xs">Add a missing card or fix a typo</div>
-            </div>
+            <PopoverRowText label="Card data" description="Add a missing card or fix a typo" />
             <LockIcon className="text-muted-foreground ml-auto size-3.5 self-center" />
           </PopoverClose>
         )}
+        <InternalPopoverRow
+          to="/support"
+          icon={<HeartIcon className="size-4 shrink-0" />}
+          label="Support the site"
+          description="Donate, share, or shop through our links"
+        />
       </PopoverContent>
     </Popover>
   );
@@ -764,22 +801,13 @@ export function Header() {
           />
         </div>
 
-        {/* Right: Search + Feedback + Support + User menu. -mr-0.5 pulls the
+        {/* Right: Search + Help + Contribute + User menu. -mr-0.5 pulls the
             trailing avatar (24px in a 28px icon button) out to the px-safe
             gutter so the header's right edge aligns with flush page content. */}
         <div className="-mr-0.5 flex items-center gap-1 justify-self-end">
           <HeaderSearchButton />
-          <FeedbackPopover isLoggedIn={isLoggedIn} onLockedClick={setLockedFeature} />
-          <Link
-            to="/support"
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              "hidden md:inline-flex",
-            )}
-          >
-            <HeartIcon className="size-4" />
-            Support
-          </Link>
+          <HelpPopover />
+          <ContributePopover isLoggedIn={isLoggedIn} onLockedClick={setLockedFeature} />
           <UserMenu session={session} isPending={isPending} />
         </div>
       </div>

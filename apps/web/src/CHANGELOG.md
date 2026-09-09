@@ -15,6 +15,7 @@
 
 ### Other
 
+- feat(App): **Help and Contribute split apart in the header** — the header's Feedback button is now Help (articles, What's new, bug reports, Discord) next to a separate Contribute button for card data and supporting the site.
 - feat(Cards): **Set filled in from the printed code** — a code like OGN-066/298 names its own set, so the picker only appears when the set is new to us.
 - feat(Cards): **Correct a single printing** — a fix to one printing now opens that printing on its own, with the card's own details shown as a summary.
 - feat(App): **Empty pages say what they're for** — Tournaments, Lending, Activity, trade sheets, group pages, tier lists, the deck comparison and the submission pages now explain the feature and the first step in place of a bare "nothing yet".

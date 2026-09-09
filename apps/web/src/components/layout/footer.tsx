@@ -26,7 +26,7 @@ export function Footer({ className }: { className?: string }) {
         </Link>
         <span aria-hidden="true"> · </span>
         <Link to="/support" className="hover:text-muted-foreground">
-          Support Us
+          Support us
         </Link>
         <span aria-hidden="true"> · </span>
         {developersEnabled && (
