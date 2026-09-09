@@ -38,7 +38,9 @@ export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSugg
 
   const chosenUrl = uploadedUrl ?? imageUrl.trim();
   const urlError = submitted
-    ? errors.find((e) => e.path === "printings[0].imageUrl")?.message
+    ? chosenUrl === ""
+      ? "Add a photo or paste a link to an image."
+      : errors.find((e) => e.path === "printings[0].imageUrl")?.message
     : undefined;
 
   function handleFiles(files: File[]) {
@@ -64,6 +66,9 @@ export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSugg
   function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitted(true);
+    if (chosenUrl === "") {
+      return;
+    }
     const state = buildImagePatchState({
       cardName: card.name,
       cardSlug: card.slug,
@@ -146,7 +151,11 @@ export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSugg
       )}
 
       <div className="flex flex-col gap-2">
-        <Button type="submit" className="self-start" disabled={submit.isPending}>
+        <Button
+          type="submit"
+          className="self-start"
+          disabled={submit.isPending || upload.isPending}
+        >
           <SendIcon className="size-4" />
           {submit.isPending ? "Submitting…" : "Submit image suggestion"}
         </Button>

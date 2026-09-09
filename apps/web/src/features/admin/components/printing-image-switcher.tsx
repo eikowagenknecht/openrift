@@ -1,4 +1,4 @@
-import { hostSlugFromUrl } from "@openrift/shared/host-slug";
+import { hostnameFromUrl, hostSlugFromUrl } from "@openrift/shared/host-slug";
 import { imageUrl } from "@openrift/shared/image-url";
 import type {
   AdminPrintingImageResponse,
@@ -163,7 +163,7 @@ export function PrintingImageSwitcher({
               className="text-muted-foreground hover:text-foreground truncate"
               title={effectiveImage.originalUrl}
             >
-              {new URL(effectiveImage.originalUrl).hostname}
+              {hostnameFromUrl(effectiveImage.originalUrl) ?? "upload"}
             </a>
           )}
           {effectiveImage?.rehostedUrl && (
@@ -185,7 +185,7 @@ export function PrintingImageSwitcher({
               className="text-muted-foreground hover:text-foreground truncate"
               title={effectiveSource.url}
             >
-              {new URL(effectiveSource.url).hostname}
+              {hostnameFromUrl(effectiveSource.url) ?? "upload"}
             </a>
           )}
         </div>

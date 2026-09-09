@@ -153,6 +153,29 @@ describe("ImageSuggestForm", () => {
     );
   });
 
+  it("refuses a submission with neither a photo nor a link", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByRole("button", { name: /Submit image suggestion/u }));
+
+    expect(screen.getByText("Add a photo or paste a link to an image.")).toBeInTheDocument();
+    expect(submitState.mutate).not.toHaveBeenCalled();
+  });
+
+  it("clears the missing-image error once a link is typed", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByRole("button", { name: /Submit image suggestion/u }));
+    await user.type(
+      screen.getByLabelText("Or paste a link to an image"),
+      "https://example.test/card.png",
+    );
+
+    expect(screen.queryByText("Add a photo or paste a link to an image.")).not.toBeInTheDocument();
+  });
+
   it("lists the cards still missing an image once the suggestion is in", () => {
     submitState.isSuccess = true;
     missingImages.items = [

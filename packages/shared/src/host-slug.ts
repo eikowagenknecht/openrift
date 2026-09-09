@@ -1,13 +1,16 @@
-/** The second-to-last hostname label, e.g. `i.imgur.com` → `imgur`. */
-export function hostSlugFromUrl(url: string): string | null {
-  let hostname: string;
+/** `null` for a relative or malformed URL, e.g. an in-app upload path. */
+export function hostnameFromUrl(url: string): string | null {
   try {
-    hostname = new URL(url).hostname;
+    return new URL(url).hostname || null;
   } catch {
     return null;
   }
+}
 
-  if (!hostname) {
+/** The second-to-last hostname label, e.g. `i.imgur.com` → `imgur`. */
+export function hostSlugFromUrl(url: string): string | null {
+  const hostname = hostnameFromUrl(url);
+  if (hostname === null) {
     return null;
   }
 

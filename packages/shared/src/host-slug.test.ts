@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { hostSlugFromUrl } from "./host-slug.js";
+import { hostnameFromUrl, hostSlugFromUrl } from "./host-slug.js";
 
 describe("hostSlugFromUrl", () => {
   it("strips subdomains and TLD from common image hosts", () => {
@@ -21,5 +21,22 @@ describe("hostSlugFromUrl", () => {
   it("returns null for invalid URLs", () => {
     expect(hostSlugFromUrl("not a url")).toBeNull();
     expect(hostSlugFromUrl("")).toBeNull();
+  });
+});
+
+describe("hostnameFromUrl", () => {
+  it("returns the hostname of an absolute URL", () => {
+    expect(hostnameFromUrl("https://i.imgur.com/foo.png")).toBe("i.imgur.com");
+  });
+
+  it("returns null for an in-app upload path", () => {
+    expect(
+      hostnameFromUrl("/media/submissions/01a08599-80e1-77a6-aa0b-eac0efa1cc50.jpg"),
+    ).toBeNull();
+  });
+
+  it("returns null for invalid URLs", () => {
+    expect(hostnameFromUrl("not a url")).toBeNull();
+    expect(hostnameFromUrl("")).toBeNull();
   });
 });
