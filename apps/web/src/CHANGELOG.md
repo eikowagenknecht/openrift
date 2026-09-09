@@ -14,6 +14,7 @@
 
 - feat(App): **Empty pages say what they're for** — Tournaments, Lending, Activity, trade sheets, group pages, tier lists, the deck comparison and the submission pages now explain the feature and the first step in place of a bare "nothing yet".
 - feat(Cards): **"No image yet" filter** — the card browser and your collection can now show only printings without a picture.
+- fix(Cards): **Contribute form rejected repeat card names** — submitting a card whose name someone had already sent in failed with a server error; now everyone's submissions for that name are kept.
 - fix(Collection): **Share links open the full view when you already have access** — a collection share link used to show a read-only page with a small link to switch, which people missed; it now sends you straight to the editable view.
 
 ## 2026-09-08

@@ -13,11 +13,11 @@ import { buildUserSubmissionCard, ingestUserSubmission } from "./ingest-user-sub
 const USER_ID = "a0000000-0022-4000-a000-000000000001";
 const ctx = createTestContext(USER_ID);
 
-function submission(slug: string, note: string | null): CardSubmissionInput {
+function submission(slug: string, note: string | null, name?: string): CardSubmissionInput {
   return {
     slug,
     card: {
-      name: `Test ${slug}`,
+      name: name ?? `Test ${slug}`,
       types: ["unit"],
       super_types: [],
       domains: ["fury"],
@@ -114,6 +114,22 @@ describe.skipIf(!ctx)("ingestUserSubmission integration", () => {
       .execute();
     const names = rows.map((r: { name: string }) => r.name).toSorted();
     expect(names).toEqual(["Test alpha", "Test beta"]);
+  });
+
+  it("accepts a second submission for a card name that was already submitted", async () => {
+    const first = await submit(transact, submission("gamma-one", null, "Test twin"), new Date());
+    const second = await submit(transact, submission("gamma-two", null, "Test twin"), new Date());
+    expect(first.status).toBe("ok");
+    expect(second.status).toBe("ok");
+
+    const rows = await db
+      .selectFrom("candidateCards")
+      .select("id")
+      .where("provider", "=", USER_SUBMISSION_PROVIDER)
+      .where("submittedByUserId", "=", USER_ID)
+      .where("name", "=", "Test twin")
+      .execute();
+    expect(rows).toHaveLength(2);
   });
 
   it("enforces the daily cap under concurrent submissions (advisory lock)", async () => {

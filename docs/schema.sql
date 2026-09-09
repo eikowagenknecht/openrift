@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict pZcsra80qUKOlIy7ICTAf5pXpkIvJ3eo6vjVkDsQZGrbtl2EyeWg0q4n0W3lqQh
+\restrict oEXeYwwqgH080b98yrJOzko7KuHUsNeOcXRFXIfFWgm4IqE4ulP9aA2XodOAy6e
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -5511,7 +5511,7 @@ CREATE UNIQUE INDEX idx_candidate_cards_provider_external_id ON public.candidate
 -- Name: idx_candidate_cards_provider_name_no_sid; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX idx_candidate_cards_provider_name_no_sid ON public.candidate_cards USING btree (provider, name) WHERE (short_code IS NULL);
+CREATE UNIQUE INDEX idx_candidate_cards_provider_name_no_sid ON public.candidate_cards USING btree (provider, name) WHERE ((short_code IS NULL) AND (provider <> 'usersubmission'::text));
 
 
 --
@@ -9280,5 +9280,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict pZcsra80qUKOlIy7ICTAf5pXpkIvJ3eo6vjVkDsQZGrbtl2EyeWg0q4n0W3lqQh
+\unrestrict oEXeYwwqgH080b98yrJOzko7KuHUsNeOcXRFXIfFWgm4IqE4ulP9aA2XodOAy6e
 
