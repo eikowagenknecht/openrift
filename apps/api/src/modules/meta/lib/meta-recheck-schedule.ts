@@ -8,7 +8,7 @@ const WATCHED_EVENT_DAY_POLL_MS = 10 * 60 * 1000;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export const STALE_EVENT_DAYS = 3;
+const STALE_EVENT_DAYS = 3;
 
 const COMPLETE = "complete";
 
