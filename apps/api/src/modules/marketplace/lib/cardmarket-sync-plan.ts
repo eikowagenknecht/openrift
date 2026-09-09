@@ -6,7 +6,7 @@ export interface CardmarketSyncKey {
   isAltered: boolean;
 }
 
-export interface CardmarketSyncCounts {
+interface CardmarketSyncCounts {
   intent: number;
   observed: number;
   intentBase: number;

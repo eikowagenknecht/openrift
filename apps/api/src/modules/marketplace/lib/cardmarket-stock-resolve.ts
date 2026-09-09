@@ -17,7 +17,7 @@ export interface CardmarketResolvedRow {
   language: string;
 }
 
-export interface CardmarketUnresolvedRow {
+interface CardmarketUnresolvedRow {
   row: CardmarketStockRow;
   reason: CardmarketUnresolvedReason;
 }

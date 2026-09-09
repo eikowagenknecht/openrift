@@ -20,7 +20,7 @@ import { useSetLegendMetaShares } from "@/features/tournaments/hooks/use-tournam
 import { runReportedMutation } from "@/lib/run-reported-mutation";
 
 /** Percent with at most one decimal, 0 to 100. */
-export function parseMetaShare(draft: string): number | null {
+function parseMetaShare(draft: string): number | null {
   const trimmed = draft.trim();
   if (!/^\d{1,3}(?:\.\d)?$/u.test(trimmed)) {
     return null;

@@ -58,7 +58,7 @@ export function participantMissesRegion(
   return regionsEnabled && participant.status === "active" && participant.region === null;
 }
 
-export function participantMissesLegend(
+function participantMissesLegend(
   participant: TournamentParticipantResponse,
   legendTiebreak: boolean,
 ): boolean {

@@ -9,7 +9,7 @@ export function groupNudgeKey(slug: string, kind: GroupNudgeKind): string {
 
 const INTRO_KEYS = ["tier-list", "stage", "list"] as const;
 
-export type IntroKey = (typeof INTRO_KEYS)[number];
+type IntroKey = (typeof INTRO_KEYS)[number];
 
 function isIntroKey(value: unknown): value is IntroKey {
   return typeof value === "string" && INTRO_KEYS.includes(value as IntroKey);

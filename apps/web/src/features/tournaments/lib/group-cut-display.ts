@@ -47,7 +47,7 @@ export function cutRoundLabels(cutSize: CutSize): string[] {
   return CUT_ROUND_LABELS.slice(CUT_ROUND_LABELS.length - rounds);
 }
 
-export function cutRoundShortLabels(cutSize: CutSize): string[] {
+function cutRoundShortLabels(cutSize: CutSize): string[] {
   const rounds = Math.log2(cutSize);
   return CUT_ROUND_SHORT.slice(CUT_ROUND_SHORT.length - rounds);
 }

@@ -50,7 +50,7 @@ const unlinkShopFn = createServerFn({ method: "POST" })
     await apiOrpcClient(friendGroupsContract, context.cookie).unlinkShop(data);
   });
 
-export function friendGroupShopsQueryOptions(userId: string, slug: string) {
+function friendGroupShopsQueryOptions(userId: string, slug: string) {
   return {
     queryKey: friendGroupsKeys.shops(userId, slug),
     queryFn: () => fetchShops({ data: slug }),

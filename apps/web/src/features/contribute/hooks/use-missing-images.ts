@@ -15,7 +15,7 @@ const fetchMissingImagesFn = createServerFn({ method: "GET" })
   );
 
 /** The API scopes to the session user; `userId` here only keys the cache. */
-export function missingImagesQueryOptions(userId: string) {
+function missingImagesQueryOptions(userId: string) {
   return queryOptions({
     queryKey: cardSubmissionsKeys.missingImages(userId),
     queryFn: (): Promise<MissingImagesResponse> => fetchMissingImagesFn(),

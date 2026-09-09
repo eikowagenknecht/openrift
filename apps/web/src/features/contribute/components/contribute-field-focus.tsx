@@ -9,7 +9,7 @@ interface FieldFocusValue {
 
 const FieldFocusContext = createContext<FieldFocusValue | null>(null);
 
-export function useFieldFocus(): FieldFocusValue | null {
+function useFieldFocus(): FieldFocusValue | null {
   return use(FieldFocusContext);
 }
 
@@ -63,7 +63,7 @@ export function useFieldLink(field?: PlaceholderField): {
  * Moves keyboard focus to the control a preview region stands for. Printing rows only render their
  * fields while open, so the caller opens the owning printing before this runs.
  */
-export function focusFormField(field: PlaceholderField): boolean {
+function focusFormField(field: PlaceholderField): boolean {
   const row = document.querySelector<HTMLElement>(
     `[data-field="${field}"]:not([data-slot="pressable"])`,
   );
