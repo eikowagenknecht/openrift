@@ -12,7 +12,7 @@ import type { PodRoundRows } from "../repositories/pod-tournaments-rounds.js";
 import type { LegendMetaShareRow, TournamentGroup } from "../repositories/tournament-groups.js";
 import type { Tournament } from "../repositories/tournaments-shared.js";
 import type { GroupCutPlayer } from "./group-cut.js";
-import { cutRounds, unitPlayerIds, unitProgress } from "./group-cut.js";
+import { cutRounds, qualificationOrder, unitPlayerIds, unitProgress } from "./group-cut.js";
 
 export interface GroupStageViewInput {
   tournament: Tournament;
@@ -94,16 +94,20 @@ export function toGroupStageView(input: GroupStageViewInput): GroupStageView {
   const seedByPlayer = new Map(
     players.flatMap((player) => (player.seed === null ? [] : [[player.id, player.seed] as const])),
   );
-  const derived = ranking.ranking.slice(0, tournament.cutSize).map((row) => row.playerId);
+  const { ordered, eligible } = qualificationOrder(ranking.ranking, players);
+  const provisionalSeed = new Map(
+    eligible.slice(0, tournament.cutSize).map((row, index) => [row.playerId, index + 1] as const),
+  );
+  const derived = eligible.slice(0, tournament.cutSize).map((row) => row.playerId);
   const seeded = [...seedByPlayer.entries()]
     .toSorted((a, b) => a[1] - b[1])
     .map(([playerId]) => playerId);
 
   return {
     groups,
-    ranking: ranking.ranking.map((row, index) => {
+    ranking: ordered.map((row) => {
       const stored = seedByPlayer.get(row.playerId) ?? null;
-      const provisional = index < tournament.cutSize ? index + 1 : null;
+      const provisional = provisionalSeed.get(row.playerId) ?? null;
       return {
         playerId: row.playerId,
         displayName: playerById.get(row.playerId)?.displayName ?? "",

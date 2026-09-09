@@ -3,6 +3,7 @@ import type {
   GroupPlan,
   GroupPlanGroup,
   GroupStandingsInput,
+  QualificationRow,
 } from "@openrift/shared/pairing/group-cut-types";
 import { GROUP_STAGE_ROUNDS } from "@openrift/shared/pairing/group-cut-types";
 
@@ -211,10 +212,37 @@ export function standingsInput(input: {
   };
 }
 
-/** The pod's winner: lowest placement, seat order breaking an equal one. */
+/**
+ * A dropped player keeps the group place they played for, sorts behind everyone
+ * still in that place and never takes a cut slot.
+ */
+export function qualificationOrder(
+  ranking: readonly QualificationRow[],
+  players: readonly GroupCutPlayer[],
+): { ordered: QualificationRow[]; eligible: QualificationRow[] } {
+  const dropped = new Set(
+    players.filter((player) => player.status !== "active").map((player) => player.id),
+  );
+  const byPlace = Map.groupBy(ranking, (row) => row.place);
+  const ordered = [...byPlace.keys()]
+    .toSorted((a, b) => a - b)
+    .flatMap((place) => {
+      const rows = byPlace.get(place) ?? [];
+      const tier = [
+        ...rows.filter((row) => !dropped.has(row.playerId)),
+        ...rows
+          .filter((row) => dropped.has(row.playerId))
+          .map((row) => ({ ...row, decidedBy: null })),
+      ];
+      return tier.map((row, index) => (index === 0 ? { ...row, decidedBy: null } : row));
+    });
+  return { ordered, eligible: ordered.filter((row) => !dropped.has(row.playerId)) };
+}
+
 export function podWinnerId(members: readonly { playerId: string; placement: number | null }[]) {
   const ranked = members.toSorted(
     (a, b) => (a.placement ?? Number.MAX_SAFE_INTEGER) - (b.placement ?? Number.MAX_SAFE_INTEGER),
   );
-  return ranked[0]?.playerId;
+  const best = ranked[0];
+  return best === undefined || best.placement === null ? undefined : best.playerId;
 }

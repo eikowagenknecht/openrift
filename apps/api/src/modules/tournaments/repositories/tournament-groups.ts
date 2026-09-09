@@ -53,6 +53,25 @@ const NO_PENALTY: PodPenaltyBreakdown = {
 };
 
 export function tournamentGroupsRepo(db: Kysely<Database>) {
+  /** Serializes the writes of one tournament: self-paced starts and the cut race each other. */
+  async function lockTournament(trx: Kysely<Database>, tournamentId: string): Promise<void> {
+    await sql`select pg_advisory_xact_lock(hashtext(${tournamentId}))`.execute(trx);
+  }
+
+  async function roundExistsFrom(
+    trx: Kysely<Database>,
+    tournamentId: string,
+    roundNumber: number,
+  ): Promise<boolean> {
+    const row = await trx
+      .selectFrom("podRounds")
+      .select("id")
+      .where("tournamentId", "=", tournamentId)
+      .where("roundNumber", ">=", roundNumber)
+      .executeTakeFirst();
+    return row !== undefined;
+  }
+
   async function writePods(
     trx: Kysely<Database>,
     roundId: string,
@@ -101,6 +120,10 @@ export function tournamentGroupsRepo(db: Kysely<Database>) {
       firstRoundPods: GroupPodInsert[];
     }): Promise<void> {
       await db.transaction().execute(async (trx) => {
+        await lockTournament(trx, input.tournamentId);
+        if (await roundExistsFrom(trx, input.tournamentId, 1)) {
+          return;
+        }
         const created = await trx
           .insertInto("tournamentGroups")
           .values(
@@ -162,8 +185,31 @@ export function tournamentGroupsRepo(db: Kysely<Database>) {
       });
     },
 
-    async insertGroupPods(roundId: string, pods: GroupPodInsert[]): Promise<void> {
+    /** Idempotent: a second start of the same unit's round finds its pods and writes nothing. */
+    async insertGroupPods(
+      tournamentId: string,
+      roundId: string,
+      pods: GroupPodInsert[],
+    ): Promise<void> {
+      if (pods.length === 0) {
+        return;
+      }
       await db.transaction().execute(async (trx) => {
+        await lockTournament(trx, tournamentId);
+        const taken = await trx
+          .selectFrom("podMembers as m")
+          .innerJoin("pods as p", "p.id", "m.podId")
+          .select("m.playerId as playerId")
+          .where("p.roundId", "=", roundId)
+          .where(
+            "m.playerId",
+            "in",
+            pods.flatMap((pod) => pod.playerIds),
+          )
+          .executeTakeFirst();
+        if (taken !== undefined) {
+          return;
+        }
         await writePods(trx, roundId, pods);
       });
     },
@@ -175,6 +221,10 @@ export function tournamentGroupsRepo(db: Kysely<Database>) {
       pods: GroupPodInsert[];
     }): Promise<void> {
       await db.transaction().execute(async (trx) => {
+        await lockTournament(trx, input.tournamentId);
+        if (await roundExistsFrom(trx, input.tournamentId, input.roundNumber)) {
+          return;
+        }
         await trx
           .updateTable("podRounds")
           .set({ status: "finalized", finalizedAt: new Date() })
@@ -221,6 +271,10 @@ export function tournamentGroupsRepo(db: Kysely<Database>) {
       pods: GroupPodInsert[],
     ): Promise<void> {
       await db.transaction().execute(async (trx) => {
+        await lockTournament(trx, tournamentId);
+        if (await roundExistsFrom(trx, tournamentId, roundNumber)) {
+          return;
+        }
         const round = await trx
           .insertInto("podRounds")
           .values({

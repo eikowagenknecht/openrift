@@ -275,6 +275,33 @@ describe("seedBracket with rematch avoidance", () => {
     expect(drift).toBeLessThanOrEqual(6);
   });
 
+  it("returns from a top 16 whose every conventional pairing is a rematch", () => {
+    const conflicts = [
+      [1, 16, 8, 9],
+      [4, 13, 5, 12],
+      [2, 15, 7, 10],
+      [3, 14, 6, 11],
+    ];
+    const seeds = conflicts.flatMap((members, index) =>
+      members.map((seed) =>
+        seedOf(
+          seed,
+          String.fromCodePoint(65 + index),
+          members.filter((other) => other !== seed),
+        ),
+      ),
+    );
+    const started = performance.now();
+    const slots = seedBracket(seeds, { avoidRematches: true });
+    expect(performance.now() - started).toBeLessThan(1000);
+    expectValidBracket(slots, seeds);
+    expect(pairs(seedBracket(seeds, { avoidRematches: true }))).toEqual(pairs(slots));
+    const rematches = slots.filter((slot) =>
+      conflicts.some((members) => slot.seeds.every((seed) => members.includes(seed))),
+    );
+    expect(rematches).toEqual([]);
+  });
+
   it("leaves a top 16 without conflicts conventional", () => {
     const seeds = ownGroups(16);
     expect(pairs(seedBracket(seeds, { avoidRematches: true }))).toEqual(conventionalBracket(16));

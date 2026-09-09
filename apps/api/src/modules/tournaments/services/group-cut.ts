@@ -162,7 +162,7 @@ async function generateCut(
       .join(", ");
     throw conflict(`Enter the meta shares for ${names} first.`);
   }
-  const qualifiers = context.ranking.ranking.slice(0, tournament.cutSize);
+  const qualifiers = context.qualifiers.slice(0, tournament.cutSize);
   if (qualifiers.length < tournament.cutSize) {
     throw badRequest(
       `A top ${tournament.cutSize} needs ${tournament.cutSize} qualifiers, the field has ${qualifiers.length}.`,
@@ -273,6 +273,7 @@ function roundIdFor(roundRows: readonly PodRoundRows[], roundNumber: number): st
 
 async function startUnit(
   repos: Repos,
+  tournamentId: string,
   entry: UnitStart,
   offset: number,
   roundRows: readonly PodRoundRows[],
@@ -280,7 +281,7 @@ async function startUnit(
 ): Promise<void> {
   const next = (entry.progress.roundsStarted + 1) as GroupStageRoundNumber;
   const pods = podInsertsForPairs(unitRoundPairs(entry.unit, next), offset, dropped);
-  await repos.tournamentGroups.insertGroupPods(roundIdFor(roundRows, next), pods);
+  await repos.tournamentGroups.insertGroupPods(tournamentId, roundIdFor(roundRows, next), pods);
 }
 
 /** Self-paced mode: one group (with its paired group) advances on its own. */
@@ -301,7 +302,14 @@ export async function startGroupRound(
   if (!entry.progress.currentRoundReported) {
     throw conflict("Every match in this group's current round needs a result first.");
   }
-  await startUnit(repos, entry, offsets[entry.unitIndex] ?? 0, roundRows, droppedIdsOf(players));
+  await startUnit(
+    repos,
+    tournament.id,
+    entry,
+    offsets[entry.unitIndex] ?? 0,
+    roundRows,
+    droppedIdsOf(players),
+  );
 }
 
 /** Lockstep mode: the organizer starts the next round for every group at once. */
@@ -324,7 +332,7 @@ export async function startGroupStageRound(repos: Repos, tournament: Tournament)
   }
   const dropped = droppedIdsOf(players);
   for (const entry of units) {
-    await startUnit(repos, entry, offsets[entry.unitIndex] ?? 0, roundRows, dropped);
+    await startUnit(repos, tournament.id, entry, offsets[entry.unitIndex] ?? 0, roundRows, dropped);
   }
 }
 

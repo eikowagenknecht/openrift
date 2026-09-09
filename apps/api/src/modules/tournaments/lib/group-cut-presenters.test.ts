@@ -232,6 +232,68 @@ describe("toGroupStageView", () => {
   });
 });
 
+describe("toGroupStageView seeds and drops", () => {
+  function viewFor(
+    roster: GroupCutPlayer[],
+    order: string[],
+    rows: PodRoundRows[],
+    patch: Partial<Tournament> = {},
+  ) {
+    return toGroupStageView({
+      tournament: tournament(patch),
+      groups: GROUPS,
+      plan: planFromRows(GROUPS, roster),
+      players: roster,
+      roundRows: rows,
+      ranking: ranking(order),
+      legendNames: new Map(),
+    });
+  }
+
+  it("keeps the stored seed of the #8 player after they beat the #1", () => {
+    const seeds = Object.fromEntries(
+      ORDER.map((playerId, index) => [playerId, { seed: index + 1 }]),
+    );
+    const roster = players(seeds);
+    const eight = ORDER[7]!;
+    const one = ORDER[0]!;
+    const rows = [round(4, [[one, eight]], true), round(5, [[eight, ORDER[1]!]], false)];
+    const view = viewFor(roster, ORDER, rows, { cutSize: 8 });
+    expect(view.cutGenerated).toBe(true);
+    expect(view.ranking.find((row) => row.playerId === eight)?.seed).toBe(8);
+    expect(view.ranking.find((row) => row.playerId === one)?.seed).toBe(1);
+    expect(view.seedsDiverged).toBe(false);
+  });
+
+  it("recomputes the provisional seeds when a corrected result reorders the ranking", () => {
+    const roster = players();
+    const before = viewFor(roster, ORDER, []);
+    const corrected = ["b1", "a1", ...ORDER.slice(2)];
+    const after = viewFor(roster, corrected, []);
+    expect(before.ranking.slice(0, 2).map((row) => row.playerId)).toEqual(["a1", "b1"]);
+    expect(after.ranking.slice(0, 2).map((row) => row.playerId)).toEqual(["b1", "a1"]);
+    expect(after.ranking.find((row) => row.playerId === "b1")?.seed).toBe(1);
+    expect(after.ranking.find((row) => row.playerId === "a1")?.seed).toBe(2);
+  });
+
+  it("hands a dropped player's provisional seed to the next active player", () => {
+    const roster = players({ a1: { status: "dropped" } });
+    const view = viewFor(roster, ORDER, []);
+    const dropped = view.ranking.find((row) => row.playerId === "a1");
+    expect(dropped?.seed).toBeNull();
+    expect(dropped?.qualified).toBe(false);
+    expect(view.ranking[0]?.playerId).toBe("b1");
+    expect(view.ranking[0]?.seed).toBe(1);
+    expect(view.ranking.filter((row) => row.qualified)).toHaveLength(4);
+  });
+
+  it("sorts the dropped player behind the rest of their placement tier", () => {
+    const roster = players({ a1: { status: "dropped" } });
+    const view = viewFor(roster, ORDER, []);
+    expect(view.ranking.slice(0, 3).map((row) => row.playerId)).toEqual(["b1", "a1", "a2"]);
+  });
+});
+
 describe("toLegendMetaShares", () => {
   it("passes the organizer's values through with their card names", () => {
     expect(

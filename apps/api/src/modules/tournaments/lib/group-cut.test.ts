@@ -1,7 +1,11 @@
+import type { QualificationRow } from "@openrift/shared/pairing/group-cut-types";
 import { groupUnits } from "@openrift/shared/pairing/group-stage";
+import { computeGroupStage } from "@openrift/shared/pairing/group-standings";
 import { describe, expect, it } from "vitest";
 
+import { groupCutTournament, groupStageRoundRows } from "../../../test/group-cut-fixtures.js";
 import type { PodRoundRows } from "../repositories/pod-tournaments-rounds.js";
+import { tieBreakKey } from "../repositories/pod-tournaments-standings.js";
 import type { TournamentGroup } from "../repositories/tournament-groups.js";
 import type { GroupCutPlayer } from "./group-cut.js";
 import {
@@ -10,6 +14,8 @@ import {
   planFromRows,
   podInsertsForPairs,
   podWinnerId,
+  qualificationOrder,
+  standingsInput,
   unitPlayerIds,
   unitPodOffsets,
   unitProgress,
@@ -235,6 +241,16 @@ describe("podWinnerId", () => {
       ]),
     ).toBe("a");
   });
+
+  it("finds no winner in a pod that has no result", () => {
+    expect(
+      podWinnerId([
+        { playerId: "a", placement: null },
+        { playerId: "b", placement: null },
+      ]),
+    ).toBeUndefined();
+    expect(podWinnerId([])).toBeUndefined();
+  });
 });
 
 describe("unitPlayerIds", () => {
@@ -249,5 +265,156 @@ describe("unitPlayerIds", () => {
     expect(unitPlayerIds(groupUnits(plan)[0] ?? [])).toEqual(
       new Set(["a1", "a2", "a3", "b1", "b2", "b3"]),
     );
+  });
+});
+
+describe("unitProgress across a self-paced field", () => {
+  const rows = groupStageRoundRows([
+    { labels: ["A"], rounds: ["first", "first", "open"] },
+    { labels: ["B"], rounds: ["open"] },
+    { labels: ["C"], rounds: ["first", "open"] },
+    { labels: ["D"], rounds: ["first", "first", "first"] },
+  ]);
+
+  function idsOf(label: string): Set<string> {
+    return new Set([1, 2, 3, 4].map((slot) => `${label.toLowerCase()}${slot}`));
+  }
+
+  it("reads groups at rounds 3, 1, 2 and finished at the same time", () => {
+    expect(unitProgress(idsOf("A"), rows)).toEqual({
+      roundsStarted: 3,
+      currentRoundReported: false,
+    });
+    expect(unitProgress(idsOf("B"), rows)).toEqual({
+      roundsStarted: 1,
+      currentRoundReported: false,
+    });
+    expect(unitProgress(idsOf("C"), rows)).toEqual({
+      roundsStarted: 2,
+      currentRoundReported: false,
+    });
+    expect(unitProgress(idsOf("D"), rows)).toEqual({
+      roundsStarted: 3,
+      currentRoundReported: true,
+    });
+  });
+
+  it("treats a paired unit's cross-group match as part of its round", () => {
+    const paired = groupStageRoundRows([{ labels: ["A", "B"], rounds: ["first"] }]);
+    const openCross = paired[0]?.pods[0];
+    if (openCross) {
+      openCross.pod.resultStatus = "pending";
+    }
+    const unit = new Set(["a1", "a2", "a3", "b1", "b2", "b3"]);
+    expect(unitProgress(unit, paired)).toEqual({ roundsStarted: 1, currentRoundReported: false });
+  });
+});
+
+describe("standingsInput and the frozen Legend decision", () => {
+  const GROUPS = [group("A"), group("B")];
+
+  function roster(legendCardId: string | null): GroupCutPlayer[] {
+    return [
+      ...["a1", "a2", "a3", "a4"].map((id, slot) => ({
+        ...player(id, "A", slot),
+        legendCardId,
+      })),
+      ...["b1", "b2", "b3", "b4"].map((id, slot) => ({
+        ...player(id, "B", slot),
+        legendCardId,
+      })),
+    ];
+  }
+
+  function rankingFor(legendTiebreak: boolean) {
+    const players = roster("card-1");
+    const rows = groupStageRoundRows([
+      { labels: ["A"], rounds: ["draw", "draw", "draw"] },
+      { labels: ["B"], rounds: ["draw", "draw", "draw"] },
+    ]);
+    return computeGroupStage(
+      standingsInput({
+        tournament: groupCutTournament({ legendTiebreak }),
+        plan: planFromRows(GROUPS, players),
+        matches: groupStageMatches(rows),
+        players,
+        metaShares: [],
+        tieBreakKey,
+      }),
+    );
+  }
+
+  it("carries no Legend map while the tiebreak is off, even with Legends on file", () => {
+    const input = standingsInput({
+      tournament: groupCutTournament({ legendTiebreak: false }),
+      plan: planFromRows(GROUPS, roster("card-1")),
+      matches: [],
+      players: roster("card-1"),
+      metaShares: [{ legendCardId: "card-1", share: 4 }],
+      tieBreakKey,
+    });
+    expect(input.legend).toBeNull();
+  });
+
+  it("resolves an all-drawn group by the final tiebreak, never a Legend tier", () => {
+    const ranking = rankingFor(false);
+    const tiers = ranking.groups.flatMap((entry) =>
+      entry.rows.map((standing) => standing.decidedBy),
+    );
+    expect(tiers.filter((tier) => tier !== null)).toEqual([
+      "draw",
+      "draw",
+      "draw",
+      "draw",
+      "draw",
+      "draw",
+    ]);
+    expect(ranking.pendingMetaLegendIds).toEqual([]);
+  });
+
+  it("reaches the meta tier only while the tiebreak is on", () => {
+    expect(rankingFor(true).pendingMetaLegendIds).toEqual(["card-1"]);
+  });
+});
+
+describe("qualificationOrder", () => {
+  function row(playerId: string, place: number): QualificationRow {
+    return {
+      playerId,
+      groupLabel: playerId.startsWith("a") ? "A" : "B",
+      place,
+      matchWinRate: 1,
+      gameWinRate: 1,
+      decidedBy: "mw",
+    };
+  }
+
+  const RANKING = [row("a1", 1), row("b1", 1), row("a2", 2), row("b2", 2), row("a3", 3)];
+
+  it("leaves an all-active ranking in place", () => {
+    const roster = ["a1", "b1", "a2", "b2", "a3"].map((id, slot) => player(id, "A", slot));
+    const { ordered, eligible } = qualificationOrder(RANKING, roster);
+    expect(ordered.map((entry) => entry.playerId)).toEqual(["a1", "b1", "a2", "b2", "a3"]);
+    expect(eligible).toHaveLength(5);
+  });
+
+  it("sorts a dropped player behind everyone sharing their placement", () => {
+    const roster = ["a1", "b1", "a2", "b2", "a3"].map((id, slot) => ({
+      ...player(id, "A", slot),
+      status: id === "a1" ? "dropped" : "active",
+    }));
+    const { ordered, eligible } = qualificationOrder(RANKING, roster);
+    expect(ordered.map((entry) => entry.playerId)).toEqual(["b1", "a1", "a2", "b2", "a3"]);
+    expect(eligible.map((entry) => entry.playerId)).toEqual(["b1", "a2", "b2", "a3"]);
+  });
+
+  it("clears the tier badge of a row the drop moved and of the new tier leader", () => {
+    const roster = ["a1", "b1", "a2", "b2", "a3"].map((id, slot) => ({
+      ...player(id, "A", slot),
+      status: id === "a1" ? "dropped" : "active",
+    }));
+    const { ordered } = qualificationOrder(RANKING, roster);
+    expect(ordered[0]?.decidedBy).toBeNull();
+    expect(ordered[1]?.decidedBy).toBeNull();
   });
 });

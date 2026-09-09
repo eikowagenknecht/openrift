@@ -2,6 +2,7 @@ import type {
   GroupMatch,
   GroupPlan,
   GroupStageRanking,
+  QualificationRow,
 } from "@openrift/shared/pairing/group-cut-types";
 import { computeGroupStage } from "@openrift/shared/pairing/group-standings";
 import type {
@@ -16,13 +17,20 @@ import type { LegendMetaShareRow, TournamentGroup } from "../repositories/tourna
 import type { Tournament } from "../repositories/tournaments-shared.js";
 import { toGroupStageView, toLegendMetaShares } from "./group-cut-presenters.js";
 import type { GroupCutPlayer } from "./group-cut.js";
-import { groupStageMatches, isGroupCut, planFromRows, standingsInput } from "./group-cut.js";
+import {
+  groupStageMatches,
+  isGroupCut,
+  planFromRows,
+  qualificationOrder,
+  standingsInput,
+} from "./group-cut.js";
 
 export interface GroupCutContext {
   groups: TournamentGroup[];
   plan: GroupPlan;
   matches: GroupMatch[];
   ranking: GroupStageRanking;
+  qualifiers: QualificationRow[];
   metaShares: LegendMetaShareRow[];
   legendNames: Map<string, string>;
 }
@@ -46,10 +54,19 @@ export async function loadGroupCutContext(
   const legendNames = await repos.tournamentGroups.legendCardNames(legendIds);
   const plan = planFromRows(groups, players);
   const matches = groupStageMatches(roundRows);
-  const ranking = computeGroupStage(
+  const computed = computeGroupStage(
     standingsInput({ tournament, plan, matches, players, metaShares, tieBreakKey }),
   );
-  return { groups, plan, matches, ranking, metaShares, legendNames };
+  const { ordered, eligible } = qualificationOrder(computed.ranking, players);
+  return {
+    groups,
+    plan,
+    matches,
+    ranking: { ...computed, ranking: ordered },
+    qualifiers: eligible,
+    metaShares,
+    legendNames,
+  };
 }
 
 export interface GroupStageBundle {

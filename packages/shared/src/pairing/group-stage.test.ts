@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { mulberry32 } from "../pack-opener/rng";
-import type { GroupPlanGroup } from "./group-cut-types";
+import type { GroupPlan, GroupPlanGroup } from "./group-cut-types";
 import {
   InvalidGroupCountError,
   groupUnits,
@@ -28,6 +28,48 @@ function unitMatches(unit: readonly GroupPlanGroup[]): {
 
 function pairKey(pair: readonly [string, string]): string {
   return pair.toSorted().join("|");
+}
+
+const TOP_CUT_STRUCTURES: [count: number, fours: number, threes: number][] = [
+  [16, 4, 0],
+  [18, 3, 2],
+  [20, 5, 0],
+  [22, 4, 2],
+  [24, 6, 0],
+  [26, 5, 2],
+  [28, 7, 0],
+  [30, 6, 2],
+  [32, 8, 0],
+];
+
+const LARGER_STRUCTURES: [count: number, fours: number, threes: number][] = [
+  [34, 7, 2],
+  [36, 9, 0],
+  [40, 10, 0],
+  [46, 10, 2],
+  [50, 11, 2],
+  [56, 14, 0],
+  [62, 14, 2],
+  [64, 16, 0],
+];
+
+function expectValidStructure(plan: GroupPlan, playerIds: readonly string[]): void {
+  const sizes = plan.groups.map((group) => group.playerIds.length);
+  expect(sizes.filter((size) => size !== 3 && size !== 4)).toEqual([]);
+  const threes = plan.groups.filter((group) => group.playerIds.length === 3);
+  expect([0, 2]).toContain(threes.length);
+  for (const three of threes) {
+    const partner = plan.groups.find((group) => group.label === three.pairedWith);
+    expect(partner?.playerIds).toHaveLength(3);
+    expect(partner?.pairedWith).toBe(three.label);
+    expect(partner?.label).not.toBe(three.label);
+  }
+  for (const four of plan.groups.filter((group) => group.playerIds.length === 4)) {
+    expect(four.pairedWith).toBeNull();
+  }
+  const seated = plan.groups.flatMap((group) => group.playerIds);
+  expect(seated).toHaveLength(playerIds.length);
+  expect(seated.toSorted()).toEqual([...playerIds].toSorted());
 }
 
 describe("validateGroupCount", () => {
@@ -114,6 +156,46 @@ describe("planGroups", () => {
 
   it("refuses a count that does not fill the groups", () => {
     expect(() => planGroups(players(17), mulberry32(1))).toThrow(InvalidGroupCountError);
+  });
+
+  it.each(TOP_CUT_STRUCTURES)(
+    "builds %i groups of four and %i of three out of %i players",
+    (count, fours, threes) => {
+      const plan = planGroups(players(count), mulberry32(count));
+      const sizes = plan.groups.map((group) => group.playerIds.length);
+      expect(sizes.filter((size) => size === 4)).toHaveLength(fours);
+      expect(sizes.filter((size) => size === 3)).toHaveLength(threes);
+      expectValidStructure(plan, players(count));
+    },
+  );
+
+  it.each(LARGER_STRUCTURES)(
+    "keeps the same shape past a top 8 with %i players",
+    (count, fours, threes) => {
+      const plan = planGroups(players(count), mulberry32(count));
+      const sizes = plan.groups.map((group) => group.playerIds.length);
+      expect(sizes.filter((size) => size === 4)).toHaveLength(fours);
+      expect(sizes.filter((size) => size === 3)).toHaveLength(threes);
+      expectValidStructure(plan, players(count));
+    },
+  );
+
+  it.each([17, 19, 21, 23, 25, 27, 29, 31])("refuses the odd count %i", (count) => {
+    expect(() => planGroups(players(count), mulberry32(count))).toThrow(InvalidGroupCountError);
+  });
+
+  it.each([35, 41, 47, 53, 59, 63])("refuses the larger odd count %i", (count) => {
+    expect(() => planGroups(players(count), mulberry32(count))).toThrow(InvalidGroupCountError);
+  });
+
+  it("gives a different but valid plan for a different seed", () => {
+    const first = planGroups(players(18), mulberry32(11));
+    const second = planGroups(players(18), mulberry32(12));
+    expect(second.groups.map((group) => group.playerIds)).not.toEqual(
+      first.groups.map((group) => group.playerIds),
+    );
+    expectValidStructure(first, players(18));
+    expectValidStructure(second, players(18));
   });
 });
 
@@ -234,6 +316,72 @@ describe("unitRoundPairs", () => {
       expect(unitRoundPairs(pairedUnit, round).flatMap((match) => match.pair)).toHaveLength(6);
       expect(unitRoundPairs([fourGroup], round).flatMap((match) => match.pair)).toHaveLength(4);
     }
+  });
+
+  it.each([
+    ["a 4-player group", [fourGroup], 6, 2],
+    ["the paired 3-player groups", pairedUnit, 9, 3],
+  ])("plays %s over three rounds of a fixed size", (_label, unit, total, perRound) => {
+    const matches = unitMatches(unit);
+    expect(matches).toHaveLength(total);
+    expect(new Set(matches.map((match) => match.round))).toEqual(new Set(ROUNDS));
+    for (const round of ROUNDS) {
+      expect(matches.filter((match) => match.round === round)).toHaveLength(perRound);
+    }
+  });
+
+  it.each([
+    ["a 4-player group", [fourGroup]],
+    ["the paired 3-player groups", pairedUnit],
+  ])("never seats a player of %s against themselves", (_label, unit) => {
+    for (const match of unitMatches(unit)) {
+      expect(match.pair[0]).not.toBe(match.pair[1]);
+    }
+  });
+
+  it("meets every one of the six pairs of a 4-player group exactly once", () => {
+    const keys = unitMatches([fourGroup]).map((match) => pairKey(match.pair));
+    expect(keys.toSorted()).toEqual(["s0|s1", "s0|s2", "s0|s3", "s1|s2", "s1|s3", "s2|s3"]);
+  });
+
+  it("plays one cross-group match per round and three in total", () => {
+    const matches = unitMatches(pairedUnit);
+    expect(matches.filter((match) => match.cross)).toHaveLength(3);
+    for (const round of ROUNDS) {
+      expect(matches.filter((match) => match.round === round && match.cross)).toHaveLength(1);
+    }
+  });
+
+  it("assigns the cross-group opponents one to one", () => {
+    const crossPairs = unitMatches(pairedUnit)
+      .filter((match) => match.cross)
+      .map((match) => match.pair);
+    expect(crossPairs.map(([first]) => first).toSorted()).toEqual(["d0", "d1", "d2"]);
+    expect(crossPairs.map(([, second]) => second).toSorted()).toEqual(["e0", "e1", "e2"]);
+  });
+
+  it("completes each 3-player group's own round robin inside the pair", () => {
+    const intra = unitMatches(pairedUnit).filter((match) => !match.cross);
+    for (const group of pairedUnit) {
+      const own = intra.filter((match) => group.playerIds.includes(match.pair[0]));
+      expect(own).toHaveLength(3);
+      expect(new Set(own.flatMap((match) => match.pair))).toEqual(new Set(group.playerIds));
+      expect(new Set(own.map((match) => pairKey(match.pair))).size).toBe(3);
+    }
+  });
+
+  it("keeps the cross-group assignment of a plan stable", () => {
+    const plan = planGroups(players(18), mulberry32(2));
+    const unit = groupUnits(plan).find((candidate) => candidate.length === 2);
+    if (unit === undefined) {
+      expect.unreachable("the 18-player plan holds a paired unit");
+    }
+    const crossOf = (): string[] =>
+      unitMatches(unit)
+        .filter((match) => match.cross)
+        .map((match) => pairKey(match.pair));
+    expect(crossOf()).toEqual(crossOf());
+    expect(new Set(crossOf()).size).toBe(3);
   });
 
   it("refuses a group of the wrong size", () => {
