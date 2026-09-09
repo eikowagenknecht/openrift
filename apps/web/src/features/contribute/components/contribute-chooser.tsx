@@ -1,7 +1,6 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import {
-  CameraIcon,
   ChevronRightIcon,
   ImagePlusIcon,
   LayersIcon,
@@ -12,14 +11,12 @@ import type { ReactNode } from "react";
 
 import { Heading } from "@/components/heading";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+import { CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { CardLink } from "@/components/ui/card-link";
-import { OrnamentRule } from "@/components/ui/ornament";
-import { CardSlugPicker } from "@/features/contribute/components/card-slug-picker";
+import { ContributeHero } from "@/features/contribute/components/contribute-hero";
 import { MyMissingImagesSection } from "@/features/contribute/components/my-missing-images-section";
 import { YourSubmissionsCard } from "@/features/contribute/components/your-submissions-card";
 import { cornerClip } from "@/features/marketing/components/clip-frame";
-import { HeroBackground } from "@/features/marketing/components/hero-background";
 import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 
 const CTA_CLIP = cornerClip(12);
@@ -34,41 +31,21 @@ const STEPS = [
 ] as const;
 
 export function ContributeChooser() {
-  const navigate = useNavigate();
-
   return (
     <div className="flex flex-col gap-8">
-      <HeroBackground>
-        <div
-          className={cn(
-            PAGE_WIDTH.capped,
-            "px-safe flex items-center gap-12 pt-10 pb-8 sm:pt-12 sm:pb-10",
-          )}
-        >
-          <div className="flex flex-1 flex-col items-start gap-3">
-            <span className="text-primary font-heading text-sm font-semibold tracking-wide uppercase">
-              Contribute
-            </span>
-            <h1 className="font-heading text-4xl font-bold text-balance">
-              Help us fill in the gaps
-            </h1>
-            <OrnamentRule className="w-40" />
-            <p className="text-muted-foreground max-w-lg text-pretty">
-              The card data on OpenRift is kept up by one person. A missing printing, a typo, a
-              photo of a card you have in hand: everything you send is reviewed and then shows up
-              for everyone.
-            </p>
-            <Link
-              to="/contribute/image"
-              className="bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring font-heading mt-2 inline-flex h-11 items-center px-7 font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
-              style={{ clipPath: CTA_CLIP }}
-            >
-              Add a missing image
-            </Link>
-          </div>
-          <HeroCardFan />
-        </div>
-      </HeroBackground>
+      <ContributeHero
+        title="Help us fill in the gaps"
+        lead="The card data on OpenRift is kept up by one person. A missing printing, a typo, a photo of a card you have in hand: everything you send is reviewed and then shows up for everyone."
+        action={
+          <Link
+            to="/contribute/image"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring font-heading mt-2 inline-flex h-11 items-center px-7 font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
+            style={{ clipPath: CTA_CLIP }}
+          >
+            Add a missing image
+          </Link>
+        }
+      />
 
       <div className={cn(PAGE_WIDTH.capped, PAGE_PADDING_NO_TOP, "flex flex-col gap-8")}>
         <MyMissingImagesSection layout="tiles" />
@@ -97,25 +74,13 @@ export function ContributeChooser() {
               description="Some printings still show a placeholder. We straighten and crop it for you."
               needs="a phone photo"
             />
-            <Card>
-              <CardContent className="flex gap-3.5">
-                <IconTile icon={PencilLineIcon} />
-                <div className="flex flex-col items-start gap-1">
-                  <CardTitle>Fix something on a card</CardTitle>
-                  <CardDescription>
-                    Wrong text, a missing keyword, a code that doesn&apos;t match.
-                  </CardDescription>
-                  <div className="mt-1.5">
-                    <CardSlugPicker
-                      label="Pick a card to fix"
-                      onPick={(cardSlug) =>
-                        void navigate({ to: "/contribute/card/$cardSlug", params: { cardSlug } })
-                      }
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <ChoiceTile
+              to="/contribute/fix"
+              icon={PencilLineIcon}
+              title="Fix something on a card"
+              description="Wrong text, a missing keyword, a code that doesn't match."
+              needs="the card and the correction"
+            />
           </div>
         </section>
 
@@ -143,26 +108,6 @@ export function ContributeChooser() {
   );
 }
 
-function HeroCardFan() {
-  const sideCardClass =
-    "aspect-card absolute bottom-0 left-1/2 w-32 origin-bottom -translate-x-1/2 rounded-md border border-dashed bg-card/60";
-  return (
-    <div className="relative hidden h-56 w-72 shrink-0 md:block" aria-hidden="true">
-      <span className={cn(sideCardClass, "-rotate-12")} />
-      <span className={cn(sideCardClass, "rotate-12")} />
-      <span
-        className={cn(
-          sideCardClass,
-          "border-muted-foreground/40 bg-card text-muted-foreground flex flex-col items-center justify-center gap-2",
-        )}
-      >
-        <CameraIcon className="size-5" />
-        <span className="text-xs">Your photo here</span>
-      </span>
-    </div>
-  );
-}
-
 function IconTile({ icon: Icon }: { icon: LucideIcon }) {
   return (
     <span className="bg-muted text-primary flex size-10 shrink-0 items-center justify-center rounded-lg">
@@ -178,7 +123,7 @@ function ChoiceTile({
   description,
   needs,
 }: {
-  to: "/contribute/card" | "/contribute/printing" | "/contribute/image";
+  to: "/contribute/card" | "/contribute/printing" | "/contribute/image" | "/contribute/fix";
   icon: LucideIcon;
   title: string;
   description: string;
