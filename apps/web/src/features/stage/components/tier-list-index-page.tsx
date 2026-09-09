@@ -71,7 +71,19 @@ export function TierListIndexPage() {
           <EmptyState
             icon={LayersIcon}
             title="No tier lists yet"
-            description="Build one to rank a set, then share it as a link or an image."
+            description={
+              <>
+                Stack cards into rows you name yourself, then share the board as a link, download it
+                as an image, or rank it live on stream.{" "}
+                <Link
+                  to="/help/$slug"
+                  params={{ slug: "tier-lists" }}
+                  className="text-primary hover:underline"
+                >
+                  Learn how tier lists work.
+                </Link>
+              </>
+            }
           >
             <Button onClick={() => setCreateOpen(true)}>
               <PlusIcon />

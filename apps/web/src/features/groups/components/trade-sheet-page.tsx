@@ -292,7 +292,7 @@ function TradeSheetBody({
           <EmptyState
             icon={HandshakeIcon}
             title="Nothing traded yet"
-            description="Suggestions appear when your wishlists and their tradelists overlap."
+            description="Suggestions appear when a card on your wishlist is on their tradelist, or the other way round. Both of you need to share those lists into a group you're in together."
           />
         ) : (
           <>

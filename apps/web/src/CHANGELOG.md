@@ -4,12 +4,14 @@
 
 ### Highlights
 
+- feat(App): **First-visit guides for lists, tier lists and the Stage** — a dismissable guide on a wishlist or tradelist, the tier list builder and the Stage explains what the page does and how to start, as collections and decks already had.
 - feat(Trades): **See who you could trade with** — the Trades page now has a Could trade section for people you share matching wishlists and tradelists with but haven't traded yet.
 - feat(Cards): **Upload a photo for a missing card image** — the suggest-image page now takes a photo straight from your phone or a file, no image host needed, and walks you to the next card you own that has none.
 - feat(Collection): **Your cards without a photo** — a nudge on your collection, a tile on Stats and a list on Contribute point at the cards you own that the catalogue has no picture for.
 
 ### Other
 
+- feat(App): **Empty pages say what they're for** — Tournaments, Lending, Activity, trade sheets, group pages, tier lists, the deck comparison and the submission pages now explain the feature and the first step in place of a bare "nothing yet".
 - feat(Cards): **"No image yet" filter** — the card browser and your collection can now show only printings without a picture.
 - fix(Collection): **Share links open the full view when you already have access** — a collection share link used to show a read-only page with a small link to switch, which people missed; it now sends you straight to the editable view.
 

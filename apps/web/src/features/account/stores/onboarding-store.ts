@@ -7,6 +7,14 @@ export function groupNudgeKey(slug: string, kind: GroupNudgeKind): string {
   return `${slug}:${kind}`;
 }
 
+const INTRO_KEYS = ["tier-list", "stage", "list"] as const;
+
+export type IntroKey = (typeof INTRO_KEYS)[number];
+
+function isIntroKey(value: unknown): value is IntroKey {
+  return typeof value === "string" && INTRO_KEYS.includes(value as IntroKey);
+}
+
 interface OnboardingState {
   deckBuilderIntroDismissed: boolean;
   dismissDeckBuilderIntro: () => void;
@@ -14,6 +22,8 @@ interface OnboardingState {
   dismissCollectionIntro: () => void;
   missingImagesNudgeDismissed: boolean;
   dismissMissingImagesNudge: () => void;
+  dismissedIntros: IntroKey[];
+  dismissIntro: (key: IntroKey) => void;
   dismissedGroupNudges: string[];
   dismissGroupNudge: (slug: string, kind: GroupNudgeKind) => void;
 }
@@ -27,6 +37,13 @@ export const useOnboardingStore = create<OnboardingState>()(
       dismissCollectionIntro: () => set({ collectionIntroDismissed: true }),
       missingImagesNudgeDismissed: false,
       dismissMissingImagesNudge: () => set({ missingImagesNudgeDismissed: true }),
+      dismissedIntros: [],
+      dismissIntro: (key) =>
+        set((state) =>
+          state.dismissedIntros.includes(key)
+            ? state
+            : { dismissedIntros: [...state.dismissedIntros, key] },
+        ),
       dismissedGroupNudges: [],
       dismissGroupNudge: (slug, kind) =>
         set((state) => {
@@ -43,6 +60,7 @@ export const useOnboardingStore = create<OnboardingState>()(
         deckBuilderIntroDismissed: state.deckBuilderIntroDismissed,
         collectionIntroDismissed: state.collectionIntroDismissed,
         missingImagesNudgeDismissed: state.missingImagesNudgeDismissed,
+        dismissedIntros: state.dismissedIntros,
         dismissedGroupNudges: state.dismissedGroupNudges,
       }),
       merge: (persisted, current) => {
@@ -61,6 +79,9 @@ export const useOnboardingStore = create<OnboardingState>()(
             typeof raw?.missingImagesNudgeDismissed === "boolean"
               ? raw.missingImagesNudgeDismissed
               : current.missingImagesNudgeDismissed,
+          dismissedIntros: Array.isArray(raw?.dismissedIntros)
+            ? raw.dismissedIntros.filter(isIntroKey)
+            : current.dismissedIntros,
           dismissedGroupNudges: Array.isArray(raw?.dismissedGroupNudges)
             ? raw.dismissedGroupNudges.filter((key) => typeof key === "string")
             : current.dismissedGroupNudges,

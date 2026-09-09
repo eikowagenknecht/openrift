@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
 import { Toggle } from "@/components/ui/toggle";
+import { useOnboardingStore } from "@/features/account/stores/onboarding-store";
 import {
   BrowserToolbar,
   CardBrowserFilterProvider,
@@ -28,6 +29,7 @@ import { TradePreferenceDialog } from "@/features/groups/components/trade-prefer
 import { useLiveTradesByPrinting, useUserTrades } from "@/features/groups/hooks/use-card-trades";
 import { ListActionsCell } from "@/features/lists/components/list-actions-cell";
 import { ListGridCell } from "@/features/lists/components/list-grid-cell";
+import { ListIntroBanner } from "@/features/lists/components/list-intro-banner";
 import { ListRemoveDialog } from "@/features/lists/components/list-remove-dialog";
 import { buildListTradeIndex } from "@/features/lists/components/list-trade-status";
 import { MoveCopiesToCollectionDialog } from "@/features/lists/components/move-copies-to-collection-dialog";
@@ -283,6 +285,9 @@ export function ListEntryBrowser({
     />
   );
 
+  const introDismissed = useOnboardingStore((state) => state.dismissedIntros.includes("list"));
+  const dismissIntro = useOnboardingStore((state) => state.dismissIntro);
+
   // Without overriding `view` here the SearchBar falls back to the
   // URL/default ("cards") on printing- and copy-kind lists.
   const filterSearch = useFilterSearch();
@@ -307,6 +312,11 @@ export function ListEntryBrowser({
           siblingPrintings={selectedCard ? siblingsSource.get(selectedCard.cardId) : undefined}
           renderCard={renderCard}
           toolbar={toolbar}
+          banner={
+            introDismissed ? null : (
+              <ListIntroBanner intent={intent} kind={kind} onDismiss={() => dismissIntro("list")} />
+            )
+          }
           rightPane={rightPane}
           addStripHeight={ADD_STRIP_HEIGHT}
           table={{

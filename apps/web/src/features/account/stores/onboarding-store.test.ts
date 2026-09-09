@@ -52,6 +52,28 @@ describe("useOnboardingStore", () => {
     expect(useOnboardingStore.getState().deckBuilderIntroDismissed).toBe(false);
   });
 
+  describe("intros", () => {
+    it("starts with nothing dismissed", () => {
+      expect(useOnboardingStore.getState().dismissedIntros).toEqual([]);
+    });
+
+    it("records a dismissal under its key", () => {
+      useOnboardingStore.getState().dismissIntro("tier-list");
+      expect(useOnboardingStore.getState().dismissedIntros).toEqual(["tier-list"]);
+    });
+
+    it("keeps intros independent", () => {
+      useOnboardingStore.getState().dismissIntro("stage");
+      expect(useOnboardingStore.getState().dismissedIntros).not.toContain("list");
+    });
+
+    it("does not duplicate a repeated dismissal", () => {
+      useOnboardingStore.getState().dismissIntro("list");
+      useOnboardingStore.getState().dismissIntro("list");
+      expect(useOnboardingStore.getState().dismissedIntros).toEqual(["list"]);
+    });
+  });
+
   describe("group nudges", () => {
     it("starts with nothing dismissed", () => {
       expect(useOnboardingStore.getState().dismissedGroupNudges).toEqual([]);
@@ -170,6 +192,28 @@ describe("useOnboardingStore", () => {
       const result = merge?.(persisted, current);
       if (result) {
         expect(result.collectionIntroDismissed).toBe(current.collectionIntroDismissed);
+      }
+    });
+
+    it("accepts persisted intro dismissals and drops unknown keys", () => {
+      const store = useOnboardingStore;
+      const current = store.getState();
+      const persisted = { dismissedIntros: ["stage", "retired-intro", 3] };
+      const merge = store.persist?.getOptions()?.merge;
+      const result = merge?.(persisted, current);
+      if (result) {
+        expect(result.dismissedIntros).toEqual(["stage"]);
+      }
+    });
+
+    it("keeps current intro dismissals when the persisted value isn't an array", () => {
+      const store = useOnboardingStore;
+      const current = store.getState();
+      const persisted = { dismissedIntros: "stage" };
+      const merge = store.persist?.getOptions()?.merge;
+      const result = merge?.(persisted, current);
+      if (result) {
+        expect(result.dismissedIntros).toEqual(current.dismissedIntros);
       }
     });
 

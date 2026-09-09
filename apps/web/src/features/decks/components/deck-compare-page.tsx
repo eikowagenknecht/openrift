@@ -628,8 +628,10 @@ export function DeckComparePage({ fromId, toId }: { fromId?: string; toId?: stri
           )}
 
           {!bothChosen && (
-            <p className="text-muted-foreground text-sm">
-              Pick a deck on each side, or paste a deck code or list, to compare them.
+            <p className="text-muted-foreground">
+              Pick a deck on each side, or paste a deck code or list, and the comparison shows what
+              was cut, what was added, and what both share, zone by zone. Handy for tracking a
+              deck&apos;s versions or sizing up a build against a tournament list.
             </p>
           )}
           {isIdentical && <p className="text-sm">The two lists match, card for card.</p>}

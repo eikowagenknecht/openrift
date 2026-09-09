@@ -3,6 +3,7 @@ import { formatDay } from "@openrift/shared/format-date";
 import { Link } from "@tanstack/react-router";
 import { FileTextIcon } from "lucide-react";
 
+import { EmptyState } from "@/components/empty-state";
 import {
   PageDescription,
   PageTopBar,
@@ -101,17 +102,13 @@ export function MySubmissionsPage() {
         ) : null}
 
         {!isPending && submissions.length === 0 ? (
-          <Card className="text-muted-foreground flex flex-col items-center gap-2 p-8 text-center">
-            <FileTextIcon className="text-muted-foreground/60 size-8" />
-            <p className="text-foreground font-medium">Nothing sent in yet</p>
-            <p>
-              Spotted a card we&apos;re missing, or something that looks wrong? Help us fill in the
-              gaps.
-            </p>
-            <Button render={<Link to="/contribute" />} className="mt-2">
-              Submit a card
-            </Button>
-          </Card>
+          <EmptyState
+            icon={FileTextIcon}
+            title="Nothing sent in yet"
+            description="Spotted a card we're missing, or something that looks wrong? Send it in and it shows up here with its review status. Help us fill in the gaps."
+          >
+            <Button render={<Link to="/contribute" />}>Submit a card</Button>
+          </EmptyState>
         ) : null}
 
         {submissions.map((submission) => (

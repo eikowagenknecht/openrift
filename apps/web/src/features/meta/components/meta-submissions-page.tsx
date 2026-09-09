@@ -118,7 +118,7 @@ export function MetaSubmissionsPage() {
           <EmptyState
             icon={ScrollTextIcon}
             title="Nothing sent in yet"
-            description="Watched a tournament and know what people played? Help us fill in the gaps."
+            description="Watched a tournament and know what people played? Send in a decklist and track its review here. Help us fill in the gaps."
           >
             <Button render={<Link to="/meta/submit" />}>Send a decklist</Button>
           </EmptyState>

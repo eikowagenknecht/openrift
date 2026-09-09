@@ -41,12 +41,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useOnboardingStore } from "@/features/account/stores/onboarding-store";
 import { useCards } from "@/features/cards/hooks/use-cards";
 import { frontImageId } from "@/features/cards/lib/card-meta";
 import { HoveredCardPreview } from "@/features/decks/components/hovered-card-preview";
 import { TierBoardEditor } from "@/features/stage/components/tier-board-editor";
 import { TierListDetailsDialog } from "@/features/stage/components/tier-list-details-dialog";
 import { TierListDndContext } from "@/features/stage/components/tier-list-dnd-context";
+import { TierListIntroBanner } from "@/features/stage/components/tier-list-intro-banner";
 import { TierListPool } from "@/features/stage/components/tier-list-pool";
 import { TierListShareDialog } from "@/features/stage/components/tier-list-share-dialog";
 import { TierTileSizeControls } from "@/features/stage/components/tier-tile-size-controls";
@@ -68,6 +70,9 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
   const loadedListId = useTierListBuilderStore((state) => state.listId);
   // Counted from the saved board, not the draft state.
   const rankedCount = tierList.tiers.reduce((sum, tier) => sum + tier.cards.length, 0);
+  const introDismissed = useOnboardingStore((state) => state.dismissedIntros.includes("tier-list"));
+  const dismissIntro = useOnboardingStore((state) => state.dismissIntro);
+  const showIntroBanner = rankedCount === 0 && !introDismissed;
 
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -137,12 +142,17 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
             />
           }
           aside={
-            <TierBoardEditor
-              cardsById={cardsById}
-              printingsByCardId={printingsByCardId}
-              tapToAssign={isMobile}
-              onHoverCard={setHoveredView}
-            />
+            <div className="flex flex-col gap-4">
+              {showIntroBanner && (
+                <TierListIntroBanner onDismiss={() => dismissIntro("tier-list")} />
+              )}
+              <TierBoardEditor
+                cardsById={cardsById}
+                printingsByCardId={printingsByCardId}
+                tapToAssign={isMobile}
+                onHoverCard={setHoveredView}
+              />
+            </div>
           }
           topBar={
             <PageTopBar>

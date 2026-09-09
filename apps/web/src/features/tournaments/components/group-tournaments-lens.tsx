@@ -21,7 +21,11 @@ export function GroupTournamentsLens({ slug, canCreate, groupId }: GroupTourname
         className="py-12"
         icon={TrophyIcon}
         title="No tournaments yet"
-        description="Your group's event history."
+        description={
+          canCreate
+            ? "Tournaments you run for this group land here, with pairings, standings, and decklists kept for the record. Set one up for the next game night."
+            : "Tournaments run for this group land here, with pairings, standings, and decklists kept for the record. An admin can set one up."
+        }
       >
         {canCreate ? (
           <Link

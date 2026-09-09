@@ -1,55 +1,50 @@
 import { Link } from "@tanstack/react-router";
-import type { LucideIcon } from "lucide-react";
 import {
   CheckSquareIcon,
   CopyIcon,
-  InfoIcon,
   LayoutGridIcon,
   LibraryBigIcon,
   Rows3Icon,
   SlidersHorizontalIcon,
   SquareIcon,
   SquareStackIcon,
-  XIcon,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Callout } from "@/components/ui/callout";
+import type { IntroGuideRow } from "@/components/intro-banner";
+import { IntroBanner, IntroGuideList } from "@/components/intro-banner";
 import { Kbd } from "@/components/ui/kbd";
 
-interface ToolbarGuideRow {
-  icons: readonly LucideIcon[];
-  title: string;
-  description: string;
-  desktopOnly?: boolean;
-}
-
-const LIBRARY_ROW: ToolbarGuideRow = {
-  icons: [LibraryBigIcon],
-  title: "Library",
-  description: "Switch between the whole card library and just the cards you own.",
-};
-
-const VIEWS_ROW: ToolbarGuideRow = {
-  icons: [SquareIcon, CopyIcon, SquareStackIcon],
-  title: "Cards, printings, copies",
-  description: "One tile per card, every printing separately, or each individual copy you own.",
-  desktopOnly: true,
-};
-
-const MANAGE_ROW: ToolbarGuideRow = {
-  icons: [CheckSquareIcon],
-  title: "Manage cards",
-  description:
-    "Select lots of cards at once to move them between collections or add them to lists.",
-};
-
-const DISPLAY_ROW: ToolbarGuideRow = {
-  icons: [LayoutGridIcon, Rows3Icon],
-  title: "Grid or table",
-  description: "View cards as image tiles or as a compact table.",
-  desktopOnly: true,
-};
+const GUIDE_ROWS: readonly IntroGuideRow[] = [
+  {
+    icons: [LibraryBigIcon],
+    title: "Library",
+    description: "Switch between the whole card library and just the cards you own.",
+  },
+  {
+    icons: [SquareIcon, CopyIcon, SquareStackIcon],
+    title: "Cards, printings, copies",
+    description: "One tile per card, every printing separately, or each individual copy you own.",
+    desktopOnly: true,
+  },
+  {
+    icons: [CheckSquareIcon],
+    title: "Manage cards",
+    description:
+      "Select lots of cards at once to move them between collections or add them to lists.",
+  },
+  {
+    icons: [LayoutGridIcon, Rows3Icon],
+    title: "Grid or table",
+    description: "View cards as image tiles or as a compact table.",
+    desktopOnly: true,
+  },
+  {
+    icons: [SlidersHorizontalIcon],
+    title: "Options",
+    description: "View modes, sorting, and filters live behind this button.",
+    mobileOnly: true,
+  },
+];
 
 export function CollectionIntroBanner({
   showLibrary,
@@ -58,89 +53,34 @@ export function CollectionIntroBanner({
   showLibrary: boolean;
   onDismiss: () => void;
 }) {
-  const guideRows = [LIBRARY_ROW, VIEWS_ROW, MANAGE_ROW, DISPLAY_ROW];
   return (
-    <Callout className="mb-3">
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-xs"
-        onClick={onDismiss}
-        aria-label="Dismiss this guide"
-        className="text-muted-foreground absolute top-2 right-2"
-      >
-        <XIcon className="size-4" />
-      </Button>
-      <div className="flex gap-3 pr-6">
-        <InfoIcon className="text-primary mt-0.5 size-5 shrink-0" />
-        <div className="flex flex-col gap-3">
-          <div>
-            <p className="font-medium">Welcome to your collection</p>
-            <p className="text-muted-foreground mt-0.5">
-              {showLibrary
-                ? "You're browsing the whole card library. Tap the + on any card to add it to your collection."
-                : "This view shows only the cards you own. Turn on the library to browse and add every card."}
-            </p>
-          </div>
-          <ul className="grid gap-2 @lg:grid-cols-2">
-            {guideRows.map((row) => (
-              <li
-                key={row.title}
-                className={
-                  row.desktopOnly ? "hidden items-start gap-2 sm:flex" : "flex items-start gap-2"
-                }
-              >
-                <GuideIcons icons={row.icons} />
-                <div>
-                  <span className="font-medium">{row.title}</span>
-                  <p className="text-muted-foreground">{row.description}</p>
-                </div>
-              </li>
-            ))}
-            <li className="flex items-start gap-2 sm:hidden">
-              <GuideIcons icons={[SlidersHorizontalIcon]} />
-              <div>
-                <span className="font-medium">Options</span>
-                <p className="text-muted-foreground">
-                  View modes, sorting, and filters live behind this button.
-                </p>
-              </div>
-            </li>
-          </ul>
-          <p className="text-muted-foreground">
-            <span className="hidden sm:inline">
-              <Kbd>Ctrl</Kbd>+<Kbd>K</Kbd> quick-add ·{" "}
-            </span>
-            <Link to="/collections/import" className="text-primary hover:underline">
-              Import your collection
-            </Link>{" "}
-            ·{" "}
-            <Link
-              to="/help/$slug"
-              params={{ slug: "cards-printings-copies" }}
-              className="text-primary hover:underline"
-            >
-              How cards, printings &amp; copies work
-            </Link>
-          </p>
-        </div>
-      </div>
-    </Callout>
-  );
-}
-
-function GuideIcons({ icons }: { icons: readonly LucideIcon[] }) {
-  return (
-    <span className="flex shrink-0 items-center gap-1">
-      {icons.map((Icon, index) => (
-        // oxlint-disable-next-line react/no-array-index-key -- static icon list, never reordered
-        <span
-          key={index}
-          className="bg-background flex size-6 items-center justify-center rounded-md border"
-        >
-          <Icon className="size-3.5" />
+    <IntroBanner
+      className="mb-3"
+      title="Welcome to your collection"
+      lead={
+        showLibrary
+          ? "You're browsing the whole card library. Tap the + on any card to add it to your collection."
+          : "This view shows only the cards you own. Turn on the library to browse and add every card."
+      }
+      onDismiss={onDismiss}
+    >
+      <IntroGuideList rows={GUIDE_ROWS} />
+      <p className="text-muted-foreground">
+        <span className="hidden sm:inline">
+          <Kbd>Ctrl</Kbd>+<Kbd>K</Kbd> quick-add ·{" "}
         </span>
-      ))}
-    </span>
+        <Link to="/collections/import" className="text-primary hover:underline">
+          Import your collection
+        </Link>{" "}
+        ·{" "}
+        <Link
+          to="/help/$slug"
+          params={{ slug: "cards-printings-copies" }}
+          className="text-primary hover:underline"
+        >
+          How cards, printings &amp; copies work
+        </Link>
+      </p>
+    </IntroBanner>
   );
 }

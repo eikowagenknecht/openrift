@@ -11,6 +11,7 @@ import {
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
+import { useOnboardingStore } from "@/features/account/stores/onboarding-store";
 import { FilterSearchProvider } from "@/features/cards/lib/search-schemas";
 import { DeckPresentation } from "@/features/stage/components/deck-presentation";
 import { PresentCardBrowser } from "@/features/stage/components/present-card-browser";
@@ -18,6 +19,7 @@ import { PresentQueuePanel } from "@/features/stage/components/present-queue-pan
 import { QueuePresentation } from "@/features/stage/components/queue-presentation";
 import type { QueueSource } from "@/features/stage/components/queue-source-picker";
 import { StageDndContext } from "@/features/stage/components/stage-dnd-context";
+import { StageIntroBanner } from "@/features/stage/components/stage-intro-banner";
 import { StageOutputBlock } from "@/features/stage/components/stage-output-block";
 import {
   OwnedTierListPresentation,
@@ -156,6 +158,8 @@ function StagePage() {
 function StageBuilder({ initialIds }: { initialIds: readonly string[] }) {
   const navigate = useNavigate();
   const queued = usePresentQueueStore((state) => state.ids.length);
+  const introDismissed = useOnboardingStore((state) => state.dismissedIntros.includes("stage"));
+  const dismissIntro = useOnboardingStore((state) => state.dismissIntro);
 
   // Loads the URL's queue once, then keeps `?cards=` synced to it. Subscribed
   // after the load, and unsubscribed before the reset, to avoid feedback loops.
@@ -211,6 +215,9 @@ function StageBuilder({ initialIds }: { initialIds: readonly string[] }) {
         aside={
           <Suspense fallback={<div className="text-muted-foreground text-sm">Loading cards…</div>}>
             <div className="flex flex-col gap-6">
+              {queued === 0 && !introDismissed && (
+                <StageIntroBanner onDismiss={() => dismissIntro("stage")} />
+              )}
               <PresentQueuePanel onAdd={addSource} />
               <StageOutputBlock onStart={start} canStart={queued > 0} />
             </div>

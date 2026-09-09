@@ -369,7 +369,7 @@ function ActivityEmptyState() {
       className="py-20"
       icon={HistoryIcon}
       title="No activity yet"
-      description="Browse the catalog to start building your collection."
+      description="Every card you add, move, or remove lands here as a timeline, so you can see how your collection changed and when. Browse the catalog to make the first entry."
     >
       <Button variant="default" render={<Link to="/cards" />}>
         <SearchIcon />

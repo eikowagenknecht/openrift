@@ -38,7 +38,7 @@ export function TournamentsListPage() {
             className="py-12"
             icon={TrophyIcon}
             title="No tournaments yet"
-            description="Create a tournament, or join one through its registration link."
+            description="Run a game night or a store event with Swiss pairings, live standings, and optional deck checks. Players report their own results from a link. Create one here, or join one through its sign-up link."
           >
             <Link to="/tournaments/new" className={buttonVariants({ variant: "default" })}>
               <PlusIcon />

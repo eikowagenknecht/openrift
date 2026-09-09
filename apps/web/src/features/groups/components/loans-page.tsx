@@ -1,10 +1,12 @@
 import { enumLabel } from "@openrift/shared/enum-label";
 import type { LoanResponse } from "@openrift/shared/types/api/loan";
 import { getOrientation } from "@openrift/shared/utils";
+import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon, EllipsisVerticalIcon, HandHeartIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { EmptyState } from "@/components/empty-state";
 import {
   PageDescription,
   PageTopBar,
@@ -12,7 +14,7 @@ import {
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -313,14 +315,16 @@ export function LoansPage() {
         </PageDescription>
 
         {empty ? (
-          <Card className="text-muted-foreground flex flex-col items-center gap-2 p-8 text-center text-sm">
-            <HandHeartIcon className="text-muted-foreground/60 size-8" />
-            <p className="text-foreground font-medium">Nothing lent out right now</p>
-            <p>
-              To lend a card, right-click it in one of your collections and choose &quot;Lend to a
-              friend&quot;.
-            </p>
-          </Card>
+          <EmptyState
+            className="py-12"
+            icon={HandHeartIcon}
+            title="Nothing lent out right now"
+            description="Lend a card to a friend and OpenRift remembers who has it. The copy stays in your collection but stops counting for decks and trades until you mark it returned. To lend one, right-click it in a collection and choose “Lend to a friend”."
+          >
+            <Link to="/collections" className={buttonVariants({ variant: "default" })}>
+              Open your collections
+            </Link>
+          </EmptyState>
         ) : null}
 
         <LoanGroup heading="Needs your attention" loans={attention} />

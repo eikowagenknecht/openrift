@@ -92,6 +92,7 @@ export function PackOpenerPage() {
             className="py-12"
             icon={PackagePlusIcon}
             title="No sets are available to open yet"
+            description="A set can be opened once its booster pull rates are in the catalog. Check back after the next release."
           />
         </div>
       </>

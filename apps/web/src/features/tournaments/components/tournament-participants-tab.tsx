@@ -239,7 +239,11 @@ export function TournamentParticipantsTab({
       ) : null}
 
       {participants.length === 0 ? (
-        <p className="text-muted-foreground">No participants yet.</p>
+        <p className="text-muted-foreground">
+          {manage
+            ? "No participants yet. Add players by hand, or share a sign-up link from the settings so they can register themselves."
+            : "No participants yet."}
+        </p>
       ) : groups.length === 0 ? (
         <p className="text-muted-foreground">No players match the search.</p>
       ) : (
