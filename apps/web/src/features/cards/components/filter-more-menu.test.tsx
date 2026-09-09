@@ -417,6 +417,7 @@ describe("FilterMoreMenu", () => {
       />,
     );
     await user.click(screen.getByRole("button", { name: "More" }));
+    await screen.findByRole("menu");
     expect(screen.queryByRole("menuitem", { name: /Standard/u })).not.toBeInTheDocument();
   });
 

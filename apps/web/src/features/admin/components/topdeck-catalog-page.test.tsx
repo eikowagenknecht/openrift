@@ -212,7 +212,7 @@ describe("TopdeckCatalogPage", () => {
     searchStore.seed({ tdFormat: "Sealed" });
     render(<TopdeckCatalogPage />);
     await userEvent.click(screen.getByRole("combobox", { name: "Source format" }));
-    await userEvent.click(screen.getByRole("option", { name: "Any format" }));
+    await userEvent.click(await screen.findByRole("option", { name: "Any format" }));
     expect(captured.params).toMatchObject({ format: undefined });
   });
 

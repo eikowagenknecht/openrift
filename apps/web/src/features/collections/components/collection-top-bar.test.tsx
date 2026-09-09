@@ -77,6 +77,13 @@ function renderTopBar(
   );
 }
 
+// The menu opens on an animation frame after the press, so every case has to
+// wait for the popup before reading (or ruling out) its items.
+async function openActionsMenu(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: "Collection actions" }));
+  await screen.findByRole("menu");
+}
+
 describe("CollectionTopBar", () => {
   it("keeps Scan and Quick add in the bar whenever adding is available", () => {
     renderTopBar();
@@ -103,7 +110,7 @@ describe("CollectionTopBar", () => {
     const user = userEvent.setup();
     renderTopBar();
 
-    await user.click(screen.getByRole("button", { name: "Collection actions" }));
+    await openActionsMenu(user);
 
     expect(screen.queryByRole("menuitem", { name: /scan/iu })).not.toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Quick add" })).not.toBeInTheDocument();
@@ -115,7 +122,7 @@ describe("CollectionTopBar", () => {
 
     expect(screen.getAllByRole("button", { name: "Share" }).length).toBeGreaterThan(0);
 
-    await user.click(screen.getByRole("button", { name: "Collection actions" }));
+    await openActionsMenu(user);
     expect(screen.queryByRole("menuitem", { name: "Share" })).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
@@ -146,7 +153,7 @@ describe("CollectionTopBar", () => {
     const user = userEvent.setup();
     renderTopBar({ canEdit: false });
 
-    await user.click(screen.getByRole("button", { name: "Collection actions" }));
+    await openActionsMenu(user);
 
     expect(screen.queryByRole("menuitem", { name: "Edit" })).not.toBeInTheDocument();
   });
@@ -155,7 +162,7 @@ describe("CollectionTopBar", () => {
     const user = userEvent.setup();
     renderTopBar({ canImport: false });
 
-    await user.click(screen.getByRole("button", { name: "Collection actions" }));
+    await openActionsMenu(user);
 
     expect(screen.queryByRole("menuitem", { name: "Import…" })).not.toBeInTheDocument();
   });
@@ -173,7 +180,7 @@ describe("CollectionTopBar", () => {
     const user = userEvent.setup();
     renderTopBar({ canDelete: false });
 
-    await user.click(screen.getByRole("button", { name: "Collection actions" }));
+    await openActionsMenu(user);
 
     expect(screen.queryByRole("menuitem", { name: "Delete collection" })).not.toBeInTheDocument();
   });

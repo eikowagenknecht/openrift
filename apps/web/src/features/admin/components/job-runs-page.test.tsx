@@ -156,8 +156,8 @@ describe("JobRunsPage", () => {
 
     await user.click(screen.getByRole("combobox", { name: "Job kind" }));
 
-    expect(screen.queryByRole("option", { name: "tcgplayer.*" })).not.toBeInTheDocument();
     expect(await screen.findByRole("option", { name: "tcgplayer.refresh" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "tcgplayer.*" })).not.toBeInTheDocument();
   });
 
   it("keeps a finer family than the kinds spell, so a link into it survives", () => {

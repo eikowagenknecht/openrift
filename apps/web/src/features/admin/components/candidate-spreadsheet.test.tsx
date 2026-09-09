@@ -39,7 +39,7 @@ describe("CandidateSpreadsheet multi-select", () => {
 
     await user.click(screen.getByText("champion"));
 
-    await user.click(screen.getByRole("option", { name: "champion" }));
+    await user.click(await screen.findByRole("option", { name: "champion" }));
     await user.click(screen.getByRole("option", { name: "unit" }));
     await user.click(screen.getByRole("option", { name: "spell" }));
 
@@ -65,7 +65,7 @@ describe("CandidateSpreadsheet multi-select", () => {
     );
 
     await user.click(screen.getByText("champion"));
-    await user.click(screen.getByRole("option", { name: "unit" }));
+    await user.click(await screen.findByRole("option", { name: "unit" }));
     await user.click(screen.getByRole("option", { name: "unit" }));
     await user.keyboard("{Escape}");
 
@@ -86,7 +86,7 @@ describe("CandidateSpreadsheet multi-select", () => {
     );
 
     await user.click(screen.getByText("champion"));
-    await user.click(screen.getByRole("option", { name: "champion" }));
+    await user.click(await screen.findByRole("option", { name: "champion" }));
     await user.keyboard("{Escape}");
 
     expect(onActiveChange).toHaveBeenCalledTimes(1);
@@ -108,7 +108,7 @@ describe("CandidateSpreadsheet multi-select", () => {
 
     await user.click(screen.getByText("champion"));
 
-    const search = screen.getByPlaceholderText("Search markers…");
+    const search = await screen.findByPlaceholderText("Search markers…");
     expect(document.activeElement).toBe(search);
     await user.keyboard("spe");
 
