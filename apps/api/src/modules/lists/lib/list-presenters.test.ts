@@ -34,6 +34,7 @@ describe("toList", () => {
       ruleCombine: null,
       sortOrder: 0,
       sidebarHidden: false,
+      cardmarketSync: false,
     });
     expect(result).toEqual({
       id: "lst-1",
@@ -71,6 +72,7 @@ describe("toList", () => {
       ruleCombine: null,
       sortOrder: 0,
       sidebarHidden: true,
+      cardmarketSync: false,
     });
     expect(result.sidebarHidden).toBe(true);
   });
@@ -94,6 +96,7 @@ describe("toList", () => {
       ruleCombine: null,
       sortOrder: 0,
       sidebarHidden: false,
+      cardmarketSync: false,
     });
     expect(result.entryCount).toBe(0);
     expect(result.isPublic).toBe(true);
@@ -120,6 +123,7 @@ describe("toList", () => {
       ruleCombine: null,
       sortOrder: 0,
       sidebarHidden: false,
+      cardmarketSync: false,
     });
     expect(result.tradeDefaults).toEqual({
       pricePref: "cm_lowest",
@@ -162,6 +166,7 @@ describe("toListDetail", () => {
       currency: "EUR",
       sortOrder: 0,
       sidebarHidden: false,
+      cardmarketSync: false,
       rules: storedRules as never,
       ruleCombine: null,
     });
@@ -196,6 +201,7 @@ describe("toPublicList", () => {
       ruleCombine: null,
       sortOrder: 0,
       sidebarHidden: false,
+      cardmarketSync: false,
     });
     expect(result).toEqual({
       id: "lst-1",

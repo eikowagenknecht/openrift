@@ -88,3 +88,16 @@ export interface ProductPrintingsTable {
   printingId: string;
   quantity: number;
 }
+
+export interface CardmarketSyncStateTable {
+  userId: string;
+  printingId: string;
+  condition: string;
+  isAltered: boolean;
+  intentBase: Generated<number>;
+  observedBase: Generated<number>;
+  unmanaged: Generated<number>;
+  lastSeenAt: Generated<Date>;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}

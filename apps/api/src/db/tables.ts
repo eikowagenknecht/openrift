@@ -83,6 +83,7 @@ import type {
   MarketplaceIgnoredVariantsTable,
   MarketplaceProductCardOverridesTable,
   MarketplaceProductPricesTable,
+  CardmarketSyncStateTable,
   MarketplaceProductVariantsTable,
   MarketplaceProductsTable,
   ProductPrintingsTable,
@@ -186,6 +187,7 @@ export interface Database {
   marketplaceGroups: MarketplaceGroupsTable;
   marketplaceProducts: MarketplaceProductsTable;
   marketplaceProductVariants: MarketplaceProductVariantsTable;
+  cardmarketSyncState: CardmarketSyncStateTable;
   marketplaceProductPrices: MarketplaceProductPricesTable;
   marketplaceIgnoredProducts: MarketplaceIgnoredProductsTable;
   marketplaceIgnoredVariants: MarketplaceIgnoredVariantsTable;

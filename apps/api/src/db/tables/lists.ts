@@ -25,6 +25,7 @@ export interface ListsTable {
   currency: Currency | null;
   sortOrder: Generated<number>;
   sidebarHidden: Generated<boolean>;
+  cardmarketSync: Generated<boolean>;
   rules: ColumnType<ListRules, ListRules | undefined, ListRules>;
   ruleCombine: ListRuleCombine | null;
 }

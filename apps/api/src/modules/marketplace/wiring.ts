@@ -5,6 +5,7 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../../db/tables.js";
 import { createContentAddressedCache } from "../catalog/services/catalog-assembly.js";
+import { cardmarketStockRepo } from "./repositories/cardmarket-stock.js";
 import { marketplaceAdminRepo } from "./repositories/marketplace-admin.js";
 import { marketplaceMappingRepo } from "./repositories/marketplace-mapping.js";
 import { marketplaceRepo } from "./repositories/marketplace.js";
@@ -15,6 +16,7 @@ import { getMappingOverview } from "./services/marketplace-mapping.js";
 
 export interface MarketplaceRepos {
   marketplace: ReturnType<typeof marketplaceRepo>;
+  cardmarketStock: ReturnType<typeof cardmarketStockRepo>;
   marketplaceAdmin: ReturnType<typeof marketplaceAdminRepo>;
   products: ReturnType<typeof productsRepo>;
   providerSettings: ReturnType<typeof providerSettingsRepo>;
@@ -29,6 +31,7 @@ export interface MarketplaceServices {
 export function createMarketplaceRepos(db: Kysely<Database>): MarketplaceRepos {
   return {
     marketplace: marketplaceRepo(db),
+    cardmarketStock: cardmarketStockRepo(db),
     marketplaceAdmin: marketplaceAdminRepo(db),
     products: productsRepo(db),
     providerSettings: providerSettingsRepo(db),

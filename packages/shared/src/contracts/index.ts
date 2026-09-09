@@ -54,6 +54,7 @@ export * from "./api-format.js";
 export * from "./cards.js";
 export * from "./card-submissions.js";
 export * from "./card-trades.js";
+export * from "./cardmarket-stock.js";
 export * from "./catalog.js";
 export * from "./collection-events.js";
 export * from "./collection-value-history.js";
