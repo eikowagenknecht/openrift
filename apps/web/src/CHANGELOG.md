@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Cards): **A new front door for contributing** — the Contribute page opens with what the catalogue needs and why, shows the cards you own that have no photo as tiles, explains each of the four ways to help and what you need for it, and keeps a count of your submissions waiting for review and applied.
 - feat(Cards): **Contribute in smaller steps** — the contribute page now asks what you want to add first, and each form opens with just the fields it needs.
 - feat(Cards): **The preview card is the map of the form** — every spot the card shows is marked on the preview, and picking one jumps to the field that fills it.
 - feat(Tournaments): **Group stage with a top cut** — a new format seats players in groups of four for three rounds, lets each group start its own next round, then seeds a fixed Top 4, 8 or 16 bracket from group placement.

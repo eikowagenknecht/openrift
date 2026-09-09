@@ -1,8 +1,9 @@
 import { Heading } from "@/components/heading";
 import { MissingImagesList } from "@/features/contribute/components/missing-images-list";
+import { MissingImagesTiles } from "@/features/contribute/components/missing-images-tiles";
 import { useMyMissingImages } from "@/features/contribute/hooks/use-missing-images";
 
-export function MyMissingImagesSection() {
+export function MyMissingImagesSection({ layout = "list" }: { layout?: "list" | "tiles" }) {
   const { data } = useMyMissingImages();
 
   const items = data?.items ?? [];
@@ -16,7 +17,11 @@ export function MyMissingImagesSection() {
       <p className="text-muted-foreground">
         You have these in hand, so a quick phone photo from you is the fastest way to fill the gap.
       </p>
-      <MissingImagesList items={items} />
+      {layout === "tiles" ? (
+        <MissingImagesTiles items={items} />
+      ) : (
+        <MissingImagesList items={items} />
+      )}
     </section>
   );
 }

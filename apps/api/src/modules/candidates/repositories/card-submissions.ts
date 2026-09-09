@@ -90,6 +90,24 @@ export function cardSubmissionsRepo(db: Kysely<Database>) {
       return listOwnedByUser<CardSubmissionRow>(db, "cardSubmissions", userId, options);
     },
 
+    async summaryForUser(userId: string): Promise<{ pending: number; accepted: number }> {
+      const rows = await db
+        .selectFrom("cardSubmissions")
+        .select((eb) => ["status", eb.fn.countAll<string>().as("count")])
+        .where("userId", "=", userId)
+        .where("status", "in", ["pending", "accepted"])
+        .groupBy("status")
+        .execute();
+
+      const counts = { pending: 0, accepted: 0 };
+      for (const row of rows) {
+        if (row.status === "pending" || row.status === "accepted") {
+          counts[row.status] = Number(row.count);
+        }
+      }
+      return counts;
+    },
+
     /**
      * Resolve a submission from the candidate's natural key, which is all the
      * ignore path has to work with.

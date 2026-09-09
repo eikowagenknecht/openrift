@@ -78,7 +78,7 @@ describe("card-submissions body limit", () => {
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
-const mockCardSubmissions = { missingImagesForUser: vi.fn() };
+const mockCardSubmissions = { missingImagesForUser: vi.fn(), summaryForUser: vi.fn() };
 
 const routed = new Hono<{ Variables: Variables }>();
 routed.use("*", async (c, next) => {
@@ -170,5 +170,30 @@ describe("GET /card-submissions/missing-images", () => {
     expect(res.status).toBe(200);
     expect(await readJson(res)).toStrictEqual({ items: [item] });
     expect(mockCardSubmissions.missingImagesForUser).toHaveBeenCalledWith(USER_ID);
+  });
+});
+
+describe("GET /card-submissions/summary", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("counts the signed-in user's pending and accepted submissions", async () => {
+    mockCardSubmissions.summaryForUser.mockResolvedValue({ pending: 2, accepted: 5 });
+
+    const res = await routed.request("/api/v1/card-submissions/summary");
+
+    expect(res.status).toBe(200);
+    expect(await readJson(res)).toStrictEqual({ pending: 2, accepted: 5 });
+    expect(mockCardSubmissions.summaryForUser).toHaveBeenCalledWith(USER_ID);
+  });
+
+  it("answers with zeroes when the user has submitted nothing", async () => {
+    mockCardSubmissions.summaryForUser.mockResolvedValue({ pending: 0, accepted: 0 });
+
+    const res = await routed.request("/api/v1/card-submissions/summary");
+
+    expect(res.status).toBe(200);
+    expect(await readJson(res)).toStrictEqual({ pending: 0, accepted: 0 });
   });
 });

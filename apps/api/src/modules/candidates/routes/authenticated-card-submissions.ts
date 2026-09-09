@@ -51,6 +51,10 @@ export const cardSubmissionsRouter = {
     return { items };
   }),
 
+  summary: os.summary.handler(({ context }) =>
+    context.repos.cardSubmissions.summaryForUser(context.userId),
+  ),
+
   submit: os.submit.handler(async ({ input, context, errors }): Promise<{ ok: true }> => {
     const now = new Date();
     const dateStamp = formatCompactUtcStamp(now);

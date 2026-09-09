@@ -104,6 +104,13 @@ export const missingImagesResponseSchema = z
   .object({ items: z.array(missingImagePrintingSchema) })
   .openapi("MissingImagesResponse");
 
+export const cardSubmissionSummaryResponseSchema = z
+  .object({
+    pending: z.number().int().min(0),
+    accepted: z.number().int().min(0),
+  })
+  .openapi("CardSubmissionSummaryResponse");
+
 /** Always scoped to the session user, never a user id from the client; `uploadImage` reads its `File` from the multipart body. */
 export const cardSubmissionsContract = {
   uploadImage: authedRoute
@@ -126,6 +133,13 @@ export const cardSubmissionsContract = {
       tags: ["Card Submissions"],
     })
     .output(missingImagesResponseSchema),
+  summary: authedRoute
+    .route({
+      method: "GET",
+      path: "/api/v1/card-submissions/summary",
+      tags: ["Card Submissions"],
+    })
+    .output(cardSubmissionSummaryResponseSchema),
   submit: authedRoute
     .route({ method: "POST", path: "/api/v1/card-submissions", tags: ["Card Submissions"] })
     .errors({
@@ -149,3 +163,4 @@ export type CardSubmissionStatusResponse = z.infer<typeof cardSubmissionStatusRe
 export type CardSubmissionListResponse = z.infer<typeof cardSubmissionListResponseSchema>;
 export type MissingImagePrinting = z.infer<typeof missingImagePrintingSchema>;
 export type MissingImagesResponse = z.infer<typeof missingImagesResponseSchema>;
+export type CardSubmissionSummaryResponse = z.infer<typeof cardSubmissionSummaryResponseSchema>;
