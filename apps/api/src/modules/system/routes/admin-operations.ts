@@ -72,6 +72,22 @@ export const adminOperationsRouter = {
     });
   }),
 
+  siblingVariantDrift: os.siblingVariantDrift.handler(async ({ context }) => {
+    const missing = await context.repos.marketplaceMapping.countMissingSiblingVariants();
+    return { missing };
+  }),
+
+  backfillSiblingVariants: os.backfillSiblingVariants.handler(async ({ context }) => {
+    const repos = context.repos;
+    return await runJobAsync(
+      { repos, log },
+      "marketplace_variants.backfill_siblings",
+      "admin",
+      () => repos.marketplaceMapping.backfillSiblingVariants(),
+      { summarize: (result) => result },
+    );
+  }),
+
   recomputeCardTokens: os.recomputeCardTokens.handler(async ({ context }) => {
     const repos = context.repos;
     return await runJobAsync(

@@ -14,6 +14,11 @@ import {
 } from "@/features/admin/hooks/use-admin-prices";
 import { useJobSchedules } from "@/features/admin/hooks/use-job-schedules";
 import { useMarketplaceGroups } from "@/features/admin/hooks/use-marketplace-groups";
+import {
+  SIBLING_VARIANT_BACKFILL_KIND,
+  useBackfillSiblingVariants,
+  useSiblingVariantDrift,
+} from "@/features/admin/hooks/use-sibling-variants";
 import type { JobRunView } from "@/lib/server-fns/api-types";
 
 import { ConfirmClearButton } from "./confirm-clear-button";
@@ -38,7 +43,15 @@ function PriceRefreshResult({ result }: { result: PriceRefreshResponse }) {
   );
 }
 
-function JobRunDisplay({ run }: { run: JobRunView }) {
+function JobRunDisplay({
+  run,
+  failedText = "Refresh failed",
+  succeededText = "Completed",
+}: {
+  run: JobRunView;
+  failedText?: string;
+  succeededText?: string;
+}) {
   if (run.status === "running") {
     return (
       <p className="text-muted-foreground flex items-center gap-1 text-sm">
@@ -51,7 +64,7 @@ function JobRunDisplay({ run }: { run: JobRunView }) {
     return (
       <p className="text-destructive flex items-center gap-1 text-sm">
         <XIcon className="size-4" />
-        {run.errorMessage ?? "Refresh failed"}
+        {run.errorMessage ?? failedText}
       </p>
     );
   }
@@ -61,7 +74,7 @@ function JobRunDisplay({ run }: { run: JobRunView }) {
   return (
     <p className="text-success flex items-center gap-1 text-sm">
       <CheckIcon className="size-4" />
-      Completed
+      {succeededText}
     </p>
   );
 }
@@ -152,6 +165,79 @@ function PriceSection({
   );
 }
 
+export function driftText(missing: number | undefined, isError: boolean): string {
+  if (isError) {
+    return "Could not read how many printings are missing a price link.";
+  }
+  if (missing === undefined) {
+    return "Checking for printings without a price link…";
+  }
+  if (missing === 0) {
+    return "Every printing in a mapped family has its own price link.";
+  }
+  return `${missing} printings sit in a mapped family with no price link of their own.`;
+}
+
+export function backfillSucceededText(result: JobRunView["result"]): string {
+  const inserted = result?.inserted;
+  if (typeof inserted !== "number") {
+    return "Completed";
+  }
+  return inserted === 0 ? "Nothing to add" : `Added ${inserted} sibling variants`;
+}
+
+/**
+ * Cardmarket and TCGplayer price one product across every language of a
+ * printing family, so each covered printing carries its own variant row.
+ */
+function SiblingVariantSection() {
+  const backfill = useBackfillSiblingVariants();
+  const latestRun = useLatestJobRun(SIBLING_VARIANT_BACKFILL_KIND);
+  const isRunning = backfill.isPending || latestRun.data?.status === "running";
+  const drift = useSiblingVariantDrift(isRunning);
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <CardTitle>Language Fan-out</CardTitle>
+            <CardDescription>{driftText(drift.data?.missing, drift.isError)}</CardDescription>
+          </div>
+          <Button
+            className="shrink-0"
+            disabled={isRunning}
+            onClick={() =>
+              backfill.mutate(undefined, {
+                onSuccess: () => void latestRun.refetch(),
+              })
+            }
+          >
+            {isRunning ? <LoaderIcon className="size-4 animate-spin" /> : "Backfill"}
+          </Button>
+        </div>
+      </CardHeader>
+      {(latestRun.data || backfill.isError) && (
+        <CardContent className="pt-0">
+          {latestRun.data && (
+            <JobRunDisplay
+              run={latestRun.data}
+              failedText="Backfill failed"
+              succeededText={backfillSucceededText(latestRun.data.result)}
+            />
+          )}
+          {backfill.isError && (
+            <p className="text-destructive flex items-center gap-1 text-sm">
+              <XIcon className="size-4" />
+              {backfill.error.message}
+            </p>
+          )}
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
 export function MarketplaceOverviewPage() {
   const { data: schedules } = useJobSchedules();
   const { data: groupsData } = useMarketplaceGroups();
@@ -196,6 +282,7 @@ export function MarketplaceOverviewPage() {
         marketplace="cardtrader"
         nextRun={nextRunByKind.get("cardtrader.refresh") ?? null}
       />
+      <SiblingVariantSection />
     </div>
   );
 }

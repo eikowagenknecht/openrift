@@ -22,6 +22,12 @@ export const clearPricesResponseSchema = z
   })
   .openapi("ClearPricesResponse");
 
+export const siblingVariantDriftResponseSchema = z
+  .object({
+    missing: z.number(),
+  })
+  .openapi("SiblingVariantDriftResponse");
+
 // Long-running operations return 202 + a run handle polled via job-runs,
 // since a synchronous response would hold the socket past Bun's idle timeout.
 export const adminOperationsContract = {
@@ -65,6 +71,17 @@ export const adminOperationsContract = {
     .route({
       method: "POST",
       path: `${BASE}/recompute-card-tokens`,
+      tags: [TAG],
+      successStatus: 202,
+    })
+    .output(jobStartedResponseSchema),
+  siblingVariantDrift: authedRoute
+    .route({ method: "GET", path: `${BASE}/sibling-variant-drift`, tags: [TAG] })
+    .output(siblingVariantDriftResponseSchema),
+  backfillSiblingVariants: authedRoute
+    .route({
+      method: "POST",
+      path: `${BASE}/backfill-sibling-variants`,
       tags: [TAG],
       successStatus: 202,
     })

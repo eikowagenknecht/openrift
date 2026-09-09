@@ -1,3 +1,4 @@
+import { MARKETPLACE_PRINTING_LANGUAGES } from "@openrift/shared/types/pricing";
 import type { Marketplace } from "@openrift/shared/types/pricing";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
@@ -6,6 +7,55 @@ import type { Database } from "../../../db/tables.js";
 import { rowBatches } from "../../../lib/bind-batches.js";
 
 type Db = Kysely<Database>;
+
+const restrictedMarketplaces = Object.entries(MARKETPLACE_PRINTING_LANGUAGES).flatMap(
+  ([marketplace, languages]) =>
+    languages === null ? [] : [{ marketplace, languages: [...languages] }],
+);
+
+/**
+ * TCGplayer's products are `language IS NULL` too, but it only sells English
+ * stock, so its SKUs must never reach a non-English sibling.
+ */
+const siblingLanguageGuard =
+  restrictedMarketplaces.length === 0
+    ? sql`TRUE`
+    : sql.join(
+        restrictedMarketplaces.map(
+          ({ marketplace, languages }) =>
+            sql`(mp.marketplace <> ${marketplace} OR sibling.language IN (${sql.join(
+              languages.map((language) => sql`${language}`),
+            )}))`,
+        ),
+        sql` AND `,
+      );
+
+/**
+ * Sibling rows a language-aggregate product should have but doesn't, per
+ * migration 107's printing identity — a different one here re-maps live prices.
+ */
+const missingSiblingVariants = sql`
+  SELECT DISTINCT mpv.marketplace_product_id, sibling.id AS printing_id
+  FROM marketplace_product_variants mpv
+  JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
+  JOIN printings source ON source.id = mpv.printing_id
+  JOIN printings sibling
+    ON sibling.card_id = source.card_id
+    AND sibling.short_code = source.short_code
+    AND sibling.finish = source.finish
+    AND sibling.art_variant = source.art_variant
+    AND sibling.is_signed = source.is_signed
+    AND sibling.marker_slugs = source.marker_slugs
+    AND sibling.id <> source.id
+  WHERE mp.language IS NULL
+    AND ${siblingLanguageGuard}
+    AND NOT EXISTS (
+      SELECT 1
+      FROM marketplace_product_variants existing
+      WHERE existing.marketplace_product_id = mpv.marketplace_product_id
+        AND existing.printing_id = sibling.id
+    )
+`;
 
 export function marketplaceMappingVariantsRepo(db: Db) {
   return {
@@ -189,6 +239,25 @@ export function marketplaceMappingVariantsRepo(db: Db) {
           ? query.where("mp.language", "is", null)
           : query.where("mp.language", "=", language);
       return query.executeTakeFirst();
+    },
+
+    /** Printings that joined an already-mapped family after its product was bound. */
+    async countMissingSiblingVariants(): Promise<number> {
+      const result = await sql<{
+        count: number;
+      }>`SELECT count(*)::int AS count FROM (${missingSiblingVariants}) m`.execute(db);
+      return result.rows[0]?.count ?? 0;
+    },
+
+    /** Idempotent: re-running once the gap is closed inserts nothing. */
+    async backfillSiblingVariants(): Promise<{ inserted: number }> {
+      const result = await sql<{ id: string }>`
+        INSERT INTO marketplace_product_variants (marketplace_product_id, printing_id)
+        SELECT * FROM (${missingSiblingVariants}) m
+        ON CONFLICT (marketplace_product_id, printing_id) DO NOTHING
+        RETURNING id
+      `.execute(db);
+      return { inserted: result.rows.length };
     },
 
     getPrintingFinishAndLanguage(printingId: string) {

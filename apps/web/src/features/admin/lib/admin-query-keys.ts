@@ -40,6 +40,7 @@ export const adminKeys = {
   jobRunsByKind: (kind: string) => ["admin", "job-runs", "by-kind", kind] as const,
   jobSchedules: ["admin", "job-schedules"] as const,
   cacheStatus: ["admin", "cache-status"] as const,
+  siblingVariantDrift: ["admin", "sibling-variant-drift"] as const,
   apiKeys: ["admin", "api-keys"] as const,
   rehostStatus: ["admin", "rehost-status"] as const,
   brokenImages: ["admin", "broken-images"] as const,

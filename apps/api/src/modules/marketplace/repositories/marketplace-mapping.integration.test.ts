@@ -1,3 +1,4 @@
+import type { Marketplace } from "@openrift/shared/types/pricing";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { PRINTINGS } from "../../../test/fixtures/constants.js";
@@ -151,6 +152,71 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
       .execute();
 
     expect(enRows).toHaveLength(1);
+  });
+
+  it("backfillSiblingVariants fans Cardmarket out to a sibling printing and keeps TCGplayer English", async () => {
+    // Table-wide insert; runs in a rolled-back transaction so it doesn't
+    // touch other integration files' fixtures in the shared database.
+    await expect(
+      db.transaction().execute(async (trx) => {
+        const trxRepo = marketplaceMappingRepo(trx);
+        const fanoutExternalId = 872_495;
+
+        const bindEnglishOnly = async (target: Marketplace) => {
+          await trx
+            .insertInto("marketplaceGroups")
+            .values({ marketplace: target, groupId, name: "Fan-out Group" })
+            .onConflict((oc) => oc.columns(["marketplace", "groupId"]).doNothing())
+            .execute();
+          await trxRepo.upsertProductVariants([
+            {
+              marketplace: target,
+              printingId: enPrintingId,
+              externalId: fanoutExternalId,
+              groupId,
+              productName: "Fan-out Product",
+              finish: "normal",
+              language: null,
+            },
+          ]);
+        };
+
+        const boundPrintingIds = async (target: Marketplace): Promise<string[]> => {
+          const rows = await trx
+            .selectFrom("marketplaceProductVariants as mpv")
+            .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
+            .select(["mpv.printingId"])
+            .where("mp.marketplace", "=", target)
+            .where("mp.externalId", "=", fanoutExternalId)
+            .execute();
+          return rows.map((r) => r.printingId).toSorted();
+        };
+
+        await bindEnglishOnly("cardmarket");
+        await bindEnglishOnly("tcgplayer");
+        expect(await boundPrintingIds("cardmarket")).toEqual([enPrintingId]);
+        expect(await trxRepo.countMissingSiblingVariants()).toBeGreaterThanOrEqual(1);
+
+        const { inserted } = await trxRepo.backfillSiblingVariants();
+        expect(inserted).toBeGreaterThanOrEqual(1);
+        expect(await boundPrintingIds("cardmarket")).toEqual(
+          [enPrintingId, scPrintingId].toSorted(),
+        );
+
+        // TCGplayer products are language-aggregate too, but it sells English
+        // stock only, so its SKU must not reach the SC sibling.
+        expect(await boundPrintingIds("tcgplayer")).toEqual([enPrintingId]);
+
+        // Scoped to these products: other files commit into the shared database
+        // while this runs, so the global count is not stable enough to assert.
+        await trxRepo.backfillSiblingVariants();
+        expect(await boundPrintingIds("cardmarket")).toEqual(
+          [enPrintingId, scPrintingId].toSorted(),
+        );
+
+        throw new Error("rollback");
+      }),
+    ).rejects.toThrow("rollback");
   });
 
   describe("pricesByMarketplace", () => {

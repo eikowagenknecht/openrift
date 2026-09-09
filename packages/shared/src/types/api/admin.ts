@@ -58,7 +58,10 @@ import type {
   groupKindEnum,
   marketplaceGroupSchema,
 } from "../../contracts/admin/marketplace-groups.js";
-import type { clearPricesResponseSchema } from "../../contracts/admin/operations.js";
+import type {
+  clearPricesResponseSchema,
+  siblingVariantDriftResponseSchema,
+} from "../../contracts/admin/operations.js";
 import type { adminPrintingCitationSchema } from "../../contracts/admin/printing-citations.js";
 import type { providerSettingSchema } from "../../contracts/admin/provider-settings.js";
 import type { jobStartedResponseSchema } from "../../contracts/admin/shared.js";
@@ -204,6 +207,8 @@ export type PriceRefreshResponse = z.infer<typeof priceRefreshResponseSchema>;
 export type JobRunStartedResponse = z.infer<typeof jobStartedResponseSchema>;
 
 export type ClearPricesResponse = z.infer<typeof clearPricesResponseSchema>;
+
+export type SiblingVariantDriftResponse = z.infer<typeof siblingVariantDriftResponseSchema>;
 
 /** Carries the merged per-marketplace external IDs (`tcgExternalId` / `cmExternalId` / `ctExternalId`). */
 export type UnifiedMappingPrintingResponse = z.infer<
