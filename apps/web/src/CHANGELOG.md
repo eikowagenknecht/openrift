@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-09-09
+
+### Highlights
+
+- feat(Trades): **See who you could trade with** — the Trades page now has a Could trade section for people you share matching wishlists and tradelists with but haven't traded yet.
+
 ## 2026-09-08
 
 ### Highlights

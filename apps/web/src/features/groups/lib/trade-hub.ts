@@ -170,7 +170,7 @@ function cardRank(card: TradeHubCard<TradeHubMember>): number {
   return 4;
 }
 
-function possibleTrades(count: number): string {
+export function possibleTradesLine(count: number): string {
   return `${count} possible ${count === 1 ? "trade" : "trades"}`;
 }
 
@@ -179,11 +179,11 @@ export function suggestionsLine(card: TradeHubCard<TradeHubMember>): string | nu
   if (card.suggestions === 0) {
     return card.suggestionsElsewhere === 0
       ? null
-      : `${possibleTrades(card.suggestionsElsewhere)} in ${groups}`;
+      : `${possibleTradesLine(card.suggestionsElsewhere)} in ${groups}`;
   }
   return card.suggestionsElsewhere === 0
-    ? possibleTrades(card.suggestions)
-    : `${possibleTrades(card.suggestions)} · ${card.suggestionsElsewhere} more in ${groups}`;
+    ? possibleTradesLine(card.suggestions)
+    : `${possibleTradesLine(card.suggestions)} · ${card.suggestionsElsewhere} more in ${groups}`;
 }
 
 export function isQuietTradeHubCard(card: TradeHubCard<TradeHubMember>): boolean {
